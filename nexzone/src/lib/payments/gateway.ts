@@ -1,45 +1,48 @@
 // Adaptador de pagamento agnóstico.
-// Troque a implementação conforme o gateway escolhido (Mercado Pago / Iugu / Pagar.me).
-// A ideia: o resto do app fala com esta interface; só este arquivo conhece o gateway.
-
 export interface CreatePaymentInput {
   orderId: string;
-  amount: number;          // total da compra
-  sellerRecipientId: string | null; // subconta/recipient do vendedor no gateway
-  feePercent: number;      // taxa da plataforma (ex.: 3)
+  amount: number;
+  sellerRecipientId: string | null;
+  feePercent: number;
   description: string;
   payerEmail?: string;
 }
-
 export interface CreatePaymentResult {
-  gatewayRef: string;      // id da transação no gateway
-  pixCopiaECola?: string;  // payload do Pix (copia e cola)
-  pixQrBase64?: string;    // imagem do QR em base64
+  gatewayRef: string;
+  pixCopiaECola?: string;
+  pixQrBase64?: string;
   status: 'pendente' | 'pago' | 'erro';
+  error?: string;
 }
-
 export interface WebhookEvent {
   gatewayRef: string;
   status: 'pago' | 'recusado' | 'estornado' | 'pendente';
   orderId?: string;
 }
-
 export interface PaymentGateway {
   createPixPayment(input: CreatePaymentInput): Promise<CreatePaymentResult>;
   parseWebhook(req: Request, rawBody: string): Promise<WebhookEvent | null>;
 }
 
-// -------- Implementação Mercado Pago (esqueleto pronto para credenciais) --------
-// Docs split: https://www.mercadopago.com.br/developers/pt/docs/split-payments
 class MercadoPagoGateway implements PaymentGateway {
   private token = process.env.PAYMENT_ACCESS_TOKEN!;
 
   async createPixPayment(input: CreatePaymentInput): Promise<CreatePaymentResult> {
     if (!this.token) {
-      // Sem credenciais ainda: retorna um Pix simulado para o fluxo rodar em dev.
-      return { gatewayRef: `dev_${input.orderId}`, pixCopiaECola: '00020126...SIMULADO', status: 'pendente' };
+      return { gatewayRef: `dev_${input.orderId}`, pixCopiaECola: '00020126SIMULADO', status: 'pendente' };
     }
-    const fee = +(input.amount * (input.feePercent / 100)).toFixed(2);
+    const body: any = {
+      transaction_amount: Number(input.amount.toFixed(2)),
+      description: input.description,
+      payment_method_id: 'pix',
+      payer: { email: input.payerEmail || 'comprador@nexzone.com.br' },
+      external_reference: input.orderId,
+      notification_url: `${process.env.NEXT_PUBLIC_SITE_URL}/api/webhooks/payment`,
+    };
+    // Split só quando o vendedor tem recipient conectado. Conta única = Pix normal.
+    if (input.sellerRecipientId) {
+      body.application_fee = +(input.amount * (input.feePercent / 100)).toFixed(2);
+    }
     const res = await fetch('https://api.mercadopago.com/v1/payments', {
       method: 'POST',
       headers: {
@@ -47,19 +50,13 @@ class MercadoPagoGateway implements PaymentGateway {
         'Content-Type': 'application/json',
         'X-Idempotency-Key': input.orderId,
       },
-      body: JSON.stringify({
-        transaction_amount: input.amount,
-        description: input.description,
-        payment_method_id: 'pix',
-        payer: { email: input.payerEmail || 'comprador@nexzone.com.br' },
-        // split: valor que fica com a plataforma (application_fee) e destino do vendedor
-        application_fee: fee,
-        // marketplace / recipient do vendedor vai aqui conforme o modelo da conta
-        external_reference: input.orderId,
-        notification_url: `${process.env.NEXT_PUBLIC_SITE_URL}/api/webhooks/payment`,
-      }),
+      body: JSON.stringify(body),
     });
     const data = await res.json();
+    if (!res.ok) {
+      console.error('Mercado Pago erro:', JSON.stringify(data));
+      return { gatewayRef: '', status: 'erro', error: data?.message || JSON.stringify(data) };
+    }
     const tx = data?.point_of_interaction?.transaction_data;
     return {
       gatewayRef: String(data.id),
@@ -70,12 +67,10 @@ class MercadoPagoGateway implements PaymentGateway {
   }
 
   async parseWebhook(_req: Request, rawBody: string): Promise<WebhookEvent | null> {
-    // TODO: validar assinatura (PAYMENT_WEBHOOK_SECRET) antes de confiar no evento.
     try {
       const body = JSON.parse(rawBody);
       const id = body?.data?.id;
       if (!id) return null;
-      // Confirma o status real consultando a API (não confie só no payload):
       const r = await fetch(`https://api.mercadopago.com/v1/payments/${id}`, {
         headers: { Authorization: `Bearer ${this.token}` },
       });
@@ -89,11 +84,5 @@ class MercadoPagoGateway implements PaymentGateway {
 }
 
 export function getGateway(): PaymentGateway {
-  switch (process.env.PAYMENT_PROVIDER) {
-    case 'mercadopago':
-    default:
-      return new MercadoPagoGateway();
-    // case 'iugu': return new IuguGateway();
-    // case 'pagarme': return new PagarmeGateway();
-  }
+  return new MercadoPagoGateway();
 }
