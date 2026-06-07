@@ -14,19 +14,25 @@ export async function POST(req: Request) {
     .eq('id', productId).eq('status', 'ativo').single();
   if (!product) return NextResponse.json({ error: 'produto indisponível' }, { status: 404 });
 
+  const { data: existing } = await supabase.from('orders')
+    .select('id, pix_code')
+    .eq('comprador', user.id).eq('product_id', product.id).eq('status', 'pendente')
+    .order('created_at', { ascending: false }).limit(1).maybeSingle();
+  if (existing && (existing as any).pix_code) {
+    return NextResponse.json({ orderId: existing.id });
+  }
+
   const total = Number(product.preco_promo ?? product.preco);
   const feePercent = Number(process.env.PLATFORM_FEE_PERCENT ?? 3);
   const taxa = +(total * (feePercent / 100)).toFixed(2);
   const valorVendedor = +(total - taxa).toFixed(2);
 
-  // 1) cria pedido pendente
   const { data: order, error } = await supabase.from('orders').insert({
     comprador: user.id, product_id: product.id, store_id: product.store_id,
     total, taxa, valor_vendedor: valorVendedor, status: 'pendente',
   }).select().single();
   if (error || !order) return NextResponse.json({ error: 'falha ao criar pedido' }, { status: 500 });
 
-  // 2) gera cobrança Pix no gateway (com split quando houver vendedor conectado)
   const gw = getGateway();
   const pay = await gw.createPixPayment({
     orderId: order.id, amount: total,
@@ -38,9 +44,11 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: pay.error || 'falha no gateway' }, { status: 502 });
   }
 
-  await supabase.from('orders').update({ gateway_ref: pay.gatewayRef }).eq('id', order.id);
+  await supabase.from('orders').update({
+    gateway_ref: pay.gatewayRef,
+    pix_code: pay.pixCopiaECola ?? null,
+    pix_qr: pay.pixQrBase64 ?? null,
+  }).eq('id', order.id);
 
-  return NextResponse.json({
-    orderId: order.id, pix: pay.pixCopiaECola, qr: pay.pixQrBase64,
-  });
+  return NextResponse.json({ orderId: order.id });
 }
