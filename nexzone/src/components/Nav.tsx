@@ -11,8 +11,10 @@ export default async function Nav() {
         <div className="nav-wrap">
           <Link href="/" className="logo">Nex<span className="g">Zone</span></Link>
           <div className="nav-end">
+            <Link href="/" className="btn btn-ghost btn-sm">Início</Link>
             {user ? (
               <>
+                <Link href="/minhas-compras" className="btn btn-ghost btn-sm">Minhas Compras</Link>
                 <Link href="/vender" className="btn btn-ghost btn-sm">Painel</Link>
                 <form action="/auth/signout" method="post"><button className="btn btn-dark btn-sm">Sair</button></form>
               </>
