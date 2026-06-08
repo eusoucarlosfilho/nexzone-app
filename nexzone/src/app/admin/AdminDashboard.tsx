@@ -15,11 +15,12 @@ const STATUS: Record<string, [string, string]> = {
   reprovado: ['#E23B3B', 'Reprovado'],
 };
 
-export default function AdminDashboard({ metrics, daily, orders, products, stores }: any) {
+export default function AdminDashboard({ metrics, daily, orders, products, stores, payouts }: any) {
   const [tab, setTab] = useState('cockpit');
   const [queue, setQueue] = useState(products.filter((p: any) => p.status === 'em_revisao'));
   const [allProducts, setAllProducts] = useState(products);
   const [orderFilter, setOrderFilter] = useState('todos');
+  const [payoutList, setPayoutList] = useState(payouts || []);
   const [busy, setBusy] = useState<string | null>(null);
 
   async function moderar(id: string, action: 'aprovar' | 'reprovar') {
@@ -37,12 +38,25 @@ export default function AdminDashboard({ metrics, daily, orders, products, store
     } finally { setBusy(null); }
   }
 
+  async function moderarSaque(id: string, action: 'pagar' | 'recusar') {
+    setBusy(id);
+    try {
+      const r = await fetch('/api/admin/payout-status', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        credentials: 'include', body: JSON.stringify({ id, action }),
+      });
+      const d = await r.json();
+      if (r.ok) setPayoutList((ps: any[]) => ps.map((p) => p.id === id ? { ...p, status: d.status } : p));
+    } finally { setBusy(null); }
+  }
+
   const NAV = [
     ['cockpit', '📊', 'Cockpit', 0],
     ['aprovacao', '✅', 'Aprovação', queue.length],
     ['pedidos', '🧾', 'Pedidos', 0],
     ['vendedores', '🏪', 'Vendedores', metrics.lojasPendentes],
     ['produtos', '📦', 'Produtos', 0],
+    ['saques', '💸', 'Saques', metrics.saquesPendentes],
   ];
 
   const maxDay = Math.max(1, ...daily.map((d: any) => d.total));
@@ -267,6 +281,43 @@ export default function AdminDashboard({ metrics, daily, orders, products, store
                   </tbody>
                 </table>
               ) : <div className="adm-empty">Nenhum produto ainda.</div>}
+            </div>
+          </>
+        )}
+
+        {tab === 'saques' && (
+          <>
+            <h1 className="adm-h">Saques</h1>
+            <p className="adm-sub">Repasses solicitados pelos vendedores. Faça o Pix e marque como pago.</p>
+            <div className="adm-stats">
+              <div className="adm-stat"><div className="ic">💸</div><b>{money(metrics.aRepassar)}</b><small>A repassar agora</small></div>
+              <div className="adm-stat"><div className="ic">⏳</div><b>{fmt(metrics.saquesPendentes)}</b><small>Saques pendentes</small></div>
+            </div>
+            <div className="adm-card">
+              {payoutList.length ? (
+                <table className="adm-table">
+                  <thead><tr><th>Vendedor</th><th>Valor</th><th>Chave Pix</th><th>Status</th><th>Data</th><th></th></tr></thead>
+                  <tbody>
+                    {payoutList.map((p: any) => (
+                      <tr key={p.id}>
+                        <td><b style={{ fontFamily: 'Outfit' }}>{p.stores?.nome ?? '—'}</b></td>
+                        <td style={{ color: 'var(--or2)', fontFamily: 'Outfit', fontWeight: 800 }}>{money(p.valor)}</td>
+                        <td style={{ color: 'var(--sub)' }}>{p.pix_tipo ? p.pix_tipo.toUpperCase() + ': ' : ''}{p.pix_key ?? '—'}</td>
+                        <td><Pill s={p.status === 'solicitado' ? 'pendente' : p.status === 'pago' ? 'pago' : 'reprovado'} /></td>
+                        <td style={{ color: 'var(--sub)' }}>{new Date(p.created_at).toLocaleDateString('pt-BR')}</td>
+                        <td>
+                          {p.status === 'solicitado' && (
+                            <span style={{ display: 'flex', gap: 6 }}>
+                              <button className="adm-btn ap" disabled={busy === p.id} onClick={() => moderarSaque(p.id, 'pagar')}>Marcar pago</button>
+                              <button className="adm-btn rp" disabled={busy === p.id} onClick={() => moderarSaque(p.id, 'recusar')}>Recusar</button>
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : <div className="adm-empty">Nenhum saque solicitado.</div>}
             </div>
           </>
         )}
