@@ -1,4 +1,3 @@
-import Nav from '@/components/Nav';
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
@@ -16,11 +15,11 @@ export default async function RecebimentosPage() {
     .select('id, pix_key, pix_tipo').eq('owner', user.id).maybeSingle();
   if (!store) {
     return (
-      <><Nav /><div className="page">
-        <h1>Recebimentos</h1>
-        <p className="muted">Você precisa criar sua loja primeiro.</p>
-        <Link className="btn btn-pri btn-sm" href="/vender" style={{ marginTop: 12, display: 'inline-block' }}>Ir para o painel</Link>
-      </div></>
+      <div>
+        <h1 style={{ fontFamily: 'Outfit', fontSize: 26, fontWeight: 900 }}>Recebimentos</h1>
+        <p className="muted">Cadastre um produto primeiro para criar sua loja.</p>
+        <Link className="btn btn-pri btn-sm" href="/vender/produtos" style={{ marginTop: 12, display: 'inline-block' }}>Cadastrar produto</Link>
+      </div>
     );
   }
 
@@ -29,9 +28,5 @@ export default async function RecebimentosPage() {
     .select('id, valor, status, created_at, pago_em').eq('store_id', store.id)
     .order('created_at', { ascending: false });
 
-  return (
-    <><Nav /><div className="page">
-      <RecebimentosClient bal={bal} pixKey={store.pix_key} pixTipo={store.pix_tipo} payouts={payouts ?? []} />
-    </div></>
-  );
+  return <RecebimentosClient bal={bal} pixKey={store.pix_key} pixTipo={store.pix_tipo} payouts={payouts ?? []} />;
 }
