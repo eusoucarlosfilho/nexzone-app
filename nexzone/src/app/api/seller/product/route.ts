@@ -41,6 +41,7 @@ export async function PATCH(req: Request) {
       emoji: String(body.emoji || '📦'),
       arquivo_path: body.arquivo_path ? String(body.arquivo_path) : null,
       arquivo_nome: body.arquivo_nome ? String(body.arquivo_nome) : null,
+      capa_url: body.capa_url ? String(body.capa_url) : null,
       status: 'em_revisao',
     };
   }
