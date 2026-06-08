@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { criarProduto } from '../actions';
 import FileUpload from './FileUpload';
+import CoverUpload from './CoverUpload';
 
 const CATS = ['IA & Ferramentas', 'Templates & Planilhas', 'Design', 'Automações', 'Marketing Digital', 'Cursos & Ebooks'];
 
@@ -9,10 +10,15 @@ export default function CreateProduct({ userId }: { userId: string }) {
   const [tipo, setTipo] = useState('arquivo');
   const [arquivoPath, setArquivoPath] = useState('');
   const [arquivoNome, setArquivoNome] = useState('');
+  const [capaUrl, setCapaUrl] = useState('');
 
   return (
     <form action={criarProduto}>
       <div className="fg"><label>Título</label><input name="titulo" required placeholder="Ex: Pack 100 Templates de Carrossel" /></div>
+      <div className="fg"><label>Imagem de capa</label>
+        <CoverUpload userId={userId} onUploaded={setCapaUrl} />
+        <input type="hidden" name="capa_url" value={capaUrl} />
+      </div>
       <div className="fg"><label>Categoria</label>
         <select name="categoria">{CATS.map((c) => <option key={c}>{c}</option>)}</select>
       </div>
