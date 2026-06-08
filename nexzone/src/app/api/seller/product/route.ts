@@ -39,6 +39,8 @@ export async function PATCH(req: Request) {
       conteudo_entrega: String(body.conteudo_entrega || ''),
       garantia_dias: Number(body.garantia_dias || 7),
       emoji: String(body.emoji || '📦'),
+      arquivo_path: body.arquivo_path ? String(body.arquivo_path) : null,
+      arquivo_nome: body.arquivo_nome ? String(body.arquivo_nome) : null,
       status: 'em_revisao',
     };
   }
