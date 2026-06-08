@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import { criarProduto } from '../actions';
+import MyProducts from './MyProducts';
 
 const money = (v: number) => 'R$ ' + Number(v).toFixed(2).replace('.', ',');
 export const dynamic = 'force-dynamic';
@@ -49,16 +50,7 @@ export default async function ProdutosPage() {
 
       <h2 style={{ fontFamily: 'Outfit', fontSize: 18, margin: '28px 0 14px' }}>Meus produtos</h2>
       <div className="card" style={{ padding: 0 }}>
-        {(produtos ?? []).length ? (produtos as any[]).map((p) => {
-          const st = { em_revisao: ['rev', 'Em revisão'], ativo: ['act', 'Ativo'], reprovado: ['rej', 'Reprovado'], pausado: ['rev', 'Pausado'] }[p.status as string] || ['rev', p.status];
-          return (
-            <div className="li" key={p.id}>
-              <div className="em">{p.emoji}</div>
-              <div style={{ flex: 1 }}><strong style={{ fontFamily: 'Outfit' }}>{p.titulo}</strong><div className="muted">{money(p.preco_promo ?? p.preco)} · {p.categoria} · {p.vendas} vendas</div></div>
-              <span className={`pill ${st[0]}`}>{st[1]}</span>
-            </div>
-          );
-        }) : <div style={{ padding: 24 }} className="muted">Nenhum produto ainda.</div>}
+        <MyProducts products={produtos ?? []} />
       </div>
     </div>
   );
