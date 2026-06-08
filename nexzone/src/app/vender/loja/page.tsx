@@ -25,7 +25,7 @@ export default async function LojaPage() {
         <h1 style={{ fontFamily: 'Outfit', fontSize: 26, fontWeight: 900 }}>Minha Loja</h1>
         <span className={`pill ${st[0]}`}>{st[1]}</span>
       </div>
-      <p className="muted">Como sua loja aparece para os compradores.</p>
+      <p className="muted">Como sua loja aparece para os compradores. <a href={`/loja/${store.slug}`} target="_blank" rel="noreferrer" style={{ color: 'var(--orange)', fontWeight: 700 }}>Ver página pública ›</a></p>
 
       <div className="card" style={{ marginTop: 22, maxWidth: 620 }}>
         <form action={salvarLoja}>
