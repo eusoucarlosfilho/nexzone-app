@@ -1,5 +1,6 @@
 'use client';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useTransition } from 'react';
+import { enviarAvaliacao } from './actions';
 
 const money = (v: number) => 'R$ ' + Number(v).toFixed(2).replace('.', ',');
 
@@ -10,6 +11,7 @@ type Props = {
   pixQr: string | null;
   conteudo: string | null;
   temArquivo?: boolean;
+  jaAvaliou?: boolean;
   titulo: string;
   emoji: string;
   total: number;
@@ -20,6 +22,13 @@ export default function OrderView(props: Props) {
   const [conteudo, setConteudo] = useState(props.conteudo);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const pago = status === 'pago' || status === 'entregue';
+
+  const [avaliado, setAvaliado] = useState(!!props.jaAvaliou);
+  const [nota, setNota] = useState(0);
+  const [hover, setHover] = useState(0);
+  const [coment, setComent] = useState('');
+  const [msg, setMsg] = useState('');
+  const [pending, start] = useTransition();
 
   useEffect(() => {
     if (pago) return;
@@ -37,6 +46,16 @@ export default function OrderView(props: Props) {
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
   }, [pago, props.orderId]);
 
+  function enviar() {
+    if (nota < 1) { setMsg('Escolha de 1 a 5 estrelas.'); return; }
+    setMsg('');
+    start(async () => {
+      const r = await enviarAvaliacao(props.orderId, nota, coment);
+      if (r.ok) setAvaliado(true);
+      else setMsg(r.error || 'Erro ao enviar.');
+    });
+  }
+
   return (
     <div className="card">
       <div className="li" style={{ padding: '0 0 16px', borderBottom: '1px solid var(--border)' }}>
@@ -48,16 +67,41 @@ export default function OrderView(props: Props) {
       </div>
 
       {pago ? (
-        <div style={{ textAlign: 'center', paddingTop: 18 }}>
-          <div style={{ fontFamily: 'Outfit', fontWeight: 800, color: 'var(--green)', fontSize: 20 }}>✓ Pagamento confirmado!</div>
-          <p className="muted" style={{ margin: '6px 0 14px' }}>Seu produto está liberado.</p>
-          {props.temArquivo
-            ? <a className="btn btn-pri" href={`/api/download?order=${props.orderId}`}>⬇ Baixar produto</a>
-            : conteudo && String(conteudo).startsWith('http')
-              ? <a className="btn btn-pri" href={conteudo} target="_blank" rel="noreferrer">Acessar produto</a>
-              : conteudo
-                ? <div className="muted" style={{ fontSize: 13, wordBreak: 'break-word' }}>{conteudo}</div>
-                : <p className="muted" style={{ fontSize: 13 }}>O vendedor ainda não cadastrou o conteúdo de entrega deste produto.</p>}
+        <div style={{ paddingTop: 18 }}>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontFamily: 'Outfit', fontWeight: 800, color: 'var(--green)', fontSize: 20 }}>✓ Pagamento confirmado!</div>
+            <p className="muted" style={{ margin: '6px 0 14px' }}>Seu produto está liberado.</p>
+            {props.temArquivo
+              ? <a className="btn btn-pri" href={`/api/download?order=${props.orderId}`}>⬇ Baixar produto</a>
+              : conteudo && String(conteudo).startsWith('http')
+                ? <a className="btn btn-pri" href={conteudo} target="_blank" rel="noreferrer">Acessar produto</a>
+                : conteudo
+                  ? <div className="muted" style={{ fontSize: 13, wordBreak: 'break-word' }}>{conteudo}</div>
+                  : <p className="muted" style={{ fontSize: 13 }}>O vendedor ainda não cadastrou o conteúdo de entrega deste produto.</p>}
+          </div>
+
+          <div style={{ borderTop: '1px solid var(--border)', marginTop: 22, paddingTop: 18 }}>
+            {avaliado ? (
+              <p style={{ textAlign: 'center', color: 'var(--green)', fontWeight: 700, fontFamily: 'Outfit' }}>★ Obrigado pela sua avaliação!</p>
+            ) : (
+              <div style={{ textAlign: 'center' }}>
+                <strong style={{ fontFamily: 'Outfit', display: 'block', marginBottom: 10 }}>Avalie sua compra</strong>
+                <div style={{ fontSize: 30, marginBottom: 10, cursor: 'pointer', userSelect: 'none' }}>
+                  {[1, 2, 3, 4, 5].map((n) => (
+                    <span key={n} onClick={() => setNota(n)} onMouseEnter={() => setHover(n)} onMouseLeave={() => setHover(0)}
+                      style={{ color: (hover || nota) >= n ? '#FFB200' : '#D9D9E3', padding: '0 2px' }}>★</span>
+                  ))}
+                </div>
+                <textarea value={coment} onChange={(e) => setComent(e.target.value)} rows={3}
+                  placeholder="Conte como foi sua experiência (opcional)"
+                  style={{ width: '100%', maxWidth: 420, marginBottom: 10 }} />
+                <div>
+                  <button className="btn btn-pri btn-sm" disabled={pending} onClick={enviar}>{pending ? 'Enviando…' : 'Enviar avaliação'}</button>
+                </div>
+                {msg && <p className="muted" style={{ color: 'var(--red)', fontSize: 12, marginTop: 8 }}>{msg}</p>}
+              </div>
+            )}
+          </div>
         </div>
       ) : (
         <div style={{ textAlign: 'center', paddingTop: 18 }}>
