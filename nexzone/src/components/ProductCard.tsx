@@ -7,8 +7,10 @@ export default function ProductCard({ p }: { p: Product }) {
   const preco = p.preco_promo ?? p.preco;
   return (
     <Link href={`/produto/${p.id}`} className="pc">
-      <div className="top" style={{ background: 'var(--soft)' }}>
-        {p.emoji}
+      <div className="top" style={p.capa_url
+        ? { backgroundImage: `url(${p.capa_url})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+        : { background: 'var(--soft)' }}>
+        {!p.capa_url && p.emoji}
         {p.vendas > 1000 && <span className="badge">🔥 HOT</span>}
       </div>
       <div className="body">
