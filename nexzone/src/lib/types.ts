@@ -15,8 +15,9 @@ export interface Product {
   garantia_dias: number;
   status: ProductStatus;
   emoji: string;
+  capa_url?: string | null;
   vendas: number;
   nota: number;
   created_at: string;
-  stores?: { nome: string; nivel: string } | null;
+  stores?: { nome: string; nivel: string; slug?: string } | null;
 }
