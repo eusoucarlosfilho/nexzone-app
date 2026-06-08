@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import FileUpload from './FileUpload';
+import CoverUpload from './CoverUpload';
 
 const money = (v: number) => 'R$ ' + Number(v).toFixed(2).replace('.', ',');
 const ST: Record<string, [string, string]> = {
@@ -22,7 +23,7 @@ export default function MyProducts({ products, userId }: any) {
       titulo: p.titulo, descricao: p.descricao || '', categoria: p.categoria || CATS[0],
       preco: p.preco, preco_promo: p.preco_promo || '', tipo_entrega: p.tipo_entrega || 'arquivo',
       garantia_dias: p.garantia_dias || 7, conteudo_entrega: p.conteudo_entrega || '', emoji: p.emoji || '📦',
-      arquivo_path: p.arquivo_path || '', arquivo_nome: p.arquivo_nome || '',
+      arquivo_path: p.arquivo_path || '', arquivo_nome: p.arquivo_nome || '', capa_url: p.capa_url || '',
     });
   }
 
@@ -113,6 +114,9 @@ export default function MyProducts({ products, userId }: any) {
                   <div className="fg"><label>Garantia (dias)</label><input type="number" value={form.garantia_dias} onChange={(e) => setForm({ ...form, garantia_dias: e.target.value })} /></div>
                 </div>
 
+                <div className="fg"><label>Imagem de capa</label>
+                  <CoverUpload userId={userId} value={form.capa_url} onUploaded={(u) => setForm({ ...form, capa_url: u })} />
+                </div>
                 {form.tipo_entrega === 'arquivo' ? (
                   <div className="fg">
                     <label>Arquivo do produto</label>
