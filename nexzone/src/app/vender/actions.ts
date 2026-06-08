@@ -43,6 +43,7 @@ export async function criarProduto(formData: FormData) {
     arquivo_nome: String(formData.get('arquivo_nome') || '') || null,
     garantia_dias: Number(formData.get('garantia_dias') || 7),
     emoji: String(formData.get('emoji') || '📦'),
+    capa_url: String(formData.get('capa_url') || '') || null,
     status: 'em_revisao',
   });
   revalidatePath('/vender');
