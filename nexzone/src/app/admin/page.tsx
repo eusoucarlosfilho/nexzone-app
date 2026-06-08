@@ -1,9 +1,7 @@
-import Nav from '@/components/Nav';
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
-import { aprovarProduto, reprovarProduto } from './actions';
+import AdminDashboard from './AdminDashboard';
 
-const money = (v: number) => 'R$ ' + Number(v).toFixed(2).replace('.', ',');
 export const dynamic = 'force-dynamic';
 
 export default async function AdminPage() {
@@ -12,33 +10,58 @@ export default async function AdminPage() {
   if (!user) redirect('/login');
   const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
   if (profile?.role !== 'admin') {
-    return (<><Nav /><div className="page"><h1>Acesso restrito</h1><p className="muted">Defina seu usuário como admin no banco: <code>update profiles set role='admin' where id='SEU_ID';</code></p></div></>);
+    return (
+      <div style={{ padding: 40, fontFamily: 'system-ui', textAlign: 'center' }}>
+        <h1>Acesso restrito</h1>
+        <p>Esta área é só para administradores.</p>
+      </div>
+    );
   }
 
-  const { data: fila } = await supabase.from('products').select('*, stores(nome)').eq('status', 'em_revisao').order('created_at');
-  const { data: orders } = await supabase.from('orders').select('total, taxa');
-  const gmv = (orders ?? []).reduce((s, o: any) => s + Number(o.total), 0);
-  const take = (orders ?? []).reduce((s, o: any) => s + Number(o.taxa), 0);
+  const [ordersRes, productsRes, storesRes, buyersRes] = await Promise.all([
+    supabase.from('orders')
+      .select('id, status, total, taxa, created_at, products(titulo, emoji), stores(nome)')
+      .order('created_at', { ascending: false }),
+    supabase.from('products')
+      .select('id, titulo, emoji, preco, preco_promo, categoria, status, vendas, created_at, stores(nome)')
+      .order('created_at', { ascending: false }),
+    supabase.from('stores')
+      .select('id, nome, categoria, status, nivel, created_at')
+      .order('created_at', { ascending: false }),
+    supabase.from('profiles').select('id', { count: 'exact', head: true }).in('role', ['comprador', 'ambos']),
+  ]);
 
-  return (
-    <>
-      <Nav />
-      <div className="page">
-        <h1>Admin</h1>
-        <p className="muted">GMV: <strong>{money(gmv)}</strong> · Receita 3%: <strong>{money(take)}</strong> · Na fila: <strong>{(fila ?? []).length}</strong></p>
-        <h2 style={{ fontFamily: 'Outfit', fontSize: 18, margin: '22px 0 14px' }}>Fila de aprovação</h2>
-        <div className="card" style={{ padding: 0 }}>
-          {(fila ?? []).length ? (fila as any[]).map((p) => (
-            <div className="li" key={p.id}>
-              <div className="em">{p.emoji}</div>
-              <div><strong style={{ fontFamily: 'Outfit' }}>{p.titulo}</strong><div className="muted">{p.stores?.nome} · {money(p.preco_promo ?? p.preco)}</div></div>
-              <div className="spacer" />
-              <form action={aprovarProduto.bind(null, p.id)}><button className="btn btn-pri btn-sm">Aprovar</button></form>
-              <form action={reprovarProduto.bind(null, p.id)}><button className="btn btn-ghost btn-sm">Reprovar</button></form>
-            </div>
-          )) : <div style={{ padding: 24 }} className="muted">Fila zerada.</div>}
-        </div>
-      </div>
-    </>
-  );
+  const orders = (ordersRes.data ?? []) as any[];
+  const products = (productsRes.data ?? []) as any[];
+  const stores = (storesRes.data ?? []) as any[];
+  const buyersCount = buyersRes.count ?? 0;
+
+  const paid = orders.filter((o) => o.status === 'pago' || o.status === 'entregue');
+  const gmv = paid.reduce((s, o) => s + Number(o.total), 0);
+  const receita = paid.reduce((s, o) => s + Number(o.taxa), 0);
+  const ticket = paid.length ? gmv / paid.length : 0;
+
+  const daily: { label: string; total: number }[] = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - i);
+    const next = new Date(d); next.setDate(d.getDate() + 1);
+    const total = paid
+      .filter((o) => { const t = new Date(o.created_at); return t >= d && t < next; })
+      .reduce((s, o) => s + Number(o.total), 0);
+    daily.push({ label: d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }), total });
+  }
+
+  const metrics = {
+    gmv, receita, ticket,
+    pedidosPagos: paid.length,
+    pedidosTotal: orders.length,
+    filaProdutos: products.filter((p) => p.status === 'em_revisao').length,
+    lojasPendentes: stores.filter((s) => s.status === 'pendente').length,
+    totalLojas: stores.length,
+    totalProdutos: products.length,
+    totalProdutosAtivos: products.filter((p) => p.status === 'ativo').length,
+    buyersCount,
+  };
+
+  return <AdminDashboard metrics={metrics} daily={daily} orders={orders} products={products} stores={stores} />;
 }
