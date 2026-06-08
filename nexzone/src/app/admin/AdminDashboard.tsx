@@ -1,0 +1,276 @@
+'use client';
+import { useState } from 'react';
+
+const money = (v: number) => 'R$ ' + Number(v).toFixed(2).replace('.', ',');
+const fmt = (v: number) => Number(v).toLocaleString('pt-BR');
+
+const STATUS: Record<string, [string, string]> = {
+  pendente: ['#B7791F', 'Pendente'],
+  pago: ['#00B87A', 'Pago'],
+  entregue: ['#00B87A', 'Entregue'],
+  reembolsado: ['#E23B3B', 'Reembolsado'],
+  cancelado: ['#E23B3B', 'Cancelado'],
+  em_revisao: ['#B7791F', 'Em revisão'],
+  ativo: ['#00B87A', 'Ativo'],
+  reprovado: ['#E23B3B', 'Reprovado'],
+};
+
+export default function AdminDashboard({ metrics, daily, orders, products, stores }: any) {
+  const [tab, setTab] = useState('cockpit');
+  const [queue, setQueue] = useState(products.filter((p: any) => p.status === 'em_revisao'));
+  const [allProducts, setAllProducts] = useState(products);
+  const [orderFilter, setOrderFilter] = useState('todos');
+  const [busy, setBusy] = useState<string | null>(null);
+
+  async function moderar(id: string, action: 'aprovar' | 'reprovar') {
+    setBusy(id);
+    try {
+      const r = await fetch('/api/admin/product-status', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        credentials: 'include', body: JSON.stringify({ id, action }),
+      });
+      const d = await r.json();
+      if (r.ok) {
+        setQueue((q: any[]) => q.filter((p) => p.id !== id));
+        setAllProducts((ps: any[]) => ps.map((p) => p.id === id ? { ...p, status: d.status } : p));
+      }
+    } finally { setBusy(null); }
+  }
+
+  const NAV = [
+    ['cockpit', '📊', 'Cockpit', 0],
+    ['aprovacao', '✅', 'Aprovação', queue.length],
+    ['pedidos', '🧾', 'Pedidos', 0],
+    ['vendedores', '🏪', 'Vendedores', metrics.lojasPendentes],
+    ['produtos', '📦', 'Produtos', 0],
+  ];
+
+  const maxDay = Math.max(1, ...daily.map((d: any) => d.total));
+  const filteredOrders = orderFilter === 'todos' ? orders : orders.filter((o: any) => o.status === orderFilter);
+
+  const Pill = ({ s }: { s: string }) => {
+    const [c, label] = STATUS[s] || ['#9E9EBA', s];
+    return <span className="adm-pill" style={{ color: c, background: c + '22' }}>{label}</span>;
+  };
+
+  return (
+    <div className="adm">
+      <style>{`
+        .adm{--bg:#0E0E18;--panel:#16161F;--panel2:#1C1C28;--bd:#26263340;--bd2:#2A2A3A;--tx:#EDEDF5;--sub:#9292AC;--or:#FF7A14;--or2:#FF9A3C;--grad:linear-gradient(135deg,#FF6B00,#FF9A3C);min-height:100vh;background:var(--bg);color:var(--tx);font-family:'Nunito',sans-serif;display:flex;}
+        .adm *{box-sizing:border-box;}
+        .adm-side{width:230px;background:var(--panel);border-right:1px solid var(--bd2);padding:22px 14px;flex-shrink:0;display:flex;flex-direction:column;gap:4px;position:sticky;top:0;height:100vh;}
+        .adm-logo{font-family:'Outfit';font-weight:900;font-size:22px;letter-spacing:-1px;padding:0 8px 18px;}
+        .adm-logo span{background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+        .adm-nav{display:flex;align-items:center;gap:11px;padding:11px 13px;border-radius:11px;font-family:'Outfit';font-weight:600;font-size:14px;color:var(--sub);background:none;border:none;cursor:pointer;width:100%;text-align:left;transition:.15s;}
+        .adm-nav:hover{background:var(--panel2);color:var(--tx);}
+        .adm-nav.on{background:#FF7A1420;color:var(--or2);}
+        .adm-nav .bd{margin-left:auto;background:var(--or);color:#fff;font-size:11px;font-weight:800;border-radius:50px;padding:1px 8px;}
+        .adm-foot{margin-top:auto;border-top:1px solid var(--bd2);padding-top:12px;}
+        .adm-foot a{display:block;padding:9px 13px;font-size:13px;color:var(--sub);text-decoration:none;border-radius:9px;font-family:'Outfit';font-weight:600;}
+        .adm-foot a:hover{background:var(--panel2);color:var(--tx);}
+        .adm-main{flex:1;padding:30px 34px;min-width:0;}
+        .adm-h{font-family:'Outfit';font-size:26px;font-weight:800;letter-spacing:-.6px;margin:0 0 4px;}
+        .adm-sub{color:var(--sub);font-size:14px;margin:0 0 26px;}
+        .adm-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:16px;margin-bottom:24px;}
+        .adm-stat{background:var(--panel);border:1px solid var(--bd2);border-radius:16px;padding:20px;}
+        .adm-stat .ic{width:40px;height:40px;border-radius:11px;background:#FF7A1420;color:var(--or2);display:flex;align-items:center;justify-content:center;font-size:18px;margin-bottom:12px;}
+        .adm-stat b{font-family:'Outfit';font-size:25px;font-weight:800;display:block;letter-spacing:-.5px;}
+        .adm-stat small{color:var(--sub);font-size:12px;font-weight:700;}
+        .adm-card{background:var(--panel);border:1px solid var(--bd2);border-radius:16px;padding:22px;margin-bottom:20px;}
+        .adm-ct{font-family:'Outfit';font-weight:800;font-size:15px;margin:0 0 16px;}
+        .adm-bars{display:flex;align-items:flex-end;gap:10px;height:140px;}
+        .adm-bar{flex:1;display:flex;flex-direction:column;align-items:center;gap:8px;justify-content:flex-end;height:100%;}
+        .adm-bar .b{width:100%;max-width:38px;background:var(--grad);border-radius:7px 7px 0 0;min-height:4px;transition:.3s;}
+        .adm-bar .l{font-size:11px;color:var(--sub);font-weight:700;}
+        .adm-bar .v{font-size:11px;color:var(--tx);font-weight:800;font-family:'Outfit';}
+        .adm-table{width:100%;border-collapse:collapse;font-size:13px;}
+        .adm-table th{text-align:left;color:var(--sub);font-family:'Outfit';font-weight:700;font-size:11px;letter-spacing:.5px;text-transform:uppercase;padding:10px 12px;border-bottom:1px solid var(--bd2);}
+        .adm-table td{padding:13px 12px;border-bottom:1px solid var(--bd);}
+        .adm-table tr:last-child td{border-bottom:none;}
+        .adm-table .em{font-size:18px;}
+        .adm-pill{font-size:11px;font-weight:800;font-family:'Outfit';padding:3px 10px;border-radius:50px;white-space:nowrap;}
+        .adm-row{display:flex;align-items:center;gap:13px;padding:14px 0;border-bottom:1px solid var(--bd);}
+        .adm-row:last-child{border-bottom:none;}
+        .adm-row .em{width:42px;height:42px;border-radius:11px;background:var(--panel2);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;}
+        .adm-row .info{flex:1;min-width:0;}
+        .adm-row .info b{font-family:'Outfit';font-size:14px;display:block;}
+        .adm-row .info span{font-size:12px;color:var(--sub);}
+        .adm-btn{font-family:'Outfit';font-weight:700;font-size:13px;padding:8px 15px;border-radius:9px;border:none;cursor:pointer;}
+        .adm-btn.ap{background:var(--grad);color:#fff;}
+        .adm-btn.rp{background:none;border:1px solid var(--bd2);color:var(--sub);}
+        .adm-btn:disabled{opacity:.5;}
+        .adm-filters{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;}
+        .adm-fb{font-family:'Outfit';font-weight:700;font-size:12px;padding:7px 14px;border-radius:50px;background:var(--panel2);color:var(--sub);border:1px solid var(--bd2);cursor:pointer;}
+        .adm-fb.on{background:#FF7A1420;color:var(--or2);border-color:#FF7A1450;}
+        .adm-empty{text-align:center;color:var(--sub);padding:40px;font-size:14px;}
+        .adm-soon{display:inline-block;font-size:10px;font-weight:800;color:var(--sub);background:var(--panel2);border:1px solid var(--bd2);border-radius:50px;padding:2px 9px;margin-left:8px;}
+        @media(max-width:820px){.adm{flex-direction:column;}.adm-side{width:100%;height:auto;position:static;flex-direction:row;overflow-x:auto;padding:10px;}.adm-logo{display:none;}.adm-foot{display:none;}.adm-nav{width:auto;white-space:nowrap;}.adm-main{padding:20px 16px;}}
+      `}</style>
+
+      <aside className="adm-side">
+        <div className="adm-logo">Nex<span>Zone</span></div>
+        {NAV.map(([id, ic, label, badge]: any) => (
+          <button key={id} className={`adm-nav ${tab === id ? 'on' : ''}`} onClick={() => setTab(id)}>
+            <span>{ic}</span> {label} {badge > 0 && <span className="bd">{badge}</span>}
+          </button>
+        ))}
+        <div className="adm-foot">
+          <a href="/">← Voltar ao site</a>
+          <form action="/auth/signout" method="post"><button className="adm-nav" style={{ color: '#E23B3B' }}>⎋ Sair</button></form>
+        </div>
+      </aside>
+
+      <main className="adm-main">
+        {tab === 'cockpit' && (
+          <>
+            <h1 className="adm-h">Cockpit</h1>
+            <p className="adm-sub">Visão geral do NexZone em tempo real.</p>
+            <div className="adm-stats">
+              <div className="adm-stat"><div className="ic">💰</div><b>{money(metrics.gmv)}</b><small>GMV (volume vendido)</small></div>
+              <div className="adm-stat"><div className="ic">📈</div><b>{money(metrics.receita)}</b><small>Sua receita (3%)</small></div>
+              <div className="adm-stat"><div className="ic">🧾</div><b>{fmt(metrics.pedidosPagos)}</b><small>Vendas pagas</small></div>
+              <div className="adm-stat"><div className="ic">🎯</div><b>{money(metrics.ticket)}</b><small>Ticket médio</small></div>
+            </div>
+            <div className="adm-stats">
+              <div className="adm-stat"><div className="ic">🏪</div><b>{fmt(metrics.totalLojas)}</b><small>Vendedores</small></div>
+              <div className="adm-stat"><div className="ic">📦</div><b>{fmt(metrics.totalProdutosAtivos)}</b><small>Produtos ativos</small></div>
+              <div className="adm-stat"><div className="ic">👥</div><b>{fmt(metrics.buyersCount)}</b><small>Compradores</small></div>
+              <div className="adm-stat"><div className="ic">⏳</div><b>{fmt(metrics.filaProdutos)}</b><small>Aguardando aprovação</small></div>
+            </div>
+            <div className="adm-card">
+              <h3 className="adm-ct">Receita dos últimos 7 dias</h3>
+              <div className="adm-bars">
+                {daily.map((d: any, i: number) => (
+                  <div className="adm-bar" key={i}>
+                    <span className="v">{d.total > 0 ? money(d.total).replace('R$ ', '') : ''}</span>
+                    <div className="b" style={{ height: `${(d.total / maxDay) * 100}%` }} />
+                    <span className="l">{d.label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="adm-card">
+              <h3 className="adm-ct">Pedidos recentes</h3>
+              {orders.length ? (
+                <table className="adm-table">
+                  <thead><tr><th>Produto</th><th>Vendedor</th><th>Valor</th><th>Status</th><th>Data</th></tr></thead>
+                  <tbody>
+                    {orders.slice(0, 6).map((o: any) => (
+                      <tr key={o.id}>
+                        <td><span className="em">{o.products?.emoji ?? '📦'}</span> {o.products?.titulo ?? 'Produto'}</td>
+                        <td style={{ color: 'var(--sub)' }}>{o.stores?.nome ?? '—'}</td>
+                        <td>{money(o.total)}</td>
+                        <td><Pill s={o.status} /></td>
+                        <td style={{ color: 'var(--sub)' }}>{new Date(o.created_at).toLocaleDateString('pt-BR')}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : <div className="adm-empty">Nenhum pedido ainda.</div>}
+            </div>
+          </>
+        )}
+
+        {tab === 'aprovacao' && (
+          <>
+            <h1 className="adm-h">Fila de Aprovação</h1>
+            <p className="adm-sub">Curadoria = a defesa da plataforma. Aprove só o que mantém a confiança.</p>
+            <div className="adm-card">
+              {queue.length ? queue.map((p: any) => (
+                <div className="adm-row" key={p.id}>
+                  <div className="em">{p.emoji}</div>
+                  <div className="info"><b>{p.titulo}</b><span>{p.stores?.nome ?? '—'} · {p.categoria} · {money(p.preco_promo ?? p.preco)}</span></div>
+                  <button className="adm-btn ap" disabled={busy === p.id} onClick={() => moderar(p.id, 'aprovar')}>Aprovar</button>
+                  <button className="adm-btn rp" disabled={busy === p.id} onClick={() => moderar(p.id, 'reprovar')}>Reprovar</button>
+                </div>
+              )) : <div className="adm-empty">✅ Fila zerada. Nenhum produto aguardando.</div>}
+            </div>
+          </>
+        )}
+
+        {tab === 'pedidos' && (
+          <>
+            <h1 className="adm-h">Pedidos</h1>
+            <p className="adm-sub">Todos os pedidos da plataforma.</p>
+            <div className="adm-filters">
+              {['todos', 'pendente', 'pago', 'entregue', 'reembolsado'].map((f) => (
+                <button key={f} className={`adm-fb ${orderFilter === f ? 'on' : ''}`} onClick={() => setOrderFilter(f)}>
+                  {f === 'todos' ? 'Todos' : (STATUS[f]?.[1] ?? f)}
+                </button>
+              ))}
+            </div>
+            <div className="adm-card">
+              {filteredOrders.length ? (
+                <table className="adm-table">
+                  <thead><tr><th>Produto</th><th>Vendedor</th><th>Valor</th><th>Taxa 3%</th><th>Status</th><th>Data</th></tr></thead>
+                  <tbody>
+                    {filteredOrders.map((o: any) => (
+                      <tr key={o.id}>
+                        <td><span className="em">{o.products?.emoji ?? '📦'}</span> {o.products?.titulo ?? 'Produto'}</td>
+                        <td style={{ color: 'var(--sub)' }}>{o.stores?.nome ?? '—'}</td>
+                        <td>{money(o.total)}</td>
+                        <td style={{ color: 'var(--or2)' }}>{money(o.taxa)}</td>
+                        <td><Pill s={o.status} /></td>
+                        <td style={{ color: 'var(--sub)' }}>{new Date(o.created_at).toLocaleDateString('pt-BR')}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : <div className="adm-empty">Nenhum pedido com esse status.</div>}
+            </div>
+          </>
+        )}
+
+        {tab === 'vendedores' && (
+          <>
+            <h1 className="adm-h">Vendedores</h1>
+            <p className="adm-sub">Lojas cadastradas na plataforma.</p>
+            <div className="adm-card">
+              {stores.length ? (
+                <table className="adm-table">
+                  <thead><tr><th>Loja</th><th>Categoria</th><th>Nível</th><th>Status</th><th>Desde</th></tr></thead>
+                  <tbody>
+                    {stores.map((s: any) => (
+                      <tr key={s.id}>
+                        <td><b style={{ fontFamily: 'Outfit' }}>{s.nome}</b></td>
+                        <td style={{ color: 'var(--sub)' }}>{s.categoria ?? '—'}</td>
+                        <td style={{ textTransform: 'capitalize' }}>{s.nivel}</td>
+                        <td><Pill s={s.status === 'verificado' ? 'ativo' : s.status === 'pendente' ? 'pendente' : 'reprovado'} /></td>
+                        <td style={{ color: 'var(--sub)' }}>{new Date(s.created_at).toLocaleDateString('pt-BR')}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : <div className="adm-empty">Nenhum vendedor ainda.</div>}
+            </div>
+          </>
+        )}
+
+        {tab === 'produtos' && (
+          <>
+            <h1 className="adm-h">Produtos</h1>
+            <p className="adm-sub">Catálogo completo da plataforma.</p>
+            <div className="adm-card">
+              {allProducts.length ? (
+                <table className="adm-table">
+                  <thead><tr><th>Produto</th><th>Vendedor</th><th>Preço</th><th>Vendas</th><th>Status</th></tr></thead>
+                  <tbody>
+                    {allProducts.map((p: any) => (
+                      <tr key={p.id}>
+                        <td><span className="em">{p.emoji}</span> {p.titulo}</td>
+                        <td style={{ color: 'var(--sub)' }}>{p.stores?.nome ?? '—'}</td>
+                        <td>{money(p.preco_promo ?? p.preco)}</td>
+                        <td>{fmt(p.vendas)}</td>
+                        <td><Pill s={p.status} /></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : <div className="adm-empty">Nenhum produto ainda.</div>}
+            </div>
+          </>
+        )}
+      </main>
+    </div>
+  );
+}
