@@ -9,6 +9,7 @@ type Props = {
   pixCode: string | null;
   pixQr: string | null;
   conteudo: string | null;
+  temArquivo?: boolean;
   titulo: string;
   emoji: string;
   total: number;
@@ -50,11 +51,13 @@ export default function OrderView(props: Props) {
         <div style={{ textAlign: 'center', paddingTop: 18 }}>
           <div style={{ fontFamily: 'Outfit', fontWeight: 800, color: 'var(--green)', fontSize: 20 }}>✓ Pagamento confirmado!</div>
           <p className="muted" style={{ margin: '6px 0 14px' }}>Seu produto está liberado.</p>
-          {conteudo && String(conteudo).startsWith('http')
-            ? <a className="btn btn-pri" href={conteudo} target="_blank" rel="noreferrer">Acessar produto</a>
-            : conteudo
-              ? <div className="muted" style={{ fontSize: 13, wordBreak: 'break-word' }}>{conteudo}</div>
-              : <p className="muted" style={{ fontSize: 13 }}>O vendedor ainda não cadastrou o conteúdo de entrega deste produto.</p>}
+          {props.temArquivo
+            ? <a className="btn btn-pri" href={`/api/download?order=${props.orderId}`}>⬇ Baixar produto</a>
+            : conteudo && String(conteudo).startsWith('http')
+              ? <a className="btn btn-pri" href={conteudo} target="_blank" rel="noreferrer">Acessar produto</a>
+              : conteudo
+                ? <div className="muted" style={{ fontSize: 13, wordBreak: 'break-word' }}>{conteudo}</div>
+                : <p className="muted" style={{ fontSize: 13 }}>O vendedor ainda não cadastrou o conteúdo de entrega deste produto.</p>}
         </div>
       ) : (
         <div style={{ textAlign: 'center', paddingTop: 18 }}>
