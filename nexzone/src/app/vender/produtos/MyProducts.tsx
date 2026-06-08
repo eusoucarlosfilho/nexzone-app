@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import FileUpload from './FileUpload';
 
 const money = (v: number) => 'R$ ' + Number(v).toFixed(2).replace('.', ',');
 const ST: Record<string, [string, string]> = {
@@ -8,7 +9,7 @@ const ST: Record<string, [string, string]> = {
 };
 const CATS = ['IA & Ferramentas', 'Templates & Planilhas', 'Design', 'Automações', 'Marketing Digital', 'Cursos & Ebooks'];
 
-export default function MyProducts({ products }: any) {
+export default function MyProducts({ products, userId }: any) {
   const [list, setList] = useState<any[]>(products);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<any>({});
@@ -21,6 +22,7 @@ export default function MyProducts({ products }: any) {
       titulo: p.titulo, descricao: p.descricao || '', categoria: p.categoria || CATS[0],
       preco: p.preco, preco_promo: p.preco_promo || '', tipo_entrega: p.tipo_entrega || 'arquivo',
       garantia_dias: p.garantia_dias || 7, conteudo_entrega: p.conteudo_entrega || '', emoji: p.emoji || '📦',
+      arquivo_path: p.arquivo_path || '', arquivo_nome: p.arquivo_nome || '',
     });
   }
 
@@ -105,12 +107,21 @@ export default function MyProducts({ products }: any) {
                 <div className="fg2">
                   <div className="fg"><label>Tipo de entrega</label>
                     <select value={form.tipo_entrega} onChange={(e) => setForm({ ...form, tipo_entrega: e.target.value })}>
-                      <option value="arquivo">Arquivo</option><option value="chave">Chave / código</option><option value="link">Link de acesso</option><option value="acesso">Acesso</option>
+                      <option value="arquivo">Arquivo (upload)</option><option value="link">Link de acesso</option><option value="chave">Chave / código</option><option value="acesso">Acesso / instrução</option>
                     </select>
                   </div>
                   <div className="fg"><label>Garantia (dias)</label><input type="number" value={form.garantia_dias} onChange={(e) => setForm({ ...form, garantia_dias: e.target.value })} /></div>
                 </div>
-                <div className="fg"><label>Conteúdo liberado pós-pagamento</label><input value={form.conteudo_entrega} onChange={(e) => setForm({ ...form, conteudo_entrega: e.target.value })} placeholder="https://… ou a chave/instrução" /></div>
+
+                {form.tipo_entrega === 'arquivo' ? (
+                  <div className="fg">
+                    <label>Arquivo do produto</label>
+                    <FileUpload userId={userId} current={form.arquivo_nome} onUploaded={(path, nome) => setForm({ ...form, arquivo_path: path, arquivo_nome: nome })} />
+                  </div>
+                ) : (
+                  <div className="fg"><label>Conteúdo liberado pós-pagamento</label><input value={form.conteudo_entrega} onChange={(e) => setForm({ ...form, conteudo_entrega: e.target.value })} placeholder="https://… ou a chave/instrução" /></div>
+                )}
+
                 <div className="fg"><label>Emoji</label><input value={form.emoji} maxLength={2} style={{ width: 80 }} onChange={(e) => setForm({ ...form, emoji: e.target.value })} /></div>
                 <p className="muted" style={{ fontSize: 12, marginBottom: 12 }}>⚠️ Ao salvar, o produto volta para revisão antes de ficar ativo de novo.</p>
                 <button className="btn btn-pri btn-sm" disabled={busy === p.id} onClick={() => salvar(p.id)}>{busy === p.id ? 'Salvando…' : 'Salvar alterações'}</button>
