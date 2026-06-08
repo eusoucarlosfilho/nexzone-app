@@ -4,6 +4,7 @@ import { usePathname } from 'next/navigation';
 
 const ITEMS = [
   ['/vender', '📊', 'Visão geral'],
+  ['/vender/vendas', '🧾', 'Vendas'],
   ['/vender/produtos', '📦', 'Produtos'],
   ['/vender/recebimentos', '💰', 'Recebimentos'],
   ['/vender/loja', '🏪', 'Minha Loja'],
