@@ -118,13 +118,14 @@ export default async function ProductPage({ params }: { params: { id: string } }
 
           <div className="pdp-sec">
             <h2>Vendedor</h2>
-            <div className="pdp-seller">
+            <a href={`/loja/${p.stores?.slug}`} className="pdp-seller" style={{ textDecoration: 'none', color: 'inherit' }}>
               <div className="av">{(p.stores?.nome || 'L').charAt(0).toUpperCase()}</div>
               <div style={{ flex: 1 }}>
                 <strong style={{ fontFamily: 'Outfit' }}>{p.stores?.nome} ✓</strong>
-                <div className="muted" style={{ fontSize: 13, textTransform: 'capitalize' }}>Vendedor verificado · Nível {p.stores?.nivel}</div>
+                <div className="muted" style={{ fontSize: 13, textTransform: 'capitalize' }}>Ver loja · Nível {p.stores?.nivel}</div>
               </div>
-            </div>
+              <span className="muted" style={{ fontSize: 20 }}>›</span>
+            </a>
           </div>
 
           <div className="pdp-sec">
