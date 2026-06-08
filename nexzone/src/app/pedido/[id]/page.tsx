@@ -11,7 +11,7 @@ export default async function PedidoPage({ params }: { params: { id: string } })
   if (!user) redirect('/login');
 
   const { data: order } = await supabase.from('orders')
-    .select('id, status, total, pix_code, pix_qr, conteudo_liberado, products(titulo, emoji)')
+    .select('id, status, total, pix_code, pix_qr, conteudo_liberado, products(titulo, emoji, tipo_entrega, arquivo_path)')
     .eq('id', params.id).eq('comprador', user.id).single();
   if (!order) notFound();
 
@@ -26,6 +26,7 @@ export default async function PedidoPage({ params }: { params: { id: string } })
           pixCode={order.pix_code}
           pixQr={order.pix_qr}
           conteudo={order.conteudo_liberado}
+          temArquivo={!!p?.arquivo_path}
           titulo={p?.titulo ?? 'Produto'}
           emoji={p?.emoji ?? '📦'}
           total={Number(order.total)}
