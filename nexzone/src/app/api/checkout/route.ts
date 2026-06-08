@@ -14,6 +14,7 @@ export async function POST(req: Request) {
     .eq('id', productId).eq('status', 'ativo').single();
   if (!product) return NextResponse.json({ error: 'produto indisponível' }, { status: 404 });
 
+  // Reaproveita pedido pendente existente (não duplica)
   const { data: existing } = await supabase.from('orders')
     .select('id, pix_code')
     .eq('comprador', user.id).eq('product_id', product.id).eq('status', 'pendente')
@@ -28,7 +29,7 @@ export async function POST(req: Request) {
   const valorVendedor = +(total - taxa).toFixed(2);
 
   const { data: order, error } = await supabase.from('orders').insert({
-    comprador: user.id, product_id: product.id, store_id: product.store_id,
+    comprador: user.id, comprador_email: user.email ?? null, product_id: product.id, store_id: product.store_id,
     total, taxa, valor_vendedor: valorVendedor, status: 'pendente',
   }).select().single();
   if (error || !order) return NextResponse.json({ error: 'falha ao criar pedido' }, { status: 500 });
