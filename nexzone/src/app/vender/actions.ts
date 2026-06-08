@@ -39,6 +39,8 @@ export async function criarProduto(formData: FormData) {
     preco, preco_promo: promoRaw ? Number(promoRaw) : null,
     tipo_entrega: String(formData.get('tipo_entrega') || 'arquivo'),
     conteudo_entrega: String(formData.get('conteudo_entrega') || ''),
+    arquivo_path: String(formData.get('arquivo_path') || '') || null,
+    arquivo_nome: String(formData.get('arquivo_nome') || '') || null,
     garantia_dias: Number(formData.get('garantia_dias') || 7),
     emoji: String(formData.get('emoji') || '📦'),
     status: 'em_revisao',
