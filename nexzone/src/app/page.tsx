@@ -1,6 +1,7 @@
 import Nav from '@/components/Nav';
 import ProductCard from '@/components/ProductCard';
 import SearchBar from '@/components/SearchBar';
+import Carousel from '@/components/Carousel';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import type { Product } from '@/lib/types';
@@ -9,13 +10,18 @@ export const dynamic = 'force-dynamic';
 
 export default async function Home() {
   const supabase = createClient();
-  const [altaRes, novoRes, catsRes, prodCount, lojaCount] = await Promise.all([
+  const nowIso = new Date().toISOString();
+  const [destRes, ofertaRes, altaRes, novoRes, catsRes, prodCount, lojaCount] = await Promise.all([
+    supabase.from('products').select('*, stores(nome, nivel)').eq('status', 'ativo').gt('destaque_ate', nowIso).order('destaque_ate', { ascending: false }).limit(6),
+    supabase.from('products').select('*, stores(nome, nivel)').eq('status', 'ativo').not('preco_promo', 'is', null).order('vendas', { ascending: false }).limit(8),
     supabase.from('products').select('*, stores(nome, nivel)').eq('status', 'ativo').order('vendas', { ascending: false }).limit(8),
     supabase.from('products').select('*, stores(nome, nivel)').eq('status', 'ativo').order('created_at', { ascending: false }).limit(8),
     supabase.from('categories').select('nome, slug, emoji'),
     supabase.from('products').select('id', { count: 'exact', head: true }).eq('status', 'ativo'),
     supabase.from('stores').select('id', { count: 'exact', head: true }),
   ]);
+  const destaques = (destRes.data ?? []) as Product[];
+  const ofertas = (ofertaRes.data ?? []) as Product[];
   const emAlta = (altaRes.data ?? []) as Product[];
   const novidades = (novoRes.data ?? []) as Product[];
   const cats = catsRes.data ?? [];
@@ -58,6 +64,19 @@ export default async function Home() {
           )}
         </div>
       </section>
+
+      {destaques.length > 0 && (
+        <section className="nz"><div className="c">
+          <Carousel items={destaques} />
+        </div></section>
+      )}
+
+      {ofertas.length > 0 && (
+        <section className="nz"><div className="c">
+          <div className="st"><div className="slabel">Promoções</div><h2>Em oferta</h2></div>
+          <div className="pg">{ofertas.map((p) => <ProductCard key={p.id} p={p} />)}</div>
+        </div></section>
+      )}
 
       <section className="nz">
         <div className="c">
@@ -106,7 +125,8 @@ export default async function Home() {
           <p style={{ marginTop: 6 }}>O marketplace de produtos digitais do Brasil.</p>
         </div>
         <div>
-          <Link href="/">Início</Link><Link href="/vender">Vender</Link><Link href="/minhas-compras">Minhas Compras</Link>
+          <div style={{ marginBottom: 10 }}><Link href="/">Início</Link><Link href="/vender">Vender</Link><Link href="/minhas-compras">Minhas Compras</Link></div>
+          <div><Link href="/termos">Termos de Uso</Link><Link href="/privacidade">Privacidade</Link><a href="mailto:contato@seudominio.com.br">Suporte</a></div>
         </div>
       </footer>
     </>
