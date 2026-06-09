@@ -1,6 +1,7 @@
 import Nav from '@/components/Nav';
 import BuyButton from './BuyButton';
 import ProductCard from '@/components/ProductCard';
+import ShareButton from '@/components/ShareButton';
 import { createClient } from '@/lib/supabase/server';
 import { notFound } from 'next/navigation';
 import type { Product } from '@/lib/types';
@@ -12,6 +13,21 @@ const ENTREGA: Record<string, string> = {
 const stars = (n: number) => '★★★★★'.slice(0, Math.round(n)) + '☆☆☆☆☆'.slice(0, 5 - Math.round(n));
 
 export const dynamic = 'force-dynamic';
+
+export async function generateMetadata({ params }: { params: { id: string } }) {
+  const supabase = createClient();
+  const { data: p } = await supabase.from('products').select('titulo, descricao, capa_url, preco, preco_promo').eq('id', params.id).maybeSingle();
+  if (!p) return { title: 'Produto — NexZone' };
+  const preco = (p.preco_promo ?? p.preco) as number;
+  const desc = p.descricao ? String(p.descricao).slice(0, 150) : `Produto digital por R$ ${Number(preco).toFixed(2).replace('.', ',')} no NexZone.`;
+  const images = p.capa_url ? [{ url: p.capa_url as string }] : [];
+  return {
+    title: `${p.titulo} — NexZone`,
+    description: desc,
+    openGraph: { title: String(p.titulo), description: desc, images, type: 'website' },
+    twitter: { card: 'summary_large_image', title: String(p.titulo), description: desc, images: p.capa_url ? [p.capa_url as string] : [] },
+  };
+}
 
 export default async function ProductPage({ params }: { params: { id: string } }) {
   const supabase = createClient();
@@ -43,6 +59,7 @@ export default async function ProductPage({ params }: { params: { id: string } }
         <div>🔒 Pagamento seguro via Pix</div>
         <div>🛡️ Garantia de {p.garantia_dias} dias</div>
       </div>
+      <ShareButton titulo={p.titulo} full />
       <div className="pdp-soldby">Vendido por <strong>{p.stores?.nome}</strong> ✓</div>
     </div>
   );
