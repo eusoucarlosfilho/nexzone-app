@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import { toast } from '@/lib/toast';
 
 const money = (v: number) => 'R$ ' + Number(v).toFixed(2).replace('.', ',');
 const fmt = (v: number) => Number(v).toLocaleString('pt-BR');
@@ -61,8 +62,8 @@ export default function AdminDashboard({ metrics, daily, orders, products, store
         credentials: 'include', body: JSON.stringify({ id, action: 'reembolsar' }),
       });
       const d = await r.json();
-      if (r.ok) setOrderList((l: any[]) => l.map((o) => o.id === id ? { ...o, status: 'reembolsado' } : o));
-      else alert(d.error || 'Erro ao reembolsar');
+      if (r.ok) { setOrderList((l: any[]) => l.map((o) => o.id === id ? { ...o, status: 'reembolsado' } : o)); toast('Pedido reembolsado.', 'success'); }
+      else toast(d.error || 'Erro ao reembolsar', 'error');
     } finally { setBusy(null); }
   }
 
