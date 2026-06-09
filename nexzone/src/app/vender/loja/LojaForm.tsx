@@ -19,12 +19,12 @@ export default function LojaForm({ store, userId }: any) {
       </div>
 
       <div className="fg"><label>Logo da loja</label>
-        <CoverUpload userId={userId} value={store.logo_url} onUploaded={setLogo} />
+        <CoverUpload userId={userId} value={store.logo_url} onUploaded={setLogo} hint="Quadrada, recomendado 400×400px (PNG ou JPG)" />
         <input type="hidden" name="logo_url" value={logo} />
       </div>
 
       <div className="fg"><label>Banner da loja (imagem larga, topo da página)</label>
-        <CoverUpload userId={userId} value={store.banner_url} onUploaded={setBanner} />
+        <CoverUpload userId={userId} value={store.banner_url} onUploaded={setBanner} hint="Larga, recomendado 1200×300px (proporção 4:1, JPG)" />
         <input type="hidden" name="banner_url" value={banner} />
       </div>
 
