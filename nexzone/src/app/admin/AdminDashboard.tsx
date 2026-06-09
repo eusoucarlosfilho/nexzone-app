@@ -15,12 +15,14 @@ const STATUS: Record<string, [string, string]> = {
   reprovado: ['#E23B3B', 'Reprovado'],
 };
 
-export default function AdminDashboard({ metrics, daily, orders, products, stores, payouts }: any) {
+export default function AdminDashboard({ metrics, daily, orders, products, stores, payouts, boosts }: any) {
   const [tab, setTab] = useState('cockpit');
   const [queue, setQueue] = useState(products.filter((p: any) => p.status === 'em_revisao'));
   const [allProducts, setAllProducts] = useState(products);
   const [orderFilter, setOrderFilter] = useState('todos');
+  const [orderList, setOrderList] = useState(orders || []);
   const [payoutList, setPayoutList] = useState(payouts || []);
+  const [boostList] = useState(boosts || []);
   const [busy, setBusy] = useState<string | null>(null);
 
   async function moderar(id: string, action: 'aprovar' | 'reprovar') {
@@ -50,6 +52,20 @@ export default function AdminDashboard({ metrics, daily, orders, products, store
     } finally { setBusy(null); }
   }
 
+  async function reembolsar(id: string) {
+    if (!confirm('Confirmar reembolso? Marque como reembolsado SOMENTE após estornar o valor no Mercado Pago.')) return;
+    setBusy(id);
+    try {
+      const r = await fetch('/api/admin/order-status', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        credentials: 'include', body: JSON.stringify({ id, action: 'reembolsar' }),
+      });
+      const d = await r.json();
+      if (r.ok) setOrderList((l: any[]) => l.map((o) => o.id === id ? { ...o, status: 'reembolsado' } : o));
+      else alert(d.error || 'Erro ao reembolsar');
+    } finally { setBusy(null); }
+  }
+
   const NAV = [
     ['cockpit', '📊', 'Cockpit', 0],
     ['aprovacao', '✅', 'Aprovação', queue.length],
@@ -57,10 +73,11 @@ export default function AdminDashboard({ metrics, daily, orders, products, store
     ['vendedores', '🏪', 'Vendedores', metrics.lojasPendentes],
     ['produtos', '📦', 'Produtos', 0],
     ['saques', '💸', 'Saques', metrics.saquesPendentes],
+    ['destaques', '⭐', 'Destaques', metrics.destaquesAtivos],
   ];
 
   const maxDay = Math.max(1, ...daily.map((d: any) => d.total));
-  const filteredOrders = orderFilter === 'todos' ? orders : orders.filter((o: any) => o.status === orderFilter);
+  const filteredOrders = orderFilter === 'todos' ? orderList : orderList.filter((o: any) => o.status === orderFilter);
 
   const Pill = ({ s }: { s: string }) => {
     const [c, label] = STATUS[s] || ['#9E9EBA', s];
@@ -150,6 +167,7 @@ export default function AdminDashboard({ metrics, daily, orders, products, store
               <div className="adm-stat"><div className="ic">📦</div><b>{fmt(metrics.totalProdutosAtivos)}</b><small>Produtos ativos</small></div>
               <div className="adm-stat"><div className="ic">👥</div><b>{fmt(metrics.buyersCount)}</b><small>Compradores</small></div>
               <div className="adm-stat"><div className="ic">⏳</div><b>{fmt(metrics.filaProdutos)}</b><small>Aguardando aprovação</small></div>
+              <div className="adm-stat"><div className="ic">⭐</div><b>{money(metrics.receitaDivulgacao)}</b><small>Receita de divulgação</small></div>
             </div>
             <div className="adm-card">
               <h3 className="adm-ct">Receita dos últimos 7 dias</h3>
@@ -216,7 +234,7 @@ export default function AdminDashboard({ metrics, daily, orders, products, store
             <div className="adm-card">
               {filteredOrders.length ? (
                 <table className="adm-table">
-                  <thead><tr><th>Produto</th><th>Vendedor</th><th>Valor</th><th>Taxa 3%</th><th>Status</th><th>Data</th></tr></thead>
+                  <thead><tr><th>Produto</th><th>Vendedor</th><th>Valor</th><th>Taxa 3%</th><th>Status</th><th>Data</th><th></th></tr></thead>
                   <tbody>
                     {filteredOrders.map((o: any) => (
                       <tr key={o.id}>
@@ -226,6 +244,7 @@ export default function AdminDashboard({ metrics, daily, orders, products, store
                         <td style={{ color: 'var(--or2)' }}>{money(o.taxa)}</td>
                         <td><Pill s={o.status} /></td>
                         <td style={{ color: 'var(--sub)' }}>{new Date(o.created_at).toLocaleDateString('pt-BR')}</td>
+                        <td>{(o.status === 'pago' || o.status === 'entregue') && <button className="adm-btn rp" disabled={busy === o.id} onClick={() => reembolsar(o.id)}>Reembolsar</button>}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -318,6 +337,36 @@ export default function AdminDashboard({ metrics, daily, orders, products, store
                   </tbody>
                 </table>
               ) : <div className="adm-empty">Nenhum saque solicitado.</div>}
+            </div>
+          </>
+        )}
+
+        {tab === 'destaques' && (
+          <>
+            <h1 className="adm-h">Destaques</h1>
+            <p className="adm-sub">Receita de divulgação (planos de destaque pagos pelos vendedores).</p>
+            <div className="adm-stats">
+              <div className="adm-stat"><div className="ic">💰</div><b>{money(metrics.receitaDivulgacao)}</b><small>Receita total de divulgação</small></div>
+              <div className="adm-stat"><div className="ic">⭐</div><b>{fmt(metrics.destaquesAtivos)}</b><small>Destaques ativos agora</small></div>
+            </div>
+            <div className="adm-card">
+              {boostList.length ? (
+                <table className="adm-table">
+                  <thead><tr><th>Produto</th><th>Vendedor</th><th>Plano</th><th>Valor</th><th>Status</th><th>Expira</th></tr></thead>
+                  <tbody>
+                    {boostList.map((b: any) => (
+                      <tr key={b.id}>
+                        <td><span className="em">{b.products?.emoji ?? '📦'}</span> {b.products?.titulo ?? '—'}</td>
+                        <td style={{ color: 'var(--sub)' }}>{b.stores?.nome ?? '—'}</td>
+                        <td>{b.dias} dias</td>
+                        <td style={{ color: 'var(--or2)', fontFamily: 'Outfit', fontWeight: 800 }}>{money(b.valor)}</td>
+                        <td><Pill s={b.status === 'pago' ? 'pago' : b.status === 'pendente' ? 'pendente' : 'reprovado'} /></td>
+                        <td style={{ color: 'var(--sub)' }}>{b.expira_em ? new Date(b.expira_em).toLocaleDateString('pt-BR') : '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : <div className="adm-empty">Nenhum destaque vendido ainda.</div>}
             </div>
           </>
         )}
