@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { toast } from '@/lib/toast';
 import FileUpload from './FileUpload';
 import CoverUpload from './CoverUpload';
 import BoostButton from './BoostButton';
@@ -40,7 +41,8 @@ export default function MyProducts({ products, userId }: any) {
         setList((l) => l.map((p) => p.id === id ? { ...p, ...form, preco: Number(form.preco), preco_promo: form.preco_promo ? Number(form.preco_promo) : null, status: 'em_revisao' } : p));
         setEditId(null);
         router.refresh();
-      } else alert(d.error || 'Erro ao salvar');
+        toast('Produto salvo! Enviado para revisão.', 'success');
+      } else toast(d.error || 'Erro ao salvar', 'error');
     } finally { setBusy(null); }
   }
 
