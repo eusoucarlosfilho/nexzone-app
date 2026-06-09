@@ -7,7 +7,7 @@ export default function SearchBar() {
   const router = useRouter();
   function go(e: React.FormEvent) {
     e.preventDefault();
-    if (q.trim()) router.push(`/busca?q=${encodeURIComponent(q.trim())}`);
+    if (q.trim()) router.push(`/produtos?q=${encodeURIComponent(q.trim())}`);
   }
   return (
     <form onSubmit={go} style={{ display: 'flex', gap: 8, marginTop: 26, maxWidth: 540 }}>
