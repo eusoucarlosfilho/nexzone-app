@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
-import { salvarLoja } from './actions';
+import LojaForm from './LojaForm';
 
 export const dynamic = 'force-dynamic';
 
@@ -28,17 +28,7 @@ export default async function LojaPage() {
       <p className="muted">Como sua loja aparece para os compradores. <a href={`/loja/${store.slug}`} target="_blank" rel="noreferrer" style={{ color: 'var(--orange)', fontWeight: 700 }}>Ver página pública ›</a></p>
 
       <div className="card" style={{ marginTop: 22, maxWidth: 620 }}>
-        <form action={salvarLoja}>
-          <div className="fg"><label>Nome da loja</label><input name="nome" defaultValue={store.nome} required /></div>
-          <div className="fg"><label>Descrição</label><textarea name="descricao" rows={3} defaultValue={store.descricao ?? ''} placeholder="Conte o que sua loja oferece." /></div>
-          <div className="fg"><label>Categoria principal</label>
-            <select name="categoria" defaultValue={store.categoria ?? 'IA & Ferramentas'}>
-              <option>IA & Ferramentas</option><option>Templates & Planilhas</option><option>Design</option>
-              <option>Automações</option><option>Marketing Digital</option><option>Cursos & Ebooks</option>
-            </select>
-          </div>
-          <button className="btn btn-pri">Salvar alterações</button>
-        </form>
+        <LojaForm store={store} userId={user.id} />
       </div>
     </div>
   );
