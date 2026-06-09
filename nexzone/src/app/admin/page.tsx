@@ -18,7 +18,7 @@ export default async function AdminPage() {
     );
   }
 
-  const [ordersRes, productsRes, storesRes, buyersRes, payoutsRes] = await Promise.all([
+  const [ordersRes, productsRes, storesRes, buyersRes, payoutsRes, boostsRes] = await Promise.all([
     supabase.from('orders')
       .select('id, status, total, taxa, created_at, products(titulo, emoji), stores(nome)')
       .order('created_at', { ascending: false }),
@@ -32,12 +32,16 @@ export default async function AdminPage() {
     supabase.from('payouts')
       .select('id, valor, status, pix_key, pix_tipo, created_at, pago_em, stores(nome)')
       .order('created_at', { ascending: false }),
+    supabase.from('boosts')
+      .select('id, valor, dias, status, created_at, expira_em, products(titulo, emoji), stores(nome)')
+      .order('created_at', { ascending: false }),
   ]);
 
   const orders = (ordersRes.data ?? []) as any[];
   const products = (productsRes.data ?? []) as any[];
   const stores = (storesRes.data ?? []) as any[];
   const payouts = (payoutsRes.data ?? []) as any[];
+  const boosts = (boostsRes.data ?? []) as any[];
   const buyersCount = buyersRes.count ?? 0;
 
   const paid = orders.filter((o) => o.status === 'pago' || o.status === 'entregue');
@@ -66,8 +70,10 @@ export default async function AdminPage() {
     totalProdutosAtivos: products.filter((p) => p.status === 'ativo').length,
     saquesPendentes: payouts.filter((p) => p.status === 'solicitado').length,
     aRepassar: payouts.filter((p) => p.status === 'solicitado').reduce((s, p) => s + Number(p.valor), 0),
+    receitaDivulgacao: boosts.filter((b: any) => b.status === 'pago').reduce((s: number, b: any) => s + Number(b.valor), 0),
+    destaquesAtivos: boosts.filter((b: any) => b.status === 'pago' && b.expira_em && new Date(b.expira_em) > new Date()).length,
     buyersCount,
   };
 
-  return <AdminDashboard metrics={metrics} daily={daily} orders={orders} products={products} stores={stores} payouts={payouts} />;
+  return <AdminDashboard metrics={metrics} daily={daily} orders={orders} products={products} stores={stores} payouts={payouts} boosts={boosts} />;
 }
