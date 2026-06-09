@@ -1,5 +1,6 @@
 import Nav from '@/components/Nav';
 import SellerSidebar from './SellerSidebar';
+import SellerNotifier from './SellerNotifier';
 
 export default function VenderLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -27,6 +28,7 @@ export default function VenderLayout({ children }: { children: React.ReactNode }
         @media(max-width:820px){.sd-shell{flex-direction:column;}.sd-side{width:100%;border-right:none;border-bottom:1px solid var(--border);display:flex;gap:4px;overflow-x:auto;padding:10px;}.sd-shead{display:none;}.sd-nav{white-space:nowrap;}.sd-main{padding:20px 16px;}}
       `}</style>
       <Nav />
+      <SellerNotifier />
       <div className="sd-shell">
         <SellerSidebar />
         <div className="sd-main">{children}</div>
