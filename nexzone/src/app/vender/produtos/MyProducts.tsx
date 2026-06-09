@@ -125,7 +125,7 @@ export default function MyProducts({ products, userId }: any) {
                 </div>
 
                 <div className="fg"><label>Imagem de capa</label>
-                  <CoverUpload userId={userId} value={form.capa_url} onUploaded={(u) => setForm({ ...form, capa_url: u })} />
+                  <CoverUpload userId={userId} value={form.capa_url} onUploaded={(u) => setForm({ ...form, capa_url: u })} hint="Recomendado 1200×900px (proporção 4:3), até ~2MB" />
                 </div>
                 {form.tipo_entrega === 'arquivo' ? (
                   <div className="fg">
