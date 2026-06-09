@@ -16,7 +16,7 @@ export default function CreateProduct({ userId }: { userId: string }) {
     <form action={criarProduto}>
       <div className="fg"><label>Título</label><input name="titulo" required placeholder="Ex: Pack 100 Templates de Carrossel" /></div>
       <div className="fg"><label>Imagem de capa</label>
-        <CoverUpload userId={userId} onUploaded={setCapaUrl} />
+        <CoverUpload userId={userId} onUploaded={setCapaUrl}  hint="Recomendado 1200×900px (proporção 4:3), até ~2MB" />
         <input type="hidden" name="capa_url" value={capaUrl} />
       </div>
       <div className="fg"><label>Categoria</label>
