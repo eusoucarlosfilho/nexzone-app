@@ -8,16 +8,17 @@ export const dynamic = 'force-dynamic';
 
 export async function generateMetadata({ params }: { params: { slug: string } }) {
   const admin = createAdminClient();
-  const { data: store } = await admin.from('stores').select('nome, descricao').eq('slug', params.slug).maybeSingle();
+  const { data: store } = await admin.from('stores').select('nome, descricao, banner_url').eq('slug', params.slug).maybeSingle();
   if (!store) return { title: 'Loja — NexZone' };
   const desc = store.descricao ? String(store.descricao).slice(0, 150) : `Confira os produtos de ${store.nome} no NexZone.`;
-  return { title: `${store.nome} — NexZone`, description: desc, openGraph: { title: String(store.nome), description: desc, type: 'website' } };
+  const images = store.banner_url ? [{ url: store.banner_url as string }] : [];
+  return { title: `${store.nome} — NexZone`, description: desc, openGraph: { title: String(store.nome), description: desc, images, type: 'website' } };
 }
 
 export default async function LojaPage({ params }: { params: { slug: string } }) {
   const admin = createAdminClient();
   const { data: store } = await admin.from('stores')
-    .select('id, nome, descricao, categoria, nivel, status')
+    .select('id, nome, descricao, categoria, nivel, status, logo_url, banner_url, cor')
     .eq('slug', params.slug).neq('status', 'suspenso').maybeSingle();
   if (!store) notFound();
 
@@ -27,16 +28,20 @@ export default async function LojaPage({ params }: { params: { slug: string } })
     .order('vendas', { ascending: false });
   const produtos = (prods ?? []) as Product[];
   const verificada = store.status === 'verificado';
+  const cor = store.cor || '#FF6B00';
 
   return (
     <>
       <Nav />
-      <div className="page">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 10 }}>
-          <div style={{ width: 64, height: 64, borderRadius: 18, background: 'var(--grad)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontFamily: 'Outfit', fontWeight: 900, fontSize: 28 }}>
-            {store.nome.charAt(0).toUpperCase()}
+
+      <div style={{ height: 200, background: store.banner_url ? `url(${store.banner_url}) center/cover` : `linear-gradient(135deg, ${cor}, #FF9A3C)` }} />
+
+      <div className="page" style={{ marginTop: -46 }}>
+        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 16, marginBottom: 14 }}>
+          <div style={{ width: 92, height: 92, borderRadius: 20, border: '4px solid #fff', background: store.logo_url ? `url(${store.logo_url}) center/cover` : `linear-gradient(135deg, ${cor}, #FF9A3C)`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontFamily: 'Outfit', fontWeight: 900, fontSize: 38, flexShrink: 0, boxShadow: '0 6px 20px rgba(0,0,0,.12)' }}>
+            {!store.logo_url && store.nome.charAt(0).toUpperCase()}
           </div>
-          <div>
+          <div style={{ paddingBottom: 6 }}>
             <h1 style={{ fontFamily: 'Outfit', fontSize: 26, fontWeight: 900 }}>{store.nome} {verificada && '✓'}</h1>
             <div className="muted" style={{ textTransform: 'capitalize' }}>
               {verificada ? 'Vendedor verificado · ' : ''}Nível {store.nivel}{store.categoria ? ` · ${store.categoria}` : ''}
