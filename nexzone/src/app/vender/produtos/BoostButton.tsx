@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { PLANOS_DESTAQUE } from '@/lib/boost';
+import { toast } from '@/lib/toast';
 
 export default function BoostButton({ productId, destaqueAte }: { productId: string; destaqueAte?: string | null }) {
   const [open, setOpen] = useState(false);
@@ -18,7 +19,7 @@ export default function BoostButton({ productId, destaqueAte }: { productId: str
     const d = await r.json();
     setBusy(false);
     if (r.ok) router.push(`/destaque/${d.boostId}`);
-    else alert(d.error || 'Erro ao criar destaque');
+    else toast(d.error || 'Erro ao criar destaque', 'error');
   }
 
   if (ativo) return <span className="pill act" style={{ marginLeft: 4 }}>⭐ Em destaque</span>;
