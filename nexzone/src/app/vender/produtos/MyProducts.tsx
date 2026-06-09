@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import FileUpload from './FileUpload';
 import CoverUpload from './CoverUpload';
+import BoostButton from './BoostButton';
 
 const money = (v: number) => 'R$ ' + Number(v).toFixed(2).replace('.', ',');
 const ST: Record<string, [string, string]> = {
@@ -88,6 +89,7 @@ export default function MyProducts({ products, userId }: any) {
                 {p.status === 'pausado'
                   ? <button className="btn btn-ghost btn-sm" disabled={busy === p.id} onClick={() => acao(p.id, 'reativar')}>Reativar</button>
                   : <button className="btn btn-ghost btn-sm" disabled={busy === p.id} onClick={() => acao(p.id, 'pausar')}>Pausar</button>}
+                {p.status === 'ativo' && <BoostButton productId={p.id} destaqueAte={p.destaque_ate} />}
                 <button className="btn btn-sm" style={{ background: '#fff', color: 'var(--red)', border: '1.5px solid #f3c2c2' }} disabled={busy === p.id} onClick={() => excluir(p.id)}>Excluir</button>
               </div>
             </div>
