@@ -6,6 +6,14 @@ import type { Product } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 
+export async function generateMetadata({ params }: { params: { slug: string } }) {
+  const admin = createAdminClient();
+  const { data: store } = await admin.from('stores').select('nome, descricao').eq('slug', params.slug).maybeSingle();
+  if (!store) return { title: 'Loja — NexZone' };
+  const desc = store.descricao ? String(store.descricao).slice(0, 150) : `Confira os produtos de ${store.nome} no NexZone.`;
+  return { title: `${store.nome} — NexZone`, description: desc, openGraph: { title: String(store.nome), description: desc, type: 'website' } };
+}
+
 export default async function LojaPage({ params }: { params: { slug: string } }) {
   const admin = createAdminClient();
   const { data: store } = await admin.from('stores')
