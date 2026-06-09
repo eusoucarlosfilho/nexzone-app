@@ -70,6 +70,11 @@ export default function MyProducts({ products, userId }: any) {
     } finally { setBusy(null); }
   }
 
+  function copiarLink(id: string) {
+    navigator.clipboard.writeText(`${window.location.origin}/produto/${id}`);
+    toast('Link do produto copiado!', 'success');
+  }
+
   if (!list.length) return <div style={{ padding: 24 }} className="muted">Nenhum produto ainda.</div>;
 
   return (
@@ -87,6 +92,7 @@ export default function MyProducts({ products, userId }: any) {
               </div>
               <span className={`pill ${st[0]}`}>{st[1]}</span>
               <div style={{ display: 'flex', gap: 6, marginLeft: 10 }}>
+                <button className="btn btn-ghost btn-sm" title="Copiar link" onClick={() => copiarLink(p.id)}>🔗</button>
                 <button className="btn btn-ghost btn-sm" disabled={busy === p.id} onClick={() => editando ? setEditId(null) : startEdit(p)}>{editando ? 'Fechar' : 'Editar'}</button>
                 {p.status === 'pausado'
                   ? <button className="btn btn-ghost btn-sm" disabled={busy === p.id} onClick={() => acao(p.id, 'reativar')}>Reativar</button>
