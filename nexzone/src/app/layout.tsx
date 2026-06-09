@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import Toaster from '@/components/Toaster';
 
 export const metadata: Metadata = {
   title: 'NexZone — Marketplace de Produtos Digitais',
@@ -13,7 +14,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800;900&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet" />
       </head>
-      <body>{children}</body>
+      <body>{children}<Toaster /></body>
     </html>
   );
 }
