@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { toast } from '@/lib/toast';
+import SettingsForm from './SettingsForm';
 
 const money = (v: number) => 'R$ ' + Number(v).toFixed(2).replace('.', ',');
 const fmt = (v: number) => Number(v).toLocaleString('pt-BR');
@@ -16,7 +17,7 @@ const STATUS: Record<string, [string, string]> = {
   reprovado: ['#E23B3B', 'Reprovado'],
 };
 
-export default function AdminDashboard({ metrics, daily, orders, products, stores, payouts, boosts }: any) {
+export default function AdminDashboard({ metrics, daily, orders, products, stores, payouts, boosts, settings, growth }: any) {
   const [tab, setTab] = useState('cockpit');
   const [queue, setQueue] = useState(products.filter((p: any) => p.status === 'em_revisao'));
   const [allProducts, setAllProducts] = useState(products);
@@ -75,6 +76,8 @@ export default function AdminDashboard({ metrics, daily, orders, products, store
     ['produtos', '📦', 'Produtos', 0],
     ['saques', '💸', 'Saques', metrics.saquesPendentes],
     ['destaques', '⭐', 'Destaques', metrics.destaquesAtivos],
+    ['crescimento', '📊', 'Crescimento', 0],
+    ['config', '⚙️', 'Configurações', 0],
   ];
 
   const maxDay = Math.max(1, ...daily.map((d: any) => d.total));
@@ -369,6 +372,43 @@ export default function AdminDashboard({ metrics, daily, orders, products, store
                 </table>
               ) : <div className="adm-empty">Nenhum destaque vendido ainda.</div>}
             </div>
+          </>
+        )}
+
+        {tab === 'crescimento' && (
+          <>
+            <h1 className="adm-h">Crescimento</h1>
+            <p className="adm-sub">Quem mais vende e o que mais vende na plataforma.</p>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(320px,1fr))', gap: 18 }}>
+              <div className="adm-card">
+                <h3 style={{ fontFamily: 'Outfit', fontWeight: 800, marginBottom: 12 }}>🏪 Top vendedores (faturamento)</h3>
+                {growth?.topVendedores?.length ? (
+                  <table className="adm-table"><tbody>
+                    {growth.topVendedores.map((v: any, i: number) => (
+                      <tr key={i}><td>{i + 1}. {v.nome}</td><td style={{ textAlign: 'right', fontFamily: 'Outfit', fontWeight: 800, color: 'var(--or2)' }}>{money(v.total)}</td></tr>
+                    ))}
+                  </tbody></table>
+                ) : <div className="adm-empty">Sem vendas ainda.</div>}
+              </div>
+              <div className="adm-card">
+                <h3 style={{ fontFamily: 'Outfit', fontWeight: 800, marginBottom: 12 }}>📦 Top produtos (vendas)</h3>
+                {growth?.topProdutos?.length ? (
+                  <table className="adm-table"><tbody>
+                    {growth.topProdutos.map((p: any, i: number) => (
+                      <tr key={p.id}><td><span className="em">{p.emoji}</span> {p.titulo}</td><td style={{ textAlign: 'right', fontFamily: 'Outfit', fontWeight: 800 }}>{fmt(p.vendas || 0)} vendas</td></tr>
+                    ))}
+                  </tbody></table>
+                ) : <div className="adm-empty">Sem produtos ainda.</div>}
+              </div>
+            </div>
+          </>
+        )}
+
+        {tab === 'config' && (
+          <>
+            <h1 className="adm-h">Configurações</h1>
+            <p className="adm-sub">Ajuste a comissão, os preços de destaque e o e-mail de suporte — sem mexer no código.</p>
+            <SettingsForm settings={settings} />
           </>
         )}
       </main>
