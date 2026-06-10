@@ -4,12 +4,14 @@ import SearchBar from '@/components/SearchBar';
 import Carousel from '@/components/Carousel';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
+import { getSettings } from '@/lib/settings';
 import type { Product } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 
 export default async function Home() {
   const supabase = createClient();
+  const { support_email } = await getSettings();
   const nowIso = new Date().toISOString();
   const [destRes, ofertaRes, altaRes, novoRes, catsRes, prodCount, lojaCount] = await Promise.all([
     supabase.from('products').select('*, stores(nome, nivel)').eq('status', 'ativo').gt('destaque_ate', nowIso).order('destaque_ate', { ascending: false }).limit(6),
@@ -126,7 +128,7 @@ export default async function Home() {
         </div>
         <div>
           <div style={{ marginBottom: 10 }}><Link href="/">Início</Link><Link href="/seja-vendedor">Vender no NexZone</Link><Link href="/minhas-compras">Minhas Compras</Link></div>
-          <div><Link href="/termos">Termos de Uso</Link><Link href="/privacidade">Privacidade</Link><a href="mailto:contato@seudominio.com.br">Suporte</a></div>
+          <div><Link href="/termos">Termos de Uso</Link><Link href="/privacidade">Privacidade</Link><a href={`mailto:${support_email || 'contato@seudominio.com.br'}`}>Suporte</a></div>
         </div>
       </footer>
     </>
