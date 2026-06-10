@@ -18,6 +18,15 @@ export default async function CheckoutPage({ params }: { params: { id: string } 
   const p = data as Product;
   const loja: any = (p as any).stores || {};
   const cfg: any = (p as any).checkout_config || {};
+
+  let bump: any = null;
+  if ((p as any).bump_product_id && (p as any).bump_valor) {
+    const { data: bp } = await supabase.from('products')
+      .select('titulo, descricao, status').eq('id', (p as any).bump_product_id).maybeSingle();
+    if (bp && bp.status === 'ativo') {
+      bump = { titulo: bp.titulo, descricao: bp.descricao ? String(bp.descricao).slice(0, 90) : '', valor: Number((p as any).bump_valor) };
+    }
+  }
   const cor = cfg.cor || loja.cor || 'var(--orange)';
 
   return (
@@ -54,6 +63,7 @@ export default async function CheckoutPage({ params }: { params: { id: string } 
           loja={loja.nome ?? 'Loja'}
           preco={Number(p.preco_promo ?? p.preco)}
           cor={cfg.cor || loja.cor || null}
+          bump={bump}
         />
         <div style={{ textAlign: 'center', marginTop: 22 }}>
           <span className="muted" style={{ fontSize: 12 }}>
