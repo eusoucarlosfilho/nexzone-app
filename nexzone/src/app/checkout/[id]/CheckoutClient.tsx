@@ -5,7 +5,7 @@ import { toast } from '@/lib/toast';
 
 const money = (v: number) => 'R$ ' + Number(v).toFixed(2).replace('.', ',');
 
-export default function CheckoutClient({ productId, titulo, emoji, loja, preco, cor, bump }: any) {
+export default function CheckoutClient({ productId, titulo, emoji, loja, preco, cor, bump, aceitaCupom }: any) {
   const router = useRouter();
   const [cupom, setCupom] = useState('');
   const [aplicado, setAplicado] = useState<{ codigo: string; desconto: number; final: number } | null>(null);
@@ -51,6 +51,7 @@ export default function CheckoutClient({ productId, titulo, emoji, loja, preco, 
         </div>
       </div>
 
+      {aceitaCupom && (
       <div style={{ padding: '16px 0', borderBottom: '1px solid var(--border)' }}>
         <label style={{ fontSize: 13, fontWeight: 700, display: 'block', marginBottom: 8 }}>Tem um cupom?</label>
         <div style={{ display: 'flex', gap: 8 }}>
@@ -61,6 +62,7 @@ export default function CheckoutClient({ productId, titulo, emoji, loja, preco, 
             : <button className="btn btn-dark btn-sm" onClick={aplicarCupom} disabled={checando}>{checando ? '…' : 'Aplicar'}</button>}
         </div>
       </div>
+      )}
 
       {bump && (
         <label style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '14px', margin: '14px 0', border: `2px dashed ${cor || 'var(--orange)'}`, borderRadius: 12, cursor: 'pointer', background: 'var(--soft)' }}>
