@@ -26,25 +26,32 @@ async function ensureStore() {
 }
 
 export async function criarProduto(formData: FormData) {
-  const supabase = createClient();
-  const storeId = await ensureStore();
-  const titulo = String(formData.get('titulo') || '').trim();
-  const preco = Number(formData.get('preco'));
-  if (!titulo || !preco) throw new Error('título e preço são obrigatórios');
-  const promoRaw = formData.get('preco_promo');
-  await supabase.from('products').insert({
-    store_id: storeId, titulo, slug: slugify(titulo),
-    descricao: String(formData.get('descricao') || ''),
-    categoria: String(formData.get('categoria') || 'IA & Ferramentas'),
-    preco, preco_promo: promoRaw ? Number(promoRaw) : null,
-    tipo_entrega: String(formData.get('tipo_entrega') || 'arquivo'),
-    conteudo_entrega: String(formData.get('conteudo_entrega') || ''),
-    arquivo_path: String(formData.get('arquivo_path') || '') || null,
-    arquivo_nome: String(formData.get('arquivo_nome') || '') || null,
-    garantia_dias: Number(formData.get('garantia_dias') || 7),
-    emoji: String(formData.get('emoji') || '📦'),
-    capa_url: String(formData.get('capa_url') || '') || null,
-    status: 'em_revisao',
-  });
-  revalidatePath('/vender');
+  try {
+    const supabase = createClient();
+    const storeId = await ensureStore();
+    const titulo = String(formData.get('titulo') || '').trim();
+    const preco = Number(formData.get('preco'));
+    if (!titulo) return { ok: false, error: 'Informe o título do produto.' };
+    if (!preco || isNaN(preco) || preco <= 0) return { ok: false, error: 'Informe um preço válido (ex: 19.90).' };
+    const promoRaw = formData.get('preco_promo');
+    const { error } = await supabase.from('products').insert({
+      store_id: storeId, titulo, slug: slugify(titulo),
+      descricao: String(formData.get('descricao') || ''),
+      categoria: String(formData.get('categoria') || 'IA & Ferramentas'),
+      preco, preco_promo: promoRaw ? Number(promoRaw) : null,
+      tipo_entrega: String(formData.get('tipo_entrega') || 'arquivo'),
+      conteudo_entrega: String(formData.get('conteudo_entrega') || ''),
+      arquivo_path: String(formData.get('arquivo_path') || '') || null,
+      arquivo_nome: String(formData.get('arquivo_nome') || '') || null,
+      garantia_dias: Number(formData.get('garantia_dias') || 7),
+      emoji: String(formData.get('emoji') || '📦'),
+      capa_url: String(formData.get('capa_url') || '') || null,
+      status: 'em_revisao',
+    });
+    if (error) return { ok: false, error: error.message };
+    revalidatePath('/vender');
+    return { ok: true };
+  } catch (e: any) {
+    return { ok: false, error: e?.message || 'Erro inesperado ao cadastrar o produto.' };
+  }
 }
