@@ -64,6 +64,7 @@ export default async function CheckoutPage({ params }: { params: { id: string } 
           preco={Number(p.preco_promo ?? p.preco)}
           cor={cfg.cor || loja.cor || null}
           bump={bump}
+          aceitaCupom={!!(p as any).aceita_cupom}
         />
         <div style={{ textAlign: 'center', marginTop: 22 }}>
           <span className="muted" style={{ fontSize: 12 }}>
