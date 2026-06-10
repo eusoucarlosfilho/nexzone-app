@@ -1,4 +1,3 @@
-// Adaptador de pagamento agnóstico.
 export interface CreatePaymentInput {
   orderId: string;
   amount: number;
@@ -39,7 +38,6 @@ class MercadoPagoGateway implements PaymentGateway {
       external_reference: input.orderId,
       notification_url: `${process.env.NEXT_PUBLIC_SITE_URL}/api/webhooks/payment`,
     };
-    // Split só quando o vendedor tem recipient conectado. Conta única = Pix normal.
     if (input.sellerRecipientId) {
       body.application_fee = +(input.amount * (input.feePercent / 100)).toFixed(2);
     }
@@ -58,6 +56,16 @@ class MercadoPagoGateway implements PaymentGateway {
       return { gatewayRef: '', status: 'erro', error: data?.message || JSON.stringify(data) };
     }
     const tx = data?.point_of_interaction?.transaction_data;
+    if (!tx?.qr_code) {
+      const detail = data?.status_detail || data?.status || 'sem_qr';
+      console.error('Mercado Pago sem QR:', JSON.stringify(data));
+      let msg = `Não foi possível gerar o Pix (motivo: ${detail}).`;
+      const d = String(detail).toLowerCase();
+      if (String(data?.status) === 'rejected' || d.includes('payer') || d.includes('collector')) {
+        msg = 'Não foi possível gerar o Pix. Se você está testando comprando da sua própria conta Mercado Pago, isso é bloqueado — o MP não permite pagar para si mesmo. Use outro e-mail/conta de comprador para testar.';
+      }
+      return { gatewayRef: String(data?.id || ''), status: 'erro', error: msg };
+    }
     return {
       gatewayRef: String(data.id),
       pixCopiaECola: tx?.qr_code,
