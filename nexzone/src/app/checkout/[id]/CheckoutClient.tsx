@@ -5,14 +5,16 @@ import { toast } from '@/lib/toast';
 
 const money = (v: number) => 'R$ ' + Number(v).toFixed(2).replace('.', ',');
 
-export default function CheckoutClient({ productId, titulo, emoji, loja, preco, cor }: any) {
+export default function CheckoutClient({ productId, titulo, emoji, loja, preco, cor, bump }: any) {
   const router = useRouter();
   const [cupom, setCupom] = useState('');
   const [aplicado, setAplicado] = useState<{ codigo: string; desconto: number; final: number } | null>(null);
   const [checando, setChecando] = useState(false);
   const [gerando, setGerando] = useState(false);
+  const [bumpAceito, setBumpAceito] = useState(false);
 
-  const total = aplicado ? aplicado.final : preco;
+  const subtotalProduto = aplicado ? aplicado.final : preco;
+  const total = subtotalProduto + (bumpAceito && bump ? Number(bump.valor) : 0);
 
   async function aplicarCupom() {
     if (!cupom.trim()) return;
@@ -31,7 +33,7 @@ export default function CheckoutClient({ productId, titulo, emoji, loja, preco, 
     setGerando(true);
     const res = await fetch('/api/checkout', {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
-      body: JSON.stringify({ productId, cupom: aplicado?.codigo || null }),
+      body: JSON.stringify({ productId, cupom: aplicado?.codigo || null, bump: bumpAceito }),
     });
     if (res.status === 401) { router.push('/login'); return; }
     const data = await res.json();
@@ -60,10 +62,25 @@ export default function CheckoutClient({ productId, titulo, emoji, loja, preco, 
         </div>
       </div>
 
+      {bump && (
+        <label style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '14px', margin: '14px 0', border: `2px dashed ${cor || 'var(--orange)'}`, borderRadius: 12, cursor: 'pointer', background: 'var(--soft)' }}>
+          <input type="checkbox" checked={bumpAceito} onChange={(e) => setBumpAceito(e.target.checked)} style={{ marginTop: 3 }} />
+          <span style={{ flex: 1 }}>
+            <strong style={{ fontFamily: 'Outfit', display: 'block' }}>➕ Sim! Adicione {bump.titulo}</strong>
+            <span className="muted" style={{ fontSize: 13 }}>{bump.descricao || 'Oferta especial só nesta compra.'} Por apenas <strong style={{ color: cor || 'var(--orange)' }}>+{money(Number(bump.valor))}</strong></span>
+          </span>
+        </label>
+      )}
+
       <div style={{ padding: '16px 0' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, marginBottom: 6 }}>
           <span className="muted">Subtotal</span><span>{money(preco)}</span>
         </div>
+        {bumpAceito && bump && (
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, marginBottom: 6 }}>
+            <span className="muted">+ {bump.titulo}</span><span>{money(Number(bump.valor))}</span>
+          </div>
+        )}
         {aplicado && (
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, marginBottom: 6, color: 'var(--green)' }}>
             <span>Cupom {aplicado.codigo}</span><span>- {money(aplicado.desconto)}</span>
