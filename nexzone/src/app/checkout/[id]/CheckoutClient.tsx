@@ -5,7 +5,7 @@ import { toast } from '@/lib/toast';
 
 const money = (v: number) => 'R$ ' + Number(v).toFixed(2).replace('.', ',');
 
-export default function CheckoutClient({ productId, titulo, emoji, loja, preco }: any) {
+export default function CheckoutClient({ productId, titulo, emoji, loja, preco, cor }: any) {
   const router = useRouter();
   const [cupom, setCupom] = useState('');
   const [aplicado, setAplicado] = useState<{ codigo: string; desconto: number; final: number } | null>(null);
@@ -74,7 +74,7 @@ export default function CheckoutClient({ productId, titulo, emoji, loja, preco }
         </div>
       </div>
 
-      <button className="btn btn-pri" style={{ width: '100%' }} onClick={pagar} disabled={gerando}>
+      <button className="btn btn-pri" style={{ width: '100%', ...(cor ? { background: cor } : {}) }} onClick={pagar} disabled={gerando}>
         {gerando ? 'Gerando Pix…' : '⚡ Pagar com Pix'}
       </button>
       <p className="muted" style={{ fontSize: 12, textAlign: 'center', marginTop: 10 }}>🔒 Pagamento seguro · entrega imediata após o pagamento</p>
