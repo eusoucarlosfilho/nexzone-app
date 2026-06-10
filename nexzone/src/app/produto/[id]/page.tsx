@@ -2,6 +2,7 @@ import Nav from '@/components/Nav';
 import BuyButton from './BuyButton';
 import ProductCard from '@/components/ProductCard';
 import ShareButton from '@/components/ShareButton';
+import FavButton from '@/components/FavButton';
 import { createClient } from '@/lib/supabase/server';
 import { notFound } from 'next/navigation';
 import type { Product } from '@/lib/types';
@@ -47,6 +48,12 @@ export default async function ProductPage({ params }: { params: { id: string } }
     .select('*, stores(nome, nivel)').eq('store_id', p.store_id).eq('status', 'ativo').neq('id', p.id).limit(4);
   const relacionados = (relData ?? []) as Product[];
 
+  const { data: catData } = await supabase.from('products')
+    .select('*, stores(nome, nivel)').eq('categoria', p.categoria).eq('status', 'ativo').neq('id', p.id)
+    .order('vendas', { ascending: false }).limit(8);
+  const relIds = new Set(relacionados.map((r) => r.id));
+  const daCategoria = ((catData ?? []) as Product[]).filter((c) => !relIds.has(c.id)).slice(0, 4);
+
   const BuyBox = (
     <div className="pdp-box">
       <div className="pdp-price">
@@ -60,6 +67,7 @@ export default async function ProductPage({ params }: { params: { id: string } }
         <div>🛡️ Garantia de {p.garantia_dias} dias</div>
       </div>
       <ShareButton titulo={p.titulo} full />
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 10, color: 'var(--sub)', fontSize: 13 }}><FavButton productId={p.id} /> Salvar nos favoritos</div>
       <div className="pdp-soldby">Vendido por <strong>{p.stores?.nome}</strong> ✓</div>
     </div>
   );
@@ -164,6 +172,15 @@ export default async function ProductPage({ params }: { params: { id: string } }
               <h2>Mais deste vendedor</h2>
               <div className="pdp-grid">
                 {relacionados.map((rp) => <ProductCard key={rp.id} p={rp} />)}
+              </div>
+            </div>
+          )}
+
+          {daCategoria.length > 0 && (
+            <div className="pdp-sec">
+              <h2>Você também pode gostar</h2>
+              <div className="pdp-grid">
+                {daCategoria.map((rp) => <ProductCard key={rp.id} p={rp} />)}
               </div>
             </div>
           )}
