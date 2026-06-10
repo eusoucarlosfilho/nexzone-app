@@ -115,7 +115,7 @@ export default async function Home() {
             <h2>Tem um produto digital?</h2>
             <p style={{ opacity: .92 }}>Crie sua loja grátis e venda pagando só 3% por venda. Sem mensalidade.</p>
           </div>
-          <Link href="/vender" className="btn btn-lg" style={{ background: '#fff', color: 'var(--orange)' }}>Criar minha loja</Link>
+          <Link href="/seja-vendedor" className="btn btn-lg" style={{ background: '#fff', color: 'var(--orange)' }}>Criar minha loja</Link>
         </div>
       </div></section>
 
@@ -125,7 +125,7 @@ export default async function Home() {
           <p style={{ marginTop: 6 }}>O marketplace de produtos digitais do Brasil.</p>
         </div>
         <div>
-          <div style={{ marginBottom: 10 }}><Link href="/">Início</Link><Link href="/vender">Vender</Link><Link href="/minhas-compras">Minhas Compras</Link></div>
+          <div style={{ marginBottom: 10 }}><Link href="/">Início</Link><Link href="/seja-vendedor">Vender no NexZone</Link><Link href="/minhas-compras">Minhas Compras</Link></div>
           <div><Link href="/termos">Termos de Uso</Link><Link href="/privacidade">Privacidade</Link><a href="mailto:contato@seudominio.com.br">Suporte</a></div>
         </div>
       </footer>
