@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { getGateway } from '@/lib/payments/gateway';
+import { getSettings } from '@/lib/settings';
 
 export async function POST(req: Request) {
   const supabase = createClient();
@@ -24,7 +25,7 @@ export async function POST(req: Request) {
   }
 
   const total = Number(product.preco_promo ?? product.preco);
-  const feePercent = Number(process.env.PLATFORM_FEE_PERCENT ?? 3);
+  const feePercent = (await getSettings()).commission_percent;
   const taxa = +(total * (feePercent / 100)).toFixed(2);
   const valorVendedor = +(total - taxa).toFixed(2);
 
