@@ -99,6 +99,7 @@ export default function MyProducts({ products, userId, planos }: { products: any
               <div style={{ display: 'flex', gap: 6, marginLeft: 10 }}>
                 <button className="btn btn-ghost btn-sm" title="Copiar link do produto" onClick={() => copiarLink(p.id)}>🔗</button>
                 <button className="btn btn-ghost btn-sm" title="Copiar link de checkout (tráfego externo)" onClick={() => copiarCheckout(p.id)}>🛒</button>
+                <button className="btn btn-ghost btn-sm" title="Personalizar checkout" onClick={() => router.push(`/vender/checkout/${p.id}`)}>🎨</button>
                 <button className="btn btn-ghost btn-sm" disabled={busy === p.id} onClick={() => editando ? setEditId(null) : startEdit(p)}>{editando ? 'Fechar' : 'Editar'}</button>
                 {p.status === 'pausado'
                   ? <button className="btn btn-ghost btn-sm" disabled={busy === p.id} onClick={() => acao(p.id, 'reativar')}>Reativar</button>
