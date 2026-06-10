@@ -6,19 +6,21 @@ export async function GET(req: Request) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.redirect(new URL('/login', req.url));
 
-  const orderId = new URL(req.url).searchParams.get('order');
+  const url = new URL(req.url);
+  const orderId = url.searchParams.get('order');
+  const which = url.searchParams.get('which');
   if (!orderId) return NextResponse.json({ error: 'sem pedido' }, { status: 400 });
 
   const admin = createAdminClient();
   const { data: order } = await admin.from('orders')
-    .select('status, comprador, products(arquivo_path)')
+    .select('status, comprador, bump_arquivo_path, products(arquivo_path)')
     .eq('id', orderId).single();
 
   const paid = order && (order.status === 'pago' || order.status === 'entregue');
   if (!order || order.comprador !== user.id || !paid) {
     return NextResponse.json({ error: 'sem acesso a este download' }, { status: 403 });
   }
-  const path = (order as any).products?.arquivo_path;
+  const path = which === 'bump' ? (order as any).bump_arquivo_path : (order as any).products?.arquivo_path;
   if (!path) return NextResponse.json({ error: 'produto sem arquivo' }, { status: 404 });
 
   const { data, error } = await admin.storage.from('entregaveis').createSignedUrl(path, 3600, { download: true });
