@@ -15,6 +15,9 @@ type Props = {
   titulo: string;
   emoji: string;
   total: number;
+  bumpTitulo?: string | null;
+  bumpConteudo?: string | null;
+  bumpTemArquivo?: boolean;
 };
 
 export default function OrderView(props: Props) {
@@ -79,6 +82,20 @@ export default function OrderView(props: Props) {
                   ? <div className="muted" style={{ fontSize: 13, wordBreak: 'break-word' }}>{conteudo}</div>
                   : <p className="muted" style={{ fontSize: 13 }}>O vendedor ainda não cadastrou o conteúdo de entrega deste produto.</p>}
           </div>
+
+          {props.bumpTitulo && (
+            <div style={{ borderTop: '1px solid var(--border)', marginTop: 22, paddingTop: 18, textAlign: 'center' }}>
+              <div className="slabel" style={{ color: 'var(--green)' }}>Item extra incluído</div>
+              <strong style={{ fontFamily: 'Outfit', display: 'block', margin: '4px 0 10px' }}>➕ {props.bumpTitulo}</strong>
+              {props.bumpTemArquivo
+                ? <a className="btn btn-pri btn-sm" href={`/api/download?order=${props.orderId}&which=bump`}>⬇ Baixar item extra</a>
+                : props.bumpConteudo && String(props.bumpConteudo).startsWith('http')
+                  ? <a className="btn btn-pri btn-sm" href={props.bumpConteudo} target="_blank" rel="noreferrer">Acessar item extra</a>
+                  : props.bumpConteudo
+                    ? <div className="muted" style={{ fontSize: 13, wordBreak: 'break-word' }}>{props.bumpConteudo}</div>
+                    : <p className="muted" style={{ fontSize: 13 }}>Conteúdo do item extra será disponibilizado pelo vendedor.</p>}
+            </div>
+          )}
 
           <div style={{ borderTop: '1px solid var(--border)', marginTop: 22, paddingTop: 18 }}>
             {avaliado ? (
