@@ -15,6 +15,7 @@ export default async function Nav() {
             <Link href="/produtos" className="btn btn-ghost btn-sm">Explorar</Link>
             {user ? (
               <>
+                <Link href="/favoritos" className="btn btn-ghost btn-sm">♥ Favoritos</Link>
                 <Link href="/minhas-compras" className="btn btn-ghost btn-sm">Minhas Compras</Link>
                 <Link href="/vender" className="btn btn-ghost btn-sm">Painel</Link>
                 <form action="/auth/signout" method="post"><button className="btn btn-dark btn-sm">Sair</button></form>
