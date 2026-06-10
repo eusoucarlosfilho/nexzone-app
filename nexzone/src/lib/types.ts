@@ -17,6 +17,7 @@ export interface Product {
   emoji: string;
   capa_url?: string | null;
   destaque_ate?: string | null;
+  checkout_config?: any;
   vendas: number;
   nota: number;
   created_at: string;
