@@ -24,7 +24,7 @@ export async function POST(req: Request) {
   }
 
   // PEDIDO (produto)
-  let query = admin.from('orders').select('id, status, product_id, store_id, cupom');
+  let query = admin.from('orders').select('id, status, product_id, store_id, cupom, bump_product_id');
   query = event.orderId ? query.eq('id', event.orderId) : query.eq('gateway_ref', event.gatewayRef);
   const { data: order } = await query.maybeSingle();
   if (!order) return NextResponse.json({ ok: true });
@@ -35,6 +35,10 @@ export async function POST(req: Request) {
       status: 'entregue', conteudo_liberado: product?.conteudo_entrega ?? null, entregue_em: new Date().toISOString(),
     }).eq('id', order.id);
     await admin.from('products').update({ vendas: (product?.vendas ?? 0) + 1 }).eq('id', order.product_id);
+    if ((order as any).bump_product_id) {
+      const { data: bp } = await admin.from('products').select('vendas').eq('id', (order as any).bump_product_id).single();
+      await admin.from('products').update({ vendas: (bp?.vendas ?? 0) + 1 }).eq('id', (order as any).bump_product_id);
+    }
     if ((order as any).cupom) {
       const { data: cup } = await admin.from('coupons').select('id, usos').eq('store_id', (order as any).store_id).eq('codigo', (order as any).cupom).maybeSingle();
       if (cup) await admin.from('coupons').update({ usos: (cup.usos ?? 0) + 1 }).eq('id', cup.id);
