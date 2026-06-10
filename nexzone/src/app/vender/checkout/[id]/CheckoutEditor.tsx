@@ -5,7 +5,7 @@ import { salvarCheckoutConfig } from './actions';
 import { toast } from '@/lib/toast';
 import CoverUpload from '../../produtos/CoverUpload';
 
-export default function CheckoutEditor({ productId, userId, titulo, inicial }: any) {
+export default function CheckoutEditor({ productId, userId, titulo, inicial, outrosProdutos, bumpInicial }: any) {
   const router = useRouter();
   const c = inicial || {};
   const [headline, setHeadline] = useState(c.headline || '');
@@ -15,6 +15,8 @@ export default function CheckoutEditor({ productId, userId, titulo, inicial }: a
   const [badge, setBadge] = useState(c.badge_text || '');
   const [countdown, setCountdown] = useState(c.countdown_until ? c.countdown_until.slice(0, 16) : '');
   const [busy, setBusy] = useState(false);
+  const [bumpId, setBumpId] = useState(bumpInicial?.bump_product_id || '');
+  const [bumpValor, setBumpValor] = useState(bumpInicial?.bump_valor ? String(bumpInicial.bump_valor) : '');
 
   async function salvar(limpar = false) {
     setBusy(true);
@@ -26,7 +28,8 @@ export default function CheckoutEditor({ productId, userId, titulo, inicial }: a
       badge_text: badge.trim() || null,
       countdown_until: countdown ? new Date(countdown).toISOString() : null,
     };
-    const r: any = await salvarCheckoutConfig(productId, config);
+    const bump = limpar ? { bump_product_id: null, bump_valor: null } : { bump_product_id: bumpId || null, bump_valor: bumpValor ? Number(bumpValor) : null };
+    const r: any = await salvarCheckoutConfig(productId, config, bump);
     setBusy(false);
     if (r?.ok) { toast(limpar ? 'Personalização removida.' : 'Checkout personalizado salvo!', 'success'); router.refresh(); }
     else toast(r?.error || 'Erro ao salvar', 'error');
@@ -56,6 +59,22 @@ export default function CheckoutEditor({ productId, userId, titulo, inicial }: a
       <div className="fg"><label>Contador regressivo — data e hora de fim (opcional)</label>
         <input type="datetime-local" value={countdown} onChange={(e) => setCountdown(e.target.value)} />
         <small className="muted" style={{ fontSize: 12 }}>⏳ O contador é real: conta até essa data e, quando chega, a oferta é marcada como encerrada (sem reiniciar).</small>
+      </div>
+
+      <div style={{ borderTop: '1px solid var(--border)', margin: '20px 0', paddingTop: 18 }}>
+        <strong style={{ fontFamily: 'Outfit', display: 'block', marginBottom: 4 }}>🧲 Order bump (oferta extra)</strong>
+        <p className="muted" style={{ fontSize: 13, marginBottom: 12 }}>Ofereça outro produto seu com um preço especial dentro deste checkout.</p>
+        <div className="fg2">
+          <div className="fg"><label>Produto oferecido</label>
+            <select value={bumpId} onChange={(e) => setBumpId(e.target.value)}>
+              <option value="">Nenhum</option>
+              {outrosProdutos.map((op: any) => <option key={op.id} value={op.id}>{op.titulo}</option>)}
+            </select>
+          </div>
+          <div className="fg"><label>Preço do bump (R$)</label>
+            <input type="number" step="0.01" value={bumpValor} onChange={(e) => setBumpValor(e.target.value)} placeholder="9.90" disabled={!bumpId} />
+          </div>
+        </div>
       </div>
 
       <div style={{ display: 'flex', gap: 10, marginTop: 8, flexWrap: 'wrap' }}>
