@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import AdminDashboard from './AdminDashboard';
+import { getSettings } from '@/lib/settings';
 
 export const dynamic = 'force-dynamic';
 
@@ -59,6 +60,14 @@ export default async function AdminPage() {
     daily.push({ label: d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }), total });
   }
 
+  const settings = await getSettings();
+
+  const vendMap: Record<string, number> = {};
+  paid.forEach((o) => { const n = o.stores?.nome || '—'; vendMap[n] = (vendMap[n] || 0) + Number(o.total); });
+  const topVendedores = Object.entries(vendMap).map(([nome, total]) => ({ nome, total })).sort((a, b) => b.total - a.total).slice(0, 8);
+  const topProdutos = [...products].sort((a, b) => (b.vendas || 0) - (a.vendas || 0)).slice(0, 8);
+  const growth = { topVendedores, topProdutos };
+
   const metrics = {
     gmv, receita, ticket,
     pedidosPagos: paid.length,
@@ -75,5 +84,5 @@ export default async function AdminPage() {
     buyersCount,
   };
 
-  return <AdminDashboard metrics={metrics} daily={daily} orders={orders} products={products} stores={stores} payouts={payouts} boosts={boosts} />;
+  return <AdminDashboard metrics={metrics} daily={daily} orders={orders} products={products} stores={stores} payouts={payouts} boosts={boosts} settings={settings} growth={growth} />;
 }
