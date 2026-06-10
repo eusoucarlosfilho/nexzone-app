@@ -1,5 +1,7 @@
 'use client';
-import { useState } from 'react';
+import { useState, useRef } from 'react';
+import { useRouter } from 'next/navigation';
+import { toast } from '@/lib/toast';
 import { criarProduto } from '../actions';
 import FileUpload from './FileUpload';
 import CoverUpload from './CoverUpload';
@@ -11,9 +13,31 @@ export default function CreateProduct({ userId }: { userId: string }) {
   const [arquivoPath, setArquivoPath] = useState('');
   const [arquivoNome, setArquivoNome] = useState('');
   const [capaUrl, setCapaUrl] = useState('');
+  const [busy, setBusy] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
+  const router = useRouter();
+
+  async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const fd = new FormData(e.currentTarget);
+    fd.set('capa_url', capaUrl);
+    fd.set('arquivo_path', arquivoPath);
+    fd.set('arquivo_nome', arquivoNome);
+    setBusy(true);
+    const r: any = await criarProduto(fd);
+    setBusy(false);
+    if (r?.ok) {
+      toast('Produto enviado para revisão! ✅', 'success');
+      formRef.current?.reset();
+      setCapaUrl(''); setArquivoPath(''); setArquivoNome(''); setTipo('arquivo');
+      router.refresh();
+    } else {
+      toast(r?.error || 'Não foi possível cadastrar o produto.', 'error');
+    }
+  }
 
   return (
-    <form action={criarProduto}>
+    <form ref={formRef} onSubmit={onSubmit}>
       <div className="fg"><label>Título</label><input name="titulo" required placeholder="Ex: Pack 100 Templates de Carrossel" /></div>
       <div className="fg"><label>Imagem de capa</label>
         <CoverUpload userId={userId} onUploaded={setCapaUrl}  hint="Recomendado 1200×900px (proporção 4:3), até ~2MB" />
@@ -51,7 +75,7 @@ export default function CreateProduct({ userId }: { userId: string }) {
       )}
 
       <div className="fg"><label>Emoji da capa</label><input name="emoji" defaultValue="📦" maxLength={2} style={{ width: 80 }} /></div>
-      <button className="btn btn-pri" style={{ width: '100%' }}>Enviar para revisão</button>
+      <button className="btn btn-pri" disabled={busy} style={{ width: '100%' }}>{busy ? 'Enviando…' : 'Enviar para revisão'}</button>
     </form>
   );
 }
