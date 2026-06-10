@@ -12,15 +12,16 @@ export default function LoginPage() {
 
   async function submit() {
     setLoading(true); setMsg('');
+    const next = (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('next')) || '/vender';
     const supabase = createClient();
     if (mode === 'register') {
       const { data, error } = await supabase.auth.signUp({ email, password: senha, options: { data: { nome } } });
       if (error) setMsg(error.message);
-      else if (data.session) router.push('/vender');
+      else if (data.session) router.push(next);
       else { setMsg('Conta criada! Confirme seu e-mail e depois faça login.'); setMode('login'); }
     } else {
       const { error } = await supabase.auth.signInWithPassword({ email, password: senha });
-      if (error) setMsg(error.message); else router.push('/vender');
+      if (error) setMsg(error.message); else router.push(next);
     }
     setLoading(false);
   }
