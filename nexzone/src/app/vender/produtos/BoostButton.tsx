@@ -1,10 +1,9 @@
 'use client';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { PLANOS_DESTAQUE } from '@/lib/boost';
 import { toast } from '@/lib/toast';
 
-export default function BoostButton({ productId, destaqueAte }: { productId: string; destaqueAte?: string | null }) {
+export default function BoostButton({ productId, destaqueAte, planos }: { productId: string; destaqueAte?: string | null; planos: { dias: number; valor: number; label: string }[] }) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const router = useRouter();
@@ -29,7 +28,7 @@ export default function BoostButton({ productId, destaqueAte }: { productId: str
       <button className="btn btn-ghost btn-sm" disabled={busy} onClick={() => setOpen(!open)}>🚀 Destacar</button>
       {open && (
         <span style={{ position: 'absolute', right: 0, top: '115%', background: '#fff', border: '1px solid var(--border)', borderRadius: 12, padding: 8, zIndex: 20, boxShadow: '0 10px 28px rgba(0,0,0,.12)', display: 'flex', flexDirection: 'column', gap: 6, minWidth: 180 }}>
-          {PLANOS_DESTAQUE.map((p) => (
+          {planos.map((p) => (
             <button key={p.dias} className="btn btn-pri btn-sm" disabled={busy} onClick={() => comprar(p.dias)}>
               {p.label} — R$ {p.valor.toFixed(2).replace('.', ',')}
             </button>
