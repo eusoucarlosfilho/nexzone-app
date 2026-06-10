@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import FavButton from './FavButton';
 import type { Product } from '@/lib/types';
 
 const money = (v: number) => 'R$ ' + v.toFixed(2).replace('.', ',');
@@ -13,6 +14,7 @@ export default function ProductCard({ p }: { p: Product }) {
         : { background: 'var(--soft)' }}>
         {!p.capa_url && p.emoji}
         {destaque ? <span className="badge">⭐ Destaque</span> : p.vendas > 1000 && <span className="badge">🔥 HOT</span>}
+        <FavButton productId={p.id} overlay />
       </div>
       <div className="body">
         <div className="vend">{p.stores?.nome ?? 'Loja'} ✓</div>
