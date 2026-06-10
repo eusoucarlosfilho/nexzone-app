@@ -19,7 +19,7 @@ export async function POST(req: Request) {
 
   // Valida cupom no servidor (não confia no cliente)
   let desconto = 0; let cupomCodigo: string | null = null;
-  if (cupom) {
+  if (cupom && (product as any).aceita_cupom) {
     const admin = createAdminClient();
     const code = String(cupom).trim().toUpperCase();
     const { data: cup } = await admin.from('coupons').select('*').eq('store_id', product.store_id).eq('codigo', code).maybeSingle();
