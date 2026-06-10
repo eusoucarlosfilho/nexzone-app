@@ -18,6 +18,8 @@ export interface Product {
   capa_url?: string | null;
   destaque_ate?: string | null;
   checkout_config?: any;
+  bump_product_id?: string | null;
+  bump_valor?: number | null;
   vendas: number;
   nota: number;
   created_at: string;
