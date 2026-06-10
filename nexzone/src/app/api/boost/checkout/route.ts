@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { getGateway } from '@/lib/payments/gateway';
-import { planoPorDias } from '@/lib/boost';
+import { getSettings } from '@/lib/settings';
 
 export async function POST(req: Request) {
   const supabase = createClient();
@@ -9,7 +9,8 @@ export async function POST(req: Request) {
   if (!user) return NextResponse.json({ error: 'não autenticado' }, { status: 401 });
 
   const { productId, dias } = await req.json();
-  const plano = planoPorDias(Number(dias));
+  const settings = await getSettings();
+  const plano = settings.boost_plans.find((p) => p.dias === Number(dias));
   if (!plano) return NextResponse.json({ error: 'plano inválido' }, { status: 400 });
 
   const { data: store } = await supabase.from('stores').select('id').eq('owner', user.id).maybeSingle();
