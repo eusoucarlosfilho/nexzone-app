@@ -8,7 +8,7 @@ export async function POST(req: Request) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'não autenticado' }, { status: 401 });
 
-  const { productId, cupom } = await req.json();
+  const { productId, cupom, bump } = await req.json();
   const { data: product } = await supabase
     .from('products')
     .select('*, stores(recipient_id)')
@@ -33,13 +33,31 @@ export async function POST(req: Request) {
     }
   }
 
-  const total = Math.max(0, +(precoBase - desconto).toFixed(2));
+  // Order bump (item extra)
+  let bumpFields: any = {};
+  let bumpValor = 0;
+  if (bump && (product as any).bump_product_id && (product as any).bump_valor) {
+    const admin2 = createAdminClient();
+    const { data: bp } = await admin2.from('products')
+      .select('id, titulo, conteudo_entrega, arquivo_path, arquivo_nome, tipo_entrega, status')
+      .eq('id', (product as any).bump_product_id).maybeSingle();
+    if (bp && bp.status === 'ativo') {
+      bumpValor = Number((product as any).bump_valor);
+      bumpFields = {
+        bump_product_id: bp.id, bump_titulo: bp.titulo, bump_valor: bumpValor,
+        bump_conteudo: bp.conteudo_entrega ?? null, bump_arquivo_path: bp.arquivo_path ?? null,
+        bump_arquivo_nome: bp.arquivo_nome ?? null, bump_tipo_entrega: bp.tipo_entrega ?? null,
+      };
+    }
+  }
+
+  const total = Math.max(0, +(precoBase - desconto + bumpValor).toFixed(2));
   const feePercent = (await getSettings()).commission_percent;
   const taxa = +(total * (feePercent / 100)).toFixed(2);
   const valorVendedor = +(total - taxa).toFixed(2);
 
   // Sem cupom: reaproveita pedido pendente; com cupom: cria novo (evita inconsistência de valor)
-  if (!cupomCodigo) {
+  if (!cupomCodigo && !bump) {
     const { data: existing } = await supabase.from('orders')
       .select('id, pix_code')
       .eq('comprador', user.id).eq('product_id', product.id).eq('status', 'pendente')
@@ -49,7 +67,7 @@ export async function POST(req: Request) {
 
   const { data: order, error } = await supabase.from('orders').insert({
     comprador: user.id, comprador_email: user.email ?? null, product_id: product.id, store_id: product.store_id,
-    total, taxa, valor_vendedor: valorVendedor, status: 'pendente', cupom: cupomCodigo, desconto,
+    total, taxa, valor_vendedor: valorVendedor, status: 'pendente', cupom: cupomCodigo, desconto, ...bumpFields,
   }).select().single();
   if (error || !order) return NextResponse.json({ error: 'falha ao criar pedido' }, { status: 500 });
 
