@@ -21,20 +21,20 @@ export default async function AdminPage() {
 
   const [ordersRes, productsRes, storesRes, buyersRes, payoutsRes, boostsRes] = await Promise.all([
     supabase.from('orders')
-      .select('id, status, total, taxa, created_at, products(titulo, emoji), stores(nome)')
+      .select('id, status, total, taxa, created_at, store_id, products(titulo, emoji), stores(nome)')
       .order('created_at', { ascending: false }),
     supabase.from('products')
-      .select('id, titulo, emoji, preco, preco_promo, categoria, status, vendas, created_at, stores(nome)')
+      .select('id, titulo, emoji, preco, preco_promo, categoria, status, vendas, nota, created_at, store_id, stores(nome)')
       .order('created_at', { ascending: false }),
     supabase.from('stores')
-      .select('id, nome, categoria, status, nivel, created_at')
+      .select('id, nome, slug, categoria, status, nivel, created_at')
       .order('created_at', { ascending: false }),
     supabase.from('profiles').select('id', { count: 'exact', head: true }).in('role', ['comprador', 'ambos']),
     supabase.from('payouts')
-      .select('id, valor, status, pix_key, pix_tipo, created_at, pago_em, stores(nome)')
+      .select('id, valor, status, pix_key, pix_tipo, created_at, pago_em, store_id, stores(nome)')
       .order('created_at', { ascending: false }),
     supabase.from('boosts')
-      .select('id, valor, dias, status, created_at, expira_em, products(titulo, emoji), stores(nome)')
+      .select('id, valor, dias, status, created_at, expira_em, store_id, products(titulo, emoji), stores(nome)')
       .order('created_at', { ascending: false }),
   ]);
 
@@ -43,6 +43,37 @@ export default async function AdminPage() {
   const stores = (storesRes.data ?? []) as any[];
   const payouts = (payoutsRes.data ?? []) as any[];
   const boosts = (boostsRes.data ?? []) as any[];
+
+  // ---- Enriquecimento por vendedor (CRM de vendedores) ----
+  const now = Date.now();
+  const dias = (d: any) => (d ? (now - new Date(d).getTime()) / 86400000 : Infinity);
+  const acc: Record<string, any> = {};
+  stores.forEach((s) => { acc[s.id] = { vendas: 0, gmv: 0, comissao: 0, ultimaVenda: null, produtosTotal: 0, produtosAtivos: 0, ultimoProduto: null, aSacar: 0, sacado: 0, destaques: 0, notaSum: 0, notaQtd: 0 }; });
+  orders.forEach((o) => { const a = acc[o.store_id]; if (!a) return; if (o.status === 'pago' || o.status === 'entregue') { a.vendas++; a.gmv += Number(o.total); a.comissao += Number(o.taxa); if (!a.ultimaVenda || new Date(o.created_at) > new Date(a.ultimaVenda)) a.ultimaVenda = o.created_at; } });
+  products.forEach((p) => { const a = acc[p.store_id]; if (!a) return; a.produtosTotal++; if (p.status === 'ativo') a.produtosAtivos++; if (!a.ultimoProduto || new Date(p.created_at) > new Date(a.ultimoProduto)) a.ultimoProduto = p.created_at; if (p.nota) { a.notaSum += Number(p.nota); a.notaQtd++; } });
+  payouts.forEach((p) => { const a = acc[p.store_id]; if (!a) return; if (p.status === 'solicitado') a.aSacar += Number(p.valor); if (p.status === 'pago') a.sacado += Number(p.valor); });
+  boosts.forEach((b) => { const a = acc[b.store_id]; if (!a) return; if (b.status === 'pago') a.destaques++; });
+
+  function engajamento(s: any, a: any) {
+    const idade = dias(s.created_at);
+    const ultAtiv = Math.min(dias(a.ultimaVenda), dias(a.ultimoProduto));
+    if (a.vendas === 0 && idade <= 7) return { tag: 'Novo', emoji: '🆕', tone: 'rev' };
+    if (ultAtiv <= 7) return { tag: 'Ativo', emoji: '🔥', tone: 'act' };
+    if (a.produtosTotal > 0 && a.vendas === 0 && idade > 7) return { tag: 'Travado', emoji: '⚠️', tone: 'pendente' };
+    if (ultAtiv > 21) return { tag: 'Parado', emoji: '😴', tone: 'rej' };
+    return { tag: 'Regular', emoji: '•', tone: 'pendente' };
+  }
+
+  const sellers = stores.map((s) => {
+    const a = acc[s.id];
+    return {
+      id: s.id, nome: s.nome, slug: s.slug, status: s.status, nivel: s.nivel, categoria: s.categoria, created_at: s.created_at,
+      produtosTotal: a.produtosTotal, produtosAtivos: a.produtosAtivos, vendas: a.vendas, gmv: a.gmv, comissao: a.comissao,
+      ticket: a.vendas ? a.gmv / a.vendas : 0, ultimaVenda: a.ultimaVenda, ultimoProduto: a.ultimoProduto,
+      aSacar: a.aSacar, sacado: a.sacado, destaques: a.destaques, notaMedia: a.notaQtd ? a.notaSum / a.notaQtd : 0,
+      eng: engajamento(s, a),
+    };
+  }).sort((x, y) => y.gmv - x.gmv);
   const buyersCount = buyersRes.count ?? 0;
 
   const paid = orders.filter((o) => o.status === 'pago' || o.status === 'entregue');
@@ -84,5 +115,5 @@ export default async function AdminPage() {
     buyersCount,
   };
 
-  return <AdminDashboard metrics={metrics} daily={daily} orders={orders} products={products} stores={stores} payouts={payouts} boosts={boosts} settings={settings} growth={growth} />;
+  return <AdminDashboard metrics={metrics} daily={daily} orders={orders} products={products} stores={stores} payouts={payouts} boosts={boosts} settings={settings} growth={growth} sellers={sellers} />;
 }
