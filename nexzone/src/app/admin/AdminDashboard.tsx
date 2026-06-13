@@ -17,12 +17,14 @@ const STATUS: Record<string, [string, string]> = {
   reprovado: ['#E23B3B', 'Reprovado'],
 };
 
-export default function AdminDashboard({ metrics, daily, orders, products, stores, payouts, boosts, settings, growth }: any) {
+export default function AdminDashboard({ metrics, daily, orders, products, stores, payouts, boosts, settings, growth, sellers }: any) {
   const [tab, setTab] = useState('cockpit');
   const [queue, setQueue] = useState(products.filter((p: any) => p.status === 'em_revisao'));
   const [allProducts, setAllProducts] = useState(products);
   const [orderFilter, setOrderFilter] = useState('todos');
   const [orderList, setOrderList] = useState(orders || []);
+  const [expSeller, setExpSeller] = useState<string | null>(null);
+  const [engFiltro, setEngFiltro] = useState('todos');
   const [payoutList, setPayoutList] = useState(payouts || []);
   const [boostList] = useState(boosts || []);
   const [busy, setBusy] = useState<string | null>(null);
@@ -258,30 +260,57 @@ export default function AdminDashboard({ metrics, daily, orders, products, store
           </>
         )}
 
-        {tab === 'vendedores' && (
+        {tab === 'vendedores' && (() => {
+          const Det = ({ l, v }: any) => (<div style={{ background: 'var(--soft)', borderRadius: 10, padding: '10px 12px' }}><div className="muted" style={{ fontSize: 11, fontWeight: 700 }}>{l}</div><div style={{ fontFamily: 'Outfit', fontWeight: 800, marginTop: 2 }}>{v}</div></div>);
+          const lista = (sellers || []).filter((s: any) => engFiltro === 'todos' || s.eng.tag === engFiltro);
+          return (
           <>
             <h1 className="adm-h">Vendedores</h1>
-            <p className="adm-sub">Lojas cadastradas na plataforma.</p>
-            <div className="adm-card">
-              {stores.length ? (
-                <table className="adm-table">
-                  <thead><tr><th>Loja</th><th>Categoria</th><th>Nível</th><th>Status</th><th>Desde</th></tr></thead>
-                  <tbody>
-                    {stores.map((s: any) => (
-                      <tr key={s.id}>
-                        <td><b style={{ fontFamily: 'Outfit' }}>{s.nome}</b></td>
-                        <td style={{ color: 'var(--sub)' }}>{s.categoria ?? '—'}</td>
-                        <td style={{ textTransform: 'capitalize' }}>{s.nivel}</td>
-                        <td><Pill s={s.status === 'verificado' ? 'ativo' : s.status === 'pendente' ? 'pendente' : 'reprovado'} /></td>
-                        <td style={{ color: 'var(--sub)' }}>{new Date(s.created_at).toLocaleDateString('pt-BR')}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              ) : <div className="adm-empty">Nenhum vendedor ainda.</div>}
+            <p className="adm-sub">Clique num vendedor para ver os detalhes. Use o selo para saber quem precisa de atenção.</p>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}>
+              {['todos', 'Ativo', 'Travado', 'Parado', 'Novo'].map((f) => (
+                <button key={f} className={`adm-btn ${engFiltro === f ? 'ap' : ''}`} onClick={() => setEngFiltro(f)}>{f === 'todos' ? 'Todos' : f}</button>
+              ))}
+            </div>
+            <div className="adm-card" style={{ padding: 0 }}>
+              {lista.length ? lista.map((s: any) => (
+                <div key={s.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                  <div onClick={() => setExpSeller(expSeller === s.id ? null : s.id)} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', cursor: 'pointer' }}>
+                    <span style={{ fontSize: 18 }}>{s.eng.emoji}</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <b style={{ fontFamily: 'Outfit' }}>{s.nome}</b>
+                      <div className="muted" style={{ fontSize: 12 }}>{s.produtosTotal} produtos · {fmt(s.vendas)} vendas · {money(s.gmv)}</div>
+                    </div>
+                    <Pill s={s.eng.tone} />
+                    <span className="muted" style={{ fontSize: 12 }}>{expSeller === s.id ? '▲' : '▼'}</span>
+                  </div>
+                  {expSeller === s.id && (
+                    <div style={{ padding: '0 16px 18px' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))', gap: 10 }}>
+                        <Det l="Produtos" v={`${s.produtosAtivos} ativos / ${s.produtosTotal}`} />
+                        <Det l="Vendas pagas" v={fmt(s.vendas)} />
+                        <Det l="Faturamento" v={money(s.gmv)} />
+                        <Det l="Comissão gerada" v={money(s.comissao)} />
+                        <Det l="Ticket médio" v={money(s.ticket)} />
+                        <Det l="Última venda" v={s.ultimaVenda ? new Date(s.ultimaVenda).toLocaleDateString('pt-BR') : '—'} />
+                        <Det l="Último produto" v={s.ultimoProduto ? new Date(s.ultimoProduto).toLocaleDateString('pt-BR') : '—'} />
+                        <Det l="Cadastrado" v={new Date(s.created_at).toLocaleDateString('pt-BR')} />
+                        <Det l="Saldo a sacar" v={money(s.aSacar)} />
+                        <Det l="Já sacado" v={money(s.sacado)} />
+                        <Det l="Destaques pagos" v={fmt(s.destaques)} />
+                        <Det l="Nota média" v={s.notaMedia ? s.notaMedia.toFixed(1) + ' ★' : '—'} />
+                      </div>
+                      <div style={{ marginTop: 12 }}>
+                        <a className="adm-btn" href={`/loja/${s.slug}`} target="_blank" rel="noreferrer">Ver loja pública ›</a>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )) : <div className="adm-empty" style={{ padding: 20 }}>Nenhum vendedor neste filtro.</div>}
             </div>
           </>
-        )}
+          );
+        })()}
 
         {tab === 'produtos' && (
           <>
