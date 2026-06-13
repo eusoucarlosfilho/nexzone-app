@@ -9,7 +9,7 @@ export default async function Nav() {
       <div className="topbar">🚀 Crie sua loja grátis e pague só <span className="g">3% por venda</span>. Sem mensalidade.</div>
       <nav className="nz">
         <div className="nav-wrap">
-          <Link href="/" className="logo">Nex<span className="g">Zone</span></Link>
+          <Link href="/" className="logo"><img src="/logo.png" alt="Comprei Barato" style={{ height: 38, width: 'auto', display: 'block' }} /></Link>
           <div className="nav-end">
             <Link href="/" className="btn btn-ghost btn-sm">Início</Link>
             <Link href="/produtos" className="btn btn-ghost btn-sm">Explorar</Link>
