@@ -43,8 +43,9 @@ export default function RecebimentosClient({ bal, pixKey, pixTipo, payouts }: an
           <div style={{ fontFamily: 'Outfit', fontSize: 26, fontWeight: 900, color: 'var(--green)' }}>{money(bal.disponivel)}</div>
         </div>
         <div className="card" style={{ padding: 20 }}>
-          <div style={{ fontSize: 12, color: 'var(--muted)', fontWeight: 700 }}>⏳ A liberar (garantia 7d)</div>
+          <div style={{ fontSize: 12, color: 'var(--muted)', fontWeight: 700 }}>⏳ A liberar (garantia {bal.garantiaDias}d)</div>
           <div style={{ fontFamily: 'Outfit', fontSize: 26, fontWeight: 900 }}>{money(bal.aLiberar)}</div>
+          {bal.proxima && <div style={{ fontSize: 12, color: 'var(--orange)', fontWeight: 700, marginTop: 4 }}>{money(bal.proxima.valor)} libera em {bal.proxima.dias === 0 ? 'hoje' : bal.proxima.dias === 1 ? '1 dia' : `${bal.proxima.dias} dias`}</div>}
         </div>
         <div className="card" style={{ padding: 20 }}>
           <div style={{ fontSize: 12, color: 'var(--muted)', fontWeight: 700 }}>📤 Em processamento</div>
@@ -55,6 +56,28 @@ export default function RecebimentosClient({ bal, pixKey, pixTipo, payouts }: an
           <div style={{ fontFamily: 'Outfit', fontSize: 26, fontWeight: 900 }}>{money(bal.sacado)}</div>
         </div>
       </div>
+
+      {bal.liberacoes && bal.liberacoes.length > 0 && (
+        <div className="card" style={{ marginBottom: 20 }}>
+          <h3 style={{ fontFamily: 'Outfit', fontSize: 16, marginBottom: 4 }}>📅 Cronograma de liberação</h3>
+          <p className="muted" style={{ fontSize: 13, marginBottom: 14 }}>Cada venda fica retida por {bal.garantiaDias} dias (garantia) e depois entra no seu saldo disponível para saque.</p>
+          {bal.liberacoes.map((l: any, i: number) => {
+            const totalDias = bal.garantiaDias;
+            const pct = Math.min(100, Math.max(0, Math.round(((totalDias - l.dias) / totalDias) * 100)));
+            return (
+              <div key={i} style={{ marginBottom: 14 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, marginBottom: 6 }}>
+                  <strong style={{ fontFamily: 'Outfit' }}>{money(l.valor)}</strong>
+                  <span className="muted">{l.dias === 0 ? 'libera hoje' : l.dias === 1 ? 'falta 1 dia' : `faltam ${l.dias} dias`} · {new Date(l.data).toLocaleDateString('pt-BR')}</span>
+                </div>
+                <div style={{ height: 8, borderRadius: 50, background: 'var(--soft)', overflow: 'hidden' }}>
+                  <div style={{ height: '100%', width: `${pct}%`, background: 'var(--grad)', borderRadius: 50, transition: '.3s' }} />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       <div className="card" style={{ marginBottom: 20 }}>
         <h3 style={{ fontFamily: 'Outfit', fontSize: 16, marginBottom: 6 }}>Chave Pix para recebimento</h3>
