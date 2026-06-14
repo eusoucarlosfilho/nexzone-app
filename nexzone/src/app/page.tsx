@@ -117,7 +117,7 @@ export default async function Home() {
             <h2>Tem um produto digital?</h2>
             <p style={{ opacity: .92 }}>Crie sua loja grátis e venda pagando só 3% por venda. Sem mensalidade.</p>
           </div>
-          <Link href="/seja-vendedor" className="btn btn-lg" style={{ background: '#fff', color: 'var(--orange)' }}>Criar minha loja</Link>
+          <Link href="/seja-vendedor" className="btn btn-lg" style={{ background: '#fff', color: 'var(--orange)' }}>Anuncie no nosso site sem você pagar nada!</Link>
         </div>
       </div></section>
 
