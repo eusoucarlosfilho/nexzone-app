@@ -1,3 +1,5 @@
+import { getPaymentConfig } from './config';
+
 export interface CreatePaymentInput {
   orderId: string;
   amount: number;
@@ -5,6 +7,8 @@ export interface CreatePaymentInput {
   feePercent: number;
   description: string;
   payerEmail?: string;
+  payerName?: string;
+  payerDocument?: string; // CPF (apenas dígitos) — exigido pela MisticPay
 }
 export interface CreatePaymentResult {
   gatewayRef: string;
@@ -23,6 +27,93 @@ export interface PaymentGateway {
   parseWebhook(req: Request, rawBody: string): Promise<WebhookEvent | null>;
 }
 
+/* ========================= MISTIC PAY ========================= */
+class MisticPayGateway implements PaymentGateway {
+  private base = 'https://api.misticpay.com/api';
+  constructor(private ci: string, private cs: string) {}
+
+  private headers() {
+    return { ci: this.ci, cs: this.cs, 'Content-Type': 'application/json' };
+  }
+
+  async createPixPayment(input: CreatePaymentInput): Promise<CreatePaymentResult> {
+    if (!this.ci || !this.cs) {
+      return {
+        gatewayRef: '', status: 'erro',
+        error: 'MisticPay não configurada. Cadastre o Client ID e o Client Secret nas Configurações do admin.',
+      };
+    }
+    const doc = (input.payerDocument || '').replace(/\D/g, '');
+    if (doc.length !== 11) {
+      return { gatewayRef: '', status: 'erro', error: 'Informe um CPF válido (11 dígitos) para gerar o Pix.' };
+    }
+
+    const body = {
+      amount: Number(input.amount.toFixed(2)),
+      payerName: (input.payerName || 'Cliente Comprei Barato').slice(0, 120),
+      payerDocument: doc,
+      transactionId: input.orderId,
+      description: (input.description || 'Compra Comprei Barato').slice(0, 140),
+      projectWebhook: `${process.env.NEXT_PUBLIC_SITE_URL}/api/webhooks/payment`,
+    };
+
+    try {
+      const res = await fetch(`${this.base}/transactions/create`, {
+        method: 'POST', headers: this.headers(), body: JSON.stringify(body),
+      });
+      const data = await res.json().catch(() => ({} as any));
+      if (!res.ok) {
+        console.error('MisticPay erro create:', JSON.stringify(data));
+        return { gatewayRef: '', status: 'erro', error: data?.message || data?.error || 'Falha ao gerar o Pix na MisticPay.' };
+      }
+      const d = data?.data || {};
+      const qr = typeof d.qrCodeBase64 === 'string'
+        ? d.qrCodeBase64.replace(/^data:image\/[a-z]+;base64,/i, '')
+        : undefined;
+      const copia = d.copyPaste || undefined;
+      if (!copia && !qr) {
+        console.error('MisticPay sem QR/copyPaste:', JSON.stringify(data));
+        return { gatewayRef: String(d.transactionId || ''), status: 'erro', error: 'MisticPay não retornou o código Pix.' };
+      }
+      return {
+        gatewayRef: String(d.transactionId || ''),
+        pixCopiaECola: copia,
+        pixQrBase64: qr,
+        status: 'pendente',
+      };
+    } catch (e: any) {
+      console.error('MisticPay exceção create:', e?.message);
+      return { gatewayRef: '', status: 'erro', error: 'Não foi possível conectar à MisticPay. Tente novamente.' };
+    }
+  }
+
+  async parseWebhook(_req: Request, rawBody: string): Promise<WebhookEvent | null> {
+    try {
+      const b = JSON.parse(rawBody);
+
+      // Webhook de MED (infração/chargeback): apenas reconhecemos; tratativa é manual no admin.
+      if (b?.event === 'INFRACTION') {
+        console.warn('MisticPay MED recebido:', JSON.stringify(b?.infraction || {}));
+        return null;
+      }
+
+      // Webhook de saque (RETIRADA) não é pagamento de pedido.
+      if (b?.transactionType && String(b.transactionType).toUpperCase() === 'RETIRADA') return null;
+
+      const ref = String(b?.transactionId || '');
+      if (!ref) return null;
+      const s = String(b?.status || '').toUpperCase();
+      const map: Record<string, WebhookEvent['status']> = {
+        COMPLETO: 'pago', FALHA: 'recusado', PENDENTE: 'pendente',
+      };
+      return { gatewayRef: ref, status: map[s] || 'pendente' };
+    } catch {
+      return null;
+    }
+  }
+}
+
+/* ========================= MERCADO PAGO ========================= */
 class MercadoPagoGateway implements PaymentGateway {
   private token = process.env.PAYMENT_ACCESS_TOKEN!;
 
@@ -91,6 +182,12 @@ class MercadoPagoGateway implements PaymentGateway {
   }
 }
 
-export function getGateway(): PaymentGateway {
+/**
+ * Retorna o gateway ativo conforme a configuração salva no admin.
+ * É assíncrono porque lê as credenciais do banco.
+ */
+export async function getGateway(): Promise<PaymentGateway> {
+  const cfg = await getPaymentConfig();
+  if (cfg.gateway === 'misticpay') return new MisticPayGateway(cfg.misticpay.ci, cfg.misticpay.cs);
   return new MercadoPagoGateway();
 }
