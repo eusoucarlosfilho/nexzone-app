@@ -6,6 +6,7 @@ const ITEMS = [
   ['/vender', '📊', 'Visão geral'],
   ['/vender/vendas', '🧾', 'Vendas'],
   ['/vender/produtos', '📦', 'Produtos'],
+  ['/vender/perguntas', '❓', 'Perguntas'],
   ['/vender/cupons', '🎟️', 'Cupons'],
   ['/vender/recebimentos', '💰', 'Recebimentos'],
   ['/vender/loja', '🏪', 'Minha Loja'],
