@@ -5,7 +5,7 @@ type Msg = { id: string; papel: string; texto: string; created_at: string; mine:
 
 const hora = (s: string) => new Date(s).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 
-export default function OrderChat({ orderId, theme = 'light', readOnly = false }: { orderId: string; theme?: 'light' | 'dark'; readOnly?: boolean }) {
+export default function OrderChat({ orderId, theme = 'light', readOnly = false, moderator = false }: { orderId: string; theme?: 'light' | 'dark'; readOnly?: boolean; moderator?: boolean }) {
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [texto, setTexto] = useState('');
   const [enviando, setEnviando] = useState(false);
@@ -76,10 +76,12 @@ export default function OrderChat({ orderId, theme = 'light', readOnly = false }
           const own = m.mine;
           const bg = own ? 'linear-gradient(135deg,#FF6B00,#FF9A3C)' : C.bubbleOther;
           const col = own ? '#fff' : C.tx;
-          const tag = m.papel === 'admin' ? 'Suporte' : m.papel === 'vendedor' ? 'Vendedor' : 'Cliente';
+          const roleTag = m.papel === 'admin' ? 'Administrador' : m.papel === 'vendedor' ? 'Vendedor' : 'Cliente';
+          // No modo moderador (visão do admin), mostra o papel de cada um — inclusive as próprias.
+          const label = moderator ? roleTag : (own ? 'Você' : roleTag);
           return (
             <div key={m.id} style={{ display: 'flex', flexDirection: 'column', alignItems: own ? 'flex-end' : 'flex-start' }}>
-              <div style={{ fontSize: 10, color: C.sub, margin: '0 6px 3px', fontWeight: 700 }}>{own ? 'Você' : tag}</div>
+              <div style={{ fontSize: 10, color: C.sub, margin: '0 6px 3px', fontWeight: 700 }}>{label}</div>
               <div style={{ background: bg, color: col, padding: '9px 13px', borderRadius: own ? '14px 14px 4px 14px' : '14px 14px 14px 4px', maxWidth: '78%', fontSize: 14, lineHeight: 1.4, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{m.texto}</div>
               <div style={{ fontSize: 10, color: C.sub, margin: '3px 6px 0' }}>{hora(m.created_at)}</div>
             </div>
