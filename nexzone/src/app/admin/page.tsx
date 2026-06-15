@@ -143,22 +143,13 @@ export default async function AdminPage() {
   });
   const sellerByOwner: Record<string, any> = Object.fromEntries(sellers.map((s: any) => [s.owner, s]));
 
-  // Busca TODOS os perfis. Resiliente: se a coluna 'status' ainda não existe
-  // (migration não rodou), cai numa busca sem ela e assume 'ativo'.
-  let profilesAll: any[] = [];
-  {
-    const r1 = await admin.from('profiles')
-      .select('id, nome, role, cb_points, status, created_at')
-      .order('created_at', { ascending: false });
-    if (r1.error) {
-      const r2 = await admin.from('profiles')
-        .select('id, nome, role, cb_points, created_at')
-        .order('created_at', { ascending: false });
-      profilesAll = ((r2.data as any[]) ?? []).map((p) => ({ ...p, status: 'ativo' }));
-    } else {
-      profilesAll = (r1.data as any[]) ?? [];
-    }
-  }
+  // Busca TODOS os perfis com select('*'): assim a query NUNCA quebra por uma
+  // coluna que talvez não exista no schema (ex.: cb_points, status). Lemos cada
+  // campo de forma defensiva, com valor padrão.
+  const { data: profilesRaw } = await admin.from('profiles').select('*');
+  const profilesAll = ((profilesRaw as any[]) ?? []).slice().sort(
+    (a, b) => new Date(b?.created_at || 0).getTime() - new Date(a?.created_at || 0).getTime()
+  );
 
   const users = (profilesAll).map((p: any) => ({
     id: p.id,
