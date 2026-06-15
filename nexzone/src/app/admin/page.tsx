@@ -42,10 +42,10 @@ export default async function AdminPage() {
       .select('id, valor, dias, status, created_at, expira_em, store_id, products(titulo, emoji), stores(nome)')
       .order('created_at', { ascending: false }),
     admin.from('complaints')
-      .select('id, texto, status, created_at, orders(id, total, comprador_email, products(titulo, emoji), stores(nome))')
+      .select('id, order_id, texto, status, created_at')
       .eq('status', 'aberta').order('created_at', { ascending: false }),
     admin.from('seller_alerts')
-      .select('id, canal, destino, status, detalhe, created_at, orders(products(titulo), stores(nome))')
+      .select('id, order_id, canal, destino, status, detalhe, created_at')
       .order('created_at', { ascending: false }).limit(100),
   ]);
 
@@ -56,6 +56,19 @@ export default async function AdminPage() {
   const boosts = (boostsRes.data ?? []) as any[];
   const complaints = (complaintsRes.data ?? []) as any[];
   const alerts = (alertsRes.data ?? []) as any[];
+
+  // Junta os pedidos das reclamações/torpedos no código (sem depender de FK no PostgREST).
+  const detalheOrderIds = Array.from(new Set(
+    [...complaints, ...alerts].map((x: any) => x.order_id).filter(Boolean)
+  ));
+  if (detalheOrderIds.length) {
+    const { data: detOrders } = await admin.from('orders')
+      .select('id, total, comprador_email, products(titulo, emoji), stores(nome)')
+      .in('id', detalheOrderIds);
+    const omap: Record<string, any> = Object.fromEntries(((detOrders ?? []) as any[]).map((o) => [o.id, o]));
+    complaints.forEach((c: any) => { c.orders = omap[c.order_id] || {}; });
+    alerts.forEach((a: any) => { a.orders = omap[a.order_id] || {}; });
+  }
 
   // ---- Enriquecimento por vendedor (CRM de vendedores) ----
   const now = Date.now();
