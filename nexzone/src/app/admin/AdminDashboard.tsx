@@ -50,6 +50,19 @@ export default function AdminDashboard({ adminEmail, metrics, daily, orders, pro
   const [tab, setTab] = useState('cockpit');
   const [chatOrder, setChatOrder] = useState<string | null>(null);
   const [complaintList, setComplaintList] = useState<any[]>(complaints || []);
+  const [recTab, setRecTab] = useState<'pendentes' | 'resolvidas'>('pendentes');
+  async function pegarReclamacao(id: string) {
+    setBusy(id);
+    const r = await fetch('/api/admin/complaint-claim', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+      body: JSON.stringify({ complaintId: id }),
+    });
+    setBusy(null);
+    if (r.ok) {
+      setComplaintList((l) => l.map((c) => c.id === id ? { ...c, atendido_por: 'eu', atendente_email: adminEmail } : c));
+      toast('Você pegou esta reclamação.', 'success');
+    } else toast('Falha ao pegar.', 'error');
+  }
   async function resolverReclamacao(id: string) {
     setBusy(id);
     const r = await fetch('/api/admin/complaint-resolve', {
@@ -57,9 +70,15 @@ export default function AdminDashboard({ adminEmail, metrics, daily, orders, pro
       body: JSON.stringify({ complaintId: id }),
     });
     setBusy(null);
-    if (r.ok) { setComplaintList((l) => l.filter((c) => c.id !== id)); toast('Reclamação resolvida.', 'success'); }
-    else toast('Falha ao resolver.', 'error');
+    if (r.ok) {
+      setComplaintList((l) => l.map((c) => c.id === id
+        ? { ...c, status: 'resolvida', resolvido_por: 'eu', resolvedor_email: adminEmail, resolvida_em: new Date().toISOString() }
+        : c));
+      toast('Reclamação resolvida.', 'success');
+    } else toast('Falha ao resolver.', 'error');
   }
+  const recPendentes = complaintList.filter((c: any) => c.status === 'aberta');
+  const recResolvidas = complaintList.filter((c: any) => c.status === 'resolvida');
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   useEffect(() => {
     try {
@@ -134,7 +153,7 @@ export default function AdminDashboard({ adminEmail, metrics, daily, orders, pro
     ['saques', 'money', 'Saques', metrics.saquesPendentes],
     ['destaques', 'star', 'Destaques', metrics.destaquesAtivos],
     ['crescimento', 'growth', 'Crescimento', 0],
-    ['reclamacoes', 'shield', 'Reclamações', complaintList.length],
+    ['reclamacoes', 'shield', 'Reclamações', recPendentes.length],
     ['torpedos', 'bell', 'Torpedos enviados', 0],
     ['config', 'settings', 'Configurações', 0],
   ];
@@ -503,35 +522,59 @@ export default function AdminDashboard({ adminEmail, metrics, daily, orders, pro
           </>
         )}
 
-        {tab === 'reclamacoes' && (
+        {tab === 'reclamacoes' && (() => {
+          const lista = recTab === 'pendentes' ? recPendentes : recResolvidas;
+          const Card = ({ c }: any) => {
+            const o: any = c.orders || {};
+            const resolvida = c.status === 'resolvida';
+            return (
+              <div key={c.id} className="adm-card" style={{ borderLeft: `3px solid ${resolvida ? '#1FA463' : '#E23B3B'}` }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
+                  <div style={{ width: 42, height: 42, borderRadius: 11, background: 'var(--panel2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>{o.products?.emoji ?? '📦'}</div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <strong style={{ fontFamily: 'Outfit', fontSize: 14 }}>{o.products?.titulo ?? 'Produto'}</strong>
+                    <div style={{ color: 'var(--sub)', fontSize: 12 }}>{o.stores?.nome ?? '—'} · {o.comprador_email ?? 'Cliente'} · {money(o.total ?? 0)} · {new Date(c.created_at).toLocaleDateString('pt-BR')}</div>
+                  </div>
+                </div>
+                <div style={{ background: 'var(--panel2)', borderRadius: 10, padding: 12, fontSize: 13.5, color: 'var(--tx)', whiteSpace: 'pre-wrap' }}>{c.texto}</div>
+
+                {/* Quem está atendendo / quem resolveu */}
+                <div style={{ marginTop: 10, fontSize: 12, color: 'var(--sub)' }}>
+                  {resolvida
+                    ? <>✅ Resolvida por <strong style={{ color: 'var(--tx)' }}>{c.resolvedor_email || c.atendente_email || 'admin'}</strong>{c.resolvida_em ? ` · ${new Date(c.resolvida_em).toLocaleDateString('pt-BR')}` : ''}</>
+                    : c.atendente_email
+                      ? <>👤 Em atendimento por <strong style={{ color: 'var(--tx)' }}>{c.atendente_email}</strong></>
+                      : <>⏳ Ninguém pegou ainda</>}
+                </div>
+
+                <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
+                  {o.id && <button className="adm-btn rp" onClick={() => setChatOrder(o.id)}>Abrir conversa</button>}
+                  {!resolvida && !c.atendente_email && (
+                    <button className="adm-btn" disabled={busy === c.id} onClick={() => pegarReclamacao(c.id)}>{busy === c.id ? '…' : 'Pegar para atender'}</button>
+                  )}
+                  {!resolvida && (
+                    <button className="adm-btn ap" disabled={busy === c.id} onClick={() => resolverReclamacao(c.id)}>{busy === c.id ? '…' : 'Marcar como resolvida'}</button>
+                  )}
+                </div>
+              </div>
+            );
+          };
+          return (
           <>
             <h1 className="adm-h">Reclamações</h1>
-            <p className="adm-sub">Reclamações abertas. Enquanto abertas, o saldo da venda fica retido. Converse pela conversa do pedido e marque como resolvida.</p>
-            {complaintList.length === 0 ? (
-              <div className="adm-card"><p style={{ color: 'var(--sub)', textAlign: 'center', padding: 20 }}>Nenhuma reclamação aberta. 🎉</p></div>
+            <p className="adm-sub">Enquanto a reclamação está pendente, o saldo da venda fica retido. Pegue para atender, converse pela conversa do pedido e marque como resolvida.</p>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+              <button className={`adm-btn ${recTab === 'pendentes' ? 'ap' : ''}`} onClick={() => setRecTab('pendentes')}>Pendentes ({recPendentes.length})</button>
+              <button className={`adm-btn ${recTab === 'resolvidas' ? 'ap' : ''}`} onClick={() => setRecTab('resolvidas')}>Resolvidas ({recResolvidas.length})</button>
+            </div>
+            {lista.length === 0 ? (
+              <div className="adm-card"><p style={{ color: 'var(--sub)', textAlign: 'center', padding: 20 }}>{recTab === 'pendentes' ? 'Nenhuma reclamação pendente. 🎉' : 'Nenhuma reclamação resolvida ainda.'}</p></div>
             ) : (
-              complaintList.map((c: any) => {
-                const o: any = c.orders || {};
-                return (
-                  <div key={c.id} className="adm-card" style={{ borderLeft: '3px solid #E23B3B' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
-                      <div style={{ width: 42, height: 42, borderRadius: 11, background: 'var(--panel2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>{o.products?.emoji ?? '📦'}</div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <strong style={{ fontFamily: 'Outfit', fontSize: 14 }}>{o.products?.titulo ?? 'Produto'}</strong>
-                        <div style={{ color: 'var(--sub)', fontSize: 12 }}>{o.stores?.nome ?? '—'} · {o.comprador_email ?? 'Cliente'} · {money(o.total ?? 0)} · {new Date(c.created_at).toLocaleDateString('pt-BR')}</div>
-                      </div>
-                    </div>
-                    <div style={{ background: 'var(--panel2)', borderRadius: 10, padding: 12, fontSize: 13.5, color: 'var(--tx)', whiteSpace: 'pre-wrap' }}>{c.texto}</div>
-                    <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-                      {o.id && <button className="adm-btn rp" onClick={() => setChatOrder(o.id)}>Abrir conversa</button>}
-                      <button className="adm-btn ap" disabled={busy === c.id} onClick={() => resolverReclamacao(c.id)}>{busy === c.id ? '…' : 'Marcar como resolvida'}</button>
-                    </div>
-                  </div>
-                );
-              })
+              lista.map((c: any) => <Card key={c.id} c={c} />)
             )}
           </>
-        )}
+          );
+        })()}
 
         {tab === 'torpedos' && (
           <>

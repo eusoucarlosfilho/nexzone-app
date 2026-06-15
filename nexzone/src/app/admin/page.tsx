@@ -24,6 +24,13 @@ export default async function AdminPage() {
   // para reclamações/torpedos, que dependem de RLS e não apareciam com o client comum.
   const admin = createAdminClient();
 
+  // Mapa id->email (usado para "quem atendeu" a reclamação e para a lista de admins)
+  let emailById: Record<string, string> = {};
+  try {
+    const { data: usersList } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
+    emailById = Object.fromEntries(((usersList?.users) ?? []).map((u: any) => [u.id, u.email ?? '—']));
+  } catch { emailById = {}; }
+
   const [ordersRes, productsRes, storesRes, buyersRes, payoutsRes, boostsRes, complaintsRes, alertsRes] = await Promise.all([
     supabase.from('orders')
       .select('id, status, total, taxa, created_at, store_id, products(titulo, emoji), stores(nome)')
@@ -42,8 +49,8 @@ export default async function AdminPage() {
       .select('id, valor, dias, status, created_at, expira_em, store_id, products(titulo, emoji), stores(nome)')
       .order('created_at', { ascending: false }),
     admin.from('complaints')
-      .select('id, order_id, texto, status, created_at')
-      .eq('status', 'aberta').order('created_at', { ascending: false }),
+      .select('id, order_id, texto, status, created_at, atendido_por, atendido_em, resolvida_em, resolvido_por')
+      .in('status', ['aberta', 'resolvida']).order('created_at', { ascending: false }).limit(200),
     admin.from('seller_alerts')
       .select('id, order_id, canal, destino, status, detalhe, created_at')
       .order('created_at', { ascending: false }).limit(100),
@@ -56,6 +63,12 @@ export default async function AdminPage() {
   const boosts = (boostsRes.data ?? []) as any[];
   const complaints = (complaintsRes.data ?? []) as any[];
   const alerts = (alertsRes.data ?? []) as any[];
+
+  // E-mail de quem pegou/resolveu cada reclamação
+  complaints.forEach((c: any) => {
+    c.atendente_email = c.atendido_por ? (emailById[c.atendido_por] || '—') : null;
+    c.resolvedor_email = c.resolvido_por ? (emailById[c.resolvido_por] || '—') : null;
+  });
 
   // Junta os pedidos das reclamações/torpedos no código (sem depender de FK no PostgREST).
   const detalheOrderIds = Array.from(new Set(
@@ -123,10 +136,6 @@ export default async function AdminPage() {
   // Lista de administradores (perfil role=admin + e-mail vindo do auth)
   try {
     const { data: adminProfiles } = await admin.from('profiles').select('id').eq('role', 'admin');
-    const { data: usersList } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
-    const emailById: Record<string, string> = Object.fromEntries(
-      ((usersList?.users) ?? []).map((u: any) => [u.id, u.email ?? '—'])
-    );
     settings.admins = ((adminProfiles) ?? []).map((p: any) => ({ id: p.id, email: emailById[p.id] || '—' }));
   } catch { settings.admins = []; }
 

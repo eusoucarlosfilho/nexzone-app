@@ -12,9 +12,14 @@ export async function POST(req: Request) {
   const { productId, cupom, bump, cpf, usarPontos } = await req.json();
   const { data: product } = await supabase
     .from('products')
-    .select('*, stores(recipient_id)')
+    .select('*, stores(recipient_id, owner)')
     .eq('id', productId).eq('status', 'ativo').single();
   if (!product) return NextResponse.json({ error: 'produto indisponível' }, { status: 404 });
+
+  // Trava: o dono da loja não pode comprar o próprio produto.
+  if ((product as any).stores?.owner && (product as any).stores.owner === user.id) {
+    return NextResponse.json({ error: 'Você não pode comprar um produto da sua própria loja.' }, { status: 400 });
+  }
 
   const precoBase = Number(product.preco_promo ?? product.preco);
 

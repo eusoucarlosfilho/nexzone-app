@@ -12,16 +12,14 @@ export async function POST(req: Request) {
   if (!complaintId) return NextResponse.json({ error: 'sem id' }, { status: 400 });
 
   const admin = createAdminClient();
-  const { data: cmp } = await admin.from('complaints').select('id, order_id, status, atendido_por').eq('id', complaintId).maybeSingle();
+  const { data: cmp } = await admin.from('complaints').select('id, atendido_por, status').eq('id', complaintId).maybeSingle();
   if (!cmp) return NextResponse.json({ error: 'reclamação não encontrada' }, { status: 404 });
+  if ((cmp as any).atendido_por) return NextResponse.json({ error: 'Alguém já está atendendo esta reclamação.' }, { status: 400 });
 
-  const patch: any = { status: 'resolvida', resolvida_em: new Date().toISOString(), resolvido_por: user.id };
-  if (!(cmp as any).atendido_por) { patch.atendido_por = user.id; patch.atendido_em = new Date().toISOString(); }
-  await admin.from('complaints').update(patch).eq('id', complaintId);
-  await admin.from('order_messages').insert({
-    order_id: (cmp as any).order_id, remetente: null, papel: 'sistema',
-    texto: '✅ O suporte marcou a reclamação como resolvida. O saldo desta venda volta ao fluxo normal de liberação.',
-  });
+  const { error } = await admin.from('complaints')
+    .update({ atendido_por: user.id, atendido_em: new Date().toISOString() })
+    .eq('id', complaintId).is('atendido_por', null); // evita corrida entre dois admins
+  if (error) return NextResponse.json({ error: 'falha ao pegar' }, { status: 500 });
 
   return NextResponse.json({ ok: true });
 }
