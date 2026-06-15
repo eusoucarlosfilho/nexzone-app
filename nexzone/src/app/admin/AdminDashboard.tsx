@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { toast } from '@/lib/toast';
 import SettingsForm from './SettingsForm';
+import TorpedosForm from './TorpedosForm';
 import OrderChat from '@/components/OrderChat';
 
 const money = (v: number) => 'R$ ' + Number(v).toFixed(2).replace('.', ',');
@@ -25,6 +26,7 @@ function Icon({ name, size = 18 }: { name: string; size?: number }) {
     sun: <><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" /></>,
     moon: <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />,
     shield: <><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /><path d="M12 8v4M12 16h.01" /></>,
+    bell: <><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.7 21a2 2 0 0 1-3.4 0" /></>,
   };
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
@@ -44,7 +46,7 @@ const STATUS: Record<string, [string, string]> = {
   reprovado: ['#E23B3B', 'Reprovado'],
 };
 
-export default function AdminDashboard({ metrics, daily, orders, products, stores, payouts, boosts, settings, growth, sellers, complaints }: any) {
+export default function AdminDashboard({ metrics, daily, orders, products, stores, payouts, boosts, settings, growth, sellers, complaints, alerts }: any) {
   const [tab, setTab] = useState('cockpit');
   const [chatOrder, setChatOrder] = useState<string | null>(null);
   const [complaintList, setComplaintList] = useState<any[]>(complaints || []);
@@ -133,6 +135,7 @@ export default function AdminDashboard({ metrics, daily, orders, products, store
     ['destaques', 'star', 'Destaques', metrics.destaquesAtivos],
     ['crescimento', 'growth', 'Crescimento', 0],
     ['reclamacoes', 'shield', 'Reclamações', complaintList.length],
+    ['torpedos', 'bell', 'Torpedos enviados', 0],
     ['config', 'settings', 'Configurações', 0],
   ];
 
@@ -521,6 +524,38 @@ export default function AdminDashboard({ metrics, daily, orders, products, store
                   </div>
                 );
               })
+            )}
+          </>
+        )}
+
+        {tab === 'torpedos' && (
+          <>
+            <h1 className="adm-h">Torpedos enviados</h1>
+            <p className="adm-sub">Avisos automáticos para o vendedor quando ele demora a responder o cliente no chat. Configure o tempo e os canais (e-mail/SMS).</p>
+            <div style={{ marginBottom: 22 }}>
+              <TorpedosForm settings={settings} />
+            </div>
+            <h2 style={{ fontFamily: 'Outfit', fontWeight: 800, fontSize: 16, margin: '8px 0 12px' }}>Histórico de envios</h2>
+            {(!alerts || alerts.length === 0) ? (
+              <div className="adm-card"><p style={{ color: 'var(--sub)', textAlign: 'center', padding: 18 }}>Nenhum aviso enviado ainda.</p></div>
+            ) : (
+              <div className="adm-card" style={{ padding: 0, overflow: 'hidden' }}>
+                {alerts.map((a: any, i: number) => {
+                  const o: any = a.orders || {};
+                  const cor = a.status === 'enviado' ? 'var(--green)' : a.status === 'falha' ? '#E23B3B' : '#C98A00';
+                  const rotulo = a.status === 'enviado' ? 'Enviado' : a.status === 'falha' ? 'Falha' : 'Pendente config';
+                  return (
+                    <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', borderTop: i ? '1px solid var(--border)' : 'none' }}>
+                      <span style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', padding: '3px 8px', borderRadius: 6, background: 'var(--panel2)', color: 'var(--sub)' }}>{a.canal}</span>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontFamily: 'Outfit', fontWeight: 700, fontSize: 13.5 }}>{o.products?.titulo ?? 'Pedido'} <span style={{ color: 'var(--sub)', fontWeight: 500 }}>· {o.stores?.nome ?? '—'}</span></div>
+                        <div style={{ color: 'var(--sub)', fontSize: 12 }}>{a.destino || 'sem destino'} · {a.detalhe} · {new Date(a.created_at).toLocaleString('pt-BR')}</div>
+                      </div>
+                      <span style={{ color: cor, fontWeight: 700, fontSize: 12.5, whiteSpace: 'nowrap' }}>{rotulo}</span>
+                    </div>
+                  );
+                })}
+              </div>
             )}
           </>
         )}

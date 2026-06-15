@@ -11,6 +11,12 @@ export type Settings = {
   cb_points_review_bonus: number;
   review_window_days: number;
   fast_release_days: number;
+  escalonamento_horas: number;
+  escalonamento_email_on: boolean;
+  escalonamento_sms_on: boolean;
+  sms_api_url: string;
+  sms_api_token_set: boolean;
+  sms_remetente: string;
 };
 
 const DEFAULTS: Settings = {
@@ -22,6 +28,12 @@ const DEFAULTS: Settings = {
   cb_points_review_bonus: 3,
   review_window_days: 5,
   fast_release_days: 1,
+  escalonamento_horas: 5,
+  escalonamento_email_on: true,
+  escalonamento_sms_on: false,
+  sms_api_url: '',
+  sms_api_token_set: false,
+  sms_remetente: '',
 };
 
 function num(v: any, def: number) {
@@ -43,6 +55,12 @@ export async function getSettings(): Promise<Settings> {
       cb_points_review_bonus: num(map.cb_points_review_bonus, DEFAULTS.cb_points_review_bonus),
       review_window_days: num(map.review_window_days, DEFAULTS.review_window_days),
       fast_release_days: num(map.fast_release_days, DEFAULTS.fast_release_days),
+      escalonamento_horas: num(map.escalonamento_horas, DEFAULTS.escalonamento_horas),
+      escalonamento_email_on: map.escalonamento_email_on !== false,
+      escalonamento_sms_on: map.escalonamento_sms_on === true,
+      sms_api_url: typeof map.sms_api_url === 'string' ? map.sms_api_url : '',
+      sms_api_token_set: typeof map.sms_api_token === 'string' && map.sms_api_token.length > 0,
+      sms_remetente: typeof map.sms_remetente === 'string' ? map.sms_remetente : '',
     };
   } catch {
     return DEFAULTS;

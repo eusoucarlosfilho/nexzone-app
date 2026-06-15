@@ -20,7 +20,7 @@ export default async function AdminPage() {
     );
   }
 
-  const [ordersRes, productsRes, storesRes, buyersRes, payoutsRes, boostsRes, complaintsRes] = await Promise.all([
+  const [ordersRes, productsRes, storesRes, buyersRes, payoutsRes, boostsRes, complaintsRes, alertsRes] = await Promise.all([
     supabase.from('orders')
       .select('id, status, total, taxa, created_at, store_id, products(titulo, emoji), stores(nome)')
       .order('created_at', { ascending: false }),
@@ -40,6 +40,9 @@ export default async function AdminPage() {
     supabase.from('complaints')
       .select('id, texto, status, created_at, orders(id, total, comprador_email, products(titulo, emoji), stores(nome))')
       .eq('status', 'aberta').order('created_at', { ascending: false }),
+    supabase.from('seller_alerts')
+      .select('id, canal, destino, status, detalhe, created_at, orders(products(titulo), stores(nome))')
+      .order('created_at', { ascending: false }).limit(100),
   ]);
 
   const orders = (ordersRes.data ?? []) as any[];
@@ -48,6 +51,7 @@ export default async function AdminPage() {
   const payouts = (payoutsRes.data ?? []) as any[];
   const boosts = (boostsRes.data ?? []) as any[];
   const complaints = (complaintsRes.data ?? []) as any[];
+  const alerts = (alertsRes.data ?? []) as any[];
 
   // ---- Enriquecimento por vendedor (CRM de vendedores) ----
   const now = Date.now();
@@ -121,5 +125,5 @@ export default async function AdminPage() {
     buyersCount,
   };
 
-  return <AdminDashboard metrics={metrics} daily={daily} orders={orders} products={products} stores={stores} payouts={payouts} boosts={boosts} settings={settings} growth={growth} sellers={sellers} complaints={complaints} />;
+  return <AdminDashboard metrics={metrics} daily={daily} orders={orders} products={products} stores={stores} payouts={payouts} boosts={boosts} settings={settings} growth={growth} sellers={sellers} complaints={complaints} alerts={alerts} />;
 }

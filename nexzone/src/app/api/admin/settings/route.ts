@@ -39,6 +39,19 @@ export async function POST(req: Request) {
     }
   }
 
+  // Escalonamento (Torpedos enviados)
+  if (body.escalonamento_horas != null) {
+    const h = Number(body.escalonamento_horas);
+    if (isNaN(h) || h < 1 || h > 240) return NextResponse.json({ error: 'horas inválidas (1 a 240)' }, { status: 400 });
+    rows.push({ key: 'escalonamento_horas', value: h });
+  }
+  if (typeof body.escalonamento_email_on === 'boolean') rows.push({ key: 'escalonamento_email_on', value: body.escalonamento_email_on });
+  if (typeof body.escalonamento_sms_on === 'boolean') rows.push({ key: 'escalonamento_sms_on', value: body.escalonamento_sms_on });
+  if (typeof body.sms_api_url === 'string') rows.push({ key: 'sms_api_url', value: body.sms_api_url.trim() });
+  if (typeof body.sms_remetente === 'string') rows.push({ key: 'sms_remetente', value: body.sms_remetente.trim() });
+  // token só atualiza se vier preenchido (em branco mantém o atual)
+  if (typeof body.sms_api_token === 'string' && body.sms_api_token.trim()) rows.push({ key: 'sms_api_token', value: body.sms_api_token.trim() });
+
   // Gateway de pagamento
   if (body.payment_gateway === 'misticpay' || body.payment_gateway === 'mercadopago') {
     rows.push({ key: 'payment_gateway', value: body.payment_gateway });

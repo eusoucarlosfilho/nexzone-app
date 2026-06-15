@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient, createAdminClient } from '@/lib/supabase/server';
+import { verificarEscalonamento } from '@/lib/escalonamento';
 
 // Descobre o papel do usuário em relação ao pedido e devolve dados do pedido.
 async function autorizar(orderId: string, userId: string) {
@@ -42,13 +43,16 @@ export async function GET(req: Request) {
     const prod: any = (order as any).products;
     await admin.from('order_messages').insert({
       order_id: orderId, remetente: null, papel: 'sistema',
-      texto: `Pagamento confirmado para "${prod?.titulo ?? 'o produto'}". A partir de agora vocês podem conversar por aqui. O vendedor entrega o produto e tira as dúvidas nesta conversa.`,
+      texto: `Pagamento confirmado para "${prod?.titulo ?? 'o produto'}". O vendedor já foi avisado da sua compra e é notificado a cada mensagem que você envia aqui. A partir de agora vocês podem conversar por aqui — o vendedor entrega o produto e tira as dúvidas nesta conversa.`,
     });
   }
 
   const { data: msgs } = await admin.from('order_messages')
     .select('id, papel, texto, remetente, created_at')
     .eq('order_id', orderId).order('created_at', { ascending: true });
+
+  // Verifica (sem travar a resposta) se o vendedor passou do prazo sem responder
+  verificarEscalonamento(admin, orderId).catch(() => {});
 
   const lista = (msgs ?? []).map((m: any) => ({
     id: m.id, papel: m.papel, texto: m.texto, created_at: m.created_at,
