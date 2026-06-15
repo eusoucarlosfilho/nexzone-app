@@ -39,7 +39,7 @@ export default async function AdminPage() {
       .select('id, titulo, emoji, preco, preco_promo, categoria, status, vendas, nota, created_at, store_id, stores(nome)')
       .order('created_at', { ascending: false }),
     supabase.from('stores')
-      .select('id, nome, slug, categoria, status, nivel, created_at')
+      .select('id, nome, slug, categoria, status, nivel, created_at, owner')
       .order('created_at', { ascending: false }),
     supabase.from('profiles').select('id', { count: 'exact', head: true }).in('role', ['comprador', 'ambos']),
     supabase.from('payouts')
@@ -106,7 +106,7 @@ export default async function AdminPage() {
   const sellers = stores.map((s) => {
     const a = acc[s.id];
     return {
-      id: s.id, nome: s.nome, slug: s.slug, status: s.status, nivel: s.nivel, categoria: s.categoria, created_at: s.created_at,
+      id: s.id, owner: s.owner, nome: s.nome, slug: s.slug, status: s.status, nivel: s.nivel, categoria: s.categoria, created_at: s.created_at,
       produtosTotal: a.produtosTotal, produtosAtivos: a.produtosAtivos, vendas: a.vendas, gmv: a.gmv, comissao: a.comissao,
       ticket: a.vendas ? a.gmv / a.vendas : 0, ultimaVenda: a.ultimaVenda, ultimoProduto: a.ultimoProduto,
       aSacar: a.aSacar, sacado: a.sacado, destaques: a.destaques, notaMedia: a.notaQtd ? a.notaSum / a.notaQtd : 0,
@@ -114,6 +114,31 @@ export default async function AdminPage() {
     };
   }).sort((x, y) => y.gmv - x.gmv);
   const buyersCount = buyersRes.count ?? 0;
+
+  // ===== Lista de TODOS os usuários (comprador, vendedor, admin) =====
+  const storeOwnerById: Record<string, string> = Object.fromEntries(stores.map((s: any) => [s.id, s.owner]));
+  const orderStoreById: Record<string, string> = Object.fromEntries(orders.map((o: any) => [o.id, o.store_id]));
+  const openComplaintsByOwner: Record<string, number> = {};
+  complaints.filter((c: any) => c.status === 'aberta').forEach((c: any) => {
+    const storeId = orderStoreById[c.order_id];
+    const owner = storeId ? storeOwnerById[storeId] : null;
+    if (owner) openComplaintsByOwner[owner] = (openComplaintsByOwner[owner] || 0) + 1;
+  });
+  const sellerByOwner: Record<string, any> = Object.fromEntries(sellers.map((s: any) => [s.owner, s]));
+  const { data: profilesAll } = await admin.from('profiles')
+    .select('id, nome, role, cb_points, status, created_at')
+    .order('created_at', { ascending: false });
+  const users = ((profilesAll) ?? []).map((p: any) => ({
+    id: p.id,
+    email: emailById[p.id] || '—',
+    nome: p.nome || (emailById[p.id] && emailById[p.id] !== '—' ? String(emailById[p.id]).split('@')[0] : 'Usuário'),
+    role: p.role || 'comprador',
+    status: p.status || 'ativo',
+    cb_points: p.cb_points ?? 0,
+    created_at: p.created_at,
+    seller: sellerByOwner[p.id] || null,
+    reclamacoesAbertas: openComplaintsByOwner[p.id] || 0,
+  }));
 
   const paid = orders.filter((o) => o.status === 'pago' || o.status === 'entregue');
   const gmv = paid.reduce((s, o) => s + Number(o.total), 0);
@@ -161,5 +186,5 @@ export default async function AdminPage() {
     buyersCount,
   };
 
-  return <AdminDashboard adminEmail={user.email} metrics={metrics} daily={daily} orders={orders} products={products} stores={stores} payouts={payouts} boosts={boosts} settings={settings} growth={growth} sellers={sellers} complaints={complaints} alerts={alerts} />;
+  return <AdminDashboard adminEmail={user.email} users={users} metrics={metrics} daily={daily} orders={orders} products={products} stores={stores} payouts={payouts} boosts={boosts} settings={settings} growth={growth} sellers={sellers} complaints={complaints} alerts={alerts} />;
 }

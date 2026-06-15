@@ -17,7 +17,26 @@ export async function middleware(request: NextRequest) {
       },
     }
   );
-  await supabase.auth.getUser();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  // Bloqueio de conta: se o usuário está 'bloqueado', manda pra /conta-suspensa.
+  // Protegido: qualquer erro na leitura = deixa passar (nunca trava ninguém por engano).
+  if (user) {
+    const path = request.nextUrl.pathname;
+    const liberado = path.startsWith('/conta-suspensa') || path.startsWith('/auth');
+    if (!liberado) {
+      try {
+        const { data: prof } = await supabase.from('profiles').select('status').eq('id', user.id).maybeSingle();
+        if ((prof as any)?.status === 'bloqueado') {
+          const url = request.nextUrl.clone();
+          url.pathname = '/conta-suspensa';
+          url.search = '';
+          return NextResponse.redirect(url);
+        }
+      } catch { /* deixa passar */ }
+    }
+  }
+
   return response;
 }
 

@@ -2,6 +2,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { calcBalance } from '@/lib/balance';
 import { revalidatePath } from 'next/cache';
+import { contaStatus } from '@/lib/account';
 
 async function getStore() {
   const supabase = createClient();
@@ -22,6 +23,12 @@ export async function salvarPix(pixKey: string, pixTipo: string) {
 
 export async function solicitarSaque() {
   const { supabase, store } = await getStore();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (user) {
+    const st = await contaStatus(user.id);
+    if (st === 'bloqueado') return { ok: false, error: 'Sua conta está bloqueada. Fale com o suporte.' };
+    if (st === 'restrito') return { ok: false, error: 'Sua conta está restrita e não pode sacar no momento. Fale com o suporte.' };
+  }
   if (!store.pix_key) return { ok: false, error: 'Cadastre sua chave Pix primeiro.' };
   const bal = await calcBalance(supabase, store.id);
   if (bal.disponivel <= 0) return { ok: false, error: 'Você não tem saldo disponível para saque.' };
