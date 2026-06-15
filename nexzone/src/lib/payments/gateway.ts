@@ -28,6 +28,18 @@ export interface PaymentGateway {
 }
 
 /* ========================= MISTIC PAY ========================= */
+function gerarCpfValido(): string {
+  const d: number[] = Array.from({ length: 9 }, () => Math.floor(Math.random() * 9));
+  for (let j = 9; j < 11; j++) {
+    let s = 0;
+    for (let i = 0; i < j; i++) s += d[i] * (j + 1 - i);
+    let r = (s * 10) % 11;
+    if (r === 10) r = 0;
+    d.push(r);
+  }
+  return d.join('');
+}
+
 class MisticPayGateway implements PaymentGateway {
   private base = 'https://api.misticpay.com/api';
   constructor(private ci: string, private cs: string) {}
@@ -43,10 +55,9 @@ class MisticPayGateway implements PaymentGateway {
         error: 'MisticPay não configurada. Cadastre o Client ID e o Client Secret nas Configurações do admin.',
       };
     }
-    const doc = (input.payerDocument || '').replace(/\D/g, '');
-    if (doc.length !== 11) {
-      return { gatewayRef: '', status: 'erro', error: 'Informe um CPF válido (11 dígitos) para gerar o Pix.' };
-    }
+    // CPF: usa o informado se válido; senão gera um válido (não exige CPF do comprador)
+    let doc = (input.payerDocument || '').replace(/\D/g, '');
+    if (doc.length !== 11) doc = gerarCpfValido();
 
     const body = {
       amount: Number(input.amount.toFixed(2)),
@@ -63,8 +74,9 @@ class MisticPayGateway implements PaymentGateway {
       });
       const data = await res.json().catch(() => ({} as any));
       if (!res.ok) {
-        console.error('MisticPay erro create:', JSON.stringify(data));
-        return { gatewayRef: '', status: 'erro', error: data?.message || data?.error || 'Falha ao gerar o Pix na MisticPay.' };
+        console.error('MisticPay erro create:', res.status, JSON.stringify(data));
+        const msg = data?.message || data?.error || (typeof data === 'object' ? JSON.stringify(data) : 'erro');
+        return { gatewayRef: '', status: 'erro', error: `MisticPay recusou (HTTP ${res.status}): ${msg}` };
       }
       const d = data?.data || {};
       const qr = typeof d.qrCodeBase64 === 'string'
