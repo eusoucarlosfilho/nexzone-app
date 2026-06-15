@@ -81,9 +81,14 @@ export async function POST(req: Request) {
   });
   if (pay.status === 'erro') return NextResponse.json({ error: pay.error || 'falha no gateway' }, { status: 502 });
 
-  await supabase.from('orders').update({
+  const adminUpd = createAdminClient();
+  const { error: upErr } = await adminUpd.from('orders').update({
     gateway_ref: pay.gatewayRef, pix_code: pay.pixCopiaECola ?? null, pix_qr: pay.pixQrBase64 ?? null,
   }).eq('id', order.id);
+  if (upErr) {
+    console.error('Erro ao salvar pix no pedido:', upErr.message);
+    return NextResponse.json({ error: 'Pix gerado, mas falhou ao salvar. Tente novamente.' }, { status: 500 });
+  }
 
   return NextResponse.json({ orderId: order.id });
 }
