@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { getGateway } from '@/lib/payments/gateway';
 import { getSettings } from '@/lib/settings';
 
@@ -40,7 +40,8 @@ export async function POST(req: Request) {
   });
   if (pay.status === 'erro') return NextResponse.json({ error: pay.error || 'falha no gateway' }, { status: 502 });
 
-  await supabase.from('boosts').update({
+  const adminUpd = createAdminClient();
+  await adminUpd.from('boosts').update({
     gateway_ref: pay.gatewayRef, pix_code: pay.pixCopiaECola ?? null, pix_qr: pay.pixQrBase64 ?? null,
   }).eq('id', boost.id);
 
