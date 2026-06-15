@@ -23,6 +23,22 @@ export async function POST(req: Request) {
   }
   if (body.support_email != null) rows.push({ key: 'support_email', value: String(body.support_email) });
 
+  // CB Points e liberação de saldo
+  const numKeys: [string, number, number][] = [
+    ['cb_points_per_purchase', 0, 100000],
+    ['cb_points_per_brl', 1, 1000000],
+    ['cb_points_review_bonus', 0, 100000],
+    ['review_window_days', 0, 60],
+    ['fast_release_days', 0, 60],
+  ];
+  for (const [key, min, max] of numKeys) {
+    if (body[key] != null) {
+      const v = Number(body[key]);
+      if (isNaN(v) || v < min || v > max) return NextResponse.json({ error: `valor inválido para ${key}` }, { status: 400 });
+      rows.push({ key, value: v });
+    }
+  }
+
   // Gateway de pagamento
   if (body.payment_gateway === 'misticpay' || body.payment_gateway === 'mercadopago') {
     rows.push({ key: 'payment_gateway', value: body.payment_gateway });

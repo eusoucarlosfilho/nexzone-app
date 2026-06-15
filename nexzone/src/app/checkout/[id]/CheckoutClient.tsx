@@ -18,7 +18,7 @@ function Step({ n, label, active, done }: { n: number; label: string; active?: b
   );
 }
 
-export default function CheckoutClient({ productId, titulo, emoji, loja, preco, cor, bump, aceitaCupom }: any) {
+export default function CheckoutClient({ productId, titulo, emoji, loja, preco, cor, bump, aceitaCupom, meusPontos = 0, perBrl = 100 }: any) {
   const router = useRouter();
   const [cupom, setCupom] = useState('');
   const [aplicado, setAplicado] = useState<{ codigo: string; desconto: number; final: number } | null>(null);
@@ -28,7 +28,14 @@ export default function CheckoutClient({ productId, titulo, emoji, loja, preco, 
   const [erro, setErro] = useState('');
 
   const subtotalProduto = aplicado ? aplicado.final : preco;
-  const total = subtotalProduto + (bumpAceito && bump ? Number(bump.valor) : 0);
+  const totalBruto = subtotalProduto + (bumpAceito && bump ? Number(bump.valor) : 0);
+
+  const [usarPontos, setUsarPontos] = useState(false);
+  // valor máximo dos pontos, deixando ao menos R$1,00 para pagar via Pix
+  const valorPontos = perBrl ? Math.floor((meusPontos / perBrl) * 100) / 100 : 0;
+  const descontoPontos = usarPontos ? Math.max(0, Math.min(valorPontos, +(totalBruto - 1).toFixed(2))) : 0;
+  const total = +(totalBruto - descontoPontos).toFixed(2);
+  const podeUsarPontos = meusPontos > 0 && valorPontos >= 0.01 && totalBruto > 1;
   const accent = cor || 'var(--orange)';
 
   async function aplicarCupom() {
@@ -49,7 +56,7 @@ export default function CheckoutClient({ productId, titulo, emoji, loja, preco, 
     setGerando(true);
     const res = await fetch('/api/checkout', {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
-      body: JSON.stringify({ productId, cupom: aplicado?.codigo || null, bump: bumpAceito }),
+      body: JSON.stringify({ productId, cupom: aplicado?.codigo || null, bump: bumpAceito, usarPontos }),
     });
     if (res.status === 401) { router.push('/login'); return; }
     const data = await res.json();
@@ -116,10 +123,25 @@ export default function CheckoutClient({ productId, titulo, emoji, loja, preco, 
             <span>Cupom {aplicado.codigo}</span><span>- {money(aplicado.desconto)}</span>
           </div>
         )}
+        {descontoPontos > 0 && (
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, marginBottom: 6, color: 'var(--green)' }}>
+            <span>CB Points</span><span>- {money(descontoPontos)}</span>
+          </div>
+        )}
         <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'Outfit', fontWeight: 900, fontSize: 20, marginTop: 8 }}>
           <span>Total</span><span>{money(total)}</span>
         </div>
       </div>
+
+      {podeUsarPontos && (
+        <label style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '14px', margin: '14px 0', border: `1.5px solid ${usarPontos ? accent : 'var(--border)'}`, borderRadius: 12, cursor: 'pointer', background: usarPontos ? 'var(--soft)' : '#fff' }}>
+          <input type="checkbox" checked={usarPontos} onChange={(e) => setUsarPontos(e.target.checked)} />
+          <span style={{ flex: 1 }}>
+            <strong style={{ fontFamily: 'Outfit', display: 'block', fontSize: 14 }}>Usar meus CB Points</strong>
+            <span className="muted" style={{ fontSize: 12.5 }}>Você tem <strong>{meusPontos}</strong> pontos (vale {money(valorPontos)}). Aplica até {money(Math.max(0, +(totalBruto - 1).toFixed(2)))} neste pedido.</span>
+          </span>
+        </label>
+      )}
 
       {/* Forma de pagamento */}
       <div style={{ padding: '16px 0 4px' }}>

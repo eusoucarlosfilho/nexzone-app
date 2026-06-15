@@ -1,6 +1,8 @@
 'use client';
 import { useState, useEffect, useRef, useTransition } from 'react';
 import { enviarAvaliacao } from './actions';
+import OrderChat from '@/components/OrderChat';
+import ComplaintBox from './ComplaintBox';
 
 const money = (v: number) => 'R$ ' + Number(v).toFixed(2).replace('.', ',');
 
@@ -18,6 +20,7 @@ type Props = {
   bumpTitulo?: string | null;
   bumpConteudo?: string | null;
   bumpTemArquivo?: boolean;
+  reclamacaoAberta?: boolean;
 };
 
 export default function OrderView(props: Props) {
@@ -81,6 +84,17 @@ export default function OrderView(props: Props) {
                 : conteudo
                   ? <div className="muted" style={{ fontSize: 13, wordBreak: 'break-word' }}>{conteudo}</div>
                   : <p className="muted" style={{ fontSize: 13 }}>O vendedor ainda não cadastrou o conteúdo de entrega deste produto.</p>}
+          </div>
+
+          <div style={{ borderTop: '1px solid var(--border)', marginTop: 22, paddingTop: 18 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+              <strong style={{ fontFamily: 'Outfit', fontSize: 15 }}>Conversa com o vendedor</strong>
+            </div>
+            <p className="muted" style={{ fontSize: 12.5, marginBottom: 12 }}>
+              Pagamento confirmado! Fale com o vendedor por aqui — é por esta conversa que ele entrega o produto e tira suas dúvidas. Você também pode pedir ajuda do suporte por aqui.
+            </p>
+            <OrderChat orderId={props.orderId} theme="light" />
+            <ComplaintBox orderId={props.orderId} aberta={!!props.reclamacaoAberta} />
           </div>
 
           {props.bumpTitulo && (

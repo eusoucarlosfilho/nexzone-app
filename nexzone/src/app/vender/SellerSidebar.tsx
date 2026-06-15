@@ -6,6 +6,7 @@ import Icon from '@/components/Icon';
 const ITEMS: [string, string, string][] = [
   ['/vender', 'cockpit', 'Visão geral'],
   ['/vender/vendas', 'receipt', 'Vendas'],
+  ['/vender/conversas', 'chat', 'Conversas'],
   ['/vender/produtos', 'package', 'Produtos'],
   ['/vender/perguntas', 'help', 'Perguntas'],
   ['/vender/cupons', 'ticket', 'Cupons'],

@@ -15,7 +15,7 @@ export default async function Home() {
   const nowIso = new Date().toISOString();
   const [destRes, ofertaRes, altaRes, novoRes, catsRes, prodCount, lojaCount] = await Promise.all([
     supabase.from('products').select('*, stores(nome, nivel)').eq('status', 'ativo').gt('destaque_ate', nowIso).order('destaque_ate', { ascending: false }).limit(6),
-    supabase.from('products').select('*, stores(nome, nivel)').eq('status', 'ativo').not('preco_promo', 'is', null).order('vendas', { ascending: false }).limit(8),
+    supabase.from('products').select('*, stores(nome, nivel)').eq('status', 'ativo').order('vendas', { ascending: false }).order('nota', { ascending: false }).limit(8),
     supabase.from('products').select('*, stores(nome, nivel)').eq('status', 'ativo').order('vendas', { ascending: false }).limit(8),
     supabase.from('products').select('*, stores(nome, nivel)').eq('status', 'ativo').order('created_at', { ascending: false }).limit(8),
     supabase.from('categories').select('nome, slug, emoji'),
@@ -75,7 +75,7 @@ export default async function Home() {
 
       {ofertas.length > 0 && (
         <section className="nz"><div className="c">
-          <div className="st"><div className="slabel">Promoções</div><h2>Em oferta</h2></div>
+          <div className="st"><div className="slabel">Os melhores</div><h2>Destaque do site</h2></div>
           <div className="pg">{ofertas.map((p) => <ProductCard key={p.id} p={p} />)}</div>
         </div></section>
       )}
@@ -123,7 +123,7 @@ export default async function Home() {
 
       <footer className="ftr">
         <div>
-          <div style={{ fontFamily: 'Outfit', fontWeight: 900, fontSize: 18, color: 'var(--text)' }}>Nex<span style={{ color: 'var(--orange)' }}>Zone</span></div>
+          <div style={{ fontFamily: 'Outfit', fontWeight: 900, fontSize: 18, color: 'var(--text)' }}>Comprei <span style={{ color: 'var(--orange)' }}>Barato</span></div>
           <p style={{ marginTop: 6 }}>O marketplace de produtos digitais do Brasil.</p>
         </div>
         <div>

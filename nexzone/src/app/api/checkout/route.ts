@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient, createAdminClient } from '@/lib/supabase/server';
+import { awardPoints } from '@/lib/points';
 import { getGateway } from '@/lib/payments/gateway';
 import { getSettings } from '@/lib/settings';
 
@@ -8,7 +9,7 @@ export async function POST(req: Request) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'não autenticado' }, { status: 401 });
 
-  const { productId, cupom, bump, cpf } = await req.json();
+  const { productId, cupom, bump, cpf, usarPontos } = await req.json();
   const { data: product } = await supabase
     .from('products')
     .select('*, stores(recipient_id)')
@@ -51,13 +52,28 @@ export async function POST(req: Request) {
     }
   }
 
-  const total = Math.max(0, +(precoBase - desconto + bumpValor).toFixed(2));
+  const totalBruto = Math.max(0, +(precoBase - desconto + bumpValor).toFixed(2));
+
+  // Desconto por CB Points (calculado no servidor, deixando ao menos R$1,00 para o Pix)
+  let descontoPontos = 0; let pontosGastos = 0;
+  if (usarPontos) {
+    const adminP = createAdminClient();
+    const { data: prof } = await adminP.from('profiles').select('cb_points').eq('id', user.id).maybeSingle();
+    const meusPontos = Number((prof as any)?.cb_points ?? 0);
+    const { data: cfgP } = await adminP.from('settings').select('value').eq('key', 'cb_points_per_brl').maybeSingle();
+    const perBrl = Number((cfgP as any)?.value) || 100;
+    const valorPontos = Math.floor((meusPontos / perBrl) * 100) / 100;
+    descontoPontos = Math.max(0, Math.min(valorPontos, +(totalBruto - 1).toFixed(2)));
+    pontosGastos = Math.round(descontoPontos * perBrl);
+  }
+
+  const total = Math.max(0, +(totalBruto - descontoPontos).toFixed(2));
   const feePercent = (await getSettings()).commission_percent;
   const taxa = +(total * (feePercent / 100)).toFixed(2);
   const valorVendedor = +(total - taxa).toFixed(2);
 
   // Sem cupom: reaproveita pedido pendente; com cupom: cria novo (evita inconsistência de valor)
-  if (!cupomCodigo && !bump) {
+  if (!cupomCodigo && !bump && !descontoPontos) {
     const { data: existing } = await supabase.from('orders')
       .select('id, pix_code')
       .eq('comprador', user.id).eq('product_id', product.id).eq('status', 'pendente')
@@ -88,6 +104,11 @@ export async function POST(req: Request) {
   if (upErr) {
     console.error('Erro ao salvar pix no pedido:', upErr.message);
     return NextResponse.json({ error: 'Pix gerado, mas falhou ao salvar. Tente novamente.' }, { status: 500 });
+  }
+
+  // Debita os CB Points usados como desconto (só após o pedido ficar válido)
+  if (pontosGastos > 0) {
+    await awardPoints(adminUpd, user.id, -pontosGastos, 'Desconto com CB Points no checkout', order.id);
   }
 
   return NextResponse.json({ orderId: order.id });

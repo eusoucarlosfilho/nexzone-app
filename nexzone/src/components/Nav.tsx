@@ -11,18 +11,19 @@ export default async function Nav() {
         <div className="nav-wrap">
           <Link href="/" className="logo"><img src="/logo.png" alt="Comprei Barato" style={{ height: 38, width: 'auto', display: 'block' }} /></Link>
           <div className="nav-end">
-            <Link href="/" className="btn btn-ghost btn-sm">Início</Link>
-            <Link href="/produtos" className="btn btn-ghost btn-sm">Explorar</Link>
+            <Link href="/" className="btn btn-nav btn-sm">Início</Link>
+            <Link href="/produtos" className="btn btn-nav btn-sm">Explorar</Link>
             {user ? (
               <>
-                <Link href="/favoritos" className="btn btn-ghost btn-sm">♥ Favoritos</Link>
-                <Link href="/minhas-compras" className="btn btn-ghost btn-sm">Minhas Compras</Link>
-                <Link href="/vender" className="btn btn-ghost btn-sm">Meu Perfil</Link>
+                <Link href="/favoritos" className="btn btn-nav btn-sm">♥ Favoritos</Link>
+                <Link href="/minhas-compras" className="btn btn-nav btn-sm">Minhas Compras</Link>
+                <Link href="/cb-points" className="btn btn-nav btn-sm">CB Points</Link>
+                <Link href="/vender" className="btn btn-nav btn-sm">Meu Perfil</Link>
                 <form action="/auth/signout" method="post"><button className="btn btn-dark btn-sm">Sair</button></form>
               </>
             ) : (
               <>
-                <Link href="/login" className="btn btn-ghost btn-sm">Entrar</Link>
+                <Link href="/login" className="btn btn-nav btn-sm">Entrar</Link>
                 <Link href="/vender" className="btn btn-dark btn-sm">Vender</Link>
               </>
             )}

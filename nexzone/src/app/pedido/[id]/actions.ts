@@ -1,6 +1,7 @@
 'use server';
 import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
+import { awardPoints, getSettingNum } from '@/lib/points';
 
 export async function enviarAvaliacao(orderId: string, nota: number, comentario: string) {
   const supabase = createClient();
@@ -29,6 +30,10 @@ export async function enviarAvaliacao(orderId: string, nota: number, comentario:
   const arr = all ?? [];
   const media = arr.length ? arr.reduce((s: number, r: any) => s + r.nota, 0) / arr.length : nota;
   await admin.from('products').update({ nota: Math.round(media * 10) / 10 }).eq('id', order.product_id);
+
+  // Bônus de CB Points por avaliar
+  const bonus = await getSettingNum(admin, 'cb_points_review_bonus', 3);
+  if (bonus > 0) await awardPoints(admin, user.id, bonus, 'Avaliação enviada', orderId);
 
   revalidatePath(`/pedido/${orderId}`);
   return { ok: true };

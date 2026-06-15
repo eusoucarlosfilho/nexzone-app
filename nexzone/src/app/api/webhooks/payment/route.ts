@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getGateway } from '@/lib/payments/gateway';
 import { createAdminClient } from '@/lib/supabase/server';
+import { awardPoints, getSettingNum } from '@/lib/points';
 
 export async function POST(req: Request) {
   const raw = await req.text();
@@ -25,6 +26,14 @@ export async function POST(req: Request) {
         status: 'entregue', conteudo_liberado: product?.conteudo_entrega ?? null, entregue_em: new Date().toISOString(),
       }).eq('id', order.id);
       await admin.from('products').update({ vendas: (product?.vendas ?? 0) + 1 }).eq('id', order.product_id);
+
+      // CB Points: comprador e vendedor ganham por compra
+      const porCompra = await getSettingNum(admin, 'cb_points_per_purchase', 3);
+      if (porCompra > 0) {
+        const { data: loja } = await admin.from('stores').select('owner').eq('id', order.store_id).maybeSingle();
+        await awardPoints(admin, order.comprador, porCompra, 'Compra realizada', order.id);
+        if ((loja as any)?.owner) await awardPoints(admin, (loja as any).owner, porCompra, 'Venda realizada', order.id);
+      }
       if (order.bump_product_id) {
         const { data: bp } = await admin.from('products').select('vendas').eq('id', order.bump_product_id).single();
         await admin.from('products').update({ vendas: (bp?.vendas ?? 0) + 1 }).eq('id', order.bump_product_id);
@@ -47,7 +56,7 @@ export async function POST(req: Request) {
   }
 
   // PEDIDO — por id (se veio) ou por gateway_ref (ex.: MisticPay, que só devolve o id dela)
-  let oq = admin.from('orders').select('id, status, product_id, store_id, cupom, bump_product_id');
+  let oq = admin.from('orders').select('id, status, product_id, store_id, cupom, bump_product_id, comprador');
   oq = event.orderId ? oq.eq('id', event.orderId) : oq.eq('gateway_ref', event.gatewayRef);
   const { data: order } = await oq.maybeSingle();
   if (order) { await processarPedido(order); return NextResponse.json({ ok: true }); }

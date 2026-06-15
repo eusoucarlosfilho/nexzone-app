@@ -7,6 +7,12 @@ export default function SettingsForm({ settings }: any) {
   const [planos, setPlanos] = useState(settings.boost_plans.map((p: any) => ({ ...p })));
   const [suporte, setSuporte] = useState(settings.support_email || '');
 
+  const [ptCompra, setPtCompra] = useState(String(settings.cb_points_per_purchase ?? 3));
+  const [ptBrl, setPtBrl] = useState(String(settings.cb_points_per_brl ?? 100));
+  const [ptBonus, setPtBonus] = useState(String(settings.cb_points_review_bonus ?? 3));
+  const [janela, setJanela] = useState(String(settings.review_window_days ?? 5));
+  const [rapido, setRapido] = useState(String(settings.fast_release_days ?? 1));
+
   const pay = settings.payment || { gateway: 'mercadopago', misticpay_ci: '', misticpay_cs_set: false };
   const [gateway, setGateway] = useState<string>(pay.gateway || 'mercadopago');
   const [ci, setCi] = useState<string>(pay.misticpay_ci || '');
@@ -27,6 +33,11 @@ export default function SettingsForm({ settings }: any) {
         commission_percent: Number(comissao),
         boost_plans: planos.map((p: any) => ({ dias: Number(p.dias), valor: Number(p.valor), label: p.label })),
         support_email: suporte,
+        cb_points_per_purchase: Number(ptCompra),
+        cb_points_per_brl: Number(ptBrl),
+        cb_points_review_bonus: Number(ptBonus),
+        review_window_days: Number(janela),
+        fast_release_days: Number(rapido),
         payment_gateway: gateway,
         misticpay_ci: ci,
         misticpay_cs: cs, // em branco = mantém o atual
@@ -61,6 +72,43 @@ export default function SettingsForm({ settings }: any) {
         <label style={lbl}>E-mail de suporte</label>
         <input type="email" value={suporte} onChange={(e) => setSuporte(e.target.value)} placeholder="contato@seudominio.com.br" style={inp} />
         <small style={hint}>Aparece no rodapé do site para os usuários.</small>
+      </div>
+
+      {/* ===== CB Points e liberação de saldo ===== */}
+      <div style={{ borderTop: '1px solid var(--border)', paddingTop: 20, marginBottom: 22 }}>
+        <label style={lbl}>CB Points</label>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          <div style={{ flex: '1 1 150px' }}>
+            <small style={hint}>Pontos por compra (cliente e vendedor)</small>
+            <input type="number" step="1" value={ptCompra} onChange={(e) => setPtCompra(e.target.value)} style={inp} />
+          </div>
+          <div style={{ flex: '1 1 150px' }}>
+            <small style={hint}>Bônus por avaliar</small>
+            <input type="number" step="1" value={ptBonus} onChange={(e) => setPtBonus(e.target.value)} style={inp} />
+          </div>
+          <div style={{ flex: '1 1 150px' }}>
+            <small style={hint}>Pontos por R$ 1,00</small>
+            <input type="number" step="1" value={ptBrl} onChange={(e) => setPtBrl(e.target.value)} style={inp} />
+          </div>
+        </div>
+        <small style={hint}>
+          Valor atual: <strong>{Number(ptBrl) ? `${(1000)} pontos = R$ ${(1000 / Number(ptBrl)).toFixed(2).replace('.', ',')}` : '—'}</strong>. Cada compra dá {ptCompra} pontos para os dois lados.
+        </small>
+      </div>
+
+      <div style={{ borderTop: '1px solid var(--border)', paddingTop: 20, marginBottom: 22 }}>
+        <label style={lbl}>Liberação de saldo do vendedor</label>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          <div style={{ flex: '1 1 200px' }}>
+            <small style={hint}>Dias para liberar (janela de reclamação)</small>
+            <input type="number" step="1" value={janela} onChange={(e) => setJanela(e.target.value)} style={inp} />
+          </div>
+          <div style={{ flex: '1 1 200px' }}>
+            <small style={hint}>Dias quando há avaliação positiva (libera mais rápido)</small>
+            <input type="number" step="1" value={rapido} onChange={(e) => setRapido(e.target.value)} style={inp} />
+          </div>
+        </div>
+        <small style={hint}>O cliente tem {janela} dias para reclamar. Com avaliação positiva (4-5★), o saldo libera em {rapido} dia(s). Reclamação aberta segura o saldo até ser resolvida.</small>
       </div>
 
       {/* ===== Gateway de pagamento ===== */}

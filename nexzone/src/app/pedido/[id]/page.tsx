@@ -16,6 +16,7 @@ export default async function PedidoPage({ params }: { params: { id: string } })
   if (!order) notFound();
 
   const { data: rev } = await supabase.from('reviews').select('id').eq('order_id', order.id).maybeSingle();
+  const { data: cmp } = await supabase.from('complaints').select('id').eq('order_id', order.id).eq('status', 'aberta').maybeSingle();
   const p: any = (order as any).products;
   return (
     <>
@@ -35,6 +36,7 @@ export default async function PedidoPage({ params }: { params: { id: string } })
           bumpTitulo={(order as any).bump_titulo}
           bumpConteudo={(order as any).bump_conteudo}
           bumpTemArquivo={!!(order as any).bump_arquivo_path}
+          reclamacaoAberta={!!cmp}
         />
       </div>
     </>

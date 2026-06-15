@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { toast } from '@/lib/toast';
 import SettingsForm from './SettingsForm';
+import OrderChat from '@/components/OrderChat';
 
 const money = (v: number) => 'R$ ' + Number(v).toFixed(2).replace('.', ',');
 const fmt = (v: number) => Number(v).toLocaleString('pt-BR');
@@ -23,6 +24,7 @@ function Icon({ name, size = 18 }: { name: string; size?: number }) {
     users: <><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></>,
     sun: <><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" /></>,
     moon: <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />,
+    shield: <><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /><path d="M12 8v4M12 16h.01" /></>,
   };
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
@@ -42,8 +44,20 @@ const STATUS: Record<string, [string, string]> = {
   reprovado: ['#E23B3B', 'Reprovado'],
 };
 
-export default function AdminDashboard({ metrics, daily, orders, products, stores, payouts, boosts, settings, growth, sellers }: any) {
+export default function AdminDashboard({ metrics, daily, orders, products, stores, payouts, boosts, settings, growth, sellers, complaints }: any) {
   const [tab, setTab] = useState('cockpit');
+  const [chatOrder, setChatOrder] = useState<string | null>(null);
+  const [complaintList, setComplaintList] = useState<any[]>(complaints || []);
+  async function resolverReclamacao(id: string) {
+    setBusy(id);
+    const r = await fetch('/api/admin/complaint-resolve', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+      body: JSON.stringify({ complaintId: id }),
+    });
+    setBusy(null);
+    if (r.ok) { setComplaintList((l) => l.filter((c) => c.id !== id)); toast('Reclamação resolvida.', 'success'); }
+    else toast('Falha ao resolver.', 'error');
+  }
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   useEffect(() => {
     try {
@@ -118,6 +132,7 @@ export default function AdminDashboard({ metrics, daily, orders, products, store
     ['saques', 'money', 'Saques', metrics.saquesPendentes],
     ['destaques', 'star', 'Destaques', metrics.destaquesAtivos],
     ['crescimento', 'growth', 'Crescimento', 0],
+    ['reclamacoes', 'shield', 'Reclamações', complaintList.length],
     ['config', 'settings', 'Configurações', 0],
   ];
 
@@ -294,7 +309,10 @@ export default function AdminDashboard({ metrics, daily, orders, products, store
                         <td style={{ color: 'var(--or2)' }}>{money(o.taxa)}</td>
                         <td><Pill s={o.status} /></td>
                         <td style={{ color: 'var(--sub)' }}>{new Date(o.created_at).toLocaleDateString('pt-BR')}</td>
-                        <td>{(o.status === 'pago' || o.status === 'entregue') && <button className="adm-btn rp" disabled={busy === o.id} onClick={() => reembolsar(o.id)}>Reembolsar</button>}</td>
+                        <td style={{ display: 'flex', gap: 6 }}>
+                          <button className="adm-btn rp" onClick={() => setChatOrder(o.id)}>Conversa</button>
+                          {(o.status === 'pago' || o.status === 'entregue') && <button className="adm-btn rp" disabled={busy === o.id} onClick={() => reembolsar(o.id)}>Reembolsar</button>}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -477,6 +495,36 @@ export default function AdminDashboard({ metrics, daily, orders, products, store
           </>
         )}
 
+        {tab === 'reclamacoes' && (
+          <>
+            <h1 className="adm-h">Reclamações</h1>
+            <p className="adm-sub">Reclamações abertas. Enquanto abertas, o saldo da venda fica retido. Converse pela conversa do pedido e marque como resolvida.</p>
+            {complaintList.length === 0 ? (
+              <div className="adm-card"><p style={{ color: 'var(--sub)', textAlign: 'center', padding: 20 }}>Nenhuma reclamação aberta. 🎉</p></div>
+            ) : (
+              complaintList.map((c: any) => {
+                const o: any = c.orders || {};
+                return (
+                  <div key={c.id} className="adm-card" style={{ borderLeft: '3px solid #E23B3B' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
+                      <div style={{ width: 42, height: 42, borderRadius: 11, background: 'var(--panel2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>{o.products?.emoji ?? '📦'}</div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <strong style={{ fontFamily: 'Outfit', fontSize: 14 }}>{o.products?.titulo ?? 'Produto'}</strong>
+                        <div style={{ color: 'var(--sub)', fontSize: 12 }}>{o.stores?.nome ?? '—'} · {o.comprador_email ?? 'Cliente'} · {money(o.total ?? 0)} · {new Date(c.created_at).toLocaleDateString('pt-BR')}</div>
+                      </div>
+                    </div>
+                    <div style={{ background: 'var(--panel2)', borderRadius: 10, padding: 12, fontSize: 13.5, color: 'var(--tx)', whiteSpace: 'pre-wrap' }}>{c.texto}</div>
+                    <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+                      {o.id && <button className="adm-btn rp" onClick={() => setChatOrder(o.id)}>Abrir conversa</button>}
+                      <button className="adm-btn ap" disabled={busy === c.id} onClick={() => resolverReclamacao(c.id)}>{busy === c.id ? '…' : 'Marcar como resolvida'}</button>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </>
+        )}
+
         {tab === 'config' && (
           <>
             <h1 className="adm-h">Configurações</h1>
@@ -485,6 +533,18 @@ export default function AdminDashboard({ metrics, daily, orders, products, store
           </>
         )}
       </main>
+
+      {chatOrder && (
+        <div onClick={() => setChatOrder(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: 20 }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ width: '100%', maxWidth: 540 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+              <strong style={{ fontFamily: 'Outfit', color: '#fff', fontSize: 16 }}>Conversa do pedido (suporte)</strong>
+              <button onClick={() => setChatOrder(null)} style={{ background: 'none', border: 'none', color: '#fff', fontSize: 26, lineHeight: 1, cursor: 'pointer' }}>×</button>
+            </div>
+            <OrderChat orderId={chatOrder} theme="dark" />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
