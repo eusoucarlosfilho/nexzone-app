@@ -129,7 +129,7 @@ export default function AdminDashboard({ metrics, daily, orders, products, store
     ['cockpit', 'cockpit', 'Cockpit', 0],
     ['aprovacao', 'check', 'Aprovação', queue.length],
     ['pedidos', 'receipt', 'Pedidos', 0],
-    ['vendedores', 'store', 'Vendedores', metrics.lojasPendentes],
+    ['vendedores', 'store', 'Usuários', metrics.lojasPendentes],
     ['produtos', 'package', 'Produtos', 0],
     ['saques', 'money', 'Saques', metrics.saquesPendentes],
     ['destaques', 'star', 'Destaques', metrics.destaquesAtivos],
@@ -330,8 +330,8 @@ export default function AdminDashboard({ metrics, daily, orders, products, store
           const lista = (sellers || []).filter((s: any) => engFiltro === 'todos' || s.eng.tag === engFiltro);
           return (
           <>
-            <h1 className="adm-h">Vendedores</h1>
-            <p className="adm-sub">Clique num vendedor para ver os detalhes. Use o selo para saber quem precisa de atenção.</p>
+            <h1 className="adm-h">Usuários</h1>
+            <p className="adm-sub">Clique num usuário para ver os detalhes. Use o selo para saber quem precisa de atenção.</p>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}>
               {['todos', 'Ativo', 'Travado', 'Parado', 'Novo'].map((f) => (
                 <button key={f} className={`adm-btn ${engFiltro === f ? 'ap' : ''}`} onClick={() => setEngFiltro(f)}>{f === 'todos' ? 'Todos' : f}</button>
@@ -371,7 +371,7 @@ export default function AdminDashboard({ metrics, daily, orders, products, store
                     </div>
                   )}
                 </div>
-              )) : <div className="adm-empty" style={{ padding: 20 }}>Nenhum vendedor neste filtro.</div>}
+              )) : <div className="adm-empty" style={{ padding: 20 }}>Nenhum usuário neste filtro.</div>}
             </div>
           </>
           );

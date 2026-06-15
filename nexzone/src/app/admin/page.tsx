@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server';
+import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import AdminDashboard from './AdminDashboard';
 import { getSettings } from '@/lib/settings';
@@ -20,6 +20,10 @@ export default async function AdminPage() {
     );
   }
 
+  // Já confirmamos que é admin acima: usamos o client admin (service role)
+  // para reclamações/torpedos, que dependem de RLS e não apareciam com o client comum.
+  const admin = createAdminClient();
+
   const [ordersRes, productsRes, storesRes, buyersRes, payoutsRes, boostsRes, complaintsRes, alertsRes] = await Promise.all([
     supabase.from('orders')
       .select('id, status, total, taxa, created_at, store_id, products(titulo, emoji), stores(nome)')
@@ -37,10 +41,10 @@ export default async function AdminPage() {
     supabase.from('boosts')
       .select('id, valor, dias, status, created_at, expira_em, store_id, products(titulo, emoji), stores(nome)')
       .order('created_at', { ascending: false }),
-    supabase.from('complaints')
+    admin.from('complaints')
       .select('id, texto, status, created_at, orders(id, total, comprador_email, products(titulo, emoji), stores(nome))')
       .eq('status', 'aberta').order('created_at', { ascending: false }),
-    supabase.from('seller_alerts')
+    admin.from('seller_alerts')
       .select('id, canal, destino, status, detalhe, created_at, orders(products(titulo), stores(nome))')
       .order('created_at', { ascending: false }).limit(100),
   ]);

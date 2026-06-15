@@ -18,19 +18,23 @@ export async function POST(req: Request) {
   const { data: existe } = await admin.from('complaints').select('id').eq('order_id', orderId).eq('status', 'aberta').maybeSingle();
   if (existe) return NextResponse.json({ error: 'Você já tem uma reclamação aberta para este pedido.' }, { status: 400 });
 
+  const textoLimpo = String(texto).trim().slice(0, 2000);
   const { error } = await admin.from('complaints').insert({
-    order_id: orderId, autor: user.id, texto: String(texto).trim().slice(0, 2000), status: 'aberta',
+    order_id: orderId, autor: user.id, texto: textoLimpo, status: 'aberta',
   });
   if (error) {
-    // TEMPORÁRIO: mostra o motivo real do banco na tela, pra acharmos a causa.
-    // Depois que estiver funcionando, a gente troca por uma mensagem amigável.
     console.error('[complaints] insert falhou:', error);
-    return NextResponse.json(
-      { error: 'Erro do banco: ' + (error.message || error.code || 'desconhecido') },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'falha ao abrir reclamação' }, { status: 500 });
   }
 
+  // 1) Posta o texto da reclamação no chat, como mensagem do cliente,
+  //    pra que vendedor, admin e o próprio cliente vejam o conteúdo.
+  await admin.from('order_messages').insert({
+    order_id: orderId, remetente: user.id, papel: 'comprador',
+    texto: `📣 Reclamação aberta:\n\n${textoLimpo}`,
+  });
+
+  // 2) Aviso do sistema sobre o saldo retido.
   await admin.from('order_messages').insert({
     order_id: orderId, remetente: null, papel: 'sistema',
     texto: '⚠️ O cliente abriu uma reclamação. O saldo desta venda fica retido até o suporte resolver. Converse por aqui para tentar resolver.',
