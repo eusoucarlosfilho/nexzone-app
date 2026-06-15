@@ -21,6 +21,32 @@ export default function SettingsForm({ settings }: any) {
 
   const [busy, setBusy] = useState(false);
 
+  // ===== Administradores =====
+  const [admins, setAdmins] = useState<any[]>(settings.admins || []);
+  const [novoAdmin, setNovoAdmin] = useState('');
+  const [adminBusy, setAdminBusy] = useState(false);
+
+  async function setAdminRole(email: string, action: 'promote' | 'demote') {
+    setAdminBusy(true);
+    const r = await fetch('/api/admin/set-admin', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+      body: JSON.stringify({ email, action }),
+    });
+    const d = await r.json();
+    setAdminBusy(false);
+    if (!r.ok) { toast(d.error || 'Erro ao atualizar admin', 'error'); return; }
+    if (action === 'promote') {
+      toast('Administrador adicionado!', 'success');
+      if (!admins.some((a) => (a.email || '').toLowerCase() === email.toLowerCase())) {
+        setAdmins((a) => [...a, { id: 'novo-' + email, email }]);
+      }
+      setNovoAdmin('');
+    } else {
+      toast('Administrador removido.', 'success');
+      setAdmins((a) => a.filter((x) => (x.email || '').toLowerCase() !== email.toLowerCase()));
+    }
+  }
+
   function setPreco(i: number, v: string) {
     setPlanos((ps: any[]) => ps.map((p, idx) => idx === i ? { ...p, valor: v } : p));
   }
@@ -153,6 +179,24 @@ export default function SettingsForm({ settings }: any) {
           </small>
         </div>
       )}
+
+      {/* ===== Administradores ===== */}
+      <div style={{ borderTop: '1px solid var(--border)', paddingTop: 20, marginBottom: 22 }}>
+        <label style={lbl}>Administradores</label>
+        <small style={hint}>Quem tem acesso total a este painel. A pessoa precisa <strong>já ter conta</strong> no site (criar com o e-mail dela primeiro).</small>
+        <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {admins.length ? admins.map((a: any) => (
+            <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--soft)', borderRadius: 10, padding: '8px 12px' }}>
+              <span style={{ flex: 1, fontSize: 13, wordBreak: 'break-all' }}>{a.email}</span>
+              <button type="button" className="adm-btn" disabled={adminBusy} onClick={() => setAdminRole(a.email, 'demote')} style={{ fontSize: 12 }}>Remover</button>
+            </div>
+          )) : <small style={hint}>Nenhum admin listado.</small>}
+        </div>
+        <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+          <input type="email" value={novoAdmin} onChange={(e) => setNovoAdmin(e.target.value)} placeholder="email-do-novo-admin@exemplo.com" style={{ ...inp, marginBottom: 0 }} autoComplete="off" />
+          <button type="button" className="adm-btn ap" disabled={adminBusy || !novoAdmin.trim()} onClick={() => setAdminRole(novoAdmin.trim(), 'promote')}>Adicionar</button>
+        </div>
+      </div>
 
       <button className="adm-btn ap" disabled={busy} onClick={salvar}>{busy ? 'Salvando…' : 'Salvar configurações'}</button>
     </div>

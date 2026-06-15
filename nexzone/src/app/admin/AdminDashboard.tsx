@@ -46,7 +46,7 @@ const STATUS: Record<string, [string, string]> = {
   reprovado: ['#E23B3B', 'Reprovado'],
 };
 
-export default function AdminDashboard({ metrics, daily, orders, products, stores, payouts, boosts, settings, growth, sellers, complaints, alerts }: any) {
+export default function AdminDashboard({ adminEmail, metrics, daily, orders, products, stores, payouts, boosts, settings, growth, sellers, complaints, alerts }: any) {
   const [tab, setTab] = useState('cockpit');
   const [chatOrder, setChatOrder] = useState<string | null>(null);
   const [complaintList, setComplaintList] = useState<any[]>(complaints || []);
@@ -205,6 +205,11 @@ export default function AdminDashboard({ metrics, daily, orders, products, store
 
       <aside className="adm-side">
         <div className="adm-logo">Comprei <span>Barato</span></div>
+        {adminEmail && (
+          <div style={{ fontSize: 11, color: 'var(--sub)', padding: '0 6px 12px', wordBreak: 'break-all', lineHeight: 1.4 }}>
+            Logado como<br /><strong style={{ color: 'var(--tx)' }}>{adminEmail}</strong>
+          </div>
+        )}
         {NAV.map(([id, ic, label, badge]: any) => (
           <button key={id} className={`adm-nav ${tab === id ? 'on' : ''}`} onClick={() => setTab(id)}>
             <Icon name={ic} /> {label} {badge > 0 && <span className="bd">{badge}</span>}
@@ -576,7 +581,7 @@ export default function AdminDashboard({ metrics, daily, orders, products, store
               <strong style={{ fontFamily: 'Outfit', color: '#fff', fontSize: 16 }}>Conversa do pedido (suporte)</strong>
               <button onClick={() => setChatOrder(null)} style={{ background: 'none', border: 'none', color: '#fff', fontSize: 26, lineHeight: 1, cursor: 'pointer' }}>×</button>
             </div>
-            <OrderChat orderId={chatOrder} theme="dark" />
+            <OrderChat orderId={chatOrder} theme="dark" moderator />
           </div>
         </div>
       )}

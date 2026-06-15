@@ -120,6 +120,16 @@ export default async function AdminPage() {
   const settings: any = await getSettings();
   settings.payment = await getPaymentConfigPublic();
 
+  // Lista de administradores (perfil role=admin + e-mail vindo do auth)
+  try {
+    const { data: adminProfiles } = await admin.from('profiles').select('id').eq('role', 'admin');
+    const { data: usersList } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
+    const emailById: Record<string, string> = Object.fromEntries(
+      ((usersList?.users) ?? []).map((u: any) => [u.id, u.email ?? '—'])
+    );
+    settings.admins = ((adminProfiles) ?? []).map((p: any) => ({ id: p.id, email: emailById[p.id] || '—' }));
+  } catch { settings.admins = []; }
+
   const vendMap: Record<string, number> = {};
   paid.forEach((o) => { const n = o.stores?.nome || '—'; vendMap[n] = (vendMap[n] || 0) + Number(o.total); });
   const topVendedores = Object.entries(vendMap).map(([nome, total]) => ({ nome, total })).sort((a, b) => b.total - a.total).slice(0, 8);
@@ -142,5 +152,5 @@ export default async function AdminPage() {
     buyersCount,
   };
 
-  return <AdminDashboard metrics={metrics} daily={daily} orders={orders} products={products} stores={stores} payouts={payouts} boosts={boosts} settings={settings} growth={growth} sellers={sellers} complaints={complaints} alerts={alerts} />;
+  return <AdminDashboard adminEmail={user.email} metrics={metrics} daily={daily} orders={orders} products={products} stores={stores} payouts={payouts} boosts={boosts} settings={settings} growth={growth} sellers={sellers} complaints={complaints} alerts={alerts} />;
 }
