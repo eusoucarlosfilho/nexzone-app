@@ -21,7 +21,15 @@ export async function POST(req: Request) {
   const { error } = await admin.from('complaints').insert({
     order_id: orderId, autor: user.id, texto: String(texto).trim().slice(0, 2000), status: 'aberta',
   });
-  if (error) return NextResponse.json({ error: 'falha ao abrir reclamação' }, { status: 500 });
+  if (error) {
+    // TEMPORÁRIO: mostra o motivo real do banco na tela, pra acharmos a causa.
+    // Depois que estiver funcionando, a gente troca por uma mensagem amigável.
+    console.error('[complaints] insert falhou:', error);
+    return NextResponse.json(
+      { error: 'Erro do banco: ' + (error.message || error.code || 'desconhecido') },
+      { status: 500 }
+    );
+  }
 
   await admin.from('order_messages').insert({
     order_id: orderId, remetente: null, papel: 'sistema',
