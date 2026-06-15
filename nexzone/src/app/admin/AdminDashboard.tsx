@@ -6,6 +6,29 @@ import SettingsForm from './SettingsForm';
 const money = (v: number) => 'R$ ' + Number(v).toFixed(2).replace('.', ',');
 const fmt = (v: number) => Number(v).toLocaleString('pt-BR');
 
+function Icon({ name, size = 18 }: { name: string; size?: number }) {
+  const paths: Record<string, JSX.Element> = {
+    cockpit: <><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /></>,
+    check: <><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><path d="m9 11 3 3L22 4" /></>,
+    receipt: <><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z" /><path d="M8 7h8M8 11h8M8 15h5" /></>,
+    store: <><path d="M3 9 4 4h16l1 5" /><path d="M4 9v10a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V9" /><path d="M9 22V12h6v10" /></>,
+    package: <><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" /><path d="m3.3 7 8.7 5 8.7-5" /><path d="M12 22V12" /></>,
+    money: <><rect x="2" y="6" width="20" height="12" rx="2" /><circle cx="12" cy="12" r="2.5" /><path d="M6 12h.01M18 12h.01" /></>,
+    star: <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />,
+    growth: <><path d="M3 3v18h18" /><path d="m19 9-5 5-4-4-3 3" /></>,
+    settings: <><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z" /></>,
+    logout: <><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" /></>,
+    clock: <><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></>,
+    target: <><circle cx="12" cy="12" r="10" /><circle cx="12" cy="12" r="6" /><circle cx="12" cy="12" r="2" /></>,
+    users: <><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></>,
+  };
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+      {paths[name] || null}
+    </svg>
+  );
+}
+
 const STATUS: Record<string, [string, string]> = {
   pendente: ['#B7791F', 'Pendente'],
   pago: ['#00B87A', 'Pago'],
@@ -71,15 +94,15 @@ export default function AdminDashboard({ metrics, daily, orders, products, store
   }
 
   const NAV = [
-    ['cockpit', '📊', 'Cockpit', 0],
-    ['aprovacao', '✅', 'Aprovação', queue.length],
-    ['pedidos', '🧾', 'Pedidos', 0],
-    ['vendedores', '🏪', 'Vendedores', metrics.lojasPendentes],
-    ['produtos', '📦', 'Produtos', 0],
-    ['saques', '💸', 'Saques', metrics.saquesPendentes],
-    ['destaques', '⭐', 'Destaques', metrics.destaquesAtivos],
-    ['crescimento', '📊', 'Crescimento', 0],
-    ['config', '⚙️', 'Configurações', 0],
+    ['cockpit', 'cockpit', 'Cockpit', 0],
+    ['aprovacao', 'check', 'Aprovação', queue.length],
+    ['pedidos', 'receipt', 'Pedidos', 0],
+    ['vendedores', 'store', 'Vendedores', metrics.lojasPendentes],
+    ['produtos', 'package', 'Produtos', 0],
+    ['saques', 'money', 'Saques', metrics.saquesPendentes],
+    ['destaques', 'star', 'Destaques', metrics.destaquesAtivos],
+    ['crescimento', 'growth', 'Crescimento', 0],
+    ['config', 'settings', 'Configurações', 0],
   ];
 
   const maxDay = Math.max(1, ...daily.map((d: any) => d.total));
@@ -145,15 +168,15 @@ export default function AdminDashboard({ metrics, daily, orders, products, store
       `}</style>
 
       <aside className="adm-side">
-        <div className="adm-logo">Nex<span>Zone</span></div>
+        <div className="adm-logo">Comprei <span>Barato</span></div>
         {NAV.map(([id, ic, label, badge]: any) => (
           <button key={id} className={`adm-nav ${tab === id ? 'on' : ''}`} onClick={() => setTab(id)}>
-            <span>{ic}</span> {label} {badge > 0 && <span className="bd">{badge}</span>}
+            <Icon name={ic} /> {label} {badge > 0 && <span className="bd">{badge}</span>}
           </button>
         ))}
         <div className="adm-foot">
           <a href="/">← Voltar ao site</a>
-          <form action="/auth/signout" method="post"><button className="adm-nav" style={{ color: '#E23B3B' }}>⎋ Sair</button></form>
+          <form action="/auth/signout" method="post"><button className="adm-nav" style={{ color: '#E23B3B' }}><Icon name="logout" size={16} /> Sair</button></form>
         </div>
       </aside>
 
@@ -163,17 +186,17 @@ export default function AdminDashboard({ metrics, daily, orders, products, store
             <h1 className="adm-h">Cockpit</h1>
             <p className="adm-sub">Visão geral do Comprei Barato em tempo real.</p>
             <div className="adm-stats">
-              <div className="adm-stat"><div className="ic">💰</div><b>{money(metrics.gmv)}</b><small>GMV (volume vendido)</small></div>
-              <div className="adm-stat"><div className="ic">📈</div><b>{money(metrics.receita)}</b><small>Sua receita (3%)</small></div>
-              <div className="adm-stat"><div className="ic">🧾</div><b>{fmt(metrics.pedidosPagos)}</b><small>Vendas pagas</small></div>
-              <div className="adm-stat"><div className="ic">🎯</div><b>{money(metrics.ticket)}</b><small>Ticket médio</small></div>
+              <div className="adm-stat"><div className="ic"><Icon name="money" size={20} /></div><b>{money(metrics.gmv)}</b><small>GMV (volume vendido)</small></div>
+              <div className="adm-stat"><div className="ic"><Icon name="growth" size={20} /></div><b>{money(metrics.receita)}</b><small>Sua receita (3%)</small></div>
+              <div className="adm-stat"><div className="ic"><Icon name="receipt" size={20} /></div><b>{fmt(metrics.pedidosPagos)}</b><small>Vendas pagas</small></div>
+              <div className="adm-stat"><div className="ic"><Icon name="target" size={20} /></div><b>{money(metrics.ticket)}</b><small>Ticket médio</small></div>
             </div>
             <div className="adm-stats">
-              <div className="adm-stat"><div className="ic">🏪</div><b>{fmt(metrics.totalLojas)}</b><small>Vendedores</small></div>
-              <div className="adm-stat"><div className="ic">📦</div><b>{fmt(metrics.totalProdutosAtivos)}</b><small>Produtos ativos</small></div>
-              <div className="adm-stat"><div className="ic">👥</div><b>{fmt(metrics.buyersCount)}</b><small>Compradores</small></div>
-              <div className="adm-stat"><div className="ic">⏳</div><b>{fmt(metrics.filaProdutos)}</b><small>Aguardando aprovação</small></div>
-              <div className="adm-stat"><div className="ic">⭐</div><b>{money(metrics.receitaDivulgacao)}</b><small>Receita de divulgação</small></div>
+              <div className="adm-stat"><div className="ic"><Icon name="store" size={20} /></div><b>{fmt(metrics.totalLojas)}</b><small>Vendedores</small></div>
+              <div className="adm-stat"><div className="ic"><Icon name="package" size={20} /></div><b>{fmt(metrics.totalProdutosAtivos)}</b><small>Produtos ativos</small></div>
+              <div className="adm-stat"><div className="ic"><Icon name="users" size={20} /></div><b>{fmt(metrics.buyersCount)}</b><small>Compradores</small></div>
+              <div className="adm-stat"><div className="ic"><Icon name="clock" size={20} /></div><b>{fmt(metrics.filaProdutos)}</b><small>Aguardando aprovação</small></div>
+              <div className="adm-stat"><div className="ic"><Icon name="star" size={20} /></div><b>{money(metrics.receitaDivulgacao)}</b><small>Receita de divulgação</small></div>
             </div>
             <div className="adm-card">
               <h3 className="adm-ct">Receita dos últimos 7 dias</h3>
@@ -342,8 +365,8 @@ export default function AdminDashboard({ metrics, daily, orders, products, store
             <h1 className="adm-h">Saques</h1>
             <p className="adm-sub">Repasses solicitados pelos vendedores. Faça o Pix e marque como pago.</p>
             <div className="adm-stats">
-              <div className="adm-stat"><div className="ic">💸</div><b>{money(metrics.aRepassar)}</b><small>A repassar agora</small></div>
-              <div className="adm-stat"><div className="ic">⏳</div><b>{fmt(metrics.saquesPendentes)}</b><small>Saques pendentes</small></div>
+              <div className="adm-stat"><div className="ic"><Icon name="money" size={20} /></div><b>{money(metrics.aRepassar)}</b><small>A repassar agora</small></div>
+              <div className="adm-stat"><div className="ic"><Icon name="clock" size={20} /></div><b>{fmt(metrics.saquesPendentes)}</b><small>Saques pendentes</small></div>
             </div>
             <div className="adm-card">
               {payoutList.length ? (
@@ -379,8 +402,8 @@ export default function AdminDashboard({ metrics, daily, orders, products, store
             <h1 className="adm-h">Destaques</h1>
             <p className="adm-sub">Receita de divulgação (planos de destaque pagos pelos vendedores).</p>
             <div className="adm-stats">
-              <div className="adm-stat"><div className="ic">💰</div><b>{money(metrics.receitaDivulgacao)}</b><small>Receita total de divulgação</small></div>
-              <div className="adm-stat"><div className="ic">⭐</div><b>{fmt(metrics.destaquesAtivos)}</b><small>Destaques ativos agora</small></div>
+              <div className="adm-stat"><div className="ic"><Icon name="money" size={20} /></div><b>{money(metrics.receitaDivulgacao)}</b><small>Receita total de divulgação</small></div>
+              <div className="adm-stat"><div className="ic"><Icon name="star" size={20} /></div><b>{fmt(metrics.destaquesAtivos)}</b><small>Destaques ativos agora</small></div>
             </div>
             <div className="adm-card">
               {boostList.length ? (
