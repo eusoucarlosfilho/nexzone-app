@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { toast } from '@/lib/toast';
 import SettingsForm from './SettingsForm';
 
@@ -21,6 +21,8 @@ function Icon({ name, size = 18 }: { name: string; size?: number }) {
     clock: <><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></>,
     target: <><circle cx="12" cy="12" r="10" /><circle cx="12" cy="12" r="6" /><circle cx="12" cy="12" r="2" /></>,
     users: <><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></>,
+    sun: <><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" /></>,
+    moon: <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />,
   };
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
@@ -42,6 +44,20 @@ const STATUS: Record<string, [string, string]> = {
 
 export default function AdminDashboard({ metrics, daily, orders, products, stores, payouts, boosts, settings, growth, sellers }: any) {
   const [tab, setTab] = useState('cockpit');
+  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('adm-theme');
+      if (saved === 'light' || saved === 'dark') setTheme(saved);
+    } catch {}
+  }, []);
+  function toggleTheme() {
+    setTheme((t) => {
+      const next = t === 'dark' ? 'light' : 'dark';
+      try { localStorage.setItem('adm-theme', next); } catch {}
+      return next;
+    });
+  }
   const [queue, setQueue] = useState(products.filter((p: any) => p.status === 'em_revisao'));
   const [allProducts, setAllProducts] = useState(products);
   const [orderFilter, setOrderFilter] = useState('todos');
@@ -114,9 +130,11 @@ export default function AdminDashboard({ metrics, daily, orders, products, store
   };
 
   return (
-    <div className="adm">
+    <div className={`adm ${theme}`}>
       <style>{`
         .adm{--bg:#0E0E18;--panel:#16161F;--panel2:#1C1C28;--bd:#26263340;--bd2:#2A2A3A;--tx:#EDEDF5;--sub:#9292AC;--or:#FF7A14;--or2:#FF9A3C;--grad:linear-gradient(135deg,#FF6B00,#FF9A3C);min-height:100vh;background:var(--bg);color:var(--tx);font-family:'Nunito',sans-serif;display:flex;}
+        .adm.light{--bg:#F4F4F8;--panel:#FFFFFF;--panel2:#EFEFF4;--bd:#E6E6EF;--bd2:#E6E6EF;--tx:#1A1A2E;--sub:#6C6C82;}
+        .adm.light .adm-stat,.adm.light .adm-card{box-shadow:0 1px 3px rgba(20,20,40,.05);}
         .adm *{box-sizing:border-box;}
         .adm-side{width:230px;background:var(--panel);border-right:1px solid var(--bd2);padding:22px 14px;flex-shrink:0;display:flex;flex-direction:column;gap:4px;position:sticky;top:0;height:100vh;}
         .adm-logo{font-family:'Outfit';font-weight:900;font-size:22px;letter-spacing:-1px;padding:0 8px 18px;}
@@ -175,6 +193,9 @@ export default function AdminDashboard({ metrics, daily, orders, products, store
           </button>
         ))}
         <div className="adm-foot">
+          <button className="adm-nav" onClick={toggleTheme} style={{ marginBottom: 2 }}>
+            <Icon name={theme === 'dark' ? 'sun' : 'moon'} size={16} /> {theme === 'dark' ? 'Modo claro' : 'Modo escuro'}
+          </button>
           <a href="/">← Voltar ao site</a>
           <form action="/auth/signout" method="post"><button className="adm-nav" style={{ color: '#E23B3B' }}><Icon name="logout" size={16} /> Sair</button></form>
         </div>

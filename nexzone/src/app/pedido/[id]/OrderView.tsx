@@ -132,9 +132,11 @@ export default function OrderView(props: Props) {
           )}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 16, color: 'var(--green, #00B87A)', fontWeight: 700, fontFamily: 'Outfit', fontSize: 13 }}>
             <span style={{ width: 9, height: 9, borderRadius: '50%', background: 'var(--green, #00B87A)', display: 'inline-block', animation: 'pulsePix 1.4s ease-in-out infinite' }} />
-            Assim que o pagamento cair, liberamos seu produto na hora — automático.
+            Confirmamos seu pagamento automaticamente
           </div>
-          <p className="muted" style={{ fontSize: 12, marginTop: 6 }}>Pode deixar esta tela aberta: ela atualiza sozinha. Não precisa enviar comprovante.</p>
+          <p className="muted" style={{ fontSize: 12, marginTop: 6, maxWidth: 320, marginLeft: 'auto', marginRight: 'auto' }}>
+            Transação 100% segura via Pix. Assim que o pagamento for identificado, a confirmação aparece aqui sozinha — não precisa enviar comprovante.
+          </p>
           <style>{`@keyframes pulsePix{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.8)}}`}</style>
         </div>
       )}

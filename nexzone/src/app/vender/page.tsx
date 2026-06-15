@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { calcBalance } from '@/lib/balance';
+import Icon from '@/components/Icon';
 
 const money = (v: number) => 'R$ ' + Number(v).toFixed(2).replace('.', ',');
 export const dynamic = 'force-dynamic';
@@ -16,7 +17,7 @@ export default async function VenderCockpit() {
   if (!store) {
     return (
       <div>
-        <h1 style={{ fontFamily: 'Outfit', fontSize: 26, fontWeight: 900 }}>Bem-vindo ao Comprei Barato 🚀</h1>
+        <h1 style={{ fontFamily: 'Outfit', fontSize: 26, fontWeight: 900 }}>Bem-vindo ao Comprei Barato</h1>
         <p className="muted" style={{ marginTop: 6 }}>Você ainda não tem produtos. Cadastre o primeiro e sua loja é criada automaticamente.</p>
         <Link href="/vender/produtos" className="btn btn-pri" style={{ marginTop: 18, display: 'inline-block' }}>Cadastrar meu primeiro produto</Link>
       </div>
@@ -59,7 +60,7 @@ export default async function VenderCockpit() {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16, marginBottom: 8 }}>
         <div>
-          <h1 style={{ fontFamily: 'Outfit', fontSize: 26, fontWeight: 900, letterSpacing: '-.6px' }}>Olá, {store.nome} 👋</h1>
+          <h1 style={{ fontFamily: 'Outfit', fontSize: 26, fontWeight: 900, letterSpacing: '-.6px' }}>Olá, {store.nome}</h1>
           <p className="muted">Aqui está o pulso da sua loja.</p>
         </div>
         <Link href="/vender/recebimentos" className="card" style={{ padding: '14px 20px', textDecoration: 'none', color: 'inherit', textAlign: 'right' }}>
@@ -69,20 +70,20 @@ export default async function VenderCockpit() {
       </div>
 
       <div className="sd-stats" style={{ marginTop: 18 }}>
-        <div className="sd-stat"><div className="ic">💸</div><b>{money(fatMes)}</b><small>Faturamento do mês</small></div>
-        <div className="sd-stat"><div className="ic">🧾</div><b>{vendasMes}</b><small>Vendas no mês</small></div>
-        <div className="sd-stat"><div className="ic">🎯</div><b>{money(ticket)}</b><small>Ticket médio</small></div>
-        <div className="sd-stat"><div className="ic">🏆</div><b>{money(fatTotal)}</b><small>Faturamento total</small></div>
+        <div className="sd-stat"><div className="ic"><Icon name="money" size={20} /></div><b>{money(fatMes)}</b><small>Faturamento do mês</small></div>
+        <div className="sd-stat"><div className="ic"><Icon name="receipt" size={20} /></div><b>{vendasMes}</b><small>Vendas no mês</small></div>
+        <div className="sd-stat"><div className="ic"><Icon name="target" size={20} /></div><b>{money(ticket)}</b><small>Ticket médio</small></div>
+        <div className="sd-stat"><div className="ic"><Icon name="trophy" size={20} /></div><b>{money(fatTotal)}</b><small>Faturamento total</small></div>
       </div>
 
       <div className="card" style={{ marginBottom: 20 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
-          <strong style={{ fontFamily: 'Outfit' }}>🎯 Meta do mês</strong>
+          <strong style={{ fontFamily: 'Outfit', display: 'flex', alignItems: 'center', gap: 8 }}><Icon name="target" size={18} /> Meta do mês</strong>
           <span className="muted" style={{ fontSize: 13 }}>{money(fatMes)} de {money(meta)}</span>
         </div>
         <div className="sd-meta"><div className="fill" style={{ width: `${progresso}%` }} /></div>
         <p className="muted" style={{ fontSize: 12, marginTop: 8 }}>
-          {progresso >= 100 ? '🔥 Meta batida! Você está voando.' : `Faltam ${money(meta - fatMes)} para bater sua meta do mês.`}
+          {progresso >= 100 ? 'Meta batida! Você está voando.' : `Faltam ${money(meta - fatMes)} para bater sua meta do mês.`}
         </p>
       </div>
 
@@ -110,7 +111,7 @@ export default async function VenderCockpit() {
             </div>
             <strong style={{ fontFamily: 'Outfit', color: 'var(--green)' }}>+ {money(o.valor_vendedor)}</strong>
           </div>
-        )) : <p className="muted" style={{ fontSize: 13 }}>Nenhuma venda ainda. Divulgue seus produtos e elas aparecem aqui. 🚀</p>}
+        )) : <p className="muted" style={{ fontSize: 13 }}>Nenhuma venda ainda. Divulgue seus produtos e elas aparecem aqui.</p>}
       </div>
     </div>
   );
