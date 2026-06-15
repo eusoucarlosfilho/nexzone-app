@@ -49,7 +49,7 @@ export default async function AdminPage() {
       .select('id, valor, dias, status, created_at, expira_em, store_id, products(titulo, emoji), stores(nome)')
       .order('created_at', { ascending: false }),
     admin.from('complaints')
-      .select('id, order_id, texto, status, created_at, atendido_por, atendido_em, resolvida_em, resolvido_por')
+      .select('id, order_id, texto, status, created_at')
       .in('status', ['aberta', 'resolvida']).order('created_at', { ascending: false }).limit(200),
     admin.from('seller_alerts')
       .select('id, order_id, canal, destino, status, detalhe, created_at')
@@ -65,6 +65,23 @@ export default async function AdminPage() {
   const alerts = (alertsRes.data ?? []) as any[];
 
   // E-mail de quem pegou/resolveu cada reclamação
+  // Enriquecimento resiliente: tenta ler as colunas de atendimento; se a migration
+  // ainda não rodou, simplesmente ignora (não quebra a lista).
+  try {
+    const cids = complaints.map((c: any) => c.id);
+    if (cids.length) {
+      const { data: extra } = await admin.from('complaints')
+        .select('id, atendido_por, atendido_em, resolvida_em, resolvido_por').in('id', cids);
+      if (extra) {
+        const em: Record<string, any> = Object.fromEntries((extra as any[]).map((e) => [e.id, e]));
+        complaints.forEach((c: any) => {
+          const e = em[c.id];
+          if (e) { c.atendido_por = e.atendido_por; c.atendido_em = e.atendido_em; c.resolvida_em = e.resolvida_em; c.resolvido_por = e.resolvido_por; }
+        });
+      }
+    }
+  } catch { /* migration de atendimento ainda não rodou — ok */ }
+
   complaints.forEach((c: any) => {
     c.atendente_email = c.atendido_por ? (emailById[c.atendido_por] || '—') : null;
     c.resolvedor_email = c.resolvido_por ? (emailById[c.resolvido_por] || '—') : null;
@@ -125,10 +142,25 @@ export default async function AdminPage() {
     if (owner) openComplaintsByOwner[owner] = (openComplaintsByOwner[owner] || 0) + 1;
   });
   const sellerByOwner: Record<string, any> = Object.fromEntries(sellers.map((s: any) => [s.owner, s]));
-  const { data: profilesAll } = await admin.from('profiles')
-    .select('id, nome, role, cb_points, status, created_at')
-    .order('created_at', { ascending: false });
-  const users = ((profilesAll) ?? []).map((p: any) => ({
+
+  // Busca TODOS os perfis. Resiliente: se a coluna 'status' ainda não existe
+  // (migration não rodou), cai numa busca sem ela e assume 'ativo'.
+  let profilesAll: any[] = [];
+  {
+    const r1 = await admin.from('profiles')
+      .select('id, nome, role, cb_points, status, created_at')
+      .order('created_at', { ascending: false });
+    if (r1.error) {
+      const r2 = await admin.from('profiles')
+        .select('id, nome, role, cb_points, created_at')
+        .order('created_at', { ascending: false });
+      profilesAll = ((r2.data as any[]) ?? []).map((p) => ({ ...p, status: 'ativo' }));
+    } else {
+      profilesAll = (r1.data as any[]) ?? [];
+    }
+  }
+
+  const users = (profilesAll).map((p: any) => ({
     id: p.id,
     email: emailById[p.id] || '—',
     nome: p.nome || (emailById[p.id] && emailById[p.id] !== '—' ? String(emailById[p.id]).split('@')[0] : 'Usuário'),
