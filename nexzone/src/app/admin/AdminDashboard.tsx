@@ -4,6 +4,7 @@ import { toast } from '@/lib/toast';
 import SettingsForm from './SettingsForm';
 import TorpedosForm from './TorpedosForm';
 import OrderChat from '@/components/OrderChat';
+import AdminNotes from './AdminNotes';
 
 const money = (v: number) => 'R$ ' + Number(v).toFixed(2).replace('.', ',');
 const fmt = (v: number) => Number(v).toLocaleString('pt-BR');
@@ -48,6 +49,27 @@ const STATUS: Record<string, [string, string]> = {
 
 export default function AdminDashboard({ adminEmail, users, metrics, daily, orders, products, stores, payouts, boosts, settings, growth, sellers, complaints, alerts }: any) {
   const [tab, setTab] = useState('cockpit');
+
+  // Controle dos "badges" (números) do menu. Ao clicar numa aba, o número
+  // atual é marcado como "visto" e some — só reaparece se o número aumentar
+  // (ex.: chegou uma nova reclamação/loja pendente). Persiste no navegador.
+  const [seenBadges, setSeenBadges] = useState<Record<string, number>>({});
+  useEffect(() => {
+    try {
+      const s = localStorage.getItem('cb_admin_seen_badges');
+      if (s) setSeenBadges(JSON.parse(s) || {});
+    } catch {}
+  }, []);
+  function irPara(id: string, badge: number) {
+    setTab(id);
+    if (badge > 0) {
+      setSeenBadges((prev) => {
+        const next = { ...prev, [id]: badge };
+        try { localStorage.setItem('cb_admin_seen_badges', JSON.stringify(next)); } catch {}
+        return next;
+      });
+    }
+  }
   const [chatOrder, setChatOrder] = useState<string | null>(null);
   const [complaintList, setComplaintList] = useState<any[]>(complaints || []);
   const [recTab, setRecTab] = useState<'pendentes' | 'resolvidas'>('pendentes');
@@ -179,6 +201,7 @@ export default function AdminDashboard({ adminEmail, users, metrics, daily, orde
     ['destaques', 'star', 'Destaques', metrics.destaquesAtivos],
     ['crescimento', 'growth', 'Crescimento', 0],
     ['reclamacoes', 'shield', 'Reclamações', recPendentes.length],
+    ['observacoes', 'chat', 'Observações', 0],
     ['torpedos', 'bell', 'Torpedos enviados', 0],
     ['config', 'settings', 'Configurações', 0],
   ];
@@ -255,8 +278,8 @@ export default function AdminDashboard({ adminEmail, users, metrics, daily, orde
           </div>
         )}
         {NAV.map(([id, ic, label, badge]: any) => (
-          <button key={id} className={`adm-nav ${tab === id ? 'on' : ''}`} onClick={() => setTab(id)}>
-            <Icon name={ic} /> {label} {badge > 0 && <span className="bd">{badge}</span>}
+          <button key={id} className={`adm-nav ${tab === id ? 'on' : ''}`} onClick={() => irPara(id, badge)}>
+            <Icon name={ic} /> {label} {badge > (seenBadges[id] || 0) && <span className="bd">{badge}</span>}
           </button>
         ))}
         <div className="adm-foot">
@@ -625,6 +648,8 @@ export default function AdminDashboard({ adminEmail, users, metrics, daily, orde
           </>
           );
         })()}
+
+        {tab === 'observacoes' && <AdminNotes adminEmail={adminEmail} />}
 
         {tab === 'torpedos' && (
           <>
