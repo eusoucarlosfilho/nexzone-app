@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
@@ -8,7 +8,23 @@ export default function LoginPage() {
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [email, setEmail] = useState(''); const [senha, setSenha] = useState(''); const [nome, setNome] = useState('');
   const [msg, setMsg] = useState(''); const [loading, setLoading] = useState(false);
+  const [lembrar, setLembrar] = useState(true);
   const router = useRouter();
+
+  // Lembrar login: pré-preenche o e-mail salvo neste dispositivo (nunca guarda a senha).
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('cb_remember_email');
+      if (saved) { setEmail(saved); setLembrar(true); }
+    } catch {}
+  }, []);
+
+  function salvarLembrar() {
+    try {
+      if (lembrar && email) localStorage.setItem('cb_remember_email', email);
+      else localStorage.removeItem('cb_remember_email');
+    } catch {}
+  }
 
   async function submit() {
     setLoading(true); setMsg('');
@@ -21,14 +37,14 @@ export default function LoginPage() {
       else { setMsg('Conta criada! Confirme seu e-mail e depois faça login.'); setMode('login'); }
     } else {
       const { error } = await supabase.auth.signInWithPassword({ email, password: senha });
-      if (error) setMsg(error.message); else router.push(next);
+      if (error) setMsg(error.message); else { salvarLembrar(); router.push(next); }
     }
     setLoading(false);
   }
 
   return (
     <div className="page" style={{ maxWidth: 440 }}>
-      <Link href="/" className="logo">Nex<span className="g">Zone</span></Link>
+      <Link href="/" className="logo">Comprei <span className="g">Barato</span></Link>
 
       {mode === 'login' && (
         <div style={{ marginTop: 20, background: 'var(--grad)', borderRadius: 16, padding: '18px 20px', color: '#fff', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
@@ -48,6 +64,12 @@ export default function LoginPage() {
         {mode === 'register' && <div className="fg"><label>NOME</label><input value={nome} onChange={e => setNome(e.target.value)} placeholder="Seu nome" /></div>}
         <div className="fg"><label>E-MAIL</label><input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="seu@email.com" /></div>
         <div className="fg"><label>SENHA</label><input type="password" value={senha} onChange={e => setSenha(e.target.value)} placeholder="••••••••" /></div>
+        {mode === 'login' && (
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, margin: '2px 0 14px', cursor: 'pointer', color: 'var(--muted)' }}>
+            <input type="checkbox" checked={lembrar} onChange={e => setLembrar(e.target.checked)} style={{ width: 16, height: 16, accentColor: 'var(--orange, #FF6B00)', cursor: 'pointer' }} />
+            Lembrar meu login neste dispositivo
+          </label>
+        )}
         <button className="btn btn-pri" style={{ width: '100%' }} onClick={submit} disabled={loading}>
           {loading ? '…' : mode === 'login' ? 'Entrar' : 'Criar conta grátis'}
         </button>
