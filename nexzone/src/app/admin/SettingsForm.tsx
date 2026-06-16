@@ -19,6 +19,10 @@ export default function SettingsForm({ settings }: any) {
   const [cs, setCs] = useState<string>('');
   const csSet = !!pay.misticpay_cs_set;
 
+  // DeepSeek (importação por IA)
+  const [deepseek, setDeepseek] = useState('');
+  const dsSet = !!settings.deepseek_key_set;
+
   const [busy, setBusy] = useState(false);
 
   // ===== Administradores =====
@@ -67,11 +71,12 @@ export default function SettingsForm({ settings }: any) {
         payment_gateway: gateway,
         misticpay_ci: ci,
         misticpay_cs: cs, // em branco = mantém o atual
+        deepseek_api_key: deepseek, // em branco = mantém o atual
       }),
     });
     const d = await r.json();
     setBusy(false);
-    if (r.ok) { toast('Configurações salvas!', 'success'); setCs(''); }
+    if (r.ok) { toast('Configurações salvas!', 'success'); setCs(''); setDeepseek(''); }
     else toast(d.error || 'Erro ao salvar', 'error');
   }
 
@@ -179,6 +184,20 @@ export default function SettingsForm({ settings }: any) {
           </small>
         </div>
       )}
+
+      {/* ===== Importação por IA (DeepSeek) ===== */}
+      <div style={{ borderTop: '1px solid var(--border)', paddingTop: 20, marginBottom: 22 }}>
+        <label style={lbl}>Importação por IA — chave da DeepSeek</label>
+        <input type="password" value={deepseek} onChange={(e) => setDeepseek(e.target.value)}
+          placeholder={dsSet ? '•••••••••• (já configurada — deixe em branco para manter)' : 'sk-... (cole a chave da DeepSeek)'}
+          style={inp} autoComplete="off" />
+        <small style={hint}>
+          {dsSet
+            ? 'Chave já configurada. Só preencha se quiser substituí-la.'
+            : 'Cole a chave gerada em platform.deepseek.com. Fica guardada de forma segura no servidor.'}
+          {' '}Usada na ferramenta “Trazer anúncio de outro site” do painel do vendedor.
+        </small>
+      </div>
 
       {/* ===== Administradores ===== */}
       <div style={{ borderTop: '1px solid var(--border)', paddingTop: 20, marginBottom: 22 }}>

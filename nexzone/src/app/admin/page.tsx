@@ -181,6 +181,12 @@ export default async function AdminPage() {
   const settings: any = await getSettings();
   settings.payment = await getPaymentConfigPublic();
 
+  // DeepSeek (importação por IA): expõe só se está configurada ou não, nunca a chave.
+  try {
+    const { data: dsRow } = await admin.from('settings').select('value').eq('key', 'deepseek_api_key').maybeSingle();
+    settings.deepseek_key_set = !!(dsRow as any)?.value;
+  } catch { settings.deepseek_key_set = false; }
+
   // Lista de administradores (perfil role=admin + e-mail vindo do auth)
   try {
     const { data: adminProfiles } = await admin.from('profiles').select('id').eq('role', 'admin');

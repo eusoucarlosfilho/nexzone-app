@@ -42,7 +42,15 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: 'Informe um link ou cole o texto do anúncio.' }, { status: 400 });
   }
 
-  const ia = await askDeepSeek(conteudo, CATS);
+  // chave da DeepSeek: primeiro do painel admin (Configurações), senão da env do Vercel
+  let dsKey = process.env.DEEPSEEK_API_KEY || '';
+  try {
+    const adminDs = createAdminClient();
+    const { data: dsRow } = await adminDs.from('settings').select('value').eq('key', 'deepseek_api_key').maybeSingle();
+    if (typeof (dsRow as any)?.value === 'string' && (dsRow as any).value) dsKey = (dsRow as any).value;
+  } catch {}
+
+  const ia = await askDeepSeek(conteudo, CATS, dsKey);
   if (!ia.ok) return NextResponse.json({ ok: false, error: ia.error });
 
   return NextResponse.json({ ok: true, data: { ...ia.data, fonte_url: fonte } });

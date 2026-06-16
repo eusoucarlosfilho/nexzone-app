@@ -179,9 +179,9 @@ export async function baixarImagemSegura(rawUrl: string): Promise<{ ok: true; by
 // ---------------- IA (DeepSeek) ----------------
 export type ImportData = { titulo: string; descricao: string; preco: number | null; categoria: string; emoji: string; imagem_url: string };
 
-export async function askDeepSeek(conteudo: string, categorias: string[]): Promise<{ ok: true; data: ImportData } | { ok: false; error: string }> {
-  const key = process.env.DEEPSEEK_API_KEY;
-  if (!key) return { ok: false, error: 'A importação por IA ainda não foi configurada (falta a chave DEEPSEEK_API_KEY no Vercel).' };
+export async function askDeepSeek(conteudo: string, categorias: string[], apiKey?: string): Promise<{ ok: true; data: ImportData } | { ok: false; error: string }> {
+  const key = apiKey || process.env.DEEPSEEK_API_KEY;
+  if (!key) return { ok: false, error: 'A importação por IA ainda não foi configurada. Cadastre a chave da DeepSeek em Configurações.' };
 
   const system = `Você recebe dados brutos de uma página de venda de um produto digital. Devolva SOMENTE um objeto JSON com as chaves: titulo, descricao, preco (número em BRL ou null), categoria (escolha exatamente UMA desta lista: ${categorias.join(' | ')} — ou string vazia se nenhuma encaixar), emoji (1 emoji que combine), imagem_url (melhor URL de imagem do produto ou vazio). A descrição deve ser reescrita em português, vendedora e adequada ao nosso marketplace. Não use markdown, não escreva nada fora do JSON.`;
 
