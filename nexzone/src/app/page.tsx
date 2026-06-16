@@ -39,7 +39,6 @@ export default async function Home() {
         .home-stats div b{font-family:'Outfit';font-size:22px;font-weight:900;display:block;line-height:1}
         .home-stats div small{font-size:12px;color:var(--sub);font-weight:700}
         .home-badges{display:flex;gap:18px;margin-top:22px;flex-wrap:wrap;font-size:13px;color:var(--sub);font-weight:700}
-        .hero-slogan{margin-top:14px;font-family:'Outfit';font-weight:800;font-size:clamp(20px,2.6vw,30px);letter-spacing:-.8px;line-height:1.1;color:var(--text)}
         .catgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px}
         .cattile{display:flex;align-items:center;gap:12px;background:#fff;border:1px solid var(--border);border-radius:14px;padding:16px;text-decoration:none;color:inherit;transition:.15s;font-family:'Outfit';font-weight:700}
         .cattile:hover{border-color:var(--orange);background:var(--soft)}
@@ -53,8 +52,7 @@ export default async function Home() {
       <section className="hero">
         <div className="hero-in">
           <div className="htag">⚡ Entrega imediata e pagamento seguro via Pix</div>
-          <h1 className="hero">O marketplace dos <span className="g">produtos digitais</span> do Brasil.</h1>
-          <p className="hero-slogan">O lugar mais <span className="g">barato</span> de comprar.</p>
+          <h1 className="hero">O lugar mais <span className="g">barato</span> de comprar seus produtos digitais</h1>
           <p className="hero-sub">Prompts, templates, planilhas, automações e muito mais — de criadores verificados, com entrega na hora e garantia.</p>
           <SearchBar />
           <div className="home-badges">

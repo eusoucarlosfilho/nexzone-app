@@ -105,16 +105,22 @@ export default function CreateProduct({ userId }: { userId: string }) {
           Importe de Hotmart, Kiwify, Mercado Livre e outros — preenchemos o anúncio pra você. O arquivo/entrega você configura abaixo.
         </p>
         {!bloqueado ? (
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <input value={impUrl} onChange={(e) => setImpUrl(e.target.value)} placeholder="Cole o link do seu anúncio em outro site"
-              style={{ flex: '1 1 240px', height: 44, borderRadius: 10, border: '1px solid var(--border)', padding: '0 12px', fontSize: 14, background: '#fff' }} />
-            <button type="button" className="btn btn-pri" disabled={importando || !impUrl.trim()} onClick={() => importar({ url: impUrl.trim() })}>
-              {importando ? 'Buscando…' : 'Trazer anúncio'}
+          <div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <input value={impUrl} onChange={(e) => setImpUrl(e.target.value)} placeholder="Cole o link do seu anúncio em outro site"
+                style={{ flex: '1 1 240px', height: 44, borderRadius: 10, border: '1px solid var(--border)', padding: '0 12px', fontSize: 14, background: '#fff' }} />
+              <button type="button" className="btn btn-pri" disabled={importando || !impUrl.trim()} onClick={() => importar({ url: impUrl.trim() })}>
+                {importando ? 'Buscando…' : 'Trazer anúncio'}
+              </button>
+            </div>
+            <button type="button" onClick={() => setBloqueado(true)}
+              style={{ marginTop: 8, background: 'none', border: 'none', padding: 0, color: 'var(--orange)', fontSize: 12.5, cursor: 'pointer', textDecoration: 'underline' }}>
+              ou colar o texto do anúncio manualmente
             </button>
           </div>
         ) : (
           <div>
-            <div style={{ fontSize: 12.5, color: 'var(--orange)', marginBottom: 6 }}>Não consegui abrir o link. Cole aqui o texto do anúncio (título, descrição, preço):</div>
+            <div style={{ fontSize: 12.5, color: 'var(--orange)', marginBottom: 6 }}>Cole aqui o texto do anúncio (título, descrição, preço):</div>
             <textarea value={impTexto} onChange={(e) => setImpTexto(e.target.value)} rows={4} placeholder="Cole aqui o conteúdo do anúncio…"
               style={{ width: '100%', borderRadius: 10, border: '1px solid var(--border)', padding: 10, fontSize: 13, fontFamily: 'inherit', resize: 'vertical', background: '#fff' }} />
             <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>

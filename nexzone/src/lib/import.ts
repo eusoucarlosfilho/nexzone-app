@@ -134,6 +134,15 @@ export async function fetchAndExtract(rawUrl: string): Promise<Extracao> {
 
   const conteudo = partes.join('\n').slice(0, 8000);
   if (conteudo.replace(/\s/g, '').length < 40) return { ok: false, bloqueado: true, error: 'Quase não consegui ler conteúdo dessa página.' };
+
+  // Bloqueio "suave": o Mercado Livre entrega uma página genérica (cookies/login) para
+  // acessos de servidor (IP de datacenter). Se for ML e não achamos NENHUM dado de
+  // produto, tratamos como bloqueado para o usuário cair no "cole o texto".
+  const achouProduto = partes.some((p) => p.startsWith('PRODUTO/') || p.startsWith('og:price') || p.startsWith('product:price'));
+  if (/mercadolivre|mercadolibre/i.test(seg.url.hostname) && !achouProduto) {
+    return { ok: false, bloqueado: true, error: 'O Mercado Livre bloqueia a leitura automática e entregou uma página genérica. Cole o texto do anúncio.' };
+  }
+
   return { ok: true, conteudo };
 }
 
