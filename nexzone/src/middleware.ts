@@ -23,7 +23,7 @@ export async function middleware(request: NextRequest) {
   // Protegido: qualquer erro na leitura = deixa passar (nunca trava ninguém por engano).
   if (user) {
     const path = request.nextUrl.pathname;
-    const liberado = path.startsWith('/conta-suspensa') || path.startsWith('/auth');
+    const liberado = path.startsWith('/conta-suspensa') || path.startsWith('/auth') || path.startsWith('/api/unsubscribe');
     if (!liberado) {
       try {
         const { data: prof } = await supabase.from('profiles').select('status').eq('id', user.id).maybeSingle();
