@@ -23,5 +23,5 @@ export interface Product {
   vendas: number;
   nota: number;
   created_at: string;
-  stores?: { nome: string; nivel: string; slug?: string } | null;
+  stores?: { nome: string; nivel: string; slug?: string | null; ocultar_vendedor?: boolean; oficial?: boolean; logo_url?: string | null; cor?: string | null } | null;
 }

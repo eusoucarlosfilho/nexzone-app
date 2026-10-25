@@ -4,6 +4,7 @@
 // Nada aqui lança erro para quem chama.
 // ============================================================
 import { sendEmail, layoutEmail, emailDoUsuario, esc, moneyBR, SITE_URL } from '@/lib/email';
+import { vendedorPublico } from '@/lib/vendedorPublico';
 
 // ------------------------------------------------------------
 // Compra aprovada (comprador) + Nova venda (dono da loja)
@@ -12,12 +13,13 @@ import { sendEmail, layoutEmail, emailDoUsuario, esc, moneyBR, SITE_URL } from '
 export async function notificarCompraAprovada(admin: any, orderId: string) {
   try {
     const { data: o } = await admin.from('orders')
-      .select('id, comprador, store_id, total, valor_vendedor, bump_titulo, products(titulo), stores(nome, owner)')
+      .select('id, comprador, store_id, total, valor_vendedor, bump_titulo, products(titulo), stores(nome, owner, ocultar_vendedor)')
       .eq('id', orderId).maybeSingle();
     if (!o) return;
 
     const titulo: string = (o as any).products?.titulo || 'seu produto';
-    const loja: string = (o as any).stores?.nome || 'a loja';
+    // Para o COMPRADOR: "Comprei Barato" quando a loja vende oculta. O e-mail do vendedor não usa este nome.
+    const loja: string = vendedorPublico((o as any).stores).nome || 'a loja';
     const owner: string | null = (o as any).stores?.owner ?? null;
     const bump: string | null = (o as any).bump_titulo || null;
     const total = Number((o as any).total) || 0;
@@ -85,7 +87,7 @@ export async function notificarMensagem(admin: any, p: {
 }) {
   try {
     const { data: o } = await admin.from('orders')
-      .select('id, comprador, products(titulo), stores(nome, owner)')
+      .select('id, comprador, products(titulo), stores(nome, owner, ocultar_vendedor)')
       .eq('id', p.orderId).maybeSingle();
     if (!o) return;
 
@@ -102,7 +104,8 @@ export async function notificarMensagem(admin: any, p: {
       if (vendedor) destinos.push({ id: vendedor, lado: 'vendedor' });
     }
 
-    const deQuem = p.papel === 'comprador' ? 'O cliente' : p.papel === 'vendedor' ? 'O vendedor' : 'O suporte da Comprei Barato';
+    const oficial = vendedorPublico((o as any).stores).oficial;
+    const deQuem = p.papel === 'comprador' ? 'O cliente' : p.papel === 'vendedor' ? (oficial ? 'A equipe Comprei Barato' : 'O vendedor') : 'O suporte da Comprei Barato';
     const trecho = String(p.texto || '').trim().slice(0, 280);
 
     await Promise.allSettled(destinos
