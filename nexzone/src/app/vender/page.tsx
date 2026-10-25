@@ -3,6 +3,9 @@ import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { calcBalance } from '@/lib/balance';
 import Icon from '@/components/Icon';
+import CategoryIcon from '@/components/CategoryIcon';
+import JourneyBadge from '@/components/JourneyBadge';
+import { computeJourney, brl } from '@/lib/journey';
 
 const money = (v: number) => 'R$ ' + Number(v).toFixed(2).replace('.', ',');
 export const dynamic = 'force-dynamic';
@@ -25,7 +28,7 @@ export default async function VenderCockpit() {
   }
 
   const { data: orders } = await supabase.from('orders')
-    .select('total, valor_vendedor, status, created_at, products(titulo, emoji)')
+    .select('total, valor_vendedor, status, created_at, products(titulo, categoria)')
     .eq('store_id', store.id).order('created_at', { ascending: false });
   const all = (orders ?? []) as any[];
   const entregues = all.filter((o) => o.status === 'entregue' || o.status === 'pago');
@@ -56,6 +59,10 @@ export default async function VenderCockpit() {
   const maxDay = Math.max(1, ...daily.map((d) => d.total));
   const recentes = entregues.slice(0, 5);
 
+  // jornada de faturamento (bruto = soma de total dos pedidos pagos)
+  const fatBruto = entregues.reduce((s, o) => s + Number(o.total), 0);
+  const jornada = computeJourney(fatBruto, entregues.length);
+
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16, marginBottom: 8 }}>
@@ -74,6 +81,32 @@ export default async function VenderCockpit() {
         <div className="sd-stat"><div className="ic"><Icon name="receipt" size={20} /></div><b>{vendasMes}</b><small>Vendas no mês</small></div>
         <div className="sd-stat"><div className="ic"><Icon name="target" size={20} /></div><b>{money(ticket)}</b><small>Ticket médio</small></div>
         <div className="sd-stat"><div className="ic"><Icon name="trophy" size={20} /></div><b>{money(fatTotal)}</b><small>Faturamento total</small></div>
+      </div>
+
+      <div className="card" style={{ marginBottom: 20, display: 'flex', alignItems: 'center', gap: 18, flexWrap: 'wrap' }}>
+        <JourneyBadge tierId={jornada.atual?.id ?? 'estreia'} size={64} locked={!jornada.atual} />
+        <div style={{ flex: '1 1 220px', minWidth: 0 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', marginBottom: 10 }}>
+            <strong style={{ fontFamily: 'Outfit', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Icon name="rocket" size={18} /> Sua jornada{jornada.atual ? ` · ${jornada.atual.nome}` : ''}
+            </strong>
+            <Link href="/vender/jornada" style={{ fontSize: 13, fontWeight: 800, color: 'var(--orange-ink)', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+              Ver jornada <Icon name="arrowRight" size={14} />
+            </Link>
+          </div>
+          {jornada.proximo && jornada.proximo.id !== 'estreia' && (
+            <div className="sd-meta" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(jornada.progresso * 100)}>
+              <div className="fill" style={{ width: `${Math.max(2, jornada.progresso * 100)}%` }} />
+            </div>
+          )}
+          <p className="muted" style={{ fontSize: 12, marginTop: 8 }}>
+            {!jornada.proximo
+              ? 'Todos os selos conquistados. Você é uma lenda.'
+              : jornada.proximo.id === 'estreia'
+                ? 'Faça sua primeira venda para conquistar o selo Estreia.'
+                : `Faltam ${brl(jornada.falta)} para o selo ${jornada.proximo.nome}.`}
+          </p>
+        </div>
       </div>
 
       <div className="card" style={{ marginBottom: 20 }}>
@@ -104,7 +137,7 @@ export default async function VenderCockpit() {
         <strong style={{ fontFamily: 'Outfit', display: 'block', marginBottom: 8 }}>Vendas recentes</strong>
         {recentes.length ? recentes.map((o, i) => (
           <div className="li" key={i}>
-            <div className="em">{o.products?.emoji ?? '📦'}</div>
+            <div className="em"><CategoryIcon cat={o.products?.categoria} size={22} /></div>
             <div style={{ flex: 1 }}>
               <strong style={{ fontFamily: 'Outfit', fontSize: 14 }}>{o.products?.titulo ?? 'Produto'}</strong>
               <div className="muted">{new Date(o.created_at).toLocaleString('pt-BR')}</div>

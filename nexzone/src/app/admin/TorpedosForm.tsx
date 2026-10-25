@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { toast } from '@/lib/toast';
+import Icon from '@/components/Icon';
 
 export default function TorpedosForm({ settings }: any) {
   const [horas, setHoras] = useState(String(settings.escalonamento_horas ?? 5));
@@ -63,7 +64,7 @@ export default function TorpedosForm({ settings }: any) {
           <label style={lbl}>SMS — Remetente (opcional)</label>
           <input value={smsRem} onChange={(e) => setSmsRem(e.target.value)} placeholder="ComBarato" style={inp} autoComplete="off" />
         </div>
-        <small style={{ ...hint, display: 'block', marginTop: 8 }}>💡 A estrutura do SMS já está pronta. É só preencher a URL e o token do provedor quando você contratar um, ligar o SMS e salvar.</small>
+        <small style={{ ...hint, display: 'flex', alignItems: 'flex-start', gap: 6, marginTop: 8 }}><Icon name="info" size={14} style={{ marginTop: 1 }} /><span>A estrutura do SMS já está pronta. É só preencher a URL e o token do provedor quando você contratar um, ligar o SMS e salvar.</span></small>
       </div>
 
       <button className="adm-btn ap" disabled={busy} onClick={salvar} style={{ marginTop: 16 }}>{busy ? 'Salvando…' : 'Salvar configurações'}</button>

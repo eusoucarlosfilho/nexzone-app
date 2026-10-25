@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import type { Product } from '@/lib/types';
+import Icon from '@/components/Icon';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,7 +27,7 @@ export default async function FavoritosPage() {
         <p className="muted" style={{ marginBottom: 20 }}>Os produtos que você salvou para comprar depois.</p>
         {produtos.length
           ? <div className="pg">{produtos.map((p) => <ProductCard key={p.id} p={p} />)}</div>
-          : <p className="muted">Você ainda não favoritou nenhum produto. Toque no 🤍 nos produtos para salvá-los aqui. <Link href="/produtos" style={{ color: 'var(--orange-ink)', fontWeight: 700 }}>Explorar produtos ›</Link></p>}
+          : <p className="muted">Você ainda não favoritou nenhum produto. Toque no <Icon name="heart" size={14} style={{ verticalAlign: '-2px' }} /> nos produtos para salvá-los aqui. <Link href="/produtos" style={{ color: 'var(--orange-ink)', fontWeight: 700 }}>Explorar produtos ›</Link></p>}
       </div>
     </>
   );

@@ -2,6 +2,8 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from '@/lib/toast';
+import CategoryIcon from '@/components/CategoryIcon';
+import Icon from '@/components/Icon';
 
 const money = (v: number) => 'R$ ' + Number(v).toFixed(2).replace('.', ',');
 
@@ -11,14 +13,14 @@ function Step({ n, label, active, done }: { n: number; label: string; active?: b
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, flex: 1 }}>
       <div style={{ width: 30, height: 30, borderRadius: '50%', background: bg, color: col, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'Outfit', fontWeight: 800, fontSize: 14 }}>
-        {done ? '✓' : n}
+        {done ? <Icon name="check" size={16} strokeWidth={3} /> : n}
       </div>
       <span style={{ fontSize: 11, fontWeight: 700, color: active ? 'var(--text)' : 'var(--muted)', fontFamily: 'Outfit' }}>{label}</span>
     </div>
   );
 }
 
-export default function CheckoutClient({ productId, titulo, emoji, loja, preco, cor, bump, aceitaCupom, meusPontos = 0, perBrl = 100 }: any) {
+export default function CheckoutClient({ productId, titulo, emoji, categoria, loja, preco, cor, bump, aceitaCupom, meusPontos = 0, perBrl = 100 }: any) {
   const router = useRouter();
   const [cupom, setCupom] = useState('');
   const [aplicado, setAplicado] = useState<{ codigo: string; desconto: number; final: number } | null>(null);
@@ -77,7 +79,7 @@ export default function CheckoutClient({ productId, titulo, emoji, loja, preco, 
 
       {/* Produto */}
       <div className="li" style={{ padding: '16px 0', borderBottom: '1px solid var(--border)' }}>
-        <div className="em">{emoji}</div>
+        <div className="em"><CategoryIcon cat={categoria} /></div>
         <div style={{ flex: 1 }}>
           <strong style={{ fontFamily: 'Outfit' }}>{titulo}</strong>
           <div className="muted">{loja}</div>
@@ -102,7 +104,7 @@ export default function CheckoutClient({ productId, titulo, emoji, loja, preco, 
         <label style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '14px', margin: '14px 0', border: `2px dashed ${accent}`, borderRadius: 12, cursor: 'pointer', background: 'var(--soft)' }}>
           <input type="checkbox" checked={bumpAceito} onChange={(e) => setBumpAceito(e.target.checked)} style={{ marginTop: 3 }} />
           <span style={{ flex: 1 }}>
-            <strong style={{ fontFamily: 'Outfit', display: 'block' }}>➕ Sim! Adicione {bump.titulo}</strong>
+            <strong style={{ fontFamily: 'Outfit', display: 'flex', alignItems: 'center', gap: 6 }}><Icon name="plusCircle" size={16} /> Sim! Adicione {bump.titulo}</strong>
             <span className="muted" style={{ fontSize: 13 }}>{bump.descricao || 'Oferta especial só nesta compra.'} Por apenas <strong style={{ color: accent }}>+{money(Number(bump.valor))}</strong></span>
           </span>
         </label>
@@ -161,15 +163,15 @@ export default function CheckoutClient({ productId, titulo, emoji, loja, preco, 
       </div>
 
       {erro && (
-        <div style={{ background: '#FDECEC', border: '1px solid #F5C2C2', color: '#C0392B', borderRadius: 10, padding: '10px 12px', fontSize: 13, margin: '14px 0' }}>
-          ⚠️ {erro}
+        <div style={{ background: '#FDECEC', border: '1px solid #F5C2C2', color: '#C0392B', borderRadius: 10, padding: '10px 12px', fontSize: 13, margin: '14px 0', display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+          <Icon name="alert" size={16} style={{ marginTop: 1 }} /><span>{erro}</span>
         </div>
       )}
 
       <button className="btn btn-pri" style={{ width: '100%', marginTop: 16, ...(cor ? { background: cor } : {}) }} onClick={pagar} disabled={gerando}>
-        {gerando ? 'Gerando Pix…' : `⚡ Pagar ${money(total)} com Pix`}
+        {gerando ? 'Gerando Pix…' : <><Icon name="bolt" size={18} /> {`Pagar ${money(total)} com Pix`}</>}
       </button>
-      <p className="muted" style={{ fontSize: 12, textAlign: 'center', marginTop: 10 }}>🔒 Pagamento seguro · entrega imediata após o pagamento</p>
+      <p className="muted" style={{ fontSize: 12, textAlign: 'center', marginTop: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}><Icon name="lock" size={13} /> Pagamento seguro · entrega imediata após o pagamento</p>
     </div>
   );
 }

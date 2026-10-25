@@ -5,6 +5,8 @@ import { toast } from '@/lib/toast';
 import { criarProduto } from '../actions';
 import FileUpload from './FileUpload';
 import CoverUpload from './CoverUpload';
+import SeoPanel from './SeoPanel';
+import Icon from '@/components/Icon';
 
 const CATS = ['IA & Ferramentas', 'Templates & Planilhas', 'Design', 'Automações', 'Marketing Digital', 'Cursos & Ebooks'];
 
@@ -15,7 +17,7 @@ export default function CreateProduct({ userId }: { userId: string }) {
   const [preco, setPreco] = useState('');
   const [precoPromo, setPrecoPromo] = useState('');
   const [categoria, setCategoria] = useState(CATS[0]);
-  const [emoji, setEmoji] = useState('📦');
+  const [garantia, setGarantia] = useState('7');
   const [conteudoEntrega, setConteudoEntrega] = useState('');
 
   const [tipo, setTipo] = useState('arquivo');
@@ -40,7 +42,6 @@ export default function CreateProduct({ userId }: { userId: string }) {
     if (d.descricao) setDescricao(d.descricao);
     if (d.preco != null) setPreco(String(d.preco));
     if (d.categoria && CATS.includes(d.categoria)) setCategoria(d.categoria);
-    if (d.emoji) setEmoji(d.emoji);
     if (d.imagem_url) setImagemSugerida(d.imagem_url);
     setBloqueado(false);
   }
@@ -53,7 +54,7 @@ export default function CreateProduct({ userId }: { userId: string }) {
         body: JSON.stringify(payload),
       });
       const d = await r.json();
-      if (d.ok) { aplicar(d.data); toast('Anúncio importado! Revise os campos e publique. ✅', 'success'); }
+      if (d.ok) { aplicar(d.data); toast('Anúncio importado! Revise os campos e publique.', 'success'); }
       else if (d.blocked) { setBloqueado(true); toast(d.error || 'Não consegui abrir o link. Cole o texto do anúncio.', 'error'); }
       else toast(d.error || 'Não consegui importar.', 'error');
     } catch { toast('Falha ao importar. Tente de novo.', 'error'); }
@@ -69,7 +70,7 @@ export default function CreateProduct({ userId }: { userId: string }) {
         body: JSON.stringify({ rehost: true, imagem_url: imagemSugerida }),
       });
       const d = await r.json();
-      if (d.ok) { setCapaUrl(d.capa_url); setImagemSugerida(''); toast('Capa definida! ✅', 'success'); }
+      if (d.ok) { setCapaUrl(d.capa_url); setImagemSugerida(''); toast('Capa definida!', 'success'); }
       else toast(d.error || 'Não consegui usar a imagem. Suba a capa manualmente.', 'error');
     } catch { toast('Falha ao definir a capa.', 'error'); }
     setRehost(false);
@@ -85,9 +86,9 @@ export default function CreateProduct({ userId }: { userId: string }) {
     const r: any = await criarProduto(fd);
     setBusy(false);
     if (r?.ok) {
-      toast('Produto enviado para revisão! ✅', 'success');
+      toast('Produto enviado para revisão!', 'success');
       formRef.current?.reset();
-      setTitulo(''); setDescricao(''); setPreco(''); setPrecoPromo(''); setCategoria(CATS[0]); setEmoji('📦'); setConteudoEntrega('');
+      setTitulo(''); setDescricao(''); setPreco(''); setPrecoPromo(''); setCategoria(CATS[0]); setGarantia('7'); setConteudoEntrega('');
       setCapaUrl(''); setArquivoPath(''); setArquivoNome(''); setTipo('arquivo');
       setImpUrl(''); setImpTexto(''); setImagemSugerida(''); setBloqueado(false);
       router.refresh();
@@ -100,7 +101,7 @@ export default function CreateProduct({ userId }: { userId: string }) {
     <form ref={formRef} onSubmit={onSubmit}>
       {/* ===== Importar anúncio de outro site ===== */}
       <div style={{ border: '1.5px dashed #FFCBA1', background: 'var(--soft)', borderRadius: 14, padding: 16, marginBottom: 22 }}>
-        <div style={{ fontFamily: 'Outfit', fontWeight: 800, fontSize: 15, marginBottom: 4 }}>✨ Trazer anúncio de outro site</div>
+        <div style={{ fontFamily: 'Outfit', fontWeight: 800, fontSize: 15, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 8 }}><Icon name="sparkles" size={17} color="var(--orange-ink)" /> Trazer anúncio de outro site</div>
         <p className="muted" style={{ fontSize: 12.5, marginBottom: 12 }}>
           Importe de Hotmart, Kiwify, Mercado Livre e outros — preenchemos o anúncio pra você. O arquivo/entrega você configura abaixo.
         </p>
@@ -153,7 +154,7 @@ export default function CreateProduct({ userId }: { userId: string }) {
       <div className="fg"><label>Categoria</label>
         <select name="categoria" value={categoria} onChange={(e) => setCategoria(e.target.value)}>{CATS.map((c) => <option key={c}>{c}</option>)}</select>
       </div>
-      <div className="fg"><label>Descrição</label><textarea name="descricao" value={descricao} onChange={(e) => setDescricao(e.target.value)} rows={3} placeholder="O que o comprador recebe." /></div>
+      <div className="fg"><label>Descrição</label><textarea name="descricao" value={descricao} onChange={(e) => setDescricao(e.target.value)} rows={6} placeholder="Para quem é, o que resolve, o que o comprador recebe e em qual formato." /></div>
       <div className="fg2">
         <div className="fg"><label>Preço (R$)</label><input name="preco" value={preco} onChange={(e) => setPreco(e.target.value)} type="number" step="0.01" required placeholder="19.90" /></div>
         <div className="fg"><label>Preço promocional (opcional)</label><input name="preco_promo" value={precoPromo} onChange={(e) => setPrecoPromo(e.target.value)} type="number" step="0.01" placeholder="14.90" /></div>
@@ -167,7 +168,7 @@ export default function CreateProduct({ userId }: { userId: string }) {
             <option value="acesso">Acesso / instrução</option>
           </select>
         </div>
-        <div className="fg"><label>Garantia (dias)</label><input name="garantia_dias" type="number" defaultValue={7} /></div>
+        <div className="fg"><label>Garantia (dias)</label><input name="garantia_dias" type="number" min={0} value={garantia} onChange={(e) => setGarantia(e.target.value)} /></div>
       </div>
 
       {tipo === 'arquivo' ? (
@@ -181,7 +182,16 @@ export default function CreateProduct({ userId }: { userId: string }) {
         <div className="fg"><label>Conteúdo liberado pós-pagamento (link ou texto)</label><input name="conteudo_entrega" value={conteudoEntrega} onChange={(e) => setConteudoEntrega(e.target.value)} placeholder="https://… ou a chave/instrução" /></div>
       )}
 
-      <div className="fg"><label>Emoji da capa</label><input name="emoji" value={emoji} onChange={(e) => setEmoji(e.target.value)} maxLength={2} style={{ width: 80 }} /></div>
+      {/* emoji legado: o servidor ainda lê o campo; vazio = padrão do servidor */}
+      <input type="hidden" name="emoji" value="" />
+
+      <SeoPanel
+        titulo={titulo} descricao={descricao} categoria={categoria} preco={preco} precoPromo={precoPromo}
+        temCapa={!!capaUrl} tipoEntrega={tipo} garantiaDias={garantia}
+        onApplyTitle={(t) => { setTitulo(t); toast('Título atualizado.', 'success'); }}
+        onApplyDescription={(d) => { setDescricao(d); toast('Descrição atualizada.', 'success'); }}
+      />
+
       <button className="btn btn-pri" disabled={busy} style={{ width: '100%' }}>{busy ? 'Enviando…' : 'Enviar para revisão'}</button>
     </form>
   );

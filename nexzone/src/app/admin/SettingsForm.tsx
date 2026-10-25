@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { toast } from '@/lib/toast';
+import Icon from '@/components/Icon';
 
 export default function SettingsForm({ settings }: any) {
   const [comissao, setComissao] = useState(String(settings.commission_percent));
@@ -139,7 +140,7 @@ export default function SettingsForm({ settings }: any) {
             <input type="number" step="1" value={rapido} onChange={(e) => setRapido(e.target.value)} style={inp} />
           </div>
         </div>
-        <small style={hint}>O cliente tem {janela} dias para reclamar. Com avaliação positiva (4-5★), o saldo libera em {rapido} dia(s). Reclamação aberta segura o saldo até ser resolvida.</small>
+        <small style={hint}>O cliente tem {janela} dias para reclamar. Com avaliação positiva (4-5 estrelas), o saldo libera em {rapido} dia(s). Reclamação aberta segura o saldo até ser resolvida.</small>
       </div>
 
       {/* ===== Gateway de pagamento ===== */}
@@ -179,8 +180,8 @@ export default function SettingsForm({ settings }: any) {
                 : 'Cole o Client Secret gerado no painel da MisticPay. Fica guardado de forma segura no servidor.'}
             </small>
           </div>
-          <small style={{ ...hint, display: 'block', marginTop: 10 }}>
-            ⚙️ Configure o webhook na MisticPay para: <code>{(typeof window !== 'undefined' ? window.location.origin : '')}/api/webhooks/payment</code>
+          <small style={{ ...hint, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginTop: 10 }}>
+            <Icon name="settings" size={14} /> Configure o webhook na MisticPay para: <code>{(typeof window !== 'undefined' ? window.location.origin : '')}/api/webhooks/payment</code>
           </small>
         </div>
       )}

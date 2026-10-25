@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from '@/lib/toast';
+import Icon from '@/components/Icon';
 
 export default function BoostButton({ productId, destaqueAte, planos }: { productId: string; destaqueAte?: string | null; planos: { dias: number; valor: number; label: string }[] }) {
   const [open, setOpen] = useState(false);
@@ -32,11 +33,11 @@ export default function BoostButton({ productId, destaqueAte, planos }: { produc
     else toast(d.error || 'Erro ao criar destaque', 'error');
   }
 
-  if (ativo) return <span className="pill act" style={{ marginLeft: 4 }}>⭐ Em destaque</span>;
+  if (ativo) return <span className="pill act" style={{ marginLeft: 4, display: 'inline-flex', alignItems: 'center', gap: 4 }}><Icon name="star" size={12} style={{ fill: 'currentColor' }} /> Em destaque</span>;
 
   return (
     <span style={{ position: 'relative', display: 'inline-block' }}>
-      <button className="btn btn-ghost btn-sm" disabled={busy} onClick={() => setOpen(!open)}>🚀 Destacar</button>
+      <button className="btn btn-ghost btn-sm" disabled={busy} onClick={() => setOpen(!open)}><Icon name="rocket" size={16} /> Destacar</button>
       {open && (
         <span style={{ position: 'absolute', right: 0, top: '115%', background: '#fff', border: '1px solid var(--border)', borderRadius: 12, padding: 10, zIndex: 20, boxShadow: '0 10px 28px rgba(0,0,0,.12)', display: 'flex', flexDirection: 'column', gap: 6, minWidth: 210 }}>
           <input value={cpf} onChange={(e) => setCpf(formatCpf(e.target.value))} placeholder="CPF do pagador" inputMode="numeric"

@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from '@/lib/toast';
+import Icon from '@/components/Icon';
 
 type Q = {
   id: string; autor: string; autor_nome: string | null;
@@ -77,7 +78,7 @@ export default function Questions({ productId, initial, userId, loggedIn }: { pr
                   <div style={{ fontSize: 14, color: 'var(--sub)', marginTop: 4 }}>{q.resposta}</div>
                 </div>
               ) : (
-                <div className="muted" style={{ fontSize: 12, marginTop: 10, fontStyle: 'italic' }}>⏳ Aguardando resposta do vendedor</div>
+                <div className="muted" style={{ fontSize: 12, marginTop: 10, fontStyle: 'italic', display: 'flex', alignItems: 'center', gap: 6 }}><Icon name="hourglass" size={13} /> Aguardando resposta do vendedor</div>
               )}
             </div>
           ))}

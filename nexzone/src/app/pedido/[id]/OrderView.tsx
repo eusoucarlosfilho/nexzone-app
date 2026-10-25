@@ -3,6 +3,8 @@ import { useState, useEffect, useRef, useTransition } from 'react';
 import { enviarAvaliacao } from './actions';
 import OrderChat from '@/components/OrderChat';
 import ComplaintBox from './ComplaintBox';
+import CategoryIcon from '@/components/CategoryIcon';
+import Icon from '@/components/Icon';
 
 const money = (v: number) => 'R$ ' + Number(v).toFixed(2).replace('.', ',');
 
@@ -16,6 +18,7 @@ type Props = {
   jaAvaliou?: boolean;
   titulo: string;
   emoji: string;
+  categoria?: string | null;
   total: number;
   bumpTitulo?: string | null;
   bumpConteudo?: string | null;
@@ -65,7 +68,7 @@ export default function OrderView(props: Props) {
   return (
     <div className="card">
       <div className="li" style={{ padding: '0 0 16px', borderBottom: '1px solid var(--border)' }}>
-        <div className="em">{props.emoji}</div>
+        <div className="em"><CategoryIcon cat={props.categoria} /></div>
         <div style={{ flex: 1 }}>
           <strong style={{ fontFamily: 'Outfit' }}>{props.titulo}</strong>
           <div className="muted">{money(props.total)}</div>
@@ -75,10 +78,10 @@ export default function OrderView(props: Props) {
       {pago ? (
         <div style={{ paddingTop: 18 }}>
           <div style={{ textAlign: 'center' }}>
-            <div style={{ fontFamily: 'Outfit', fontWeight: 800, color: 'var(--green)', fontSize: 20 }}>✓ Pagamento confirmado!</div>
+            <div style={{ fontFamily: 'Outfit', fontWeight: 800, color: 'var(--green)', fontSize: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}><Icon name="checkCircle" size={22} /> Pagamento confirmado!</div>
             <p className="muted" style={{ margin: '6px 0 14px' }}>Seu produto está liberado.</p>
             {props.temArquivo
-              ? <a className="btn btn-pri" href={`/api/download?order=${props.orderId}`}>⬇ Baixar produto</a>
+              ? <a className="btn btn-pri" href={`/api/download?order=${props.orderId}`}><Icon name="download" size={18} /> Baixar produto</a>
               : conteudo && String(conteudo).startsWith('http')
                 ? <a className="btn btn-pri" href={conteudo} target="_blank" rel="noreferrer">Acessar produto</a>
                 : conteudo
@@ -100,9 +103,9 @@ export default function OrderView(props: Props) {
           {props.bumpTitulo && (
             <div style={{ borderTop: '1px solid var(--border)', marginTop: 22, paddingTop: 18, textAlign: 'center' }}>
               <div className="slabel" style={{ color: 'var(--green)' }}>Item extra incluído</div>
-              <strong style={{ fontFamily: 'Outfit', display: 'block', margin: '4px 0 10px' }}>➕ {props.bumpTitulo}</strong>
+              <strong style={{ fontFamily: 'Outfit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, margin: '4px 0 10px' }}><Icon name="plusCircle" size={16} /> {props.bumpTitulo}</strong>
               {props.bumpTemArquivo
-                ? <a className="btn btn-pri btn-sm" href={`/api/download?order=${props.orderId}&which=bump`}>⬇ Baixar item extra</a>
+                ? <a className="btn btn-pri btn-sm" href={`/api/download?order=${props.orderId}&which=bump`}><Icon name="download" size={16} /> Baixar item extra</a>
                 : props.bumpConteudo && String(props.bumpConteudo).startsWith('http')
                   ? <a className="btn btn-pri btn-sm" href={props.bumpConteudo} target="_blank" rel="noreferrer">Acessar item extra</a>
                   : props.bumpConteudo
@@ -113,14 +116,14 @@ export default function OrderView(props: Props) {
 
           <div style={{ borderTop: '1px solid var(--border)', marginTop: 22, paddingTop: 18 }}>
             {avaliado ? (
-              <p style={{ textAlign: 'center', color: 'var(--green)', fontWeight: 700, fontFamily: 'Outfit' }}>★ Obrigado pela sua avaliação!</p>
+              <p style={{ textAlign: 'center', color: 'var(--green)', fontWeight: 700, fontFamily: 'Outfit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}><Icon name="star" size={16} style={{ fill: 'currentColor' }} /> Obrigado pela sua avaliação!</p>
             ) : (
               <div style={{ textAlign: 'center' }}>
                 <strong style={{ fontFamily: 'Outfit', display: 'block', marginBottom: 10 }}>Avalie sua compra</strong>
-                <div style={{ fontSize: 30, marginBottom: 10, cursor: 'pointer', userSelect: 'none' }}>
+                <div style={{ marginBottom: 10, cursor: 'pointer', userSelect: 'none', display: 'flex', justifyContent: 'center' }}>
                   {[1, 2, 3, 4, 5].map((n) => (
                     <span key={n} onClick={() => setNota(n)} onMouseEnter={() => setHover(n)} onMouseLeave={() => setHover(0)}
-                      style={{ color: (hover || nota) >= n ? '#FFB200' : '#D9D9E3', padding: '0 2px' }}>★</span>
+                      style={{ padding: '0 2px', display: 'inline-flex' }}><Icon name="star" size={30} color={(hover || nota) >= n ? '#FF9A3C' : '#D8CFC6'} style={(hover || nota) >= n ? { fill: '#FF9A3C' } : undefined} /></span>
                   ))}
                 </div>
                 <textarea value={coment} onChange={(e) => setComent(e.target.value)} rows={3}

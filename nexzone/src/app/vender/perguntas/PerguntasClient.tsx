@@ -52,12 +52,12 @@ export default function PerguntasClient({ perguntas }: { perguntas: Q[] }) {
       </div>
 
       {exibidas.length === 0 ? (
-        <p className="muted">{filtro === 'pendentes' ? 'Nenhuma pergunta pendente. 🎉' : 'Nenhuma pergunta ainda.'}</p>
+        <p className="muted">{filtro === 'pendentes' ? 'Nenhuma pergunta pendente.' : 'Nenhuma pergunta ainda.'}</p>
       ) : (
         <div style={{ display: 'grid', gap: 12 }}>
           {exibidas.map((q) => (
             <div key={q.id} style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 14, padding: 16 }}>
-              <div className="muted" style={{ fontSize: 12, marginBottom: 6 }}>{q.emoji} {q.produto} · {fmt(q.created_at)}</div>
+              <div className="muted" style={{ fontSize: 12, marginBottom: 6 }}>{q.produto} · {fmt(q.created_at)}</div>
               <div style={{ fontSize: 14 }}><strong style={{ fontFamily: 'Outfit' }}>{q.autor_nome || 'Cliente'}:</strong> {q.pergunta}</div>
 
               {q.resposta ? (

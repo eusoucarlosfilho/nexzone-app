@@ -123,7 +123,7 @@ export async function verificarEscalonamento(admin: any, orderId: string) {
     // avisa o cliente no chat
     await admin.from('order_messages').insert({
       order_id: orderId, remetente: null, papel: 'sistema',
-      texto: `⏰ O vendedor ainda não respondeu. Já o notificamos por e-mail${cfg.smsOn ? ' e SMS' : ''} de que você está aguardando. Se mesmo assim não houver resposta, o suporte pode ajudar por aqui.`,
+      texto: `O vendedor ainda não respondeu. Já o notificamos por e-mail${cfg.smsOn ? ' e SMS' : ''} de que você está aguardando. Se mesmo assim não houver resposta, o suporte pode ajudar por aqui.`,
     });
   } catch (e) {
     console.error('Falha no escalonamento:', e);

@@ -38,7 +38,7 @@ export async function PATCH(req: Request) {
       tipo_entrega: String(body.tipo_entrega || 'arquivo'),
       conteudo_entrega: String(body.conteudo_entrega || ''),
       garantia_dias: Number(body.garantia_dias || 7),
-      emoji: String(body.emoji || '📦'),
+      emoji: String(body.emoji || '\uD83D\uDCE6'),
       arquivo_path: body.arquivo_path ? String(body.arquivo_path) : null,
       arquivo_nome: body.arquivo_nome ? String(body.arquivo_nome) : null,
       capa_url: body.capa_url ? String(body.capa_url) : null,

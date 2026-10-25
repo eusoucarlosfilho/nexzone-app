@@ -1,4 +1,5 @@
 import Nav from '@/components/Nav';
+import Icon from '@/components/Icon';
 
 export const metadata = { title: 'Política de Privacidade — Comprei Barato' };
 
@@ -9,8 +10,8 @@ export default function PrivacidadePage() {
       <div className="page" style={{ maxWidth: 760 }}>
         <h1 style={{ fontFamily: 'Outfit', fontSize: 30, fontWeight: 900 }}>Política de Privacidade</h1>
         <p className="muted" style={{ marginBottom: 8 }}>Última atualização: {new Date().toLocaleDateString('pt-BR')}</p>
-        <div style={{ background: 'var(--soft)', border: '1px solid var(--border)', borderRadius: 12, padding: 14, fontSize: 13, color: 'var(--sub)', marginBottom: 24 }}>
-          ⚠️ Este é um modelo inicial em conformidade com a LGPD. Recomendamos revisão por um advogado.
+        <div style={{ background: 'var(--soft)', border: '1px solid var(--border)', borderRadius: 12, padding: 14, fontSize: 13, color: 'var(--sub)', marginBottom: 24, display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+          <Icon name="alert" size={16} style={{ marginTop: 1, flexShrink: 0 }} /><span>Este é um modelo inicial em conformidade com a LGPD. Recomendamos revisão por um advogado.</span>
         </div>
 
         <div style={{ color: 'var(--sub)', fontSize: 15, lineHeight: 1.75 }}>

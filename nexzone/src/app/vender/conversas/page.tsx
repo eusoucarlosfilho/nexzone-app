@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
+import CategoryIcon from '@/components/CategoryIcon';
 
 export const dynamic = 'force-dynamic';
 const money = (v: number) => 'R$ ' + Number(v).toFixed(2).replace('.', ',');
@@ -16,7 +17,7 @@ export default async function ConversasPage() {
   }
 
   const { data: pedidos } = await supabase.from('orders')
-    .select('id, total, status, created_at, comprador_email, products(titulo, emoji)')
+    .select('id, total, status, created_at, comprador_email, products(titulo, emoji, categoria)')
     .eq('store_id', store.id)
     .in('status', ['pago', 'entregue'])
     .order('created_at', { ascending: false });
@@ -34,7 +35,7 @@ export default async function ConversasPage() {
         <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
           {lista.map((o: any, i: number) => (
             <Link key={o.id} href={`/vender/conversas/${o.id}`} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 18px', textDecoration: 'none', color: 'inherit', borderTop: i ? '1px solid var(--border)' : 'none' }}>
-              <div className="em" style={{ width: 42, height: 42, borderRadius: 11, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, background: 'var(--surface)', flexShrink: 0 }}>{o.products?.emoji ?? '📦'}</div>
+              <div className="em" style={{ width: 42, height: 42, borderRadius: 11, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--surface)', flexShrink: 0 }}><CategoryIcon cat={o.products?.categoria} /></div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <strong style={{ fontFamily: 'Outfit', fontSize: 14, display: 'block' }}>{o.products?.titulo ?? 'Produto'}</strong>
                 <span className="muted" style={{ fontSize: 12 }}>{o.comprador_email ?? 'Cliente'} · {new Date(o.created_at).toLocaleDateString('pt-BR')}</span>

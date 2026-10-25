@@ -25,7 +25,7 @@ export async function POST(req: Request) {
 
   // Mensagem de sistema + a entrega como mensagem do vendedor
   await admin.from('order_messages').insert([
-    { order_id: orderId, remetente: null, papel: 'sistema', texto: '✅ O vendedor entregou o produto. O conteúdo já está liberado na sua compra.' },
+    { order_id: orderId, remetente: null, papel: 'sistema', texto: 'O vendedor entregou o produto. O conteúdo já está liberado na sua compra.' },
     { order_id: orderId, remetente: user.id, papel: 'vendedor', texto },
   ]);
 

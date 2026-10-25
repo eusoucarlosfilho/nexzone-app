@@ -2,6 +2,7 @@ import Nav from '@/components/Nav';
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
+import CategoryIcon from '@/components/CategoryIcon';
 
 const money = (v: number) => 'R$ ' + Number(v).toFixed(2).replace('.', ',');
 export const dynamic = 'force-dynamic';
@@ -21,7 +22,7 @@ export default async function MinhasComprasPage() {
 
   const { data: orders } = await supabase
     .from('orders')
-    .select('id, status, total, created_at, products(titulo, emoji)')
+    .select('id, status, total, created_at, products(titulo, emoji, categoria)')
     .eq('comprador', user.id)
     .order('created_at', { ascending: false });
 
@@ -40,7 +41,7 @@ export default async function MinhasComprasPage() {
               const pendente = o.status === 'pendente';
               return (
                 <Link href={`/pedido/${o.id}`} key={o.id} className="li" style={{ textDecoration: 'none', color: 'inherit' }}>
-                  <div className="em">{o.products?.emoji ?? '📦'}</div>
+                  <div className="em"><CategoryIcon cat={o.products?.categoria} /></div>
                   <div style={{ flex: 1 }}>
                     <strong style={{ fontFamily: 'Outfit' }}>{o.products?.titulo ?? 'Produto'}</strong>
                     <div className="muted">{money(o.total)} · {new Date(o.created_at).toLocaleDateString('pt-BR')}</div>

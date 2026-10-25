@@ -1,6 +1,7 @@
 'use client';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { useState } from 'react';
+import CategoryIcon from '@/components/CategoryIcon';
 
 export default function Filters({ categorias }: any) {
   const router = useRouter(); const sp = useSearchParams(); const pathname = usePathname();
@@ -21,7 +22,7 @@ export default function Filters({ categorias }: any) {
         <h3 style={h3}>Categorias</h3>
         <button onClick={() => setParam({ cat: '' })} style={catBtn(!catAtiva)}>Todas</button>
         {categorias.map((c: any) => (
-          <button key={c.slug} onClick={() => setParam({ cat: c.slug })} style={catBtn(catAtiva === c.slug)}>{c.emoji} {c.nome}</button>
+          <button key={c.slug} onClick={() => setParam({ cat: c.slug })} style={{ ...catBtn(catAtiva === c.slug), display: 'flex', alignItems: 'center', gap: 8 }}><CategoryIcon cat={c.slug} size={16} color="currentColor" /> {c.nome}</button>
         ))}
       </div>
       <div style={card}>
@@ -40,5 +41,5 @@ const card = { background: '#fff', border: '1px solid var(--border)', borderRadi
 const h3 = { fontFamily: 'Outfit', fontWeight: 800, fontSize: 14, marginBottom: 10 } as const;
 const inp = { width: '100%', height: 38, borderRadius: 9, border: '1px solid var(--border)', padding: '0 10px', fontSize: 14 } as const;
 function catBtn(active: boolean): React.CSSProperties {
-  return { display: 'block', width: '100%', textAlign: 'left', padding: '8px 10px', borderRadius: 9, border: 'none', cursor: 'pointer', fontFamily: 'Outfit', fontWeight: 600, fontSize: 13, marginBottom: 2, background: active ? 'var(--soft)' : 'transparent', color: active ? 'var(--orange)' : 'var(--sub)' };
+  return { display: 'block', width: '100%', textAlign: 'left', padding: '8px 10px', borderRadius: 9, border: 'none', cursor: 'pointer', fontFamily: 'Outfit', fontWeight: 600, fontSize: 13, marginBottom: 2, background: active ? 'var(--soft)' : 'transparent', color: active ? 'var(--orange-ink)' : 'var(--sub)' };
 }

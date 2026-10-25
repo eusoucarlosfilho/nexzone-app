@@ -17,7 +17,7 @@ export default function SellerNotifier() {
           if (d.vendas?.length) {
             sinceSale.current = new Date().toISOString();
             for (const v of d.vendas) {
-              toast(`🎉 Nova venda: ${v.titulo} +R$ ${Number(v.valor).toFixed(2).replace('.', ',')}`, 'success');
+              toast(`Nova venda: ${v.titulo} +R$ ${Number(v.valor).toFixed(2).replace('.', ',')}`, 'success');
             }
           }
         }
@@ -31,7 +31,7 @@ export default function SellerNotifier() {
           if (d.perguntas?.length) {
             sinceQ.current = new Date().toISOString();
             for (const p of d.perguntas) {
-              toast(`❓ Nova pergunta em "${p.titulo}". Responda no painel.`, 'success');
+              toast(`Nova pergunta em "${p.titulo}". Responda no painel.`, 'success');
             }
           }
         }
@@ -45,7 +45,7 @@ export default function SellerNotifier() {
           if (d.mensagens?.length) {
             sinceMsg.current = new Date().toISOString();
             for (const m of d.mensagens) {
-              toast(`💬 Mensagem do cliente em "${m.titulo}". Responda na conversa.`, 'success');
+              toast(`Mensagem do cliente em "${m.titulo}". Responda na conversa.`, 'success');
             }
           }
         }

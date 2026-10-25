@@ -1,5 +1,7 @@
 import Link from 'next/link';
 import FavButton from './FavButton';
+import Icon from './Icon';
+import { CategoryCover } from './CategoryIcon';
 import type { Product } from '@/lib/types';
 
 const money = (v: number) => 'R$ ' + Number(v).toFixed(2).replace('.', ',');
@@ -13,9 +15,9 @@ export default function ProductCard({ p }: { p: Product }) {
       <div className="top">
         {p.capa_url
           ? <span className="cov" style={{ backgroundImage: `url(${p.capa_url})` }} aria-hidden="true" />
-          : <span className="emo" aria-hidden="true">{p.emoji}</span>}
-        {destaque ? <span className="badge">★ Destaque</span> : p.vendas > 1000 && <span className="badge">Mais vendido</span>}
-        {off > 0 && <span className="badge off" style={{ left: 12 }}>-{off}%</span>}
+          : <CategoryCover cat={p.categoria} />}
+        {destaque ? <span className="badge"><Icon name="star" size={12} strokeWidth={2.6} />Destaque</span> : p.vendas > 1000 && <span className="badge">Mais vendido</span>}
+        {off > 0 && <span className="badge off">-{off}%</span>}
         <FavButton productId={p.id} overlay />
       </div>
       <div className="body">

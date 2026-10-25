@@ -3,6 +3,7 @@ import ProductCard from '@/components/ProductCard';
 import { createClient } from '@/lib/supabase/server';
 import { notFound } from 'next/navigation';
 import type { Product } from '@/lib/types';
+import CategoryIcon from '@/components/CategoryIcon';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,7 +23,7 @@ export default async function CategoriaPage({ params }: { params: { slug: string
       <section className="nz"><div className="c">
         <div className="st">
           <div className="slabel">Categoria</div>
-          <h2>{cat.emoji} {cat.nome}</h2>
+          <h2 style={{ display: 'flex', alignItems: 'center', gap: 10 }}><CategoryIcon cat={params.slug} size={28} /> {cat.nome}</h2>
         </div>
         {produtos.length
           ? <div className="pg">{produtos.map((p) => <ProductCard key={p.id} p={p} />)}</div>

@@ -3,6 +3,7 @@ import Footer from '@/components/Footer';
 import ProductCard from '@/components/ProductCard';
 import Carousel from '@/components/Carousel';
 import Link from 'next/link';
+import CategoryIcon, { CategoryCover, categoryColors } from '@/components/CategoryIcon';
 import { createClient } from '@/lib/supabase/server';
 import { getSettings } from '@/lib/settings';
 import type { Product } from '@/lib/types';
@@ -23,7 +24,7 @@ export default async function Home() {
     supabase.from('products').select('*, stores(nome, nivel)').eq('status', 'ativo').order('vendas', { ascending: false }).order('nota', { ascending: false }).limit(8),
     supabase.from('products').select('*, stores(nome, nivel)').eq('status', 'ativo').order('vendas', { ascending: false }).limit(8),
     supabase.from('products').select('*, stores(nome, nivel)').eq('status', 'ativo').order('created_at', { ascending: false }).limit(8),
-    supabase.from('categories').select('nome, slug, emoji'),
+    supabase.from('categories').select('nome, slug'),
     supabase.from('products').select('id', { count: 'exact', head: true }).eq('status', 'ativo'),
     supabase.from('stores').select('id', { count: 'exact', head: true }),
   ]);
@@ -46,7 +47,7 @@ export default async function Home() {
         .h-text{flex:1 1 520px;min-width:0}
         .h-art{flex:1 1 400px;min-width:0;height:420px;position:relative}
         .h-card{position:absolute;width:240px;background:#fff;border-radius:22px;box-shadow:0 24px 50px rgba(22,22,42,.12);overflow:hidden;color:var(--text)}
-        .h-card .im{height:150px;background:var(--soft) center/cover;display:flex;align-items:center;justify-content:center;font-size:56px}
+        .h-card .im{position:relative;height:150px;background:var(--soft) center/cover;overflow:hidden}
         .h-card .tx{padding:14px 16px}
         .h-card .tx b{display:block;font-size:14px;font-weight:800;line-height:1.3;max-height:36px;overflow:hidden}
         .h-card .tx span{font-family:'Outfit';font-weight:900;font-size:20px}
@@ -58,8 +59,9 @@ export default async function Home() {
         .home-stats b{font-family:'Outfit';font-size:26px;font-weight:900;display:block;line-height:1}
         .home-stats small{font-size:13px;color:var(--sub);font-weight:800}
         .catgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px}
+        @media(max-width:600px){.catgrid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.cattile{padding:14px;font-size:15px}.h-badges{gap:12px 18px}.home-stats{gap:22px}}
         .steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:18px;margin-top:26px}
-        @media(max-width:720px){.h-art{display:none}}
+        @media(max-width:860px){.h-art{display:none}.h-text{flex-basis:100%}}
       `}</style>
 
       <main>
@@ -88,13 +90,13 @@ export default async function Home() {
             <div className="h-art" aria-hidden="true">
               {vitrine[0] && (
                 <div className="h-card float1" style={{ ['--r' as any]: '-4deg', left: '4%', top: 30 }}>
-                  <div className="im" style={vitrine[0].capa_url ? { backgroundImage: `url(${vitrine[0].capa_url})` } : undefined}>{!vitrine[0].capa_url && vitrine[0].emoji}</div>
+                  <div className="im" style={vitrine[0].capa_url ? { backgroundImage: `url(${vitrine[0].capa_url})` } : undefined}>{!vitrine[0].capa_url && <CategoryCover cat={vitrine[0].categoria} />}</div>
                   <div className="tx"><b>{vitrine[0].titulo}</b><span>{money(vitrine[0].preco_promo ?? vitrine[0].preco)}</span></div>
                 </div>
               )}
               {vitrine[1] && (
                 <div className="h-card float2" style={{ ['--r' as any]: '5deg', right: '2%', top: 110, width: 220 }}>
-                  <div className="im" style={vitrine[1].capa_url ? { backgroundImage: `url(${vitrine[1].capa_url})`, height: 130 } : { height: 130 }}>{!vitrine[1].capa_url && vitrine[1].emoji}</div>
+                  <div className="im" style={vitrine[1].capa_url ? { backgroundImage: `url(${vitrine[1].capa_url})`, height: 130 } : { height: 130 }}>{!vitrine[1].capa_url && <CategoryCover cat={vitrine[1].categoria} />}</div>
                   <div className="tx"><b>{vitrine[1].titulo}</b><span>{money(vitrine[1].preco_promo ?? vitrine[1].preco)}</span></div>
                 </div>
               )}
@@ -136,7 +138,7 @@ export default async function Home() {
               <div className="catgrid">
                 {cats.map((c: any) => (
                   <Link key={c.slug} href={`/produtos?cat=${c.slug}`} className="cattile">
-                    <span className="e" aria-hidden="true">{c.emoji}</span> {c.nome}
+                    <span className="e" aria-hidden="true" style={{ background: categoryColors(c.slug).bg }}><CategoryIcon cat={c.slug} size={24} /></span>{c.nome}
                   </Link>
                 ))}
               </div>

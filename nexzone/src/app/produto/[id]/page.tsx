@@ -7,27 +7,47 @@ import Questions from './Questions';
 import { createClient } from '@/lib/supabase/server';
 import { notFound } from 'next/navigation';
 import type { Product } from '@/lib/types';
+import type { Metadata } from 'next';
+import Icon from '@/components/Icon';
+import { CategoryCover } from '@/components/CategoryIcon';
+import { metaDescription, SITE_URL_FALLBACK } from '@/lib/seo';
 
 const money = (v: number) => 'R$ ' + v.toFixed(2).replace('.', ',');
 const ENTREGA: Record<string, string> = {
   arquivo: 'Arquivo para download', chave: 'Chave / código de acesso', link: 'Link de acesso', acesso: 'Acesso liberado',
 };
-const stars = (n: number) => '★★★★★'.slice(0, Math.round(n)) + '☆☆☆☆☆'.slice(0, 5 - Math.round(n));
+const SITE = (process.env.NEXT_PUBLIC_SITE_URL || SITE_URL_FALLBACK).replace(/\/+$/, '');
+
+function Stars({ n, size = 15 }: { n: number; size?: number }) {
+  const cheias = Math.max(0, Math.min(5, Math.round(n)));
+  return (
+    <span className="pdp-star" role="img" aria-label={`Nota ${n ? n.toFixed(1) : '0'} de 5`}>
+      {[0, 1, 2, 3, 4].map((i) => (
+        <Icon key={i} name="star" size={size} strokeWidth={1.6}
+          color={i < cheias ? '#FF9A3C' : 'var(--border2)'} style={{ fill: i < cheias ? '#FF9A3C' : 'transparent' }} />
+      ))}
+    </span>
+  );
+}
 
 export const dynamic = 'force-dynamic';
 
-export async function generateMetadata({ params }: { params: { id: string } }) {
+export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
   const supabase = createClient();
-  const { data: p } = await supabase.from('products').select('titulo, descricao, capa_url, preco, preco_promo').eq('id', params.id).maybeSingle();
-  if (!p) return { title: 'Produto — Comprei Barato' };
-  const preco = (p.preco_promo ?? p.preco) as number;
-  const desc = p.descricao ? String(p.descricao).slice(0, 150) : `Produto digital por R$ ${Number(preco).toFixed(2).replace('.', ',')} no Comprei Barato.`;
-  const images = p.capa_url ? [{ url: p.capa_url as string }] : [];
+  const { data: p } = await supabase.from('products')
+    .select('titulo, descricao, capa_url, preco, preco_promo, categoria').eq('id', params.id).eq('status', 'ativo').maybeSingle();
+  if (!p) return { title: 'Produto | Comprei Barato' };
+  const titulo = String(p.titulo);
+  const desc = metaDescription(p.descricao as string | null, titulo);
+  const url = `${SITE}/produto/${params.id}`;
+  const capa = (p.capa_url as string | null) || null;
+  const images = capa ? [{ url: capa, alt: titulo }] : [];
   return {
-    title: `${p.titulo} — Comprei Barato`,
+    title: `${titulo} | Comprei Barato`,
     description: desc,
-    openGraph: { title: String(p.titulo), description: desc, images, type: 'website' },
-    twitter: { card: 'summary_large_image', title: String(p.titulo), description: desc, images: p.capa_url ? [p.capa_url as string] : [] },
+    alternates: { canonical: url },
+    openGraph: { title: titulo, description: desc, url, siteName: 'Comprei Barato', locale: 'pt_BR', images, type: 'website' },
+    twitter: { card: capa ? 'summary_large_image' : 'summary', title: titulo, description: desc, images: capa ? [capa] : [] },
   };
 }
 
@@ -45,6 +65,10 @@ export default async function ProductPage({ params }: { params: { id: string } }
   const reviews = reviewsData ?? [];
   const media = reviews.length ? reviews.reduce((s, r) => s + r.nota, 0) / reviews.length : (p.nota || 0);
 
+  // agregado real de avaliações (para o JSON-LD), sem o limite da lista exibida
+  const { data: notasData } = await supabase.from('reviews').select('nota').eq('product_id', p.id).limit(5000);
+  const notas = ((notasData ?? []) as { nota: number }[]).map((r) => Number(r.nota)).filter((v) => v >= 1 && v <= 5);
+
   const { data: relData } = await supabase.from('products')
     .select('*, stores(nome, nivel)').eq('store_id', p.store_id).eq('status', 'ativo').neq('id', p.id).limit(4);
   const relacionados = (relData ?? []) as Product[];
@@ -61,6 +85,37 @@ export default async function ProductPage({ params }: { params: { id: string } }
     .eq('product_id', p.id).order('created_at', { ascending: false }).limit(50);
   const perguntas = (perguntasData ?? []) as any[];
 
+  const pageUrl = `${SITE}/produto/${p.id}`;
+  const jsonLd: Record<string, any> = {
+    '@context': 'https://schema.org',
+    '@type': 'Product',
+    name: p.titulo,
+    description: metaDescription(p.descricao, p.titulo),
+    sku: p.id,
+    url: pageUrl,
+    ...(p.capa_url ? { image: [p.capa_url] } : {}),
+    ...(p.categoria ? { category: p.categoria } : {}),
+    ...(p.stores?.nome ? { brand: { '@type': 'Brand', name: p.stores.nome } } : {}),
+    offers: {
+      '@type': 'Offer',
+      url: pageUrl,
+      priceCurrency: 'BRL',
+      price: Number(preco).toFixed(2),
+      availability: 'https://schema.org/InStock',
+      ...(p.stores?.nome ? { seller: { '@type': 'Organization', name: p.stores.nome } } : {}),
+    },
+  };
+  if (notas.length > 0) {
+    jsonLd.aggregateRating = {
+      '@type': 'AggregateRating',
+      ratingValue: (notas.reduce((s, v) => s + v, 0) / notas.length).toFixed(1),
+      reviewCount: notas.length,
+      bestRating: 5,
+      worstRating: 1,
+    };
+  }
+  const jsonLdHtml = JSON.stringify(jsonLd).replace(/</g, '\\u003c');
+
   const BuyBox = (
     <div className="pdp-box">
       <div className="pdp-price">
@@ -75,24 +130,25 @@ export default async function ProductPage({ params }: { params: { id: string } }
       </div>
       <ShareButton titulo={p.titulo} full />
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 10, color: 'var(--sub)', fontSize: 13 }}><FavButton productId={p.id} /> Salvar nos favoritos</div>
-      <div className="pdp-soldby">Vendido por <strong>{p.stores?.nome}</strong> ✓</div>
+      <div className="pdp-soldby">Vendido por <strong>{p.stores?.nome}</strong> <Icon name="check" size={14} color="var(--green)" strokeWidth={2.6} style={{ verticalAlign: '-2px' }} /></div>
     </div>
   );
 
   return (
     <>
       <Nav />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdHtml }} />
       <style>{`
         .pdp{display:flex;gap:36px;max-width:1240px;margin:0 auto;padding:28px 24px 60px;animation:cb-up .5s var(--ease) both;}
         .pdp-main{flex:1;min-width:0;}
         .pdp-aside{width:380px;flex-shrink:0;}
         .pdp-box{position:sticky;top:150px;background:#fff;border:1px solid var(--border);border-radius:28px;padding:28px;box-shadow:0 20px 50px rgba(22,22,42,.08);animation:cb-up .6s var(--ease) .08s both;}
-        .pdp-hero{aspect-ratio:16/10;border-radius:28px;overflow:hidden;background:var(--soft);display:flex;align-items:center;justify-content:center;font-size:110px;margin-bottom:22px;}
+        .pdp-hero{position:relative;aspect-ratio:16/10;border-radius:28px;overflow:hidden;background:var(--soft);display:flex;align-items:center;justify-content:center;font-size:110px;margin-bottom:22px;}
         .pdp-hero img{width:100%;height:100%;object-fit:cover;transition:transform .6s var(--ease);}.pdp-hero:hover img{transform:scale(1.03);}
         .pdp-chip{display:inline-block;background:var(--soft);color:var(--orange-ink);font-weight:900;font-size:13px;padding:6px 13px;border-radius:50px;}
         .pdp-title{font-family:'Outfit';font-size:clamp(26px,3vw,36px);font-weight:900;letter-spacing:-1px;margin:12px 0 8px;line-height:1.12;}
         .pdp-meta{color:var(--sub);font-size:14px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
-        .pdp-star{color:#FF9A3C;font-size:15px;letter-spacing:1px;}
+        .pdp-star{display:inline-flex;gap:2px;align-items:center;}
         .pdp-sec{margin-top:34px;}
         .pdp-sec h2{font-family:'Outfit';font-size:21px;font-weight:800;margin-bottom:14px;letter-spacing:-.4px;}
         .pdp-desc{color:var(--sub);font-size:15px;line-height:1.7;white-space:pre-wrap;}
@@ -123,12 +179,12 @@ export default async function ProductPage({ params }: { params: { id: string } }
       <div className="pdp">
         <div className="pdp-main">
           <div className="pdp-hero">
-            {p.capa_url ? <img src={p.capa_url} alt={p.titulo} /> : <span>{p.emoji}</span>}
+            {p.capa_url ? <img src={p.capa_url} alt={p.titulo} /> : <CategoryCover cat={p.categoria} size={96} />}
           </div>
           <span className="pdp-chip">{p.categoria}</span>
           <h1 className="pdp-title">{p.titulo}</h1>
           <div className="pdp-meta">
-            <span className="pdp-star">{stars(media)}</span>
+            <Stars n={media} />
             <span>{media ? media.toFixed(1) : '—'}</span>
             <span>· {reviews.length} avaliações</span>
             <span>· {p.vendas.toLocaleString('pt-BR')} vendas</span>
@@ -142,9 +198,9 @@ export default async function ProductPage({ params }: { params: { id: string } }
           <div className="pdp-sec">
             <h2>O que você recebe</h2>
             <div className="pdp-recebe">
-              <div>⚡ Entrega imediata e automática após o pagamento</div>
-              <div>📦 {ENTREGA[p.tipo_entrega] || 'Acesso ao produto'}</div>
-              <div>🛡️ Garantia de {p.garantia_dias} dias</div>
+              <div><Icon name="bolt" color="var(--orange-ink)" /> Entrega imediata e automática após o pagamento</div>
+              <div><Icon name="package" color="var(--orange-ink)" /> {ENTREGA[p.tipo_entrega] || 'Acesso ao produto'}</div>
+              <div><Icon name="shield" color="var(--orange-ink)" /> Garantia de {p.garantia_dias} dias</div>
             </div>
           </div>
 
@@ -155,10 +211,10 @@ export default async function ProductPage({ params }: { params: { id: string } }
             <a href={`/loja/${p.stores?.slug}`} className="pdp-seller" style={{ textDecoration: 'none', color: 'inherit' }}>
               <div className="av">{(p.stores?.nome || 'L').charAt(0).toUpperCase()}</div>
               <div style={{ flex: 1 }}>
-                <strong style={{ fontFamily: 'Outfit' }}>{p.stores?.nome} ✓</strong>
+                <strong style={{ fontFamily: 'Outfit', display: 'inline-flex', alignItems: 'center', gap: 5 }}>{p.stores?.nome} <Icon name="check" size={15} color="var(--green)" strokeWidth={2.6} /></strong>
                 <div className="muted" style={{ fontSize: 13, textTransform: 'capitalize' }}>Ver loja · Nível {p.stores?.nivel}</div>
               </div>
-              <span className="muted" style={{ fontSize: 20 }}>›</span>
+              <Icon name="chevronRight" size={20} color="var(--sub)" />
             </a>
           </div>
 
@@ -167,7 +223,7 @@ export default async function ProductPage({ params }: { params: { id: string } }
             {reviews.length ? reviews.map((r, i) => (
               <div className="pdp-rev" key={i}>
                 <div className="h">
-                  <span className="pdp-star">{stars(r.nota)}</span>
+                  <Stars n={r.nota} size={14} />
                   <span className="muted" style={{ fontSize: 12 }}>{new Date(r.created_at).toLocaleDateString('pt-BR')}</span>
                 </div>
                 <div style={{ fontSize: 14, color: 'var(--sub)' }}>{r.comentario || 'Sem comentário.'}</div>

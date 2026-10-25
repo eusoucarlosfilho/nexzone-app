@@ -64,7 +64,7 @@ export default function OrderChat({ orderId, theme = 'light', readOnly = false, 
     <div style={{ border: `1px solid ${C.bd}`, borderRadius: 14, overflow: 'hidden', background: C.panel }}>
       <div ref={boxRef} style={{ maxHeight: 360, minHeight: 180, overflowY: 'auto', padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
         {!carregou && <p style={{ color: C.sub, fontSize: 13, textAlign: 'center', margin: 'auto' }}>Carregando conversa…</p>}
-        {carregou && msgs.length === 0 && <p style={{ color: C.sub, fontSize: 13, textAlign: 'center', margin: 'auto' }}>Nenhuma mensagem ainda. Diga olá! 👋</p>}
+        {carregou && msgs.length === 0 && <p style={{ color: C.sub, fontSize: 13, textAlign: 'center', margin: 'auto' }}>Nenhuma mensagem ainda. Diga olá!</p>}
         {msgs.map((m) => {
           if (m.papel === 'sistema') {
             return (

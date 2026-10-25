@@ -31,13 +31,13 @@ export async function POST(req: Request) {
   //    pra que vendedor, admin e o próprio cliente vejam o conteúdo.
   await admin.from('order_messages').insert({
     order_id: orderId, remetente: user.id, papel: 'comprador',
-    texto: `📣 Reclamação aberta:\n\n${textoLimpo}`,
+    texto: `Reclamação aberta:\n\n${textoLimpo}`,
   });
 
   // 2) Aviso do sistema sobre o saldo retido.
   await admin.from('order_messages').insert({
     order_id: orderId, remetente: null, papel: 'sistema',
-    texto: '⚠️ O cliente abriu uma reclamação. O saldo desta venda fica retido até o suporte resolver. Converse por aqui para tentar resolver.',
+    texto: 'O cliente abriu uma reclamação. O saldo desta venda fica retido até o suporte resolver. Converse por aqui para tentar resolver.',
   });
 
   return NextResponse.json({ ok: true });

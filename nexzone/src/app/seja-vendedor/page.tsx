@@ -1,5 +1,6 @@
 import Nav from '@/components/Nav';
 import Link from 'next/link';
+import Icon from '@/components/Icon';
 
 export const metadata = {
   title: 'Venda no Comprei Barato — Crie sua loja grátis',
@@ -7,12 +8,12 @@ export const metadata = {
 };
 
 const BENEFICIOS = [
-  ['💸', 'Comissão justa', 'Só 3% por venda. Sem mensalidade, sem taxa escondida.'],
-  ['⚡', 'Entrega imediata', 'O comprador recebe na hora em que o Pix é confirmado.'],
-  ['🏪', 'Loja com a sua cara', 'Logo, banner, cor e uma página de loja com link próprio.'],
-  ['⭐', 'Destaque pago', 'Apareça no carrossel da home e venda mais quando quiser.'],
-  ['🔒', 'Pagamento via Pix', 'Aprovação na hora e taxa baixa — o dinheiro entra rápido.'],
-  ['⭐', 'Prova social real', 'Avaliações de verdade dos seus compradores, sem inventar.'],
+  ['dollar', 'Comissão justa', 'Só 3% por venda. Sem mensalidade, sem taxa escondida.'],
+  ['bolt', 'Entrega imediata', 'O comprador recebe na hora em que o Pix é confirmado.'],
+  ['store', 'Loja com a sua cara', 'Logo, banner, cor e uma página de loja com link próprio.'],
+  ['rocket', 'Destaque pago', 'Apareça no carrossel da home e venda mais quando quiser.'],
+  ['lock', 'Pagamento via Pix', 'Aprovação na hora e taxa baixa — o dinheiro entra rápido.'],
+  ['star', 'Prova social real', 'Avaliações de verdade dos seus compradores, sem inventar.'],
 ];
 
 const PASSOS = [
@@ -46,7 +47,7 @@ export default function SejaVendedorPage() {
         .sv-sub{text-align:center;color:var(--sub);margin-bottom:38px}
         .sv-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px}
         .sv-card{background:#fff;border:1px solid var(--border);border-radius:20px;padding:24px;box-shadow:var(--sh);transition:transform .22s var(--ease),box-shadow .22s}.sv-card:hover{transform:translateY(-4px);box-shadow:var(--sh-md)}
-        .sv-card .ic{font-size:30px;margin-bottom:12px}
+        .sv-card .ic{width:52px;height:52px;border-radius:14px;background:var(--soft);color:var(--orange-ink);display:flex;align-items:center;justify-content:center;margin-bottom:12px}
         .sv-card h3{font-family:'Outfit';font-weight:800;font-size:17px;margin-bottom:6px}
         .sv-card p{color:var(--sub);font-size:14px;line-height:1.6}
         .sv-steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:18px}
@@ -78,7 +79,7 @@ export default function SejaVendedorPage() {
         <p className="sv-sub">O melhor acordo pra quem cria produto digital no Brasil.</p>
         <div className="sv-grid">
           {BENEFICIOS.map(([ic, t, d]) => (
-            <div className="sv-card" key={t}><div className="ic">{ic}</div><h3>{t}</h3><p>{d}</p></div>
+            <div className="sv-card" key={t}><div className="ic"><Icon name={ic} size={28} /></div><h3>{t}</h3><p>{d}</p></div>
           ))}
         </div>
       </section>

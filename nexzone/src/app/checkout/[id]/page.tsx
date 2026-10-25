@@ -5,6 +5,7 @@ import CheckoutClient from './CheckoutClient';
 import Countdown from '@/components/Countdown';
 import type { Product } from '@/lib/types';
 import { getSettings } from '@/lib/settings';
+import Icon from '@/components/Icon';
 
 export const dynamic = 'force-dynamic';
 
@@ -43,7 +44,7 @@ export default async function CheckoutPage({ params }: { params: { id: string } 
           </div>
           <strong style={{ fontFamily: 'Outfit' }}>{loja.nome || 'Loja'}</strong>
         </div>
-        <span className="muted" style={{ fontSize: 13 }}>🔒 Pagamento seguro</span>
+        <span className="muted" style={{ fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}><Icon name="lock" size={14} /> Pagamento seguro</span>
       </header>
 
       {cfg.banner_url && (
@@ -65,6 +66,7 @@ export default async function CheckoutPage({ params }: { params: { id: string } 
           productId={p.id}
           titulo={p.titulo}
           emoji={p.emoji}
+          categoria={(p as any).categoria}
           loja={loja.nome ?? 'Loja'}
           preco={Number(p.preco_promo ?? p.preco)}
           cor={cfg.cor || loja.cor || null}

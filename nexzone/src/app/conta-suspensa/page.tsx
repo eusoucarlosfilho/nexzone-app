@@ -1,4 +1,5 @@
 import { createClient, createAdminClient } from '@/lib/supabase/server';
+import Icon from '@/components/Icon';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,7 +22,7 @@ export default async function ContaSuspensaPage() {
 
   return (
     <div className="page" style={{ maxWidth: 480, textAlign: 'center', paddingTop: 60 }}>
-      <div style={{ fontSize: 52, marginBottom: 10 }}>🔒</div>
+      <div style={{ marginBottom: 10, display: 'flex', justifyContent: 'center', color: 'var(--orange-ink)' }}><Icon name="lock" size={52} /></div>
       <h1 style={{ fontFamily: 'Outfit', fontWeight: 900, fontSize: 26 }}>Conta suspensa</h1>
       <p className="muted" style={{ marginTop: 10, lineHeight: 1.5 }}>
         Sua conta foi suspensa pela administração do Comprei Barato e o acesso está temporariamente bloqueado.

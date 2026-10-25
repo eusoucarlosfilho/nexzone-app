@@ -11,7 +11,7 @@ export default async function DestaquePage({ params }: { params: { id: string } 
   if (!user) redirect('/login');
 
   const { data: boost } = await supabase.from('boosts')
-    .select('id, status, dias, valor, pix_code, pix_qr, expira_em, products(titulo, emoji)')
+    .select('id, status, dias, valor, pix_code, pix_qr, expira_em, products(titulo, emoji, categoria)')
     .eq('id', params.id).maybeSingle();
   if (!boost) notFound();
   const p: any = (boost as any).products;
@@ -29,7 +29,8 @@ export default async function DestaquePage({ params }: { params: { id: string } 
           pixQr={boost.pix_qr}
           expira={boost.expira_em}
           titulo={p?.titulo ?? 'Produto'}
-          emoji={p?.emoji ?? '📦'}
+          emoji={p?.emoji ?? ''}
+          categoria={p?.categoria}
         />
       </div>
     </>

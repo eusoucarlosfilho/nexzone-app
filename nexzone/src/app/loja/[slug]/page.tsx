@@ -3,6 +3,9 @@ import ProductCard from '@/components/ProductCard';
 import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { notFound } from 'next/navigation';
 import type { Product } from '@/lib/types';
+import Icon from '@/components/Icon';
+import JourneyBadge from '@/components/JourneyBadge';
+import { computeJourney, getStoreRevenue } from '@/lib/journey';
 
 export const dynamic = 'force-dynamic';
 
@@ -29,6 +32,8 @@ export default async function LojaPage({ params }: { params: { slug: string } })
   const produtos = (prods ?? []) as Product[];
   const verificada = store.status === 'verificado';
   const cor = store.cor || '#FF6B00';
+  const rev = await getStoreRevenue(admin, store.id);
+  const selo = computeJourney(rev.faturamento, rev.vendas).atual;
 
   return (
     <>
@@ -42,7 +47,19 @@ export default async function LojaPage({ params }: { params: { slug: string } })
             {!store.logo_url && store.nome.charAt(0).toUpperCase()}
           </div>
           <div style={{ paddingBottom: 6 }}>
-            <h1 style={{ fontFamily: 'Outfit', fontSize: 26, fontWeight: 900 }}>{store.nome} {verificada && '✓'}</h1>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+              <h1 style={{ fontFamily: 'Outfit', fontSize: 26, fontWeight: 900, display: 'flex', alignItems: 'center', gap: 6 }}>
+                {store.nome}
+                {verificada && <Icon name="checkCircle" size={20} style={{ color: "var(--green)" }} title="Vendedor verificado" />}
+              </h1>
+              {selo && (
+                <span title={`Selo ${selo.nome} da jornada de faturamento`}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '3px 10px 3px 4px', borderRadius: 50, background: '#fff', border: '1px solid var(--border)', fontSize: 12, fontWeight: 900, color: selo.cores.edge }}>
+                  <JourneyBadge tierId={selo.id} size={22} />
+                  {selo.nome}
+                </span>
+              )}
+            </div>
             <div className="muted" style={{ textTransform: 'capitalize' }}>
               {verificada ? 'Vendedor verificado · ' : ''}Nível {store.nivel}{store.categoria ? ` · ${store.categoria}` : ''}
             </div>

@@ -5,36 +5,12 @@ import SettingsForm from './SettingsForm';
 import TorpedosForm from './TorpedosForm';
 import OrderChat from '@/components/OrderChat';
 import AdminNotes from './AdminNotes';
+import AudienceTab from './AudienceTab';
+import Icon from '@/components/Icon';
+import CategoryIcon from '@/components/CategoryIcon';
 
 const money = (v: number) => 'R$ ' + Number(v).toFixed(2).replace('.', ',');
 const fmt = (v: number) => Number(v).toLocaleString('pt-BR');
-
-function Icon({ name, size = 18 }: { name: string; size?: number }) {
-  const paths: Record<string, JSX.Element> = {
-    cockpit: <><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /></>,
-    check: <><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><path d="m9 11 3 3L22 4" /></>,
-    receipt: <><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z" /><path d="M8 7h8M8 11h8M8 15h5" /></>,
-    store: <><path d="M3 9 4 4h16l1 5" /><path d="M4 9v10a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V9" /><path d="M9 22V12h6v10" /></>,
-    package: <><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" /><path d="m3.3 7 8.7 5 8.7-5" /><path d="M12 22V12" /></>,
-    money: <><rect x="2" y="6" width="20" height="12" rx="2" /><circle cx="12" cy="12" r="2.5" /><path d="M6 12h.01M18 12h.01" /></>,
-    star: <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />,
-    growth: <><path d="M3 3v18h18" /><path d="m19 9-5 5-4-4-3 3" /></>,
-    settings: <><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z" /></>,
-    logout: <><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" /></>,
-    clock: <><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></>,
-    target: <><circle cx="12" cy="12" r="10" /><circle cx="12" cy="12" r="6" /><circle cx="12" cy="12" r="2" /></>,
-    users: <><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></>,
-    sun: <><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" /></>,
-    moon: <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />,
-    shield: <><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /><path d="M12 8v4M12 16h.01" /></>,
-    bell: <><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.7 21a2 2 0 0 1-3.4 0" /></>,
-  };
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-      {paths[name] || null}
-    </svg>
-  );
-}
 
 const STATUS: Record<string, [string, string]> = {
   pendente: ['#B7791F', 'Pendente'],
@@ -193,6 +169,7 @@ export default function AdminDashboard({ adminEmail, users, metrics, daily, orde
 
   const NAV = [
     ['cockpit', 'cockpit', 'Cockpit', 0],
+    ['audiencia', 'activity', 'Audiência', 0],
     ['aprovacao', 'check', 'Aprovação', queue.length],
     ['pedidos', 'receipt', 'Pedidos', 0],
     ['vendedores', 'store', 'Usuários', metrics.lojasPendentes],
@@ -329,7 +306,7 @@ export default function AdminDashboard({ adminEmail, users, metrics, daily, orde
                   <tbody>
                     {orders.slice(0, 6).map((o: any) => (
                       <tr key={o.id}>
-                        <td><span className="em">{o.products?.emoji ?? '📦'}</span> {o.products?.titulo ?? 'Produto'}</td>
+                        <td><span className="em" style={{ display: 'inline-flex', verticalAlign: 'middle', marginRight: 4 }}><CategoryIcon cat={o.products?.categoria} size={18} /></span> {o.products?.titulo ?? 'Produto'}</td>
                         <td style={{ color: 'var(--sub)' }}>{o.stores?.nome ?? '—'}</td>
                         <td>{money(o.total)}</td>
                         <td><Pill s={o.status} /></td>
@@ -343,6 +320,8 @@ export default function AdminDashboard({ adminEmail, users, metrics, daily, orde
           </>
         )}
 
+        {tab === 'audiencia' && <AudienceTab />}
+
         {tab === 'aprovacao' && (
           <>
             <h1 className="adm-h">Fila de Aprovação</h1>
@@ -350,12 +329,12 @@ export default function AdminDashboard({ adminEmail, users, metrics, daily, orde
             <div className="adm-card">
               {queue.length ? queue.map((p: any) => (
                 <div className="adm-row" key={p.id}>
-                  <div className="em">{p.emoji}</div>
+                  <div className="em"><CategoryIcon cat={p.categoria} size={22} /></div>
                   <div className="info"><b>{p.titulo}</b><span>{p.stores?.nome ?? '—'} · {p.categoria} · {money(p.preco_promo ?? p.preco)}</span></div>
                   <button className="adm-btn ap" disabled={busy === p.id} onClick={() => moderar(p.id, 'aprovar')}>Aprovar</button>
                   <button className="adm-btn rp" disabled={busy === p.id} onClick={() => moderar(p.id, 'reprovar')}>Reprovar</button>
                 </div>
-              )) : <div className="adm-empty">✅ Fila zerada. Nenhum produto aguardando.</div>}
+              )) : <div className="adm-empty" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}><Icon name="checkCircle" size={18} /> Fila zerada. Nenhum produto aguardando.</div>}
             </div>
           </>
         )}
@@ -378,7 +357,7 @@ export default function AdminDashboard({ adminEmail, users, metrics, daily, orde
                   <tbody>
                     {filteredOrders.map((o: any) => (
                       <tr key={o.id}>
-                        <td><span className="em">{o.products?.emoji ?? '📦'}</span> {o.products?.titulo ?? 'Produto'}</td>
+                        <td><span className="em" style={{ display: 'inline-flex', verticalAlign: 'middle', marginRight: 4 }}><CategoryIcon cat={o.products?.categoria} size={18} /></span> {o.products?.titulo ?? 'Produto'}</td>
                         <td style={{ color: 'var(--sub)' }}>{o.stores?.nome ?? '—'}</td>
                         <td>{money(o.total)}</td>
                         <td style={{ color: 'var(--or2)' }}>{money(o.taxa)}</td>
@@ -436,7 +415,7 @@ export default function AdminDashboard({ adminEmail, users, metrics, daily, orde
                     {u.status === 'restrito' && badge('Restrito', '#FFF0E0', '#B5650A')}
                     {u.status === 'bloqueado' && badge('Bloqueado', '#FDE7E7', '#C73A3A')}
                     {u.reclamacoesAbertas > 0 && badge(`${u.reclamacoesAbertas} reclamação`, '#FDE7E7', '#C73A3A')}
-                    <span className="muted" style={{ fontSize: 12 }}>{expUser === u.id ? '▲' : '▼'}</span>
+                    <span className="muted" style={{ fontSize: 12, display: 'inline-flex' }}><Icon name="chevronDown" size={16} style={{ transform: expUser === u.id ? 'rotate(180deg)' : undefined, transition: 'transform .2s' }} /></span>
                   </div>
                   {expUser === u.id && (
                     <div style={{ padding: '0 16px 18px' }}>
@@ -448,7 +427,7 @@ export default function AdminDashboard({ adminEmail, users, metrics, daily, orde
                         {u.seller && <Det l="Vendas pagas" v={fmt(u.seller.vendas)} />}
                         {u.seller && <Det l="Faturamento" v={money(u.seller.gmv)} />}
                         {u.seller && <Det l="Saldo a sacar" v={money(u.seller.aSacar)} />}
-                        {u.seller && <Det l="Nota média" v={u.seller.notaMedia ? u.seller.notaMedia.toFixed(1) + ' ★' : '—'} />}
+                        {u.seller && <Det l="Nota média" v={u.seller.notaMedia ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>{u.seller.notaMedia.toFixed(1)} <Icon name="star" size={13} /></span> : '—'} />}
                         {u.reclamacoesAbertas > 0 && <Det l="Reclamações abertas" v={fmt(u.reclamacoesAbertas)} />}
                       </div>
                       <div style={{ fontSize: 11, color: 'var(--sub)', marginTop: 10, wordBreak: 'break-all' }}>ID: {u.id}</div>
@@ -485,7 +464,7 @@ export default function AdminDashboard({ adminEmail, users, metrics, daily, orde
                   <tbody>
                     {allProducts.map((p: any) => (
                       <tr key={p.id}>
-                        <td><span className="em">{p.emoji}</span> {p.titulo}</td>
+                        <td><span className="em" style={{ display: 'inline-flex', verticalAlign: 'middle', marginRight: 4 }}><CategoryIcon cat={p.categoria} size={18} /></span> {p.titulo}</td>
                         <td style={{ color: 'var(--sub)' }}>{p.stores?.nome ?? '—'}</td>
                         <td>{money(p.preco_promo ?? p.preco)}</td>
                         <td>{fmt(p.vendas)}</td>
@@ -551,7 +530,7 @@ export default function AdminDashboard({ adminEmail, users, metrics, daily, orde
                   <tbody>
                     {boostList.map((b: any) => (
                       <tr key={b.id}>
-                        <td><span className="em">{b.products?.emoji ?? '📦'}</span> {b.products?.titulo ?? '—'}</td>
+                        <td><span className="em" style={{ display: 'inline-flex', verticalAlign: 'middle', marginRight: 4 }}><CategoryIcon cat={b.products?.categoria} size={18} /></span> {b.products?.titulo ?? '—'}</td>
                         <td style={{ color: 'var(--sub)' }}>{b.stores?.nome ?? '—'}</td>
                         <td>{b.dias} dias</td>
                         <td style={{ color: 'var(--or2)', fontFamily: 'Outfit', fontWeight: 800 }}>{money(b.valor)}</td>
@@ -572,7 +551,7 @@ export default function AdminDashboard({ adminEmail, users, metrics, daily, orde
             <p className="adm-sub">Quem mais vende e o que mais vende na plataforma.</p>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(320px,1fr))', gap: 18 }}>
               <div className="adm-card">
-                <h3 style={{ fontFamily: 'Outfit', fontWeight: 800, marginBottom: 12 }}>🏪 Top vendedores (faturamento)</h3>
+                <h3 style={{ fontFamily: 'Outfit', fontWeight: 800, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}><Icon name="store" size={18} /> Top vendedores (faturamento)</h3>
                 {growth?.topVendedores?.length ? (
                   <table className="adm-table"><tbody>
                     {growth.topVendedores.map((v: any, i: number) => (
@@ -582,11 +561,11 @@ export default function AdminDashboard({ adminEmail, users, metrics, daily, orde
                 ) : <div className="adm-empty">Sem vendas ainda.</div>}
               </div>
               <div className="adm-card">
-                <h3 style={{ fontFamily: 'Outfit', fontWeight: 800, marginBottom: 12 }}>📦 Top produtos (vendas)</h3>
+                <h3 style={{ fontFamily: 'Outfit', fontWeight: 800, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}><Icon name="package" size={18} /> Top produtos (vendas)</h3>
                 {growth?.topProdutos?.length ? (
                   <table className="adm-table"><tbody>
                     {growth.topProdutos.map((p: any, i: number) => (
-                      <tr key={p.id}><td><span className="em">{p.emoji}</span> {p.titulo}</td><td style={{ textAlign: 'right', fontFamily: 'Outfit', fontWeight: 800 }}>{fmt(p.vendas || 0)} vendas</td></tr>
+                      <tr key={p.id}><td><span className="em" style={{ display: 'inline-flex', verticalAlign: 'middle', marginRight: 4 }}><CategoryIcon cat={p.categoria} size={18} /></span> {p.titulo}</td><td style={{ textAlign: 'right', fontFamily: 'Outfit', fontWeight: 800 }}>{fmt(p.vendas || 0)} vendas</td></tr>
                     ))}
                   </tbody></table>
                 ) : <div className="adm-empty">Sem produtos ainda.</div>}
@@ -603,7 +582,7 @@ export default function AdminDashboard({ adminEmail, users, metrics, daily, orde
             return (
               <div key={c.id} className="adm-card" style={{ borderLeft: `3px solid ${resolvida ? '#1FA463' : '#E23B3B'}` }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
-                  <div style={{ width: 42, height: 42, borderRadius: 11, background: 'var(--panel2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>{o.products?.emoji ?? '📦'}</div>
+                  <div style={{ width: 42, height: 42, borderRadius: 11, background: 'var(--panel2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}><CategoryIcon cat={o.products?.categoria} size={20} /></div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <strong style={{ fontFamily: 'Outfit', fontSize: 14 }}>{o.products?.titulo ?? 'Produto'}</strong>
                     <div style={{ color: 'var(--sub)', fontSize: 12 }}>{o.stores?.nome ?? '—'} · {o.comprador_email ?? 'Cliente'} · {money(o.total ?? 0)} · {new Date(c.created_at).toLocaleDateString('pt-BR')}</div>
@@ -614,10 +593,10 @@ export default function AdminDashboard({ adminEmail, users, metrics, daily, orde
                 {/* Quem está atendendo / quem resolveu */}
                 <div style={{ marginTop: 10, fontSize: 12, color: 'var(--sub)' }}>
                   {resolvida
-                    ? <>✅ Resolvida por <strong style={{ color: 'var(--tx)' }}>{c.resolvedor_email || c.atendente_email || 'admin'}</strong>{c.resolvida_em ? ` · ${new Date(c.resolvida_em).toLocaleDateString('pt-BR')}` : ''}</>
+                    ? <><Icon name="checkCircle" size={14} style={{ verticalAlign: '-2px', marginRight: 4 }} />Resolvida por <strong style={{ color: 'var(--tx)' }}>{c.resolvedor_email || c.atendente_email || 'admin'}</strong>{c.resolvida_em ? ` · ${new Date(c.resolvida_em).toLocaleDateString('pt-BR')}` : ''}</>
                     : c.atendente_email
-                      ? <>👤 Em atendimento por <strong style={{ color: 'var(--tx)' }}>{c.atendente_email}</strong></>
-                      : <>⏳ Ninguém pegou ainda</>}
+                      ? <><Icon name="user" size={14} style={{ verticalAlign: '-2px', marginRight: 4 }} />Em atendimento por <strong style={{ color: 'var(--tx)' }}>{c.atendente_email}</strong></>
+                      : <><Icon name="hourglass" size={14} style={{ verticalAlign: '-2px', marginRight: 4 }} />Ninguém pegou ainda</>}
                 </div>
 
                 <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
@@ -641,7 +620,7 @@ export default function AdminDashboard({ adminEmail, users, metrics, daily, orde
               <button className={`adm-btn ${recTab === 'resolvidas' ? 'ap' : ''}`} onClick={() => setRecTab('resolvidas')}>Resolvidas ({recResolvidas.length})</button>
             </div>
             {lista.length === 0 ? (
-              <div className="adm-card"><p style={{ color: 'var(--sub)', textAlign: 'center', padding: 20 }}>{recTab === 'pendentes' ? 'Nenhuma reclamação pendente. 🎉' : 'Nenhuma reclamação resolvida ainda.'}</p></div>
+              <div className="adm-card"><p style={{ color: 'var(--sub)', textAlign: 'center', padding: 20 }}>{recTab === 'pendentes' ? 'Nenhuma reclamação pendente.' : 'Nenhuma reclamação resolvida ainda.'}</p></div>
             ) : (
               lista.map((c: any) => <Card key={c.id} c={c} />)
             )}

@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import OrderChat from '@/components/OrderChat';
 import { toast } from '@/lib/toast';
+import Icon from '@/components/Icon';
 
 export default function SellerChatView({ orderId, entregue, conteudoAtual }: { orderId: string; entregue: boolean; conteudoAtual: string }) {
   const [jaEntregue, setJaEntregue] = useState(entregue);
@@ -32,7 +33,7 @@ export default function SellerChatView({ orderId, entregue, conteudoAtual }: { o
       <div className="card" style={{ marginBottom: 16, borderLeft: `3px solid ${jaEntregue ? 'var(--green)' : 'var(--orange)'}` }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
           <div>
-            <strong style={{ fontFamily: 'Outfit', fontSize: 15 }}>{jaEntregue ? '✓ Produto entregue' : 'Entregar produto'}</strong>
+            <strong style={{ fontFamily: 'Outfit', fontSize: 15, display: 'flex', alignItems: 'center', gap: 6 }}>{jaEntregue ? <><Icon name="checkCircle" size={16} color="var(--green)" /> Produto entregue</> : 'Entregar produto'}</strong>
             <p className="muted" style={{ fontSize: 12.5, margin: '4px 0 0' }}>
               {jaEntregue ? 'O conteúdo já foi liberado para o cliente. Você pode atualizar abaixo se precisar.' : 'Cole o link, os dados de acesso ou as instruções. Ao entregar, o cliente é avisado na conversa e o conteúdo fica liberado na compra dele.'}
             </p>
@@ -46,7 +47,7 @@ export default function SellerChatView({ orderId, entregue, conteudoAtual }: { o
               placeholder="Ex.: Aqui está seu produto: https://... &#10;Login: ... / Senha: ..."
               style={{ width: '100%', borderRadius: 10, border: '1px solid var(--border)', padding: 12, fontSize: 14, fontFamily: 'inherit', resize: 'vertical' }} />
             <button className="btn btn-pri" style={{ marginTop: 10 }} onClick={entregar} disabled={enviando}>
-              {enviando ? 'Entregando…' : (jaEntregue ? 'Atualizar entrega' : '⚡ Entregar agora')}
+              {enviando ? 'Entregando…' : (jaEntregue ? 'Atualizar entrega' : <><Icon name="bolt" size={18} /> Entregar agora</>)}
             </button>
           </div>
         )}

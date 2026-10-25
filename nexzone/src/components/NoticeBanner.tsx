@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import Icon from '@/components/Icon';
 
 type Notice = { id: string; tipo: string; texto: string; created_at: string };
 
@@ -32,8 +33,8 @@ export default function NoticeBanner() {
   return (
     <div style={{ maxWidth: 1280, margin: '0 auto', padding: '12px 16px 0', display: 'flex', flexDirection: 'column', gap: 8 }}>
       {temRestricao && (
-        <div style={{ background: '#FFF4E5', border: '1px solid #F2B65A', color: '#8A5800', borderRadius: 12, padding: '12px 14px', fontSize: 13.5 }}>
-          ⚠️ <strong>Sua conta está restrita.</strong> Você ainda pode comprar, mas <strong>não pode vender nem sacar</strong> no momento. Fale com o suporte se tiver dúvidas.
+        <div style={{ background: '#FFF4E5', border: '1px solid #F2B65A', color: '#8A5800', borderRadius: 12, padding: '12px 14px', fontSize: 13.5, display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+          <Icon name="alert" size={17} style={{ marginTop: 1 }} /><span><strong>Sua conta está restrita.</strong> Você ainda pode comprar, mas <strong>não pode vender nem sacar</strong> no momento. Fale com o suporte se tiver dúvidas.</span>
         </div>
       )}
       {notices.map((n) => {
@@ -45,8 +46,9 @@ export default function NoticeBanner() {
             color: adv ? '#9A2A2A' : '#1F4E8A',
             borderRadius: 12, padding: '12px 14px', fontSize: 13.5, display: 'flex', alignItems: 'flex-start', gap: 10,
           }}>
+            <Icon name={adv ? 'alert' : 'megaphone'} size={17} style={{ marginTop: 1 }} />
             <span style={{ flex: 1, whiteSpace: 'pre-wrap' }}>
-              {adv ? '🚨 Advertência: ' : '📢 Aviso do suporte: '}{n.texto}
+              {adv ? 'Advertência: ' : 'Aviso do suporte: '}{n.texto}
             </span>
           </div>
         );

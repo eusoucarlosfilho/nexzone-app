@@ -63,7 +63,7 @@ export async function GET(req: Request) {
     role: papel,
     status: (order as any).status,
     conteudo: (order as any).conteudo_liberado ?? null,
-    produto: { titulo: (order as any).products?.titulo ?? 'Produto', emoji: (order as any).products?.emoji ?? '📦' },
+    produto: { titulo: (order as any).products?.titulo ?? 'Produto', emoji: (order as any).products?.emoji ?? '\uD83D\uDCE6' },
     loja: (order as any).stores?.nome ?? 'Loja',
     messages: lista,
   });

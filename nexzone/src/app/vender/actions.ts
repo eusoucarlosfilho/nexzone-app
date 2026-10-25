@@ -50,7 +50,7 @@ export async function criarProduto(formData: FormData) {
       arquivo_path: String(formData.get('arquivo_path') || '') || null,
       arquivo_nome: String(formData.get('arquivo_nome') || '') || null,
       garantia_dias: Number(formData.get('garantia_dias') || 7),
-      emoji: String(formData.get('emoji') || '📦'),
+      emoji: String(formData.get('emoji') || '\uD83D\uDCE6'),
       capa_url: String(formData.get('capa_url') || '') || null,
       status: 'em_revisao',
     });

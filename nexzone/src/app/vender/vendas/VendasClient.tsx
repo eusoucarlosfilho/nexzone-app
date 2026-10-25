@@ -1,5 +1,7 @@
 'use client';
 import { useState } from 'react';
+import CategoryIcon from '@/components/CategoryIcon';
+import Icon from '@/components/Icon';
 
 const money = (v: number) => 'R$ ' + Number(v).toFixed(2).replace('.', ',');
 const STATUS: Record<string, [string, string]> = {
@@ -46,13 +48,13 @@ export default function VendasClient({ vendas }: any) {
           <h1 style={{ fontFamily: 'Outfit', fontSize: 26, fontWeight: 900 }}>Vendas</h1>
           <p className="muted">Histórico completo das suas vendas.</p>
         </div>
-        <button className="btn btn-ghost btn-sm" onClick={exportarCSV} disabled={!lista.length}>⬇ Exportar CSV</button>
+        <button className="btn btn-ghost btn-sm" onClick={exportarCSV} disabled={!lista.length}><Icon name="download" size={16} /> Exportar CSV</button>
       </div>
 
       <div className="sd-stats" style={{ marginTop: 18 }}>
-        <div className="sd-stat"><div className="ic">🧾</div><b>{concretizadas.length}</b><small>Vendas concretizadas</small></div>
-        <div className="sd-stat"><div className="ic">💰</div><b>{money(totalBruto)}</b><small>Faturamento bruto</small></div>
-        <div className="sd-stat"><div className="ic">💚</div><b>{money(totalLiquido)}</b><small>Líquido (já com a taxa)</small></div>
+        <div className="sd-stat"><div className="ic"><Icon name="receipt" size={20} /></div><b>{concretizadas.length}</b><small>Vendas concretizadas</small></div>
+        <div className="sd-stat"><div className="ic"><Icon name="money" size={20} /></div><b>{money(totalBruto)}</b><small>Faturamento bruto</small></div>
+        <div className="sd-stat"><div className="ic"><Icon name="wallet" size={20} /></div><b>{money(totalLiquido)}</b><small>Líquido (já com a taxa)</small></div>
       </div>
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
@@ -84,7 +86,7 @@ export default function VendasClient({ vendas }: any) {
                   <>
                     <tr key={v.id} style={{ borderTop: '1px solid var(--border)', cursor: 'pointer' }} onClick={() => setAberta(open ? null : v.id)}>
                       <td style={td}>{new Date(v.created_at).toLocaleDateString('pt-BR')}</td>
-                      <td style={td}><span style={{ marginRight: 6 }}>{v.products?.emoji ?? '📦'}</span>{v.products?.titulo ?? 'Produto'}</td>
+                      <td style={td}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><CategoryIcon cat={v.products?.categoria} size={16} />{v.products?.titulo ?? 'Produto'}</span></td>
                       <td style={{ ...td, color: 'var(--muted)' }}>{v.comprador_email ?? '—'}</td>
                       <td style={td}><span className={`pill ${st[0]}`}>{st[1]}</span></td>
                       <td style={{ ...td, textAlign: 'right', fontFamily: 'Outfit', fontWeight: 800, color: 'var(--green)' }}>{money(v.valor_vendedor)}</td>

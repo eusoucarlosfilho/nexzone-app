@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { salvarCheckoutConfig } from './actions';
 import { toast } from '@/lib/toast';
 import CoverUpload from '../../produtos/CoverUpload';
+import Icon from '@/components/Icon';
 
 export default function CheckoutEditor({ productId, userId, titulo, inicial, outrosProdutos, bumpInicial, aceitaCupomInicial }: any) {
   const router = useRouter();
@@ -59,18 +60,18 @@ export default function CheckoutEditor({ productId, userId, titulo, inicial, out
 
       <div className="fg"><label>Contador regressivo — data e hora de fim (opcional)</label>
         <input type="datetime-local" value={countdown} onChange={(e) => setCountdown(e.target.value)} />
-        <small className="muted" style={{ fontSize: 12 }}>⏳ O contador é real: conta até essa data e, quando chega, a oferta é marcada como encerrada (sem reiniciar).</small>
+        <small className="muted" style={{ fontSize: 12, display: 'flex', alignItems: 'flex-start', gap: 6 }}><Icon name="hourglass" size={13} style={{ marginTop: 2 }} /><span>O contador é real: conta até essa data e, quando chega, a oferta é marcada como encerrada (sem reiniciar).</span></small>
       </div>
 
       <div style={{ borderTop: '1px solid var(--border)', margin: '20px 0', paddingTop: 18 }}>
         <label style={{ display: 'flex', gap: 10, alignItems: 'center', cursor: 'pointer' }}>
           <input type="checkbox" checked={aceitaCupom} onChange={(e) => setAceitaCupom(e.target.checked)} />
-          <span><strong style={{ fontFamily: 'Outfit' }}>🎟️ Aceitar cupom neste produto</strong><br /><span className="muted" style={{ fontSize: 13 }}>Se desligado, o campo de cupom nem aparece no checkout.</span></span>
+          <span><strong style={{ fontFamily: 'Outfit', display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="ticket" size={16} /> Aceitar cupom neste produto</strong><br /><span className="muted" style={{ fontSize: 13 }}>Se desligado, o campo de cupom nem aparece no checkout.</span></span>
         </label>
       </div>
 
       <div style={{ borderTop: '1px solid var(--border)', margin: '20px 0', paddingTop: 18 }}>
-        <strong style={{ fontFamily: 'Outfit', display: 'block', marginBottom: 4 }}>🧲 Order bump (oferta extra)</strong>
+        <strong style={{ fontFamily: 'Outfit', display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}><Icon name="magnet" size={16} /> Order bump (oferta extra)</strong>
         <p className="muted" style={{ fontSize: 13, marginBottom: 12 }}>Ofereça outro produto seu com um preço especial dentro deste checkout.</p>
         <div className="fg2">
           <div className="fg"><label>Produto oferecido</label>

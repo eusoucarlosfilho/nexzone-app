@@ -13,7 +13,7 @@ export default function BuyerNotifier() {
         if (d.respostas?.length) {
           since.current = new Date().toISOString();
           for (const x of d.respostas) {
-            toast(`✅ Sua pergunta sobre "${x.titulo}" foi respondida!`, 'success');
+            toast(`Sua pergunta sobre "${x.titulo}" foi respondida!`, 'success');
           }
         }
       } catch {}

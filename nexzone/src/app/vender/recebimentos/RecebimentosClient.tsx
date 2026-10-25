@@ -2,6 +2,7 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { salvarPix, solicitarSaque } from './actions';
+import Icon from '@/components/Icon';
 
 const money = (v: number) => 'R$ ' + Number(v).toFixed(2).replace('.', ',');
 const STATUS: Record<string, [string, string]> = {
@@ -39,27 +40,27 @@ export default function RecebimentosClient({ bal, pixKey, pixTipo, payouts }: an
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 16, margin: '22px 0' }}>
         <div className="card" style={{ padding: 20 }}>
-          <div style={{ fontSize: 12, color: 'var(--muted)', fontWeight: 700 }}>💚 Disponível p/ saque</div>
+          <div style={{ fontSize: 12, color: 'var(--muted)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}><Icon name="wallet" size={14} color="var(--green)" /> Disponível p/ saque</div>
           <div style={{ fontFamily: 'Outfit', fontSize: 26, fontWeight: 900, color: 'var(--green)' }}>{money(bal.disponivel)}</div>
         </div>
         <div className="card" style={{ padding: 20 }}>
-          <div style={{ fontSize: 12, color: 'var(--muted)', fontWeight: 700 }}>⏳ A liberar (garantia {bal.garantiaDias}d)</div>
+          <div style={{ fontSize: 12, color: 'var(--muted)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}><Icon name="hourglass" size={14} /> A liberar (garantia {bal.garantiaDias}d)</div>
           <div style={{ fontFamily: 'Outfit', fontSize: 26, fontWeight: 900 }}>{money(bal.aLiberar)}</div>
           {bal.proxima && <div style={{ fontSize: 12, color: 'var(--orange-ink)', fontWeight: 700, marginTop: 4 }}>{money(bal.proxima.valor)} libera em {bal.proxima.dias === 0 ? 'hoje' : bal.proxima.dias === 1 ? '1 dia' : `${bal.proxima.dias} dias`}</div>}
         </div>
         <div className="card" style={{ padding: 20 }}>
-          <div style={{ fontSize: 12, color: 'var(--muted)', fontWeight: 700 }}>📤 Em processamento</div>
+          <div style={{ fontSize: 12, color: 'var(--muted)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}><Icon name="send" size={14} /> Em processamento</div>
           <div style={{ fontFamily: 'Outfit', fontSize: 26, fontWeight: 900 }}>{money(bal.emProcessamento)}</div>
         </div>
         <div className="card" style={{ padding: 20 }}>
-          <div style={{ fontSize: 12, color: 'var(--muted)', fontWeight: 700 }}>✅ Total já sacado</div>
+          <div style={{ fontSize: 12, color: 'var(--muted)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}><Icon name="checkCircle" size={14} /> Total já sacado</div>
           <div style={{ fontFamily: 'Outfit', fontSize: 26, fontWeight: 900 }}>{money(bal.sacado)}</div>
         </div>
       </div>
 
       {bal.liberacoes && bal.liberacoes.length > 0 && (
         <div className="card" style={{ marginBottom: 20 }}>
-          <h3 style={{ fontFamily: 'Outfit', fontSize: 16, marginBottom: 4 }}>📅 Cronograma de liberação</h3>
+          <h3 style={{ fontFamily: 'Outfit', fontSize: 16, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 8 }}><Icon name="calendar" size={17} /> Cronograma de liberação</h3>
           <p className="muted" style={{ fontSize: 13, marginBottom: 14 }}>Cada venda fica retida por {bal.garantiaDias} dias (garantia) e depois entra no seu saldo disponível para saque.</p>
           {bal.liberacoes.map((l: any, i: number) => {
             const totalDias = bal.garantiaDias;
@@ -111,7 +112,7 @@ export default function RecebimentosClient({ bal, pixKey, pixTipo, payouts }: an
           const st = STATUS[p.status] || ['rev', p.status];
           return (
             <div className="li" key={p.id}>
-              <div className="em">💸</div>
+              <div className="em" style={{ color: 'var(--orange-ink)' }}><Icon name="money" size={22} /></div>
               <div style={{ flex: 1 }}>
                 <strong style={{ fontFamily: 'Outfit' }}>{money(p.valor)}</strong>
                 <div className="muted">Solicitado em {new Date(p.created_at).toLocaleDateString('pt-BR')}{p.pago_em ? ` · pago em ${new Date(p.pago_em).toLocaleDateString('pt-BR')}` : ''}</div>

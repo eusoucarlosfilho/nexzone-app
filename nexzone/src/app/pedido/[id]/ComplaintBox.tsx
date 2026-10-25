@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { toast } from '@/lib/toast';
+import Icon from '@/components/Icon';
 
 export default function ComplaintBox({ orderId, aberta }: { orderId: string; aberta: boolean }) {
   const [jaAberta, setJaAberta] = useState(aberta);
@@ -10,8 +11,8 @@ export default function ComplaintBox({ orderId, aberta }: { orderId: string; abe
 
   if (jaAberta) {
     return (
-      <div style={{ background: '#FFF7E6', border: '1px solid #F5D58A', borderRadius: 10, padding: '10px 12px', fontSize: 12.5, color: '#9A6B00', marginTop: 12 }}>
-        ⚠️ Você abriu uma reclamação para esta compra. O suporte está analisando — fale com o vendedor pela conversa acima para tentar resolver.
+      <div style={{ background: '#FFF7E6', border: '1px solid #F5D58A', borderRadius: 10, padding: '10px 12px', fontSize: 12.5, color: '#9A6B00', marginTop: 12, display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+        <Icon name="alert" size={15} style={{ marginTop: 1 }} /><span>Você abriu uma reclamação para esta compra. O suporte está analisando — fale com o vendedor pela conversa acima para tentar resolver.</span>
       </div>
     );
   }

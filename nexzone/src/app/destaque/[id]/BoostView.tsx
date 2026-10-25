@@ -1,5 +1,7 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
+import CategoryIcon from '@/components/CategoryIcon';
+import Icon from '@/components/Icon';
 
 const money = (v: number) => 'R$ ' + Number(v).toFixed(2).replace('.', ',');
 
@@ -24,16 +26,16 @@ export default function BoostView(props: any) {
   return (
     <div className="card">
       <div className="li" style={{ padding: '0 0 16px', borderBottom: '1px solid var(--border)' }}>
-        <div className="em">🚀</div>
+        <div className="em" style={{ color: 'var(--orange-ink)' }}><Icon name="rocket" size={22} /></div>
         <div style={{ flex: 1 }}>
           <strong style={{ fontFamily: 'Outfit' }}>Destaque — {props.dias} dias</strong>
-          <div className="muted">{props.emoji} {props.titulo} · {money(props.valor)}</div>
+          <div className="muted" style={{ display: 'flex', alignItems: 'center', gap: 6 }}><CategoryIcon cat={props.categoria} size={14} /> {props.titulo} · {money(props.valor)}</div>
         </div>
       </div>
 
       {pago ? (
         <div style={{ textAlign: 'center', paddingTop: 18 }}>
-          <div style={{ fontFamily: 'Outfit', fontWeight: 800, color: 'var(--green)', fontSize: 20 }}>⭐ Destaque ativado!</div>
+          <div style={{ fontFamily: 'Outfit', fontWeight: 800, color: 'var(--green)', fontSize: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}><Icon name="star" size={20} style={{ fill: 'currentColor' }} /> Destaque ativado!</div>
           <p className="muted" style={{ margin: '8px 0 14px' }}>
             Seu produto está em destaque{expira ? ` até ${new Date(expira).toLocaleDateString('pt-BR')}` : ''}. Ele já aparece no carrossel da página inicial.
           </p>

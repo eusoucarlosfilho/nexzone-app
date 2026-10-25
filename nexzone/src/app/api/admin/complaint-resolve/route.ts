@@ -20,7 +20,7 @@ export async function POST(req: Request) {
   await admin.from('complaints').update(patch).eq('id', complaintId);
   await admin.from('order_messages').insert({
     order_id: (cmp as any).order_id, remetente: null, papel: 'sistema',
-    texto: '✅ O suporte marcou a reclamação como resolvida. O saldo desta venda volta ao fluxo normal de liberação.',
+    texto: 'O suporte marcou a reclamação como resolvida. O saldo desta venda volta ao fluxo normal de liberação.',
   });
 
   return NextResponse.json({ ok: true });

@@ -26,7 +26,7 @@ export default async function PerguntasPage() {
   const perguntas = (data ?? []).map((q: any) => ({
     id: q.id, autor_nome: q.autor_nome, pergunta: q.pergunta, resposta: q.resposta,
     respondida_em: q.respondida_em, created_at: q.created_at,
-    produto: q.products?.titulo ?? 'Produto', emoji: q.products?.emoji ?? '📦',
+    produto: q.products?.titulo ?? 'Produto', emoji: q.products?.emoji ?? '',
   }));
 
   return <PerguntasClient perguntas={perguntas} />;

@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import Icon from '@/components/Icon';
 
 export default function CoverUpload({ userId, value, onUploaded, hint }: { userId: string; value?: string; onUploaded: (url: string) => void; hint?: string }) {
   const [url, setUrl] = useState(value || '');
@@ -25,7 +26,7 @@ export default function CoverUpload({ userId, value, onUploaded, hint }: { userI
     <div>
       {url && <img src={url} alt="capa" style={{ width: '100%', maxWidth: 280, borderRadius: 12, marginBottom: 8, display: 'block', border: '1px solid var(--border)' }} />}
       <input type="file" accept="image/*" onChange={handle} disabled={busy} style={{ fontSize: 13 }} />
-      {hint && <div className="muted" style={{ fontSize: 12, marginTop: 6 }}>📐 {hint}</div>}
+      {hint && <div className="muted" style={{ fontSize: 12, marginTop: 6, display: 'flex', alignItems: 'center', gap: 6 }}><Icon name="ruler" size={13} /> {hint}</div>}
       {busy && <div className="muted" style={{ fontSize: 12, marginTop: 6 }}>Enviando imagem…</div>}
       {err && <div style={{ color: 'var(--red)', fontSize: 12, marginTop: 6 }}>{err}</div>}
     </div>

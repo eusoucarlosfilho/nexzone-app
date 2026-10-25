@@ -5,6 +5,8 @@ import { toast } from '@/lib/toast';
 import FileUpload from './FileUpload';
 import CoverUpload from './CoverUpload';
 import BoostButton from './BoostButton';
+import CategoryIcon from '@/components/CategoryIcon';
+import Icon from '@/components/Icon';
 
 const money = (v: number) => 'R$ ' + Number(v).toFixed(2).replace('.', ',');
 const ST: Record<string, [string, string]> = {
@@ -24,7 +26,7 @@ export default function MyProducts({ products, userId, planos }: { products: any
     setForm({
       titulo: p.titulo, descricao: p.descricao || '', categoria: p.categoria || CATS[0],
       preco: p.preco, preco_promo: p.preco_promo || '', tipo_entrega: p.tipo_entrega || 'arquivo',
-      garantia_dias: p.garantia_dias || 7, conteudo_entrega: p.conteudo_entrega || '', emoji: p.emoji || '📦',
+      garantia_dias: p.garantia_dias || 7, conteudo_entrega: p.conteudo_entrega || '', emoji: p.emoji || '\uD83D\uDCE6',
       arquivo_path: p.arquivo_path || '', arquivo_nome: p.arquivo_nome || '', capa_url: p.capa_url || '',
     });
   }
@@ -90,16 +92,16 @@ export default function MyProducts({ products, userId, planos }: { products: any
         return (
           <div key={p.id} style={{ borderBottom: '1px solid var(--border)' }}>
             <div className="li" style={{ borderBottom: 'none' }}>
-              <div className="em">{p.emoji}</div>
+              <div className="em"><CategoryIcon cat={p.categoria} /></div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <strong style={{ fontFamily: 'Outfit' }}>{p.titulo}</strong>
                 <div className="muted">{money(p.preco_promo ?? p.preco)} · {p.categoria} · {p.vendas} vendas</div>
               </div>
               <span className={`pill ${st[0]}`}>{st[1]}</span>
               <div style={{ display: 'flex', gap: 6, marginLeft: 10 }}>
-                <button className="btn btn-ghost btn-sm" title="Copiar link do produto" onClick={() => copiarLink(p.id)}>🔗</button>
-                <button className="btn btn-ghost btn-sm" title="Copiar link de checkout (tráfego externo)" onClick={() => copiarCheckout(p.id)}>🛒</button>
-                <button className="btn btn-ghost btn-sm" title="Personalizar checkout" onClick={() => router.push(`/vender/checkout/${p.id}`)}>🎨</button>
+                <button className="btn btn-ghost btn-sm" title="Copiar link do produto" onClick={() => copiarLink(p.id)}><Icon name="link" size={16} /></button>
+                <button className="btn btn-ghost btn-sm" title="Copiar link de checkout (tráfego externo)" onClick={() => copiarCheckout(p.id)}><Icon name="cart" size={16} /></button>
+                <button className="btn btn-ghost btn-sm" title="Personalizar checkout" onClick={() => router.push(`/vender/checkout/${p.id}`)}><Icon name="palette" size={16} /></button>
                 <button className="btn btn-ghost btn-sm" disabled={busy === p.id} onClick={() => editando ? setEditId(null) : startEdit(p)}>{editando ? 'Fechar' : 'Editar'}</button>
                 {p.status === 'pausado'
                   ? <button className="btn btn-ghost btn-sm" disabled={busy === p.id} onClick={() => acao(p.id, 'reativar')}>Reativar</button>
@@ -143,8 +145,7 @@ export default function MyProducts({ products, userId, planos }: { products: any
                   <div className="fg"><label>Conteúdo liberado pós-pagamento</label><input value={form.conteudo_entrega} onChange={(e) => setForm({ ...form, conteudo_entrega: e.target.value })} placeholder="https://… ou a chave/instrução" /></div>
                 )}
 
-                <div className="fg"><label>Emoji</label><input value={form.emoji} maxLength={2} style={{ width: 80 }} onChange={(e) => setForm({ ...form, emoji: e.target.value })} /></div>
-                <p className="muted" style={{ fontSize: 12, marginBottom: 12 }}>⚠️ Ao salvar, o produto volta para revisão antes de ficar ativo de novo.</p>
+                <p className="muted" style={{ fontSize: 12, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}><Icon name="alert" size={13} /> Ao salvar, o produto volta para revisão antes de ficar ativo de novo.</p>
                 <button className="btn btn-pri btn-sm" disabled={busy === p.id} onClick={() => salvar(p.id)}>{busy === p.id ? 'Salvando…' : 'Salvar alterações'}</button>
               </div>
             )}
