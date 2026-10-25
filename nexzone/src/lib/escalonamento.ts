@@ -4,6 +4,7 @@
 // E-mail e SMS são "plugáveis": funcionam quando você configurar
 // as credenciais. Sem credencial, fica registrado como pendente.
 // ============================================================
+import { sendEmail, layoutEmail, esc, SITE_URL } from '@/lib/email';
 
 type Cfg = {
   horas: number;
@@ -32,22 +33,14 @@ async function log(admin: any, orderId: string, canal: 'email' | 'sms', destino:
   await admin.from('seller_alerts').insert({ order_id: orderId, canal, destino, status, detalhe });
 }
 
-// ---- E-MAIL (via Resend; configure RESEND_API_KEY no Vercel para ativar) ----
-async function enviarEmail(admin: any, orderId: string, to: string, assunto: string, corpo: string) {
-  const key = process.env.RESEND_API_KEY;
-  const from = process.env.RESEND_FROM || 'Comprei Barato <avisos@compreibarato.com.br>';
-  if (!key) { await log(admin, orderId, 'email', to, 'pendente_config', 'RESEND_API_KEY não configurada'); return; }
+// ---- E-MAIL (via src/lib/email.ts — Resend com domínio próprio) ----
+// Mantém o registro em seller_alerts (histórico da aba "Torpedos" do admin).
+async function enviarEmail(admin: any, orderId: string, to: string, assunto: string, html: string) {
   if (!to) { await log(admin, orderId, 'email', null, 'falha', 'vendedor sem e-mail'); return; }
-  try {
-    const r = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ from, to, subject: assunto, html: corpo }),
-    });
-    await log(admin, orderId, 'email', to, r.ok ? 'enviado' : 'falha', r.ok ? 'ok' : `HTTP ${r.status}`);
-  } catch (e: any) {
-    await log(admin, orderId, 'email', to, 'falha', String(e?.message || e).slice(0, 200));
-  }
+  const r = await sendEmail({ to, subject: assunto, html, tag: 'escalonamento' });
+  if (r.ok) await log(admin, orderId, 'email', to, 'enviado', 'ok');
+  else if (r.skipped === 'sem_config') await log(admin, orderId, 'email', to, 'pendente_config', 'RESEND_API_KEY não configurada');
+  else await log(admin, orderId, 'email', to, 'falha', String(r.error || 'erro').slice(0, 200));
 }
 
 // ---- SMS (genérico; configure URL/token no admin para ativar) ----
@@ -108,14 +101,19 @@ export async function verificarEscalonamento(admin: any, orderId: string) {
     }
 
     const titulo = (order as any).products?.titulo ?? 'um produto';
-    const linkPedido = `${process.env.NEXT_PUBLIC_SITE_URL || ''}/vender/conversas/${orderId}`;
+    const linkPedido = `${SITE_URL}/vender/conversas/${orderId}`;
 
     if (cfg.emailOn) {
       await enviarEmail(admin, orderId, email || '',
         `Cliente aguardando resposta — ${titulo}`,
-        `<p>Olá! Um cliente comprou <b>${titulo}</b> e está aguardando você responder no chat há mais de ${cfg.horas} horas.</p>
-         <p>Responda o quanto antes para entregar o produto e liberar seu saldo mais rápido.</p>
-         <p><a href="${linkPedido}">Abrir a conversa</a></p>`);
+        layoutEmail({
+          titulo: 'Um cliente está esperando sua resposta',
+          preheader: `${titulo} — cliente aguardando há mais de ${cfg.horas}h`,
+          texto: `<p style="margin:0 0 12px 0;">Um cliente comprou <b>${esc(titulo)}</b> e está aguardando você responder no chat há mais de ${cfg.horas} horas.</p>
+<p style="margin:0;">Responda o quanto antes para entregar o produto e liberar seu saldo mais rápido.</p>`,
+          botaoTexto: 'Abrir a conversa',
+          botaoUrl: linkPedido,
+        }));
     }
     await enviarSms(admin, cfg, orderId, phone,
       `Comprei Barato: um cliente comprou "${titulo}" e aguarda sua resposta no chat há ${cfg.horas}h. Responda: ${linkPedido}`);
