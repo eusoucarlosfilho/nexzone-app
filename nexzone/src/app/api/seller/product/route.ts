@@ -10,6 +10,25 @@ async function ownsProduct(supabase: any, userId: string, productId: string) {
   return data && (data as any).stores?.owner === userId;
 }
 
+// Dados de EDIÇÃO de um produto (inclui conteúdo de entrega e arquivo).
+// Carregados só quando o vendedor abre a edição, e só depois de confirmar que o produto é dele —
+// a lista de Meus produtos não recebe esses campos.
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const COLUNAS_EDICAO =
+  'id, titulo, descricao, categoria, preco, preco_promo, tipo_entrega, conteudo_entrega, garantia_dias, status, emoji, capa_url, imagens, arquivo_path, arquivo_nome, destaque_ate, vendas, nota, created_at';
+
+export async function GET(req: Request) {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: 'não autenticado' }, { status: 401 });
+  const id = new URL(req.url).searchParams.get('id') || '';
+  if (!UUID.test(id)) return NextResponse.json({ error: 'produto inválido' }, { status: 400 });
+  if (!(await ownsProduct(supabase, user.id, id))) return NextResponse.json({ error: 'sem permissão' }, { status: 403 });
+  const { data, error } = await supabase.from('products').select(COLUNAS_EDICAO).eq('id', id).maybeSingle();
+  if (error || !data) return NextResponse.json({ error: 'produto não encontrado' }, { status: 404 });
+  return NextResponse.json({ produto: data }, { headers: { 'Cache-Control': 'no-store' } });
+}
+
 // Editar produto
 export async function PATCH(req: Request) {
   const supabase = createClient();
@@ -66,7 +85,20 @@ export async function DELETE(req: Request) {
   if (!id || !(await ownsProduct(supabase, user.id, id))) {
     return NextResponse.json({ error: 'sem permissão' }, { status: 403 });
   }
-  const { error } = await supabase.from('products').delete().eq('id', id);
-  if (error) return NextResponse.json({ error: 'falha ao excluir' }, { status: 500 });
-  return NextResponse.json({ ok: true });
+  // .select('id') devolve as linhas realmente apagadas: sem linha, a exclusão não aconteceu
+  // (ex.: o banco não permite apagar este produto, ou ele tem pedidos vinculados).
+  const { data: apagados, error } = await supabase.from('products').delete().eq('id', id).select('id');
+  if (error) {
+    return NextResponse.json({
+      error: 'Não foi possível excluir este produto. Produtos com pedidos não podem ser excluídos — você pode pausar o anúncio.',
+      codigo: 'exclusao_recusada',
+    }, { status: 409 });
+  }
+  if (!apagados || apagados.length === 0) {
+    return NextResponse.json({
+      error: 'O produto não foi excluído. Se ele tem pedidos ou a exclusão não está liberada, pause o anúncio.',
+      codigo: 'nada_excluido',
+    }, { status: 409 });
+  }
+  return NextResponse.json({ ok: true, excluidos: apagados.length });
 }

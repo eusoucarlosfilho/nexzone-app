@@ -3,6 +3,7 @@ import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import { getSettings } from '@/lib/settings';
 import CBPointsClient from './CBPointsClient';
+import CbPointsAviso from '@/components/CbPointsAviso';
 
 export const dynamic = 'force-dynamic';
 const money = (v: number) => 'R$ ' + Number(v).toFixed(2).replace('.', ',');
@@ -15,7 +16,6 @@ export default async function CBPointsPage() {
   const admin = createAdminClient();
   const { data: prof } = await admin.from('profiles').select('cb_points').eq('id', user.id).maybeSingle();
   const pontos = Number((prof as any)?.cb_points ?? 0);
-  const { data: store } = await admin.from('stores').select('id').eq('owner', user.id).maybeSingle();
   const { data: ledger } = await admin.from('points_ledger').select('delta, motivo, created_at').eq('user_id', user.id).order('created_at', { ascending: false }).limit(30);
   const { cb_points_per_brl: perBrl } = await getSettings();
   const valor = perBrl ? pontos / perBrl : 0;
@@ -25,16 +25,18 @@ export default async function CBPointsPage() {
       <Nav />
       <div className="page" style={{ maxWidth: 640 }}>
         <h1 style={{ fontFamily: 'Outfit', fontSize: 28, fontWeight: 900, letterSpacing: '-.6px' }}>CB Points</h1>
-        <p className="muted" style={{ marginBottom: 18 }}>Você ganha pontos a cada compra e venda. Use como desconto ou troque por saldo.</p>
+        {/* CB-1: pontos servem só como desconto em compras — mesma mensagem para compradores e vendedores */}
+        <p className="muted" style={{ marginBottom: 18 }}>Você ganha pontos nas compras e vendas e ao avaliar seus pedidos. Use os pontos como desconto nas suas próximas compras.</p>
+        <div style={{ marginBottom: 16 }}><CbPointsAviso /></div>
 
         <div className="card" style={{ background: 'var(--text)', color: '#fff', marginBottom: 16, border: 0 }}>
           <div style={{ fontSize: 13, fontWeight: 700, opacity: .9 }}>Seu saldo de pontos</div>
           <div style={{ fontFamily: 'Outfit', fontSize: 40, fontWeight: 900, letterSpacing: '-1px', lineHeight: 1.1 }}>{pontos.toLocaleString('pt-BR')}</div>
-          <div style={{ fontSize: 14, opacity: .92 }}>equivalente a <strong>{money(valor)}</strong></div>
+          <div style={{ fontSize: 14, opacity: .92 }}>vale até <strong>{money(valor)}</strong> em descontos nas suas compras</div>
         </div>
 
         <div style={{ marginBottom: 16 }}>
-          <CBPointsClient pontos={pontos} perBrl={perBrl} temLoja={!!store} />
+          <CBPointsClient perBrl={perBrl} />
         </div>
 
         <div className="card">

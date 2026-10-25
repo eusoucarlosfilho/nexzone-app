@@ -212,6 +212,7 @@ export default function CheckoutClient({ productId, titulo, emoji, categoria, ca
           <span style={{ flex: 1 }}>
             <strong style={{ fontFamily: 'Outfit', display: 'block', fontSize: 14 }}>Usar meus CB Points</strong>
             <span className="muted" style={{ fontSize: 12.5 }}>Você tem <strong>{meusPontos}</strong> pontos (vale {money(valorPontos)}). Aplica até {money(Math.max(0, +(totalBruto - 1).toFixed(2)))} neste pedido.</span>
+            <span className="muted" style={{ fontSize: 12, display: 'block', marginTop: 2 }}>Desconto para compras na plataforma. Não disponível para saque.</span>
           </span>
         </label>
       )}
