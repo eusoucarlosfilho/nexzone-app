@@ -11,8 +11,8 @@ export const dynamic = 'force-dynamic';
 
 export async function generateMetadata({ params }: { params: { slug: string } }) {
   const admin = createAdminClient();
-  const { data: store } = await admin.from('stores').select('nome, descricao, banner_url').eq('slug', params.slug).maybeSingle();
-  if (!store) return { title: 'Loja — Comprei Barato' };
+  const { data: store } = await admin.from('stores').select('nome, descricao, banner_url, ocultar_vendedor').eq('slug', params.slug).maybeSingle();
+  if (!store || (store as any).ocultar_vendedor === true) return { title: 'Loja — Comprei Barato' };
   const desc = store.descricao ? String(store.descricao).slice(0, 150) : `Confira os produtos de ${store.nome} no Comprei Barato.`;
   const images = store.banner_url ? [{ url: store.banner_url as string }] : [];
   return { title: `${store.nome} — Comprei Barato`, description: desc, openGraph: { title: String(store.nome), description: desc, images, type: 'website' } };
@@ -21,9 +21,10 @@ export async function generateMetadata({ params }: { params: { slug: string } })
 export default async function LojaPage({ params }: { params: { slug: string } }) {
   const admin = createAdminClient();
   const { data: store } = await admin.from('stores')
-    .select('id, nome, descricao, categoria, nivel, status, logo_url, banner_url, cor')
+    .select('id, nome, descricao, categoria, nivel, status, logo_url, banner_url, cor, ocultar_vendedor')
     .eq('slug', params.slug).neq('status', 'suspenso').maybeSingle();
-  if (!store) notFound();
+  // Loja que vende como Comprei Barato não tem página pública
+  if (!store || (store as any).ocultar_vendedor === true) notFound();
 
   const supabase = createClient();
   const { data: prods } = await supabase.from('products')
