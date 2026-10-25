@@ -2,6 +2,7 @@ import Nav from '@/components/Nav';
 import ProductCard from '@/components/ProductCard';
 import { createClient } from '@/lib/supabase/server';
 import type { Product } from '@/lib/types';
+import { produtosPublicos } from '@/lib/vendedorPublico';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,9 +12,9 @@ export default async function BuscaPage({ searchParams }: { searchParams: { q?: 
   let produtos: Product[] = [];
   if (q) {
     const { data } = await supabase.from('products')
-      .select('*, stores(nome, nivel)').eq('status', 'ativo').ilike('titulo', `%${q}%`)
+      .select('*, stores(nome, nivel, ocultar_vendedor)').eq('status', 'ativo').ilike('titulo', `%${q}%`)
       .order('vendas', { ascending: false }).limit(48);
-    produtos = (data ?? []) as Product[];
+    produtos = produtosPublicos(data as Product[] | null);
   }
 
   return (
