@@ -2,6 +2,7 @@ import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import AdminDashboard from './AdminDashboard';
 import { getSettings } from '@/lib/settings';
+import { stripeEnabledSetting, stripeEnvStatus } from '@/lib/payments/stripe';
 import { getPaymentConfigPublic } from '@/lib/payments/config';
 
 export const dynamic = 'force-dynamic';
@@ -186,6 +187,9 @@ export default async function AdminPage() {
     const { data: dsRow } = await admin.from('settings').select('value').eq('key', 'deepseek_api_key').maybeSingle();
     settings.deepseek_key_set = !!(dsRow as any)?.value;
   } catch { settings.deepseek_key_set = false; }
+
+  // Stripe (cartão): liga/desliga salvo no settings + se as variáveis de ambiente existem (nunca os valores).
+  settings.stripe = { enabled: await stripeEnabledSetting(), ...stripeEnvStatus() };
 
   // Lista de administradores (perfil role=admin + e-mail vindo do auth)
   try {

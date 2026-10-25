@@ -20,6 +20,11 @@ export default function SettingsForm({ settings }: any) {
   const [cs, setCs] = useState<string>('');
   const csSet = !!pay.misticpay_cs_set;
 
+  // Stripe (cartão)
+  const stripeInfo = settings.stripe || { enabled: false, secret_set: false, webhook_set: false, test_mode: false };
+  const [stripeOn, setStripeOn] = useState<boolean>(!!stripeInfo.enabled);
+  const stripeEnvOk = !!stripeInfo.secret_set && !!stripeInfo.webhook_set;
+
   // DeepSeek (importação por IA)
   const [deepseek, setDeepseek] = useState('');
   const dsSet = !!settings.deepseek_key_set;
@@ -73,6 +78,7 @@ export default function SettingsForm({ settings }: any) {
         misticpay_ci: ci,
         misticpay_cs: cs, // em branco = mantém o atual
         deepseek_api_key: deepseek, // em branco = mantém o atual
+        stripe_enabled: stripeOn,
       }),
     });
     const d = await r.json();
@@ -185,6 +191,31 @@ export default function SettingsForm({ settings }: any) {
           </small>
         </div>
       )}
+
+      {/* ===== Cartão de crédito (Stripe) ===== */}
+      <div style={{ borderTop: '1px solid var(--border)', paddingTop: 20, marginBottom: 22 }}>
+        <label style={lbl}>Cartão de crédito (Stripe)</label>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', marginBottom: 10 }}>
+          <input type="checkbox" checked={stripeOn} onChange={(e) => setStripeOn(e.target.checked)} style={{ width: 18, height: 18, accentColor: 'var(--orange, #FF6B00)' }} />
+          <span style={{ fontWeight: 700 }}>Aceitar cartão (Stripe)</span>
+        </label>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 13 }}>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 6, color: stripeInfo.secret_set ? 'var(--green)' : 'var(--red)' }}>
+            <Icon name={stripeInfo.secret_set ? 'checkCircle' : 'alert'} size={14} /> STRIPE_SECRET_KEY {stripeInfo.secret_set ? `configurada${stripeInfo.test_mode ? ' (modo de teste)' : ''}` : 'não configurada'}
+          </span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 6, color: stripeInfo.webhook_set ? 'var(--green)' : 'var(--red)' }}>
+            <Icon name={stripeInfo.webhook_set ? 'checkCircle' : 'alert'} size={14} /> STRIPE_WEBHOOK_SECRET {stripeInfo.webhook_set ? 'configurada' : 'não configurada'}
+          </span>
+        </div>
+        <small style={{ ...hint, display: 'block', marginTop: 8 }}>
+          {stripeOn && !stripeEnvOk
+            ? 'Ligado, mas o botão de cartão só aparece quando as duas variáveis estiverem configuradas na Vercel (e após o Redeploy).'
+            : stripeOn
+              ? 'O botão “Pagar com cartão de crédito” aparece nos pedidos pendentes, ao lado do Pix.'
+              : 'Desligado: os pedidos mostram só o Pix.'}
+          {' '}Webhook da Stripe: <code>{(typeof window !== 'undefined' ? window.location.origin : '')}/api/webhooks/stripe</code>
+        </small>
+      </div>
 
       {/* ===== Importação por IA (DeepSeek) ===== */}
       <div style={{ borderTop: '1px solid var(--border)', paddingTop: 20, marginBottom: 22 }}>
