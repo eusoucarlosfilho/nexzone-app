@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server';
 import { getGateway } from '@/lib/payments/gateway';
 import { createAdminClient } from '@/lib/supabase/server';
-import { awardPoints, getSettingNum } from '@/lib/points';
+import { processarPedido, processarBoost, ORDER_FIELDS, BOOST_FIELDS } from '@/lib/payments/fulfill';
 
+// Aviso do gateway Pix (MisticPay / Mercado Pago).
+// A liberação (pedido e destaque) fica em src/lib/payments/fulfill.ts, compartilhada com o webhook da Stripe.
 export async function POST(req: Request) {
   const raw = await req.text();
   const gw = await getGateway();
@@ -10,70 +12,26 @@ export async function POST(req: Request) {
   if (!event) return NextResponse.json({ ok: true });
 
   const admin = createAdminClient();
-
-  // Pago, mas com valor menor que o cobrado: não libera.
-  function valorConfere(esperado: any) {
-    if (event!.amount === undefined) return true;
-    const ok = event!.amount + 0.01 >= Number(esperado ?? 0);
-    if (!ok) console.error('Webhook: valor pago menor que o esperado', event!.gatewayRef, event!.amount, esperado);
-    return ok;
-  }
-
-  async function processarBoost(boost: any) {
-    if (event!.status === 'pago' && boost.status === 'pendente' && valorConfere(boost.valor)) {
-      const expira = new Date(Date.now() + boost.dias * 86400000).toISOString();
-      await admin.from('boosts').update({ status: 'pago', pago_em: new Date().toISOString(), expira_em: expira }).eq('id', boost.id);
-      await admin.from('products').update({ destaque_ate: expira }).eq('id', boost.product_id);
-    }
-  }
-
-  async function processarPedido(order: any) {
-    if (event!.status === 'pago' && order.status === 'pendente' && valorConfere(order.total)) {
-      const { data: product } = await admin.from('products').select('conteudo_entrega, vendas').eq('id', order.product_id).single();
-      await admin.from('orders').update({
-        status: 'entregue', conteudo_liberado: product?.conteudo_entrega ?? null, entregue_em: new Date().toISOString(),
-      }).eq('id', order.id);
-      await admin.from('products').update({ vendas: (product?.vendas ?? 0) + 1 }).eq('id', order.product_id);
-
-      // CB Points: comprador e vendedor ganham por compra
-      const porCompra = await getSettingNum(admin, 'cb_points_per_purchase', 3);
-      if (porCompra > 0) {
-        const { data: loja } = await admin.from('stores').select('owner').eq('id', order.store_id).maybeSingle();
-        await awardPoints(admin, order.comprador, porCompra, 'Compra realizada', order.id);
-        if ((loja as any)?.owner) await awardPoints(admin, (loja as any).owner, porCompra, 'Venda realizada', order.id);
-      }
-      if (order.bump_product_id) {
-        const { data: bp } = await admin.from('products').select('vendas').eq('id', order.bump_product_id).single();
-        await admin.from('products').update({ vendas: (bp?.vendas ?? 0) + 1 }).eq('id', order.bump_product_id);
-      }
-      if (order.cupom) {
-        const { data: cup } = await admin.from('coupons').select('id, usos').eq('store_id', order.store_id).eq('codigo', order.cupom).maybeSingle();
-        if (cup) await admin.from('coupons').update({ usos: (cup.usos ?? 0) + 1 }).eq('id', cup.id);
-      }
-    } else if (event!.status === 'estornado') {
-      await admin.from('orders').update({ status: 'reembolsado' }).eq('id', order.id);
-    }
-  }
+  const ev = { status: event.status, amount: event.amount, gatewayRef: event.gatewayRef };
 
   // BOOST identificado pelo orderId (gateways que devolvem o external_reference, ex.: Mercado Pago)
   if (event.orderId && event.orderId.startsWith('boost:')) {
     const boostId = event.orderId.slice(6);
-    const { data: boost } = await admin.from('boosts').select('id, status, product_id, dias, valor').eq('id', boostId).maybeSingle();
-    if (boost) await processarBoost(boost);
+    const { data: boost } = await admin.from('boosts').select(BOOST_FIELDS).eq('id', boostId).maybeSingle();
+    if (boost) await processarBoost(admin, boost, ev);
     return NextResponse.json({ ok: true });
   }
 
   // PEDIDO — por id (se veio) ou por gateway_ref (ex.: MisticPay, que só devolve o id dela)
-  let oq = admin.from('orders').select('id, status, product_id, store_id, cupom, bump_product_id, comprador, total');
+  let oq = admin.from('orders').select(ORDER_FIELDS);
   oq = event.orderId ? oq.eq('id', event.orderId) : oq.eq('gateway_ref', event.gatewayRef);
   const { data: order } = await oq.maybeSingle();
-  if (order) { await processarPedido(order); return NextResponse.json({ ok: true }); }
+  if (order) { await processarPedido(admin, order, ev); return NextResponse.json({ ok: true }); }
 
   // Não achou pedido: pode ser um BOOST pago via MisticPay (casamos por gateway_ref)
   if (event.gatewayRef) {
-    const { data: boost } = await admin.from('boosts')
-      .select('id, status, product_id, dias, valor').eq('gateway_ref', event.gatewayRef).maybeSingle();
-    if (boost) await processarBoost(boost);
+    const { data: boost } = await admin.from('boosts').select(BOOST_FIELDS).eq('gateway_ref', event.gatewayRef).maybeSingle();
+    if (boost) await processarBoost(admin, boost, ev);
   }
 
   return NextResponse.json({ ok: true });
