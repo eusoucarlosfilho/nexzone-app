@@ -6,6 +6,7 @@ export type Settings = {
   commission_percent: number;
   boost_plans: BoostPlan[];
   support_email: string;
+  cb_points_ativo: boolean; // liga/desliga o programa inteiro (padrão: DESLIGADO)
   cb_points_per_purchase: number;
   cb_points_per_brl: number;
   cb_points_review_bonus: number;
@@ -31,6 +32,7 @@ const DEFAULTS: Settings = {
   commission_percent: 3,
   boost_plans: PLANOS_DESTAQUE,
   support_email: '',
+  cb_points_ativo: false,
   cb_points_per_purchase: 3,
   cb_points_per_brl: 100,
   cb_points_review_bonus: 3,
@@ -67,6 +69,7 @@ export async function getSettings(): Promise<Settings> {
       commission_percent: num(map.commission_percent, DEFAULTS.commission_percent),
       boost_plans: Array.isArray(map.boost_plans) && map.boost_plans.length ? map.boost_plans : DEFAULTS.boost_plans,
       support_email: typeof map.support_email === 'string' ? map.support_email : DEFAULTS.support_email,
+      cb_points_ativo: map.cb_points_ativo === true,
       cb_points_per_purchase: num(map.cb_points_per_purchase, DEFAULTS.cb_points_per_purchase),
       cb_points_per_brl: num(map.cb_points_per_brl, DEFAULTS.cb_points_per_brl),
       cb_points_review_bonus: num(map.cb_points_review_bonus, DEFAULTS.cb_points_review_bonus),
@@ -88,5 +91,17 @@ export async function getSettings(): Promise<Settings> {
     };
   } catch {
     return DEFAULTS;
+  }
+}
+
+// Leitura leve só da chave do CB Points (usada no menu de todas as páginas).
+// Sem a chave no banco, ou com erro de leitura, o programa fica DESLIGADO.
+export async function cbPointsAtivo(): Promise<boolean> {
+  try {
+    const admin = createAdminClient();
+    const { data } = await admin.from('settings').select('value').eq('key', 'cb_points_ativo').maybeSingle();
+    return (data as any)?.value === true;
+  } catch {
+    return false;
   }
 }

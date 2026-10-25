@@ -9,7 +9,7 @@ import type { NavCat } from './NavSearch';
 
 const ID = 'menu-mobile';
 
-export default function MobileMenu({ loggedIn, cats }: { loggedIn: boolean; cats: NavCat[] }) {
+export default function MobileMenu({ loggedIn, cats, cbPoints = false }: { loggedIn: boolean; cats: NavCat[]; cbPoints?: boolean }) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
   const btnRef = useRef<HTMLButtonElement>(null);
@@ -81,7 +81,7 @@ export default function MobileMenu({ loggedIn, cats }: { loggedIn: boolean; cats
                 <>
                   {L({ href: '/favoritos', icon: 'heart', children: 'Favoritos' })}
                   {L({ href: '/minhas-compras', icon: 'bag', children: 'Minhas compras' })}
-                  {L({ href: '/cb-points', icon: 'star', children: 'CB Points' })}
+                  {cbPoints && L({ href: '/cb-points', icon: 'star', children: 'CB Points' })}
                   {L({ href: '/vender', icon: 'store', children: 'Minha loja' })}
                   {L({ href: '/conta', icon: 'user', children: 'Minha conta' })}
                   <form action="/auth/signout" method="post">

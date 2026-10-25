@@ -8,6 +8,7 @@ import { CHUNK_CAMINHOS, MAX_PRODUTOS, caminhosDoVendedor } from '@/lib/audienci
 // SEMPRE filtradas pelos caminhos obtidos acima. Nenhum parâmetro do navegador escolhe loja ou produto.
 
 export type ContextoVendedor = {
+  userId: string; // só para EXCLUIR as visitas do próprio vendedor; nunca vai na resposta
   storeId: string;
   slug: string | null;
   produtos: { id: string; titulo: string; status: string; destaque_ate: string | null }[];
@@ -35,7 +36,7 @@ export async function contextoVendedor(): Promise<{ erro: 401 | 404 } | { ctx: C
   const caminhos = caminhosDoVendedor((store as any).slug ?? null, produtos.map((p) => p.id));
   const blocos: string[][] = [];
   for (let i = 0; i < caminhos.length; i += CHUNK_CAMINHOS) blocos.push(caminhos.slice(i, i + CHUNK_CAMINHOS));
-  return { ctx: { storeId: (store as any).id, slug: (store as any).slug ?? null, produtos, caminhos, blocos, limitado } };
+  return { ctx: { userId: user.id, storeId: (store as any).id, slug: (store as any).slug ?? null, produtos, caminhos, blocos, limitado } };
 }
 
 export const PAGINA_PG = 1000;
