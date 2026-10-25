@@ -2,11 +2,18 @@
   "compilerOptions": {
     "target": "ES2020",
     "module": "commonjs",
-    "lib": ["es2020", "dom"],
+    "lib": [
+      "es2020",
+      "dom"
+    ],
     "strict": true,
     "skipLibCheck": true,
     "rootDir": "../src/lib",
-    "outDir": ".build"
+    "outDir": ".build",
+    "esModuleInterop": true,
+    "types": [
+      "node"
+    ]
   },
   "files": [
     "../src/lib/ofertas/tipos.ts",
@@ -14,6 +21,7 @@
     "../src/lib/ofertas/validar.ts",
     "../src/lib/ofertas/csv.ts",
     "../src/lib/ofertas/mix.ts",
+    "../src/lib/ofertas/puxarDados.ts",
     "../src/lib/categorias.ts",
     "../src/lib/audiencia.ts"
   ]
