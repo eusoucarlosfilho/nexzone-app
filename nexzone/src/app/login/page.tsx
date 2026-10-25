@@ -17,11 +17,30 @@ function traduzErro(m: string) {
   return m;
 }
 
+// Destino depois do login: só caminhos internos ("/algo"), padrão '/vender'.
+function calcNext(): string {
+  const raw = (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('next')) || '';
+  return raw.startsWith('/') && !raw.startsWith('//') && !raw.startsWith('/\\') ? raw : '/vender';
+}
+
+// Logo oficial "G" do Google (cores da marca), 18px.
+function GoogleG() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true" focusable="false" style={{ flexShrink: 0 }}>
+      <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
+      <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
+      <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
+      <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
+    </svg>
+  );
+}
+
 export default function LoginPage() {
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [email, setEmail] = useState(''); const [senha, setSenha] = useState(''); const [nome, setNome] = useState('');
   const [msg, setMsg] = useState(''); const [loading, setLoading] = useState(false);
   const [lembrar, setLembrar] = useState(true);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const router = useRouter();
 
   // Lembrar login: pré-preenche o e-mail salvo neste dispositivo (nunca guarda a senha).
@@ -31,7 +50,7 @@ export default function LoginPage() {
       if (saved) { setEmail(saved); setLembrar(true); }
     } catch {}
     try {
-      if (new URLSearchParams(window.location.search).get('erro') === 'link') setMsg('Link expirado ou inválido. Faça login ou peça um novo.');
+      if (new URLSearchParams(window.location.search).get('erro') === 'link') setMsg('Não conseguimos concluir o login. Tente de novo.');
     } catch {}
   }, []);
 
@@ -46,8 +65,7 @@ export default function LoginPage() {
     e?.preventDefault();
     if (loading) return;
     setLoading(true); setMsg('');
-    const raw = (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('next')) || '';
-    const next = raw.startsWith('/') && !raw.startsWith('//') && !raw.startsWith('/\\') ? raw : '/vender';
+    const next = calcNext();
     const supabase = createClient();
     if (mode === 'register') {
       const { data, error } = await supabase.auth.signUp({ email, password: senha, options: { data: { nome } } });
@@ -59,6 +77,28 @@ export default function LoginPage() {
       if (error) setMsg(traduzErro(error.message)); else { salvarLembrar(); router.push(next); }
     }
     setLoading(false);
+  }
+
+  // Login/cadastro com Google: o Supabase devolve para /auth/callback, que troca o code pela sessão.
+  async function entrarComGoogle() {
+    if (googleLoading || loading) return;
+    setGoogleLoading(true); setMsg('');
+    try {
+      const next = calcNext();
+      const supabase = createClient();
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`,
+          queryParams: { prompt: 'select_account' },
+        },
+      });
+      if (error) throw error;
+      // sucesso: o navegador sai para o Google; mantém "Abrindo o Google…"
+    } catch {
+      setMsg('Não foi possível abrir o login do Google. Tente de novo ou use e-mail e senha.');
+      setGoogleLoading(false);
+    }
   }
 
   return (
@@ -79,6 +119,16 @@ export default function LoginPage() {
         <div className="flex" style={{ marginBottom: 18 }}>
           <button type="button" className={`btn btn-sm ${mode === 'login' ? 'btn-pri' : 'btn-ghost'}`} onClick={() => { setMode('login'); setMsg(''); }}>Entrar</button>
           <button type="button" className={`btn btn-sm ${mode === 'register' ? 'btn-pri' : 'btn-ghost'}`} onClick={() => { setMode('register'); setMsg(''); }}>Cadastrar</button>
+        </div>
+        <button type="button" className="btn" onClick={entrarComGoogle} disabled={googleLoading || loading}
+          style={{ width: '100%', background: '#fff', color: 'var(--text)', border: '1px solid var(--border)', fontFamily: 'Outfit', fontWeight: 700 }}>
+          <GoogleG />
+          {googleLoading ? 'Abrindo o Google…' : 'Continuar com Google'}
+        </button>
+        <div role="separator" aria-label="ou" style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '16px 0', color: 'var(--muted)', fontSize: 13 }}>
+          <span style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+          ou
+          <span style={{ flex: 1, height: 1, background: 'var(--border)' }} />
         </div>
         <form onSubmit={submit} noValidate>
         {mode === 'register' && <div className="fg"><label htmlFor="cb-nome">NOME</label><input id="cb-nome" name="name" autoComplete="name" value={nome} onChange={e => setNome(e.target.value)} placeholder="Seu nome" /></div>}
