@@ -17,6 +17,14 @@ export type Settings = {
   sms_api_url: string;
   sms_api_token_set: boolean;
   sms_remetente: string;
+  // Prova social da página inicial (sempre números reais; abaixo do mínimo, o contador some)
+  ps_mostrar_contadores: boolean;
+  ps_min_lojas: number;
+  ps_min_produtos: number;
+  ps_mostrar_vendas: boolean;
+  ps_min_vendas: number;
+  ps_mostrar_ultimas_vendas: boolean;
+  ps_selos: boolean;
 };
 
 const DEFAULTS: Settings = {
@@ -34,6 +42,13 @@ const DEFAULTS: Settings = {
   sms_api_url: '',
   sms_api_token_set: false,
   sms_remetente: '',
+  ps_mostrar_contadores: true,
+  ps_min_lojas: 20,
+  ps_min_produtos: 30,
+  ps_mostrar_vendas: false,
+  ps_min_vendas: 50,
+  ps_mostrar_ultimas_vendas: false,
+  ps_selos: true,
 };
 
 function num(v: any, def: number) {
@@ -63,6 +78,13 @@ export async function getSettings(): Promise<Settings> {
       sms_api_url: typeof map.sms_api_url === 'string' ? map.sms_api_url : '',
       sms_api_token_set: typeof map.sms_api_token === 'string' && map.sms_api_token.length > 0,
       sms_remetente: typeof map.sms_remetente === 'string' ? map.sms_remetente : '',
+      ps_mostrar_contadores: map.ps_mostrar_contadores !== false,
+      ps_min_lojas: num(map.ps_min_lojas, DEFAULTS.ps_min_lojas),
+      ps_min_produtos: num(map.ps_min_produtos, DEFAULTS.ps_min_produtos),
+      ps_mostrar_vendas: map.ps_mostrar_vendas === true,
+      ps_min_vendas: num(map.ps_min_vendas, DEFAULTS.ps_min_vendas),
+      ps_mostrar_ultimas_vendas: map.ps_mostrar_ultimas_vendas === true,
+      ps_selos: map.ps_selos !== false,
     };
   } catch {
     return DEFAULTS;
