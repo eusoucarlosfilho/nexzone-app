@@ -6,6 +6,7 @@ import type { Product } from '@/lib/types';
 import Icon from '@/components/Icon';
 import JourneyBadge from '@/components/JourneyBadge';
 import { computeJourney, getStoreRevenue } from '@/lib/journey';
+import { PRODUTO_CARD } from '@/lib/consultas';
 
 export const dynamic = 'force-dynamic';
 
@@ -28,9 +29,9 @@ export default async function LojaPage({ params }: { params: { slug: string } })
 
   const supabase = createClient();
   const { data: prods } = await supabase.from('products')
-    .select('*, stores(nome, nivel)').eq('store_id', store.id).eq('status', 'ativo')
-    .order('vendas', { ascending: false });
-  const produtos = (prods ?? []) as Product[];
+    .select(PRODUTO_CARD).eq('store_id', store.id).eq('status', 'ativo')
+    .order('vendas', { ascending: false }).limit(120);
+  const produtos = (prods ?? []) as unknown as Product[];
   const verificada = store.status === 'verificado';
   const cor = store.cor || '#FF6B00';
   const rev = await getStoreRevenue(admin, store.id);

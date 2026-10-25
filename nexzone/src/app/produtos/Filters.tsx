@@ -12,24 +12,27 @@ export default function Filters({ categorias }: any) {
   function setParam(updates: Record<string, string>) {
     const p = new URLSearchParams(sp.toString());
     Object.entries(updates).forEach(([k, v]) => { if (v) p.set(k, v); else p.delete(k); });
+    p.delete('page'); // filtro/ordem nova recomeça da primeira página
     router.push(`${pathname}?${p.toString()}`);
   }
   const temFiltro = catAtiva || sp.get('min') || sp.get('max') || sp.get('q');
 
   return (
     <div>
-      <div style={card}>
+      <div style={card} className="flt-card">
         <h3 style={h3}>Categorias</h3>
-        <button onClick={() => setParam({ cat: '' })} style={catBtn(!catAtiva)}>Todas</button>
+        <div className="flt-cats" role="group" aria-label="Filtrar por categoria">
+        <button onClick={() => setParam({ cat: '' })} style={catBtn(!catAtiva)} aria-pressed={!catAtiva}>Todas</button>
         {categorias.map((c: any) => (
-          <button key={c.slug} onClick={() => setParam({ cat: c.slug })} style={{ ...catBtn(catAtiva === c.slug), display: 'flex', alignItems: 'center', gap: 8 }}><CategoryIcon cat={c.slug} size={16} color="currentColor" /> <span style={{ flex: 1 }}>{c.nome}</span><span style={{ fontSize: 12, fontWeight: 700, opacity: c.qtd ? .9 : .5 }}>{Number(c.qtd || 0).toLocaleString('pt-BR')}</span></button>
+          <button key={c.slug} onClick={() => setParam({ cat: c.slug })} aria-pressed={catAtiva === c.slug} style={{ ...catBtn(catAtiva === c.slug), display: 'flex', alignItems: 'center', gap: 8 }}><CategoryIcon cat={c.slug} size={16} color="currentColor" /> <span style={{ flex: 1 }}>{c.nome}</span><span style={{ fontSize: 12, fontWeight: 700, opacity: c.qtd ? .9 : .5 }}>{Number(c.qtd || 0).toLocaleString('pt-BR')}</span></button>
         ))}
+        </div>
       </div>
       <div style={card}>
         <h3 style={h3}>Faixa de preço</h3>
         <div style={{ display: 'flex', gap: 8 }}>
-          <input value={min} onChange={(e) => setMin(e.target.value)} placeholder="Mín" type="number" style={inp} />
-          <input value={max} onChange={(e) => setMax(e.target.value)} placeholder="Máx" type="number" style={inp} />
+          <input value={min} onChange={(e) => setMin(e.target.value)} placeholder="Mín" type="number" min={0} inputMode="decimal" aria-label="Preço mínimo (R$)" style={inp} />
+          <input value={max} onChange={(e) => setMax(e.target.value)} placeholder="Máx" type="number" min={0} inputMode="decimal" aria-label="Preço máximo (R$)" style={inp} />
         </div>
         <button className="btn btn-pri btn-sm" style={{ width: '100%', marginTop: 10 }} onClick={() => setParam({ min, max })}>Aplicar</button>
       </div>

@@ -7,6 +7,12 @@ import { createClient } from '@/lib/supabase/server';
 import type { Product } from '@/lib/types';
 import { CATEGORIAS, acharCategoria, contarPorCategoria } from '@/lib/categorias';
 import { produtosPublicos } from '@/lib/vendedorPublico';
+import { PRODUTO_CARD, termoBusca } from '@/lib/consultas';
+import Pagination from '@/components/ui/Pagination';
+import EmptyState from '@/components/ui/EmptyState';
+import Link from 'next/link';
+
+const POR_PAGINA = 24;
 
 export const dynamic = 'force-dynamic';
 
@@ -17,7 +23,7 @@ const SORTS: Record<string, { col: string; asc: boolean }> = {
   maior: { col: 'preco', asc: false },
 };
 
-export default async function ProdutosPage({ searchParams }: { searchParams: { q?: string; cat?: string; min?: string; max?: string; sort?: string } }) {
+export default async function ProdutosPage({ searchParams }: { searchParams: { q?: string; cat?: string; min?: string; max?: string; sort?: string; page?: string } }) {
   const supabase = createClient();
   // Filtro lateral: todas as categorias da fonte única, com a contagem de produtos ativos
   const { data: catRows } = await supabase.from('products').select('categoria').eq('status', 'ativo');
@@ -27,8 +33,9 @@ export default async function ProdutosPage({ searchParams }: { searchParams: { q
   const sortKey = searchParams.sort && SORTS[searchParams.sort] ? searchParams.sort : 'vendas';
   const sort = SORTS[sortKey];
 
-  let q = supabase.from('products').select('*, stores(nome, nivel, ocultar_vendedor)').eq('status', 'ativo');
-  if (searchParams.q) q = q.ilike('titulo', `%${searchParams.q}%`);
+  let q = supabase.from('products').select(PRODUTO_CARD, { count: 'exact' }).eq('status', 'ativo');
+  const termo = termoBusca(searchParams.q);
+  if (termo) q = q.ilike('titulo', `%${termo}%`);
   if (searchParams.cat) {
     const cat = acharCategoria(searchParams.cat);
     if (cat) q = q.eq('categoria', cat.nome);
@@ -36,10 +43,15 @@ export default async function ProdutosPage({ searchParams }: { searchParams: { q
   const min = Number(searchParams.min); const max = Number(searchParams.max);
   if (min > 0) q = q.gte('preco', min);
   if (max > 0) q = q.lte('preco', max);
-  q = q.order(sort.col, { ascending: sort.asc });
+  q = q.order(sort.col, { ascending: sort.asc }).order('id', { ascending: true }); // desempate estável para a paginação
 
-  const { data } = await q.limit(60);
+  const page = Math.max(1, Math.floor(Number(searchParams.page) || 1));
+  const de = (page - 1) * POR_PAGINA;
+  const { data, count } = await q.range(de, de + POR_PAGINA - 1);
   const produtos = produtosPublicos(data as Product[] | null);
+  const total = count ?? produtos.length;
+  const totalPages = Math.max(1, Math.ceil(total / POR_PAGINA));
+  const temFiltro = !!(searchParams.q || searchParams.cat || searchParams.min || searchParams.max);
 
   return (
     <>
@@ -48,7 +60,9 @@ export default async function ProdutosPage({ searchParams }: { searchParams: { q
         .cat-shell{display:flex;gap:28px;max-width:1200px;margin:0 auto;padding:28px 20px 60px}
         .cat-side{width:230px;flex-shrink:0}
         .cat-main{flex:1;min-width:0}
-        @media(max-width:820px){.cat-shell{flex-direction:column}.cat-side{width:100%}}
+        @media(max-width:820px){.cat-shell{flex-direction:column;gap:14px;padding-top:18px}.cat-side{width:100%}
+          .flt-cats{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;scrollbar-width:thin}
+          .flt-cats button{white-space:nowrap;width:auto!important;flex:none;border:1px solid var(--border)!important;margin:0!important}}
       `}</style>
       <div className="cat-shell">
         <aside className="cat-side">
@@ -56,10 +70,13 @@ export default async function ProdutosPage({ searchParams }: { searchParams: { q
         </aside>
         <div className="cat-main">
           <h1 style={{ fontFamily: 'Outfit', fontSize: 26, fontWeight: 900, marginBottom: 16 }}>Explorar produtos</h1>
-          <Suspense fallback={null}><Toolbar total={produtos.length} sort={sortKey} /></Suspense>
+          <Suspense fallback={null}><Toolbar total={total} sort={sortKey} /></Suspense>
           {produtos.length
             ? <div className="pg">{produtos.map((p) => <ProductCard key={p.id} p={p} />)}</div>
-            : <p className="muted" style={{ marginTop: 20 }}>Nenhum produto encontrado com esses filtros.</p>}
+            : <EmptyState icon="search" title="Nenhum produto encontrado"
+                text={temFiltro ? 'Tente outra palavra, outra categoria ou uma faixa de preço maior.' : 'Ainda não há produtos publicados.'}
+                action={temFiltro ? <Link href="/produtos" className="btn btn-ghost btn-sm">Limpar filtros</Link> : undefined} />}
+          <Pagination basePath="/produtos" params={searchParams as Record<string, string | undefined>} page={Math.min(page, totalPages)} totalPages={totalPages} />
         </div>
       </div>
     </>

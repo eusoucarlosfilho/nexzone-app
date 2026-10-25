@@ -9,6 +9,7 @@ export default function Toolbar({ total, sort }: { total: number; sort: string }
   function setParam(updates: Record<string, string>) {
     const p = new URLSearchParams(sp.toString());
     Object.entries(updates).forEach(([k, v]) => { if (v) p.set(k, v); else p.delete(k); });
+    p.delete('page'); // filtro/ordem nova recomeça da primeira página
     router.push(`${pathname}?${p.toString()}`);
   }
 

@@ -14,6 +14,7 @@ import { metaDescription, SITE_URL_FALLBACK } from '@/lib/seo';
 import { vendedorPublico, produtoPublico, produtosPublicos } from '@/lib/vendedorPublico';
 import { galeriaDe } from '@/lib/galeria';
 import ProductGallery from './ProductGallery';
+import { PRODUTO_CARD, PRODUTO_PAGINA } from '@/lib/consultas';
 
 const money = (v: number) => 'R$ ' + v.toFixed(2).replace('.', ',');
 const ENTREGA: Record<string, string> = {
@@ -57,10 +58,10 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
 export default async function ProductPage({ params }: { params: { id: string } }) {
   const supabase = createClient();
   const { data } = await supabase.from('products')
-    .select('*, stores(nome, nivel, slug, ocultar_vendedor)').eq('id', params.id).eq('status', 'ativo').single();
+    .select(PRODUTO_PAGINA).eq('id', params.id).eq('status', 'ativo').single();
   if (!data) notFound();
   // Dados públicos do vendedor (Comprei Barato quando a loja está oculta). O nome real não sai do servidor.
-  const p = produtoPublico(data as Product);
+  const p = produtoPublico(data as unknown as Product);
   const vend = vendedorPublico(p.stores);
   const fotos = galeriaDe(p as any); // galeria; produto antigo sem galeria = [capa_url]
   const preco = p.preco_promo ?? p.preco;
@@ -77,10 +78,10 @@ export default async function ProductPage({ params }: { params: { id: string } }
 
   // "Mais deste vendedor": não aparece quando a loja está oculta
   const relacionados: Product[] = vend.oficial ? [] : produtosPublicos((await supabase.from('products')
-    .select('*, stores(nome, nivel, ocultar_vendedor)').eq('store_id', p.store_id).eq('status', 'ativo').neq('id', p.id).limit(4)).data as Product[] | null);
+    .select(PRODUTO_CARD).eq('store_id', p.store_id).eq('status', 'ativo').neq('id', p.id).limit(4)).data as Product[] | null);
 
   const { data: catData } = await supabase.from('products')
-    .select('*, stores(nome, nivel, ocultar_vendedor)').eq('categoria', p.categoria).eq('status', 'ativo').neq('id', p.id)
+    .select(PRODUTO_CARD).eq('categoria', p.categoria).eq('status', 'ativo').neq('id', p.id)
     .order('vendas', { ascending: false }).limit(8);
   const relIds = new Set(relacionados.map((r) => r.id));
   const daCategoria = produtosPublicos(catData as Product[] | null).filter((c) => !relIds.has(c.id)).slice(0, 4);
@@ -138,7 +139,7 @@ export default async function ProductPage({ params }: { params: { id: string } }
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 10, color: 'var(--sub)', fontSize: 13 }}><FavButton productId={p.id} /> Salvar nos favoritos</div>
       <div className="pdp-soldby">Vendido por <strong>{vend.nome}</strong> {vend.oficial
         ? <span className="pdp-oficial">Oficial</span>
-        : <Icon name="check" size={14} color="var(--green)" strokeWidth={2.6} style={{ verticalAlign: '-2px' }} />}</div>
+        : vend.verificada && <Icon name="check" size={14} color="var(--green)" strokeWidth={2.6} style={{ verticalAlign: '-2px' }} title="Loja verificada" />}</div>
     </div>
   );
 
@@ -177,9 +178,12 @@ export default async function ProductPage({ params }: { params: { id: string } }
         .pdp-soldby{margin-top:14px;font-size:13px;color:var(--sub);text-align:center;}
         .pdp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:18px;}
         .pdp-mbar{display:none;}
+        .pdp-mact{display:none;}
+        .pdp-mact-row{display:flex;align-items:center;gap:10px;}
         @media(max-width:860px){
           .pdp{flex-direction:column;gap:20px;padding-bottom:90px;}
           .pdp-aside{display:none;}
+          .pdp-mact{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:14px;padding:14px 16px;border:1px solid var(--border);border-radius:18px;background:#fff;}
           .pdp-hero{font-size:72px;}
           .pdp-title{font-size:24px;}
           .pdp-mbar{display:flex;position:fixed;bottom:0;left:0;right:0;background:rgba(255,255,255,.96);backdrop-filter:blur(10px);border-top:1px solid var(--border);box-shadow:0 -4px 20px rgba(0,0,0,.08);padding:12px 16px;z-index:50;align-items:center;gap:14px;animation:cb-up .4s var(--ease) both;}
@@ -199,6 +203,18 @@ export default async function ProductPage({ params }: { params: { id: string } }
             <span>{media ? media.toFixed(1) : '—'}</span>
             <span>· {reviews.length} avaliações</span>
             <span>· {p.vendas.toLocaleString('pt-BR')} vendas</span>
+          </div>
+
+          {/* Celular: o bloco lateral fica oculto, então preço, compartilhar e favoritar aparecem aqui */}
+          <div className="pdp-mact">
+            <div className="pdp-price" style={{ marginBottom: 0 }}>
+              {desconto > 0 && <span className="pdp-old">{money(p.preco)}</span>}
+              <div className="pdp-now" style={{ fontSize: 32 }}>{money(preco)}{desconto > 0 && <span className="pdp-off">-{desconto}%</span>}</div>
+            </div>
+            <div className="pdp-mact-row">
+              <FavButton productId={p.id} />
+              <ShareButton titulo={p.titulo} />
+            </div>
           </div>
 
           <div className="pdp-sec">
@@ -227,15 +243,24 @@ export default async function ProductPage({ params }: { params: { id: string } }
                   <div className="muted" style={{ fontSize: 13 }}>Vendido e garantido pelo Comprei Barato</div>
                 </div>
               </div>
-            ) : (
+            ) : vend.slug ? (
               <a href={`/loja/${vend.slug}`} className="pdp-seller" style={{ textDecoration: 'none', color: 'inherit' }}>
                 <div className="av">{(vend.nome || 'L').charAt(0).toUpperCase()}</div>
                 <div style={{ flex: 1 }}>
-                  <strong style={{ fontFamily: 'Outfit', display: 'inline-flex', alignItems: 'center', gap: 5 }}>{vend.nome} <Icon name="check" size={15} color="var(--green)" strokeWidth={2.6} /></strong>
-                  <div className="muted" style={{ fontSize: 13, textTransform: 'capitalize' }}>Ver loja · Nível {vend.nivel}</div>
+                  <strong style={{ fontFamily: 'Outfit', display: 'inline-flex', alignItems: 'center', gap: 5 }}>{vend.nome} {vend.verificada && <span className="ui-badge ok" style={{ fontSize: 11, padding: '2px 8px' }}><Icon name="check" size={12} strokeWidth={2.6} /> Verificada</span>}</strong>
+                  <div className="muted" style={{ fontSize: 13, textTransform: 'capitalize' }}>Ver loja{vend.nivel ? ` · Nível ${vend.nivel}` : ''}</div>
                 </div>
                 <Icon name="chevronRight" size={20} color="var(--sub)" />
               </a>
+            ) : (
+              // Loja não verificada: a RLS não devolve os dados da loja ao público; sem link quebrado /loja/null
+              <div className="pdp-seller pdp-seller-oficial">
+                <div className="av">L</div>
+                <div style={{ flex: 1 }}>
+                  <strong style={{ fontFamily: 'Outfit' }}>Loja parceira</strong>
+                  <div className="muted" style={{ fontSize: 13 }}>Loja ainda não verificada</div>
+                </div>
+              </div>
             )}
           </div>
 

@@ -78,8 +78,28 @@ export default function CreateProduct({ userId }: { userId: string }) {
     setRehost(false);
   }
 
+  // Validação na tela (o servidor continua sendo quem decide; aqui só evitamos envios com erro óbvio)
+  const [erros, setErros] = useState<Record<string, string>>({});
+  function validar() {
+    const e: Record<string, string> = {};
+    const p = Number(preco);
+    if (!titulo.trim()) e.titulo = 'Informe o título do produto.';
+    if (!p || p <= 0) e.preco = 'Informe um preço maior que zero.';
+    if (precoPromo !== '') {
+      const pr = Number(precoPromo);
+      if (!pr || pr <= 0) e.preco_promo = 'O preço promocional precisa ser maior que zero (ou deixe em branco).';
+      else if (p && pr >= p) e.preco_promo = 'O preço promocional precisa ser menor que o preço normal.';
+    }
+    const g = Number(garantia);
+    if (!Number.isFinite(g) || g < 0 || g > 365) e.garantia = 'Use um número de 0 a 365 dias.';
+    setErros(e);
+    return Object.keys(e).length === 0;
+  }
+  const err = (k: string) => erros[k] ? <div className="ui-err" role="alert">{erros[k]}</div> : null;
+
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (!validar()) { toast('Revise os campos destacados.', 'error'); return; }
     const fd = new FormData(e.currentTarget);
     fd.set('imagens', JSON.stringify(imagens));
     fd.set('capa_url', imagens[0] || '');
@@ -94,6 +114,7 @@ export default function CreateProduct({ userId }: { userId: string }) {
       setTitulo(''); setDescricao(''); setPreco(''); setPrecoPromo(''); setCategoria(CATS[0]); setGarantia('7'); setConteudoEntrega('');
       setImagens([]); setArquivoPath(''); setArquivoNome(''); setTipo('arquivo');
       setImpUrl(''); setImpTexto(''); setImagemSugerida(''); setBloqueado(false);
+      router.push('/vender/produtos');
       router.refresh();
     } else {
       toast(r?.error || 'Não foi possível cadastrar o produto.', 'error');
@@ -101,8 +122,8 @@ export default function CreateProduct({ userId }: { userId: string }) {
   }
 
   return (
-    <form ref={formRef} onSubmit={onSubmit}>
-      {/* ===== Importar anúncio de outro site ===== */}
+    <form ref={formRef} onSubmit={onSubmit} noValidate>
+      {/* ===== Importar anúncio de outro site (opcional) ===== */}
       <div style={{ border: '1.5px dashed #FFCBA1', background: 'var(--soft)', borderRadius: 14, padding: 16, marginBottom: 22 }}>
         <div style={{ fontFamily: 'Outfit', fontWeight: 800, fontSize: 15, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 8 }}><Icon name="sparkles" size={17} color="var(--orange-ink)" /> Trazer anúncio de outro site</div>
         <p className="muted" style={{ fontSize: 12.5, marginBottom: 12 }}>
@@ -148,45 +169,67 @@ export default function CreateProduct({ userId }: { userId: string }) {
         )}
       </div>
 
-      <div className="fg"><label>Título</label><input name="titulo" value={titulo} onChange={(e) => setTitulo(e.target.value)} required placeholder="Ex: Pack 100 Templates de Carrossel" /></div>
-      <div className="fg"><label>Fotos do produto (até {MAX_FOTOS})</label>
-        <GalleryUpload userId={userId} value={imagens} onChange={setImagens} />
-      </div>
-      <div className="fg"><label>Categoria</label>
-        <select name="categoria" value={categoria} onChange={(e) => setCategoria(e.target.value)}>{CATS.map((c) => <option key={c}>{c}</option>)}</select>
+      <section className="ui-sec" aria-labelledby="sec-basico">
+        <h3 id="sec-basico"><Icon name="edit" size={16} /> 1. Informações básicas</h3>
+        <p className="ui-sec-sub">Como o produto aparece na vitrine e na busca.</p>
+      <div className="fg"><label htmlFor="np-titulo">Título<span className="ui-req">*</span></label><input id="np-titulo" name="titulo" value={titulo} onChange={(e) => setTitulo(e.target.value)} required aria-invalid={!!erros.titulo} placeholder="Ex: Pack 100 Templates de Carrossel" />
+        {err('titulo') || <div className="ui-help">Seja específico: o que é, para quem e o principal benefício.</div>}</div>
+      <div className="fg"><label htmlFor="np-cat">Categoria<span className="ui-req">*</span></label>
+        <select id="np-cat" name="categoria" value={categoria} onChange={(e) => setCategoria(e.target.value)}>{CATS.map((c) => <option key={c}>{c}</option>)}</select>
       {ehJogos(categoria) && (
         <div role="note" style={{ display: 'flex', gap: 8, alignItems: 'flex-start', background: '#F3EDFF', border: '1px solid #D9C8FF', color: '#3B1E7A', borderRadius: 12, padding: '10px 12px', fontSize: 12.5, lineHeight: 1.45, marginTop: 8 }}>
           <Icon name="alert" size={15} style={{ marginTop: 1, flexShrink: 0 }} /><span><b>Regras de Jogos &amp; Games.</b> {AVISO_JOGOS}</span>
         </div>
       )}
       </div>
-      <div className="fg"><label>Descrição</label><textarea name="descricao" value={descricao} onChange={(e) => setDescricao(e.target.value)} rows={6} placeholder="Para quem é, o que resolve, o que o comprador recebe e em qual formato." /></div>
+      <div className="fg"><label htmlFor="np-desc">Descrição</label><textarea id="np-desc" name="descricao" value={descricao} onChange={(e) => setDescricao(e.target.value)} rows={6} placeholder="Para quem é, o que resolve, o que o comprador recebe e em qual formato." />
+        <div className="ui-help">Descrições completas vendem mais e são aprovadas mais rápido.</div></div>
+      </section>
+
+      <section className="ui-sec" aria-labelledby="sec-img">
+        <h3 id="sec-img"><Icon name="image" size={16} /> 2. Imagens</h3>
+        <p className="ui-sec-sub">Até {MAX_FOTOS} fotos. A primeira é a capa. Use imagens nítidas, em paisagem, sem textos pequenos. Sem foto, o anúncio mostra o ícone da categoria.</p>
+        <GalleryUpload userId={userId} value={imagens} onChange={setImagens} />
+      </section>
+
+      <section className="ui-sec" aria-labelledby="sec-preco">
+        <h3 id="sec-preco"><Icon name="money" size={16} /> 3. Preço</h3>
       <div className="fg2">
-        <div className="fg"><label>Preço (R$)</label><input name="preco" value={preco} onChange={(e) => setPreco(e.target.value)} type="number" step="0.01" required placeholder="19.90" /></div>
-        <div className="fg"><label>Preço promocional (opcional)</label><input name="preco_promo" value={precoPromo} onChange={(e) => setPrecoPromo(e.target.value)} type="number" step="0.01" placeholder="14.90" /></div>
+        <div className="fg"><label htmlFor="np-preco">Preço (R$)<span className="ui-req">*</span></label><input id="np-preco" name="preco" value={preco} onChange={(e) => setPreco(e.target.value)} type="number" step="0.01" min={0} inputMode="decimal" required aria-invalid={!!erros.preco} placeholder="19.90" />{err('preco')}</div>
+        <div className="fg"><label htmlFor="np-promo">Preço promocional (opcional)</label><input id="np-promo" name="preco_promo" value={precoPromo} onChange={(e) => setPrecoPromo(e.target.value)} type="number" step="0.01" min={0} inputMode="decimal" aria-invalid={!!erros.preco_promo} placeholder="14.90" />
+          {err('preco_promo') || <div className="ui-help">Menor que o preço normal. O desconto aparece no anúncio.</div>}</div>
       </div>
+      </section>
+
+      <section className="ui-sec" aria-labelledby="sec-entrega">
+        <h3 id="sec-entrega"><Icon name="package" size={16} /> 4. Entrega e garantia</h3>
+        <p className="ui-sec-sub">O que o comprador recebe depois que o pagamento é confirmado.</p>
       <div className="fg2">
-        <div className="fg"><label>Tipo de entrega</label>
-          <select name="tipo_entrega" value={tipo} onChange={(e) => setTipo(e.target.value)}>
+        <div className="fg"><label htmlFor="np-tipo">Tipo de entrega<span className="ui-req">*</span></label>
+          <select id="np-tipo" name="tipo_entrega" value={tipo} onChange={(e) => setTipo(e.target.value)}>
             <option value="arquivo">Arquivo (upload)</option>
             <option value="link">Link de acesso</option>
             <option value="chave">Chave / código</option>
             <option value="acesso">Acesso / instrução</option>
           </select>
         </div>
-        <div className="fg"><label>Garantia (dias)</label><input name="garantia_dias" type="number" min={0} value={garantia} onChange={(e) => setGarantia(e.target.value)} /></div>
+        <div className="fg"><label htmlFor="np-gar">Garantia (dias)</label><input id="np-gar" name="garantia_dias" type="number" min={0} max={365} value={garantia} onChange={(e) => setGarantia(e.target.value)} aria-invalid={!!erros.garantia} />
+          {err('garantia') || <div className="ui-help">Prazo em que o comprador pode abrir reclamação.</div>}</div>
       </div>
 
       {tipo === 'arquivo' ? (
         <div className="fg">
-          <label>Arquivo do produto (entregue após o pagamento)</label>
+          <label>Arquivo do produto</label>
           <FileUpload userId={userId} onUploaded={(p, n) => { setArquivoPath(p); setArquivoNome(n); }} />
+          <div className="ui-help">Entregue ao comprador somente depois do pagamento confirmado.</div>
           <input type="hidden" name="arquivo_path" value={arquivoPath} />
           <input type="hidden" name="arquivo_nome" value={arquivoNome} />
         </div>
       ) : (
-        <div className="fg"><label>Conteúdo liberado pós-pagamento (link ou texto)</label><input name="conteudo_entrega" value={conteudoEntrega} onChange={(e) => setConteudoEntrega(e.target.value)} placeholder="https://… ou a chave/instrução" /></div>
+        <div className="fg"><label htmlFor="np-cont">Conteúdo liberado pós-pagamento (link ou texto)</label><input id="np-cont" name="conteudo_entrega" value={conteudoEntrega} onChange={(e) => setConteudoEntrega(e.target.value)} placeholder="https://… ou a chave/instrução" />
+          <div className="ui-help">Só aparece para o comprador depois do pagamento confirmado. Se a entrega for manual, você também pode entregar pela conversa do pedido.</div></div>
       )}
+      </section>
 
       {/* emoji legado: o servidor ainda lê o campo; vazio = padrão do servidor */}
       <input type="hidden" name="emoji" value="" />
@@ -198,7 +241,8 @@ export default function CreateProduct({ userId }: { userId: string }) {
         onApplyDescription={(d) => { setDescricao(d); toast('Descrição atualizada.', 'success'); }}
       />
 
-      <button className="btn btn-pri" disabled={busy} style={{ width: '100%' }}>{busy ? 'Enviando…' : 'Enviar para revisão'}</button>
+      <button className="btn btn-pri btn-lg" disabled={busy} style={{ width: '100%', marginTop: 8 }}>{busy ? 'Enviando…' : 'Enviar para revisão'}</button>
+      <p className="ui-help" style={{ textAlign: 'center' }}>Depois de enviado, o produto aparece em Meus produtos como “Em revisão”.</p>
     </form>
   );
 }

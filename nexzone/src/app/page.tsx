@@ -11,6 +11,7 @@ import { numerosReais, vendasRecentes, type ProvaSocialNumeros, type VendaRecent
 import { stripeAvailable } from '@/lib/payments/stripe';
 import type { Product } from '@/lib/types';
 import { produtosPublicos } from '@/lib/vendedorPublico';
+import { PRODUTO_CARD } from '@/lib/consultas';
 import { CATEGORIAS, contarPorCategoria } from '@/lib/categorias';
 
 export const dynamic = 'force-dynamic';
@@ -46,10 +47,10 @@ export default async function Home() {
   const algumContador = mostra.produtos || mostra.lojas || mostra.vendas;
 
   const [destRes, ofertaRes, altaRes, novoRes, catsRes] = await Promise.all([
-    supabase.from('products').select('*, stores(nome, nivel, ocultar_vendedor)').eq('status', 'ativo').gt('destaque_ate', nowIso).order('destaque_ate', { ascending: false }).limit(6),
-    supabase.from('products').select('*, stores(nome, nivel, ocultar_vendedor)').eq('status', 'ativo').order('vendas', { ascending: false }).order('nota', { ascending: false }).limit(8),
-    supabase.from('products').select('*, stores(nome, nivel, ocultar_vendedor)').eq('status', 'ativo').order('vendas', { ascending: false }).limit(8),
-    supabase.from('products').select('*, stores(nome, nivel, ocultar_vendedor)').eq('status', 'ativo').order('created_at', { ascending: false }).limit(8),
+    supabase.from('products').select(PRODUTO_CARD).eq('status', 'ativo').gt('destaque_ate', nowIso).order('destaque_ate', { ascending: false }).limit(6),
+    supabase.from('products').select(PRODUTO_CARD).eq('status', 'ativo').order('vendas', { ascending: false }).order('nota', { ascending: false }).limit(8),
+    supabase.from('products').select(PRODUTO_CARD).eq('status', 'ativo').order('vendas', { ascending: false }).limit(8),
+    supabase.from('products').select(PRODUTO_CARD).eq('status', 'ativo').order('created_at', { ascending: false }).limit(8),
     supabase.from('products').select('categoria').eq('status', 'ativo'),
   ]);
   const destaques = produtosPublicos(destRes.data as Product[] | null);
@@ -85,6 +86,10 @@ export default async function Home() {
         .home-novo{display:inline-flex;gap:8px;align-items:center;margin-top:26px;font-size:13px;font-weight:800;color:#3A3A52;background:#FFF4EA;border:1px solid #FFE0C7;border-radius:50px;padding:7px 14px}
         .catgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px}
         @media(max-width:600px){.catgrid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.cattile{padding:14px;font-size:15px}.h-badges{gap:12px 18px}.home-stats{gap:22px}}
+        .h-search{display:flex;gap:8px;margin:22px 0 4px;max-width:620px;background:#fff;border:1.5px solid var(--border2);border-radius:999px;padding:6px 6px 6px 18px;box-shadow:var(--sh)}
+        .h-search:focus-within{border-color:var(--orange);box-shadow:0 0 0 4px rgba(255,107,0,.14)}
+        .h-search input{flex:1;min-width:0;border:none;outline:none;font-size:16px;background:transparent;color:var(--text)}
+        .h-search .btn{border-radius:999px;min-height:46px}
         .steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:18px;margin-top:26px}
         @media(max-width:860px){.h-art{display:none}.h-text{flex-basis:100%}}
       `}</style>
@@ -96,6 +101,11 @@ export default async function Home() {
               <div className="htag anim"><span className="live-dot" />Entrega imediata e pagamento seguro via Pix</div>
               <h1 className="hero anim d1">O lugar mais <span className="g">barato</span> de comprar produtos digitais.</h1>
               <p className="hero-sub anim d2">Prompts, planilhas, templates e automações de criadores verificados. Pague com Pix e receba na hora, com garantia.</p>
+              <form action="/produtos" method="get" role="search" className="h-search anim d2" aria-label="Buscar produtos">
+                <label htmlFor="h-q" className="sr-only">O que você procura?</label>
+                <input id="h-q" name="q" type="search" placeholder="O que você procura? Ex.: planilha, prompt, template…" maxLength={100} autoComplete="off" />
+                <button className="btn btn-pri" type="submit">Buscar</button>
+              </form>
               <div className="hero-ctas anim d3">
                 <Link href="/produtos" className="btn btn-pri btn-lg">Explorar produtos →</Link>
                 <Link href="/seja-vendedor" className="btn btn-ghost btn-lg">Começar a vender</Link>
@@ -152,19 +162,6 @@ export default async function Home() {
           </div>
         </div>
 
-        {destaques.length > 0 && (
-          <section className="nz"><div className="c">
-            <Carousel items={destaques} />
-          </div></section>
-        )}
-
-        {ofertas.length > 0 && (
-          <section className="nz"><div className="c">
-            <div className="st"><div className="slabel">Os melhores</div><h2>Destaques do site</h2></div>
-            <div className="pg">{ofertas.map((p) => <ProductCard key={p.id} p={p} />)}</div>
-          </div></section>
-        )}
-
         {cats.length > 0 && (
           <section className="nz">
             <div className="c">
@@ -182,6 +179,20 @@ export default async function Home() {
             </div>
           </section>
         )}
+
+        {destaques.length > 0 && (
+          <section className="nz"><div className="c">
+            <Carousel items={destaques} />
+          </div></section>
+        )}
+
+        {ofertas.length > 0 && (
+          <section className="nz"><div className="c">
+            <div className="st"><div className="slabel">Os melhores</div><h2>Destaques do site</h2></div>
+            <div className="pg">{ofertas.map((p) => <ProductCard key={p.id} p={p} />)}</div>
+          </div></section>
+        )}
+
 
         {vazio ? (
           <section className="nz"><div className="c">

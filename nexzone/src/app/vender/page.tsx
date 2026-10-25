@@ -6,6 +6,8 @@ import Icon from '@/components/Icon';
 import ProductThumb from '@/components/ProductThumb';
 import JourneyBadge from '@/components/JourneyBadge';
 import { computeJourney, brl } from '@/lib/journey';
+import StatCard from '@/components/ui/StatCard';
+import StatusBadge from '@/components/ui/StatusBadge';
 
 const money = (v: number) => 'R$ ' + Number(v).toFixed(2).replace('.', ',');
 export const dynamic = 'force-dynamic';
@@ -22,7 +24,7 @@ export default async function VenderCockpit() {
       <div>
         <h1 style={{ fontFamily: 'Outfit', fontSize: 26, fontWeight: 900 }}>Bem-vindo ao Comprei Barato</h1>
         <p className="muted" style={{ marginTop: 6 }}>Você ainda não tem produtos. Cadastre o primeiro e sua loja é criada automaticamente.</p>
-        <Link href="/vender/produtos" className="btn btn-pri" style={{ marginTop: 18, display: 'inline-block' }}>Cadastrar meu primeiro produto</Link>
+        <Link href="/vender/produtos/novo" className="btn btn-pri" style={{ marginTop: 18, display: 'inline-block' }}>Cadastrar meu primeiro produto</Link>
       </div>
     );
   }
@@ -59,6 +61,17 @@ export default async function VenderCockpit() {
   const maxDay = Math.max(1, ...daily.map((d) => d.total));
   const recentes = entregues.slice(0, 5);
 
+  // Catálogo do vendedor (só os próprios produtos; números reais)
+  const { data: prodRows } = await supabase.from('products').select('status, destaque_ate').eq('store_id', store.id);
+  const prods = (prodRows ?? []) as { status: string; destaque_ate: string | null }[];
+  const agora = Date.now();
+  const cat = {
+    total: prods.length,
+    ativos: prods.filter((p) => p.status === 'ativo').length,
+    revisao: prods.filter((p) => p.status === 'em_revisao').length,
+    destaque: prods.filter((p) => p.destaque_ate && new Date(p.destaque_ate).getTime() > agora).length,
+  };
+
   // jornada de faturamento (bruto = soma de total dos pedidos pagos)
   const fatBruto = entregues.reduce((s, o) => s + Number(o.total), 0);
   const jornada = computeJourney(fatBruto, entregues.length);
@@ -68,7 +81,11 @@ export default async function VenderCockpit() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16, marginBottom: 8 }}>
         <div>
           <h1 style={{ fontFamily: 'Outfit', fontSize: 26, fontWeight: 900, letterSpacing: '-.6px' }}>Olá, {store.nome}</h1>
-          <p className="muted">Aqui está o pulso da sua loja.</p>
+          <p className="muted" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>Aqui está o pulso da sua loja. <StatusBadge tipo="loja" status={(store as any).status} /></p>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
+            <Link href="/vender/produtos/novo" className="btn btn-pri btn-sm">+ Cadastrar produto</Link>
+            <Link href="/vender/produtos" className="btn btn-ghost btn-sm"><Icon name="package" size={16} /> Gerenciar produtos</Link>
+          </div>
         </div>
         <Link href="/vender/recebimentos" className="card" style={{ padding: '14px 20px', textDecoration: 'none', color: 'inherit', textAlign: 'right' }}>
           <div style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 700 }}>SALDO DISPONÍVEL</div>
@@ -81,6 +98,17 @@ export default async function VenderCockpit() {
         <div className="sd-stat"><div className="ic"><Icon name="receipt" size={20} /></div><b>{vendasMes}</b><small>Vendas no mês</small></div>
         <div className="sd-stat"><div className="ic"><Icon name="target" size={20} /></div><b>{money(ticket)}</b><small>Ticket médio</small></div>
         <div className="sd-stat"><div className="ic"><Icon name="trophy" size={20} /></div><b>{money(fatTotal)}</b><small>Faturamento total</small></div>
+      </div>
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
+        <strong style={{ fontFamily: 'Outfit', fontSize: 17 }}>Seu catálogo</strong>
+        <Link href="/vender/produtos" style={{ fontSize: 13, fontWeight: 800, color: 'var(--orange-ink)', display: 'inline-flex', alignItems: 'center', gap: 4 }}>Ver todos <Icon name="arrowRight" size={14} /></Link>
+      </div>
+      <div className="ui-stats" style={{ marginTop: 10 }}>
+        <StatCard label="Produtos cadastrados" value={cat.total} icon="package" href="/vender/produtos" />
+        <StatCard label="Ativos" value={cat.ativos} icon="checkCircle" href="/vender/produtos" />
+        <StatCard label="Em revisão" value={cat.revisao} icon="hourglass" href="/vender/produtos" />
+        <StatCard label="Com destaque ativo" value={cat.destaque} icon="star" href="/vender/produtos" />
       </div>
 
       <div className="card" style={{ marginBottom: 20, display: 'flex', alignItems: 'center', gap: 18, flexWrap: 'wrap' }}>
