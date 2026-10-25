@@ -16,6 +16,7 @@ export interface Product {
   status: ProductStatus;
   emoji: string;
   capa_url?: string | null;
+  imagens?: string[] | null; // galeria (a 1ª é a capa)
   destaque_ate?: string | null;
   checkout_config?: any;
   bump_product_id?: string | null;
