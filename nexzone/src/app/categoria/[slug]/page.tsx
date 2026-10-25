@@ -3,6 +3,7 @@ import ProductCard from '@/components/ProductCard';
 import { createClient } from '@/lib/supabase/server';
 import { notFound } from 'next/navigation';
 import type { Product } from '@/lib/types';
+import { produtosPublicos } from '@/lib/vendedorPublico';
 import CategoryIcon from '@/components/CategoryIcon';
 
 export const dynamic = 'force-dynamic';
@@ -13,9 +14,9 @@ export default async function CategoriaPage({ params }: { params: { slug: string
   if (!cat) notFound();
 
   const { data } = await supabase.from('products')
-    .select('*, stores(nome, nivel)').eq('status', 'ativo').eq('categoria', cat.nome)
+    .select('*, stores(nome, nivel, ocultar_vendedor)').eq('status', 'ativo').eq('categoria', cat.nome)
     .order('vendas', { ascending: false });
-  const produtos = (data ?? []) as Product[];
+  const produtos = produtosPublicos(data as Product[] | null);
 
   return (
     <>
