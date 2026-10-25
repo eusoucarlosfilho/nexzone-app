@@ -2,7 +2,7 @@ import Nav from '@/components/Nav';
 import Footer from '@/components/Footer';
 import ProductCard from '@/components/ProductCard';
 import PartnerOfferCard from '@/components/PartnerOfferCard';
-import { configMix, ofertasAtivas } from '@/lib/ofertas/servidor';
+import { configMix, ofertasAtivas, visiveis } from '@/lib/ofertas/servidor';
 import Carousel from '@/components/Carousel';
 import Link from 'next/link';
 import CategoryIcon, { CategoryCover, categoryColors } from '@/components/CategoryIcon';
@@ -68,8 +68,8 @@ export default async function Home() {
   const vitrine = (destaques.length ? destaques : ofertas).slice(0, 2);
   const taxa = commission_percent ?? 3;
 
-  // Ofertas de parceiros: seção própria, identificada, depois das vitrines de produtos nativos
-  const parceiras = mix.ativo ? todasParceiras.slice(0, mix.homeQtd) : [];
+  // Produtos externos: seção própria depois das vitrines de produtos nativos (respeita as chaves do admin)
+  const parceiras = visiveis(todasParceiras, mix).slice(0, mix.homeQtd);
 
   return (
     <>
@@ -203,9 +203,9 @@ export default async function Home() {
 
         {parceiras.length > 0 && (
           <section className="nz"><div className="c">
-            <div className="st"><div className="slabel">Selecionados</div><h2>Ofertas de parceiros</h2></div>
-            <p className="muted" style={{ marginTop: -6, marginBottom: 16, fontSize: 14 }}>Produtos digitais de plataformas parceiras. A compra é feita no site do parceiro.</p>
-            <div className="pg">{parceiras.map((o) => <PartnerOfferCard key={o.id} o={o} />)}</div>
+            <div className="st"><div className="slabel">Selecionados</div><h2>{mix.mostrarOrigem ? 'Ofertas de parceiros' : 'Mais ofertas para você'}</h2></div>
+            {mix.mostrarOrigem && <p className="muted" style={{ marginTop: -6, marginBottom: 16, fontSize: 14 }}>Produtos de plataformas parceiras. A compra é feita no site do parceiro.</p>}
+            <div className="pg">{parceiras.map((o) => <PartnerOfferCard key={o.id} o={o} mostrarOrigem={mix.mostrarOrigem} />)}</div>
           </div></section>
         )}
 
