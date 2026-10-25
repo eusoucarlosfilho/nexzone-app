@@ -100,6 +100,24 @@ export default function AdminDashboard({ adminEmail, users, metrics, daily, orde
     setUserList((l) => l.map((u) => u.id === userId ? { ...u, status: d.status } : u));
     toast(action === 'block' ? 'Usuário bloqueado.' : action === 'restrict' ? 'Usuário restrito.' : 'Status liberado.', 'success');
   }
+  // "Vender como Comprei Barato" (ocultar o vendedor no site público) — por loja, só admin
+  async function alternarVisibilidade(u: any) {
+    const ligar = !u.seller?.ocultarVendedor;
+    if (ligar && !confirm('Os produtos desta loja vão aparecer como vendidos pelo Comprei Barato. O nome da loja fica visível só no Admin.')) return;
+    setBusy(u.id + ':visibilidade');
+    try {
+      const r = await fetch('/api/admin/store-visibility', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+        body: JSON.stringify({ store_id: u.seller.id, ocultar: ligar }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) { toast(d.error || 'Falha ao alterar', 'error'); return; }
+      setUserList((l) => l.map((x) => x.id === u.id ? { ...x, seller: { ...x.seller, ocultarVendedor: d.ocultar_vendedor === true } } : x));
+      toast(d.ocultar_vendedor ? 'Loja vendendo como Comprei Barato.' : 'Loja voltou a aparecer com o próprio nome.', 'success');
+    } catch {
+      toast('Falha de conexão', 'error');
+    } finally { setBusy(null); }
+  }
   function avisar(userId: string, tipo: 'aviso' | 'advertencia') {
     const t = window.prompt(tipo === 'aviso' ? 'Mensagem do aviso para o usuário:' : 'Texto da advertência:');
     if (t && t.trim()) userAction(userId, tipo, t.trim());
@@ -416,6 +434,7 @@ export default function AdminDashboard({ adminEmail, users, metrics, daily, orde
                     </div>
                     {u.role === 'admin' && badge('Admin', '#EAE6FF', '#5B3FC4')}
                     {u.seller && badge('Vendedor', '#E7F5EC', '#1FA463')}
+                    {u.seller?.ocultarVendedor && badge('Vendendo como Comprei Barato', '#FF6B00', '#fff')}
                     {u.status === 'restrito' && badge('Restrito', '#FFF0E0', '#B5650A')}
                     {u.status === 'bloqueado' && badge('Bloqueado', '#FDE7E7', '#C73A3A')}
                     {u.reclamacoesAbertas > 0 && badge(`${u.reclamacoesAbertas} reclamação`, '#FDE7E7', '#C73A3A')}
@@ -437,7 +456,14 @@ export default function AdminDashboard({ adminEmail, users, metrics, daily, orde
                       <div style={{ fontSize: 11, color: 'var(--sub)', marginTop: 10, wordBreak: 'break-all' }}>ID: {u.id}</div>
 
                       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 14 }}>
-                        {u.seller && <a className="adm-btn" href={`/loja/${u.seller.slug}`} target="_blank" rel="noreferrer">Ver loja pública ›</a>}
+                        {u.seller && !u.seller.ocultarVendedor && <a className="adm-btn" href={`/loja/${u.seller.slug}`} target="_blank" rel="noreferrer">Ver loja pública ›</a>}
+                        {u.seller && (
+                          <button className="adm-btn" disabled={busy === u.id + ':visibilidade'} onClick={() => alternarVisibilidade(u)}
+                            title="Só o admin vê esta opção. Pagamento e repasse continuam indo para a loja."
+                            style={u.seller.ocultarVendedor ? { background: '#FF6B00', color: '#fff' } : undefined}>
+                            {u.seller.ocultarVendedor ? 'Vendendo como Comprei Barato' : 'Mostrar como vendedor'}
+                          </button>
+                        )}
                         {u.reclamacoesAbertas > 0 && <button className="adm-btn" onClick={() => setTab('reclamacoes')}>Ver reclamações</button>}
                         <button className="adm-btn" disabled={busy === u.id + ':aviso'} onClick={() => avisar(u.id, 'aviso')}>Mandar aviso</button>
                         <button className="adm-btn" disabled={busy === u.id + ':advertencia'} onClick={() => avisar(u.id, 'advertencia')}>Advertência</button>

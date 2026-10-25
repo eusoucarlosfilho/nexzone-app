@@ -122,10 +122,18 @@ export default async function AdminPage() {
     return { tag: 'Regular', icon: 'activity', tone: 'pendente' };
   }
 
+  // "Vender como Comprei Barato": lido à parte para o painel não quebrar se a migração 0005 ainda não rodou
+  let ocultaPorLoja: Record<string, boolean> = {};
+  try {
+    const { data: vis, error: visErr } = await admin.from('stores').select('id, ocultar_vendedor');
+    if (!visErr) ocultaPorLoja = Object.fromEntries(((vis ?? []) as any[]).map((v) => [v.id, v.ocultar_vendedor === true]));
+  } catch { /* migração 0005 ainda não aplicada */ }
+
   const sellers = stores.map((s) => {
     const a = acc[s.id];
     return {
       id: s.id, owner: s.owner, nome: s.nome, slug: s.slug, status: s.status, nivel: s.nivel, categoria: s.categoria, created_at: s.created_at,
+      ocultarVendedor: ocultaPorLoja[s.id] === true,
       produtosTotal: a.produtosTotal, produtosAtivos: a.produtosAtivos, vendas: a.vendas, gmv: a.gmv, comissao: a.comissao,
       ticket: a.vendas ? a.gmv / a.vendas : 0, ultimaVenda: a.ultimaVenda, ultimoProduto: a.ultimoProduto,
       aSacar: a.aSacar, sacado: a.sacado, destaques: a.destaques, notaMedia: a.notaQtd ? a.notaSum / a.notaQtd : 0,
