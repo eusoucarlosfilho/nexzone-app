@@ -3,6 +3,7 @@ import FavButton from './FavButton';
 import Icon from './Icon';
 import { CategoryCover } from './CategoryIcon';
 import type { Product } from '@/lib/types';
+import { vendedorPublico } from '@/lib/vendedorPublico';
 
 const money = (v: number) => 'R$ ' + Number(v).toFixed(2).replace('.', ',');
 
@@ -10,6 +11,7 @@ export default function ProductCard({ p }: { p: Product }) {
   const preco = p.preco_promo ?? p.preco;
   const off = p.preco_promo && p.preco > p.preco_promo ? Math.round((1 - p.preco_promo / p.preco) * 100) : 0;
   const destaque = p.destaque_ate && new Date(p.destaque_ate) > new Date();
+  const vend = vendedorPublico(p.stores);
   return (
     <Link href={`/produto/${p.id}`} className="pc">
       <div className="top">
@@ -22,8 +24,8 @@ export default function ProductCard({ p }: { p: Product }) {
       </div>
       <div className="body">
         <div className="vend">
-          {p.stores?.nome ?? 'Loja'}
-          <svg width="14" height="14" viewBox="0 0 24 24" role="img" aria-label="Loja verificada"><path fill="#1D7AE0" d="M12 2l2.4 2.2 3.2-.4.9 3.1 2.9 1.5-1 3.1 1 3.1-2.9 1.5-.9 3.1-3.2-.4L12 22l-2.4-2.2-3.2.4-.9-3.1-2.9-1.5 1-3.1-1-3.1 2.9-1.5.9-3.1 3.2.4z" /><path d="M8.5 12l2.4 2.4 4.6-4.8" stroke="#fff" strokeWidth="2" fill="none" /></svg>
+          {vend.nome}
+          <svg width="14" height="14" viewBox="0 0 24 24" role="img" aria-label={vend.oficial ? 'Loja oficial' : 'Loja verificada'}><path fill="#1D7AE0" d="M12 2l2.4 2.2 3.2-.4.9 3.1 2.9 1.5-1 3.1 1 3.1-2.9 1.5-.9 3.1-3.2-.4L12 22l-2.4-2.2-3.2.4-.9-3.1-2.9-1.5 1-3.1-1-3.1 2.9-1.5.9-3.1 3.2.4z" /><path d="M8.5 12l2.4 2.4 4.6-4.8" stroke="#fff" strokeWidth="2" fill="none" /></svg>
         </div>
         <div className="tit">{p.titulo}</div>
         <div className="rt">

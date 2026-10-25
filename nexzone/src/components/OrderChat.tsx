@@ -10,6 +10,7 @@ export default function OrderChat({ orderId, theme = 'light', readOnly = false, 
   const [texto, setTexto] = useState('');
   const [enviando, setEnviando] = useState(false);
   const [carregou, setCarregou] = useState(false);
+  const [lojaNome, setLojaNome] = useState<string | null>(null); // só vem preenchido quando a loja vende como Comprei Barato
   const fimRef = useRef<HTMLDivElement | null>(null);
   const boxRef = useRef<HTMLDivElement | null>(null);
 
@@ -29,6 +30,7 @@ export default function OrderChat({ orderId, theme = 'light', readOnly = false, 
       if (!r.ok) return;
       const d = await r.json();
       setMsgs(d.messages || []);
+      setLojaNome(d.oficial ? (d.loja || null) : null);
       setCarregou(true);
     } catch {}
   }, [orderId]);
@@ -76,7 +78,7 @@ export default function OrderChat({ orderId, theme = 'light', readOnly = false, 
           const own = m.mine;
           const bg = own ? 'linear-gradient(135deg,#FF6B00,#FF9A3C)' : C.bubbleOther;
           const col = own ? '#fff' : C.tx;
-          const roleTag = m.papel === 'admin' ? 'Administrador' : m.papel === 'vendedor' ? 'Vendedor' : 'Cliente';
+          const roleTag = m.papel === 'admin' ? 'Administrador' : m.papel === 'vendedor' ? (lojaNome || 'Vendedor') : 'Cliente';
           // No modo moderador (visão do admin), mostra o papel de cada um — inclusive as próprias.
           const label = moderator ? roleTag : (own ? 'Você' : roleTag);
           return (

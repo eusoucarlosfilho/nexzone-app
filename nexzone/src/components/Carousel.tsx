@@ -4,6 +4,7 @@ import Link from 'next/link';
 import Icon from './Icon';
 import { CategoryCover } from './CategoryIcon';
 import type { Product } from '@/lib/types';
+import { vendedorPublico } from '@/lib/vendedorPublico';
 
 const money = (v: number) => 'R$ ' + Number(v).toFixed(2).replace('.', ',');
 
@@ -31,7 +32,7 @@ export default function Carousel({ items }: { items: Product[] }) {
         <div className="car-tx">
           <span className="car-tag"><Icon name="star" size={12} strokeWidth={2.6} />Destaque</span>
           <h2>{p.titulo}</h2>
-          <div className="car-meta">{p.stores?.nome ?? 'Loja'}{p.categoria ? ` · ${p.categoria}` : ''}</div>
+          <div className="car-meta">{vendedorPublico(p.stores).nome}{p.categoria ? ` · ${p.categoria}` : ''}</div>
           <div className="car-buy">
             <b>{money(preco)}</b>
             <span>Ver produto →</span>
