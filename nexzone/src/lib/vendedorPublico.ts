@@ -15,6 +15,7 @@ export const COMPREI_BARATO = {
   logo_url: '/logo.png',
   cor: '#FF6B00',
   oficial: true,
+  verificada: true,
 };
 
 export type VendedorPublico = {
@@ -24,6 +25,8 @@ export type VendedorPublico = {
   logo_url: string | null;
   cor: string | null;
   oficial: boolean;
+  /** true só quando a loja está com status 'verificado' (ou é a loja oficial). Sem o status, false. */
+  verificada: boolean;
 };
 
 /** Dados públicos do vendedor: Comprei Barato se a loja estiver oculta; senão, os dados reais. */
@@ -36,6 +39,8 @@ export function vendedorPublico(store: any): VendedorPublico {
     logo_url: store?.logo_url ?? null,
     cor: store?.cor ?? null,
     oficial: false,
+    // status vem da consulta; verificada já vem quando o objeto passou por aqui antes (produtosPublicos + ProductCard)
+    verificada: store?.status === 'verificado' || store?.verificada === true,
   };
 }
 
