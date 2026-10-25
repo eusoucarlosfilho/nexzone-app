@@ -11,8 +11,16 @@ export async function POST(req: Request) {
 
   const admin = createAdminClient();
 
+  // Pago, mas com valor menor que o cobrado: não libera.
+  function valorConfere(esperado: any) {
+    if (event!.amount === undefined) return true;
+    const ok = event!.amount + 0.01 >= Number(esperado ?? 0);
+    if (!ok) console.error('Webhook: valor pago menor que o esperado', event!.gatewayRef, event!.amount, esperado);
+    return ok;
+  }
+
   async function processarBoost(boost: any) {
-    if (event!.status === 'pago' && boost.status === 'pendente') {
+    if (event!.status === 'pago' && boost.status === 'pendente' && valorConfere(boost.valor)) {
       const expira = new Date(Date.now() + boost.dias * 86400000).toISOString();
       await admin.from('boosts').update({ status: 'pago', pago_em: new Date().toISOString(), expira_em: expira }).eq('id', boost.id);
       await admin.from('products').update({ destaque_ate: expira }).eq('id', boost.product_id);
@@ -20,7 +28,7 @@ export async function POST(req: Request) {
   }
 
   async function processarPedido(order: any) {
-    if (event!.status === 'pago' && order.status === 'pendente') {
+    if (event!.status === 'pago' && order.status === 'pendente' && valorConfere(order.total)) {
       const { data: product } = await admin.from('products').select('conteudo_entrega, vendas').eq('id', order.product_id).single();
       await admin.from('orders').update({
         status: 'entregue', conteudo_liberado: product?.conteudo_entrega ?? null, entregue_em: new Date().toISOString(),
@@ -50,13 +58,13 @@ export async function POST(req: Request) {
   // BOOST identificado pelo orderId (gateways que devolvem o external_reference, ex.: Mercado Pago)
   if (event.orderId && event.orderId.startsWith('boost:')) {
     const boostId = event.orderId.slice(6);
-    const { data: boost } = await admin.from('boosts').select('id, status, product_id, dias').eq('id', boostId).maybeSingle();
+    const { data: boost } = await admin.from('boosts').select('id, status, product_id, dias, valor').eq('id', boostId).maybeSingle();
     if (boost) await processarBoost(boost);
     return NextResponse.json({ ok: true });
   }
 
   // PEDIDO — por id (se veio) ou por gateway_ref (ex.: MisticPay, que só devolve o id dela)
-  let oq = admin.from('orders').select('id, status, product_id, store_id, cupom, bump_product_id, comprador');
+  let oq = admin.from('orders').select('id, status, product_id, store_id, cupom, bump_product_id, comprador, total');
   oq = event.orderId ? oq.eq('id', event.orderId) : oq.eq('gateway_ref', event.gatewayRef);
   const { data: order } = await oq.maybeSingle();
   if (order) { await processarPedido(order); return NextResponse.json({ ok: true }); }
@@ -64,7 +72,7 @@ export async function POST(req: Request) {
   // Não achou pedido: pode ser um BOOST pago via MisticPay (casamos por gateway_ref)
   if (event.gatewayRef) {
     const { data: boost } = await admin.from('boosts')
-      .select('id, status, product_id, dias').eq('gateway_ref', event.gatewayRef).maybeSingle();
+      .select('id, status, product_id, dias, valor').eq('gateway_ref', event.gatewayRef).maybeSingle();
     if (boost) await processarBoost(boost);
   }
 

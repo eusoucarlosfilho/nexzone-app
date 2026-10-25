@@ -21,6 +21,7 @@ export interface WebhookEvent {
   gatewayRef: string;
   status: 'pago' | 'recusado' | 'estornado' | 'pendente';
   orderId?: string;
+  amount?: number; // valor confirmado pelo gateway (quando disponível)
 }
 export interface PaymentGateway {
   createPixPayment(input: CreatePaymentInput): Promise<CreatePaymentResult>;
@@ -45,7 +46,9 @@ class MisticPayGateway implements PaymentGateway {
   constructor(private ci: string, private cs: string) {}
 
   private headers() {
-    return { ci: this.ci, cs: this.cs, 'Content-Type': 'application/json' };
+    // Chaves de acesso novas usam Basic auth; ci/cs mantidos para credenciais antigas.
+    const basic = Buffer.from(`${this.ci}:${this.cs}`).toString('base64');
+    return { Authorization: `Basic ${basic}`, ci: this.ci, cs: this.cs, 'Content-Type': 'application/json' };
   }
 
   async createPixPayment(input: CreatePaymentInput): Promise<CreatePaymentResult> {
@@ -114,11 +117,27 @@ class MisticPayGateway implements PaymentGateway {
 
       const ref = String(b?.transactionId || '');
       if (!ref) return null;
-      const s = String(b?.status || '').toUpperCase();
+
+      // A MisticPay não assina o webhook: qualquer um pode chamar esta URL.
+      // Por isso o status e o valor vêm da consulta à API, nunca do corpo recebido.
+      const res = await fetch(`${this.base}/transactions/check`, {
+        method: 'POST', headers: this.headers(), body: JSON.stringify({ transactionId: ref }),
+        cache: 'no-store',
+      });
+      const data = await res.json().catch(() => ({} as any));
+      const tx = data?.transaction || data?.data?.transaction || data?.data;
+      if (!res.ok || !tx || String(tx.transactionId ?? ref) !== ref) {
+        console.error('MisticPay erro check:', res.status, JSON.stringify(data));
+        return null;
+      }
+      if (String(tx.transactionType || '').toUpperCase() === 'RETIRADA') return null;
+
+      const s = String(tx.transactionState || tx.status || '').toUpperCase();
       const map: Record<string, WebhookEvent['status']> = {
         COMPLETO: 'pago', FALHA: 'recusado', PENDENTE: 'pendente',
       };
-      return { gatewayRef: ref, status: map[s] || 'pendente' };
+      const value = Number(tx.value);
+      return { gatewayRef: ref, status: map[s] || 'pendente', amount: isNaN(value) ? undefined : value };
     } catch {
       return null;
     }

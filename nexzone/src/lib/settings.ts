@@ -1,4 +1,4 @@
-import { createClient } from './supabase/server';
+import { createAdminClient } from './supabase/server';
 import { PLANOS_DESTAQUE } from './boost';
 
 export type BoostPlan = { dias: number; valor: number; label: string };
@@ -43,8 +43,10 @@ function num(v: any, def: number) {
 
 export async function getSettings(): Promise<Settings> {
   try {
-    const supabase = createClient();
-    const { data } = await supabase.from('settings').select('key, value');
+    // A tabela settings guarda segredos (MisticPay, SMS, DeepSeek) e não deve ser legível
+    // pela chave pública; por isso a leitura é feita com service_role, só no servidor.
+    const admin = createAdminClient();
+    const { data } = await admin.from('settings').select('key, value');
     const map: any = Object.fromEntries((data ?? []).map((r: any) => [r.key, r.value]));
     return {
       commission_percent: num(map.commission_percent, DEFAULTS.commission_percent),
