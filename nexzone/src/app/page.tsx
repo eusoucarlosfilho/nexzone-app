@@ -4,8 +4,11 @@ import ProductCard from '@/components/ProductCard';
 import Carousel from '@/components/Carousel';
 import Link from 'next/link';
 import CategoryIcon, { CategoryCover, categoryColors } from '@/components/CategoryIcon';
-import { createClient } from '@/lib/supabase/server';
+import UltimasVendas from '@/components/UltimasVendas';
+import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { getSettings } from '@/lib/settings';
+import { numerosReais, vendasRecentes, type ProvaSocialNumeros, type VendaRecente } from '@/lib/provaSocial';
+import { stripeAvailable } from '@/lib/payments/stripe';
 import type { Product } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
@@ -17,24 +20,41 @@ const Check = ({ c = '#B84A00' }: { c?: string }) => (
 
 export default async function Home() {
   const supabase = createClient();
-  const { support_email, commission_percent } = await getSettings();
+  const cfg = await getSettings();
+  const { support_email, commission_percent } = cfg;
   const nowIso = new Date().toISOString();
-  const [destRes, ofertaRes, altaRes, novoRes, catsRes, prodCount, lojaCount] = await Promise.all([
+
+  // Prova social: sempre números reais (lidos no servidor com service_role; só totais chegam à página).
+  let reais: ProvaSocialNumeros = { lojas: 0, produtos: 0, vendas: 0 };
+  let recentes: VendaRecente[] = [];
+  let cartao = false;
+  try {
+    const admin = createAdminClient();
+    [reais, recentes, cartao] = await Promise.all([
+      numerosReais(admin),
+      cfg.ps_mostrar_ultimas_vendas ? vendasRecentes(admin, 8) : Promise.resolve([] as VendaRecente[]),
+      cfg.ps_selos ? stripeAvailable().catch(() => false) : Promise.resolve(false), // "Pix e cartão" só se o cartão estiver de fato disponível no checkout
+    ]);
+  } catch { /* sem números: os contadores ficam escondidos */ }
+  const mostra = {
+    produtos: cfg.ps_mostrar_contadores && reais.produtos > 0 && reais.produtos >= cfg.ps_min_produtos,
+    lojas: cfg.ps_mostrar_contadores && reais.lojas > 0 && reais.lojas >= cfg.ps_min_lojas,
+    vendas: cfg.ps_mostrar_contadores && cfg.ps_mostrar_vendas && reais.vendas > 0 && reais.vendas >= cfg.ps_min_vendas,
+  };
+  const algumContador = mostra.produtos || mostra.lojas || mostra.vendas;
+
+  const [destRes, ofertaRes, altaRes, novoRes, catsRes] = await Promise.all([
     supabase.from('products').select('*, stores(nome, nivel)').eq('status', 'ativo').gt('destaque_ate', nowIso).order('destaque_ate', { ascending: false }).limit(6),
     supabase.from('products').select('*, stores(nome, nivel)').eq('status', 'ativo').order('vendas', { ascending: false }).order('nota', { ascending: false }).limit(8),
     supabase.from('products').select('*, stores(nome, nivel)').eq('status', 'ativo').order('vendas', { ascending: false }).limit(8),
     supabase.from('products').select('*, stores(nome, nivel)').eq('status', 'ativo').order('created_at', { ascending: false }).limit(8),
     supabase.from('categories').select('nome, slug'),
-    supabase.from('products').select('id', { count: 'exact', head: true }).eq('status', 'ativo'),
-    supabase.from('stores').select('id', { count: 'exact', head: true }),
   ]);
   const destaques = (destRes.data ?? []) as Product[];
   const ofertas = (ofertaRes.data ?? []) as Product[];
   const emAlta = (altaRes.data ?? []) as Product[];
   const novidades = (novoRes.data ?? []) as Product[];
   const cats = catsRes.data ?? [];
-  const nProd = prodCount.count ?? 0;
-  const nLoja = lojaCount.count ?? 0;
   const vazio = emAlta.length === 0;
   const vitrine = (destaques.length ? destaques : ofertas).slice(0, 2);
   const taxa = commission_percent ?? 3;
@@ -58,6 +78,7 @@ export default async function Home() {
         .home-stats{display:flex;gap:30px;margin-top:26px;flex-wrap:wrap}
         .home-stats b{font-family:'Outfit';font-size:26px;font-weight:900;display:block;line-height:1}
         .home-stats small{font-size:13px;color:var(--sub);font-weight:800}
+        .home-novo{display:inline-flex;gap:8px;align-items:center;margin-top:26px;font-size:13px;font-weight:800;color:#3A3A52;background:#FFF4EA;border:1px solid #FFE0C7;border-radius:50px;padding:7px 14px}
         .catgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px}
         @media(max-width:600px){.catgrid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.cattile{padding:14px;font-size:15px}.h-badges{gap:12px 18px}.home-stats{gap:22px}}
         .steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:18px;margin-top:26px}
@@ -75,15 +96,24 @@ export default async function Home() {
                 <Link href="/produtos" className="btn btn-pri btn-lg">Explorar produtos →</Link>
                 <Link href="/seja-vendedor" className="btn btn-ghost btn-lg">Começar a vender</Link>
               </div>
-              <div className="h-badges anim d4">
-                <span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#B84A00" strokeWidth="2.2" strokeLinejoin="round" aria-hidden="true"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z" /></svg>Entrega na hora</span>
-                <span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#B84A00" strokeWidth="2.2" strokeLinejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2" /><path d="M8 11V7a4 4 0 0 1 8 0v4" /></svg>Pix protegido</span>
-                <span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#B84A00" strokeWidth="2.2" strokeLinejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>Garantia em todas as compras</span>
-              </div>
-              {(nProd > 0 || nLoja > 0) && (
+              {cfg.ps_selos && (
+                <div className="h-badges anim d4">
+                  <span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#B84A00" strokeWidth="2.2" strokeLinejoin="round" aria-hidden="true"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z" /></svg>Entrega na hora</span>
+                  <span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#B84A00" strokeWidth="2.2" strokeLinejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2" /><path d="M8 11V7a4 4 0 0 1 8 0v4" /></svg>{cartao ? 'Pix e cartão' : 'Pagamento via Pix'}</span>
+                  <span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#B84A00" strokeWidth="2.2" strokeLinejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>Garantia em todas as compras</span>
+                  <span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#B84A00" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="5" /><path d="m9 8 2 2 4-4" /><path d="M8.5 12.5 7 22l5-3 5 3-1.5-9.5" /></svg>Vendedores verificados</span>
+                </div>
+              )}
+              {algumContador ? (
                 <div className="home-stats anim d4">
-                  <div><b>{nProd.toLocaleString('pt-BR')}</b><small>produtos</small></div>
-                  <div><b>{nLoja.toLocaleString('pt-BR')}</b><small>{nLoja === 1 ? 'loja' : 'lojas'}</small></div>
+                  {mostra.produtos && <div><b>{reais.produtos.toLocaleString('pt-BR')}</b><small>{reais.produtos === 1 ? 'produto' : 'produtos'}</small></div>}
+                  {mostra.lojas && <div><b>{reais.lojas.toLocaleString('pt-BR')}</b><small>{reais.lojas === 1 ? 'loja' : 'lojas'}</small></div>}
+                  {mostra.vendas && <div><b>{reais.vendas.toLocaleString('pt-BR')}</b><small>{reais.vendas === 1 ? 'venda realizada' : 'vendas realizadas'}</small></div>}
+                </div>
+              ) : (
+                <div className="home-novo anim d4">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#B84A00" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /><path d="m9 12 2 2 4-4" /></svg>
+                  Novo marketplace · lojas verificadas
                 </div>
               )}
             </div>
@@ -188,6 +218,7 @@ export default async function Home() {
         </div></section>
       </main>
 
+      {cfg.ps_mostrar_ultimas_vendas && recentes.length > 0 && <UltimasVendas vendas={recentes} />}
       <Footer supportEmail={support_email} />
     </>
   );
