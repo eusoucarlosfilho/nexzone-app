@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 import NavSearch, { NavCats, CatChips, type NavCat } from './NavSearch';
 import MobileMenu from './MobileMenu';
 import Icon from './Icon';
+import { CATEGORIAS } from '@/lib/categorias';
 
 const NL = ({ href, icon, label }: { href: string; icon: string; label: string }) => (
   <Link href={href} className="nav-link" title={label}><Icon name={icon} size={18} strokeWidth={2.2} /><span className="nl-t">{label}</span></Link>
@@ -11,11 +12,9 @@ const NL = ({ href, icon, label }: { href: string; icon: string; label: string }
 
 export default async function Nav() {
   const supabase = createClient();
-  const [{ data: { user } }, catsRes] = await Promise.all([
-    supabase.auth.getUser(),
-    supabase.from('categories').select('nome, slug'),
-  ]);
-  const cats = (catsRes.data ?? []) as NavCat[];
+  const { data: { user } } = await supabase.auth.getUser();
+  // Categorias da fonte única (src/lib/categorias.ts), na ordem definida
+  const cats: NavCat[] = CATEGORIAS.map((c) => ({ nome: c.nome, slug: c.slug }));
 
   return (
     <>

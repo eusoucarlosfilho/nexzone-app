@@ -56,6 +56,11 @@ export function CatChips({ cats, active }: { cats: NavCat[]; active?: string | n
 
   return (
     <nav className="nav-cats-wrap" aria-label="Categorias">
+      {/* setas para rolar no computador (no celular, arrasta com o dedo) */}
+      {fade.l && <button type="button" className="nav-cats-arrow l" aria-label="Rolar categorias para a esquerda"
+        onClick={() => ref.current?.scrollBy({ left: -Math.round((ref.current?.clientWidth || 300) * 0.7), behavior: 'smooth' })}><Icon name="chevronRight" size={18} style={{ transform: 'rotate(180deg)' }} /></button>}
+      {fade.r && <button type="button" className="nav-cats-arrow r" aria-label="Rolar categorias para a direita"
+        onClick={() => ref.current?.scrollBy({ left: Math.round((ref.current?.clientWidth || 300) * 0.7), behavior: 'smooth' })}><Icon name="chevronRight" size={18} /></button>}
       <div ref={ref} className={`nav-cats${fade.l ? ' fl' : ''}${fade.r ? ' fr' : ''}`}>
         <Link href="/produtos" className={`chip${active === '' ? ' on' : ''}`} aria-current={active === '' ? 'page' : undefined}>
           <Icon name="grid" size={18} />Todos
@@ -68,6 +73,7 @@ export function CatChips({ cats, active }: { cats: NavCat[]; active?: string | n
             </Link>
           );
         })}
+        <Link href="/produtos" className="chip chip-todas">Ver todas<Icon name="chevronRight" size={16} /></Link>
       </div>
     </nav>
   );
