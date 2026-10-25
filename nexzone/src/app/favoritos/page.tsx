@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import type { Product } from '@/lib/types';
 import { produtosPublicos } from '@/lib/vendedorPublico';
+import { PRODUTO_CARD } from '@/lib/consultas';
 import Icon from '@/components/Icon';
 
 export const dynamic = 'force-dynamic';
@@ -15,7 +16,7 @@ export default async function FavoritosPage() {
   if (!user) redirect('/login');
 
   const { data } = await supabase.from('favorites')
-    .select('created_at, products(*, stores(nome, nivel, ocultar_vendedor))')
+    .select(`created_at, products(${PRODUTO_CARD})`)
     .eq('user_id', user.id).order('created_at', { ascending: false });
 
   const produtos = produtosPublicos((data ?? []).map((r: any) => r.products).filter((p: any) => p && p.status === 'ativo') as Product[]);

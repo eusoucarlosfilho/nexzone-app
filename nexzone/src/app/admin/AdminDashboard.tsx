@@ -26,6 +26,7 @@ const STATUS: Record<string, [string, string]> = {
   em_revisao: ['#B7791F', 'Em revisão'],
   ativo: ['#00B87A', 'Ativo'],
   reprovado: ['#E23B3B', 'Reprovado'],
+  pausado: ['#8A8AA0', 'Pausado'],
 };
 
 export default function AdminDashboard({ adminEmail, users, metrics, daily, orders, products, stores, payouts, boosts, settings, growth, sellers, complaints, alerts }: any) {
@@ -149,6 +150,11 @@ export default function AdminDashboard({ adminEmail, users, metrics, daily, orde
   }
   const [queue, setQueue] = useState(products.filter((p: any) => p.status === 'em_revisao'));
   const [allProducts, setAllProducts] = useState(products);
+  // Aba Produtos: busca, filtros e paginação (só visualização; não muda a moderação)
+  const [prodQuery, setProdQuery] = useState('');
+  const [prodStatus, setProdStatus] = useState('todos');
+  const [prodCat, setProdCat] = useState('');
+  const [prodPage, setProdPage] = useState(1);
   const [orderFilter, setOrderFilter] = useState('todos');
   const [orderList, setOrderList] = useState(orders || []);
   const [expSeller, setExpSeller] = useState<string | null>(null);
@@ -524,25 +530,68 @@ export default function AdminDashboard({ adminEmail, users, metrics, daily, orde
         {tab === 'produtos' && (
           <>
             <h1 className="adm-h">Produtos</h1>
-            <p className="adm-sub">Catálogo completo da plataforma.</p>
-            <div className="adm-card">
-              {allProducts.length ? (
+            <p className="adm-sub">Catálogo completo da plataforma. A aprovação continua na aba Aprovação.</p>
+            {(() => {
+              const POR = 50;
+              const contagem = (st: string) => allProducts.filter((p: any) => st === 'todos' || p.status === st).length;
+              const cats = Array.from(new Set(allProducts.map((p: any) => p.categoria).filter(Boolean))).sort() as string[];
+              const t = prodQuery.trim().toLowerCase();
+              const lista = allProducts.filter((p: any) =>
+                (prodStatus === 'todos' || p.status === prodStatus)
+                && (!prodCat || p.categoria === prodCat)
+                && (!t || String(p.titulo || '').toLowerCase().includes(t) || String(p.stores?.nome || '').toLowerCase().includes(t)));
+              const paginas = Math.max(1, Math.ceil(lista.length / POR));
+              const pg = Math.min(prodPage, paginas);
+              const vis = lista.slice((pg - 1) * POR, pg * POR);
+              return (
+                <>
+                  <div className="adm-filters">
+                    {['todos', 'em_revisao', 'ativo', 'pausado', 'reprovado'].map((f) => (
+                      <button key={f} className={`adm-fb ${prodStatus === f ? 'on' : ''}`} aria-pressed={prodStatus === f} onClick={() => { setProdStatus(f); setProdPage(1); }}>
+                        {f === 'todos' ? 'Todos' : (STATUS[f]?.[1] ?? f)} · {fmt(contagem(f))}
+                      </button>
+                    ))}
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
+                    <input value={prodQuery} onChange={(e) => { setProdQuery(e.target.value); setProdPage(1); }} placeholder="Buscar por produto ou loja…" aria-label="Buscar por produto ou loja"
+                      style={{ flex: '1 1 260px', maxWidth: 420, height: 42, borderRadius: 10, border: '1px solid var(--bd2)', padding: '0 14px', fontSize: 14, background: 'var(--panel2)', color: 'var(--tx)' }} />
+                    <select value={prodCat} onChange={(e) => { setProdCat(e.target.value); setProdPage(1); }} aria-label="Filtrar por categoria"
+                      style={{ height: 42, borderRadius: 10, border: '1px solid var(--bd2)', padding: '0 12px', fontSize: 14, background: 'var(--panel2)', color: 'var(--tx)' }}>
+                      <option value="">Todas as categorias</option>
+                      {cats.map((c) => <option key={c}>{c}</option>)}
+                    </select>
+                  </div>
+                  <p className="adm-sub" style={{ marginTop: 0 }} aria-live="polite">{fmt(lista.length)} produto{lista.length === 1 ? '' : 's'}</p>
+            <div className="adm-card" style={{ overflowX: 'auto' }}>
+              {vis.length ? (
                 <table className="adm-table">
-                  <thead><tr><th>Produto</th><th>Vendedor</th><th>Preço</th><th>Vendas</th><th>Status</th></tr></thead>
+                  <thead><tr><th>Produto</th><th>Vendedor</th><th>Categoria</th><th>Preço</th><th>Vendas</th><th>Cadastro</th><th>Status</th></tr></thead>
                   <tbody>
-                    {allProducts.map((p: any) => (
+                    {vis.map((p: any) => (
                       <tr key={p.id}>
                         <td><ProductThumb capa_url={p?.capa_url} categoria={p?.categoria} titulo={p?.titulo} tamanho={28} raio={7} icone={18} style={{ marginRight: 6 }} /> {p.titulo}</td>
                         <td style={{ color: 'var(--sub)' }}>{p.stores?.nome ?? '—'}</td>
+                        <td style={{ color: 'var(--sub)' }}>{p.categoria ?? '—'}</td>
                         <td>{money(p.preco_promo ?? p.preco)}</td>
                         <td>{fmt(p.vendas)}</td>
+                        <td style={{ color: 'var(--sub)', whiteSpace: 'nowrap' }}>{p.created_at ? new Date(p.created_at).toLocaleDateString('pt-BR') : '—'}</td>
                         <td><Pill s={p.status} /></td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
-              ) : <div className="adm-empty">Nenhum produto ainda.</div>}
+              ) : <div className="adm-empty">{allProducts.length ? 'Nenhum produto com esses filtros.' : 'Nenhum produto ainda.'}</div>}
             </div>
+                  {paginas > 1 && (
+                    <div className="adm-filters" style={{ justifyContent: 'center', marginTop: 14 }}>
+                      <button className="adm-fb" disabled={pg <= 1} onClick={() => setProdPage(pg - 1)}>‹ Anterior</button>
+                      <span className="adm-fb on" aria-current="page">{pg} de {paginas}</span>
+                      <button className="adm-fb" disabled={pg >= paginas} onClick={() => setProdPage(pg + 1)}>Próxima ›</button>
+                    </div>
+                  )}
+                </>
+              );
+            })()}
           </>
         )}
 

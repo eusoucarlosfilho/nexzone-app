@@ -3,6 +3,7 @@ import ProductCard from '@/components/ProductCard';
 import { createClient } from '@/lib/supabase/server';
 import type { Product } from '@/lib/types';
 import { produtosPublicos } from '@/lib/vendedorPublico';
+import { PRODUTO_CARD, termoBusca } from '@/lib/consultas';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,7 +13,7 @@ export default async function BuscaPage({ searchParams }: { searchParams: { q?: 
   let produtos: Product[] = [];
   if (q) {
     const { data } = await supabase.from('products')
-      .select('*, stores(nome, nivel, ocultar_vendedor)').eq('status', 'ativo').ilike('titulo', `%${q}%`)
+      .select(PRODUTO_CARD).eq('status', 'ativo').ilike('titulo', `%${termoBusca(q)}%`)
       .order('vendas', { ascending: false }).limit(48);
     produtos = produtosPublicos(data as Product[] | null);
   }
