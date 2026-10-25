@@ -1,6 +1,8 @@
 import Nav from '@/components/Nav';
 import Footer from '@/components/Footer';
 import ProductCard from '@/components/ProductCard';
+import PartnerOfferCard from '@/components/PartnerOfferCard';
+import { configMix, ofertasAtivas } from '@/lib/ofertas/servidor';
 import Carousel from '@/components/Carousel';
 import Link from 'next/link';
 import CategoryIcon, { CategoryCover, categoryColors } from '@/components/CategoryIcon';
@@ -46,12 +48,14 @@ export default async function Home() {
   };
   const algumContador = mostra.produtos || mostra.lojas || mostra.vendas;
 
-  const [destRes, ofertaRes, altaRes, novoRes, catsRes] = await Promise.all([
+  const [destRes, ofertaRes, altaRes, novoRes, catsRes, mix, todasParceiras] = await Promise.all([
     supabase.from('products').select(PRODUTO_CARD).eq('status', 'ativo').gt('destaque_ate', nowIso).order('destaque_ate', { ascending: false }).limit(6),
     supabase.from('products').select(PRODUTO_CARD).eq('status', 'ativo').order('vendas', { ascending: false }).order('nota', { ascending: false }).limit(8),
     supabase.from('products').select(PRODUTO_CARD).eq('status', 'ativo').order('vendas', { ascending: false }).limit(8),
     supabase.from('products').select(PRODUTO_CARD).eq('status', 'ativo').order('created_at', { ascending: false }).limit(8),
     supabase.from('products').select('categoria').eq('status', 'ativo'),
+    configMix(), // ofertas de parceiros: em paralelo com as vitrines
+    ofertasAtivas({ limite: 24 }),
   ]);
   const destaques = produtosPublicos(destRes.data as Product[] | null);
   const ofertas = produtosPublicos(ofertaRes.data as Product[] | null);
@@ -63,6 +67,9 @@ export default async function Home() {
   const vazio = emAlta.length === 0;
   const vitrine = (destaques.length ? destaques : ofertas).slice(0, 2);
   const taxa = commission_percent ?? 3;
+
+  // Ofertas de parceiros: seção própria, identificada, depois das vitrines de produtos nativos
+  const parceiras = mix.ativo ? todasParceiras.slice(0, mix.homeQtd) : [];
 
   return (
     <>
@@ -193,6 +200,14 @@ export default async function Home() {
           </div></section>
         )}
 
+
+        {parceiras.length > 0 && (
+          <section className="nz"><div className="c">
+            <div className="st"><div className="slabel">Selecionados</div><h2>Ofertas de parceiros</h2></div>
+            <p className="muted" style={{ marginTop: -6, marginBottom: 16, fontSize: 14 }}>Produtos digitais de plataformas parceiras. A compra é feita no site do parceiro.</p>
+            <div className="pg">{parceiras.map((o) => <PartnerOfferCard key={o.id} o={o} />)}</div>
+          </div></section>
+        )}
 
         {vazio ? (
           <section className="nz"><div className="c">

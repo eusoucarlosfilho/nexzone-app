@@ -1,5 +1,4 @@
 import Nav from '@/components/Nav';
-import ProductCard from '@/components/ProductCard';
 import Filters from './Filters';
 import Toolbar from './Toolbar';
 import { Suspense } from 'react';
@@ -11,6 +10,10 @@ import { PRODUTO_CARD, termoBusca } from '@/lib/consultas';
 import Pagination from '@/components/ui/Pagination';
 import EmptyState from '@/components/ui/EmptyState';
 import Link from 'next/link';
+import GradeMista from '@/components/GradeMista';
+import { configMix, ofertasAtivas } from '@/lib/ofertas/servidor';
+import { intercalar, type ItemMix } from '@/lib/ofertas/mix';
+import type { OfertaVitrine } from '@/lib/ofertas/tipos';
 
 const POR_PAGINA = 24;
 
@@ -23,7 +26,7 @@ const SORTS: Record<string, { col: string; asc: boolean }> = {
   maior: { col: 'preco', asc: false },
 };
 
-export default async function ProdutosPage({ searchParams }: { searchParams: { q?: string; cat?: string; min?: string; max?: string; sort?: string; page?: string } }) {
+export default async function ProdutosPage({ searchParams }: { searchParams: { q?: string; cat?: string; min?: string; max?: string; sort?: string; page?: string; aviso?: string } }) {
   const supabase = createClient();
   // Filtro lateral: todas as categorias da fonte única, com a contagem de produtos ativos
   const { data: catRows } = await supabase.from('products').select('categoria').eq('status', 'ativo');
@@ -53,6 +56,19 @@ export default async function ProdutosPage({ searchParams }: { searchParams: { q
   const totalPages = Math.max(1, Math.ceil(total / POR_PAGINA));
   const temFiltro = !!(searchParams.q || searchParams.cat || searchParams.min || searchParams.max);
 
+  // Ofertas de parceiros: só completam a ÚLTIMA página (os nativos vêm sempre antes),
+  // com o teto de participação definido no admin. Sem a tabela, a lista vem vazia.
+  const ultimaPagina = page >= totalPages;
+  let grade: ItemMix<Product, OfertaVitrine>[] = produtos.map((item) => ({ tipo: 'nativo' as const, item }));
+  if (ultimaPagina) {
+    const catSel = searchParams.cat ? acharCategoria(searchParams.cat) : null;
+    const [mix, parceiros] = await Promise.all([configMix(), ofertasAtivas({ categoria: catSel?.nome ?? null, termo: termo || null, min, max, limite: 24 })]);
+    if (mix.ativo) {
+      grade = intercalar(produtos, parceiros, mix, POR_PAGINA - produtos.length);
+    }
+  }
+  const temParceiros = grade.some((g) => g.tipo === 'parceiro');
+
   return (
     <>
       <Nav />
@@ -71,11 +87,15 @@ export default async function ProdutosPage({ searchParams }: { searchParams: { q
         <div className="cat-main">
           <h1 style={{ fontFamily: 'Outfit', fontSize: 26, fontWeight: 900, marginBottom: 16 }}>Explorar produtos</h1>
           <Suspense fallback={null}><Toolbar total={total} sort={sortKey} /></Suspense>
-          {produtos.length
-            ? <div className="pg">{produtos.map((p) => <ProductCard key={p.id} p={p} />)}</div>
+          {searchParams.aviso === 'oferta_indisponivel' && (
+            <div className="card" role="status" style={{ marginBottom: 14, fontSize: 14 }}>Essa oferta de parceiro não está mais disponível. Veja outras opções abaixo.</div>
+          )}
+          {grade.length
+            ? <GradeMista itens={grade} />
             : <EmptyState icon="search" title="Nenhum produto encontrado"
                 text={temFiltro ? 'Tente outra palavra, outra categoria ou uma faixa de preço maior.' : 'Ainda não há produtos publicados.'}
                 action={temFiltro ? <Link href="/produtos" className="btn btn-ghost btn-sm">Limpar filtros</Link> : undefined} />}
+          {temParceiros && <p className="muted" style={{ fontSize: 12.5, marginTop: 12 }}>Itens com o selo &quot;Oferta de parceiro&quot; são vendidos em sites parceiros, fora do Comprei Barato.</p>}
           <Pagination basePath="/produtos" params={searchParams as Record<string, string | undefined>} page={Math.min(page, totalPages)} totalPages={totalPages} />
         </div>
       </div>

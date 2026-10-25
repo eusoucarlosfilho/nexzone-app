@@ -11,7 +11,7 @@ const BENEFICIOS = [
   ['dollar', 'Comissão justa', 'Só 3% por venda. Sem mensalidade, sem taxa escondida.'],
   ['bolt', 'Entrega imediata', 'O comprador recebe na hora em que o Pix é confirmado.'],
   ['store', 'Loja com a sua cara', 'Logo, banner, cor e uma página de loja com link próprio.'],
-  ['rocket', 'Destaque pago', 'Apareça no carrossel da home e venda mais quando quiser.'],
+  ['rocket', 'Destaque pago', 'Apareça no carrossel da página inicial pelo período que você escolher.'],
   ['lock', 'Pagamento via Pix', 'Aprovação na hora e taxa baixa — o dinheiro entra rápido.'],
   ['star', 'Prova social real', 'Avaliações de verdade dos seus compradores, sem inventar.'],
 ];
@@ -66,8 +66,8 @@ export default function SejaVendedorPage() {
 
       <section className="sv-hero">
         <div className="eye">Para criadores e infoprodutores</div>
-        <h1>Venda seus produtos digitais e fique com <span style={{ whiteSpace: 'nowrap' }}>97% de cada venda</span>.</h1>
-        <p>Crie sua loja grátis, entregue automaticamente na hora do pagamento e receba via Pix. Sem mensalidade. Só 3% por venda.</p>
+        <h1>Venda seus produtos digitais no Comprei Barato.</h1>
+        <p>Fique com <strong style={{ whiteSpace: 'nowrap' }}>97% de cada venda</strong>. Crie sua loja grátis, entregue automaticamente na hora do pagamento e receba via Pix. Sem mensalidade.</p>
         <div className="sv-cta">
           <Link href="/login" className="btn btn-pri btn-lg">Criar minha loja grátis</Link>
           <Link href="/produtos" className="btn btn-lg" style={{ background: 'rgba(255,255,255,.1)', color: '#fff', border: '1.5px solid rgba(255,255,255,.3)' }}>Ver o marketplace</Link>
@@ -76,7 +76,7 @@ export default function SejaVendedorPage() {
 
       <section className="sv-sec">
         <h2 className="sv-h2">Por que vender no Comprei Barato</h2>
-        <p className="sv-sub">O melhor acordo pra quem cria produto digital no Brasil.</p>
+        <p className="sv-sub">Condições simples e transparentes para quem cria produto digital.</p>
         <div className="sv-grid">
           {BENEFICIOS.map(([ic, t, d]) => (
             <div className="sv-card" key={t}><div className="ic"><Icon name={ic} size={28} /></div><h3>{t}</h3><p>{d}</p></div>
@@ -106,7 +106,7 @@ export default function SejaVendedorPage() {
 
       <div className="sv-band">
         <h2>Pronto para vender?</h2>
-        <p style={{ opacity: .93, marginBottom: 22 }}>Crie sua loja grátis agora e comece a vender hoje mesmo.</p>
+        <p style={{ opacity: .93, marginBottom: 22 }}>Crie sua loja grátis agora e publique seus produtos hoje mesmo.</p>
         <Link href="/login" className="btn btn-pri btn-lg">Começar a vender agora</Link>
       </div>
     </>
