@@ -7,6 +7,7 @@ import PromoForm from './PromoForm';
 import OrderChat from '@/components/OrderChat';
 import AdminNotes from './AdminNotes';
 import AudienceTab from './AudienceTab';
+import ProvaSocialForm from './ProvaSocialForm';
 import Icon from '@/components/Icon';
 import CategoryIcon from '@/components/CategoryIcon';
 
@@ -169,7 +170,7 @@ export default function AdminDashboard({ adminEmail, users, metrics, daily, orde
   }
 
   const NAV = [
-    ['cockpit', 'cockpit', 'Cockpit', 0],
+    ['cockpit', 'cockpit', 'Dashboard', 0],
     ['audiencia', 'activity', 'Audiência', 0],
     ['aprovacao', 'check', 'Aprovação', queue.length],
     ['pedidos', 'receipt', 'Pedidos', 0],
@@ -182,6 +183,7 @@ export default function AdminDashboard({ adminEmail, users, metrics, daily, orde
     ['observacoes', 'chat', 'Observações', 0],
     ['torpedos', 'bell', 'Torpedos enviados', 0],
     ['promocoes', 'megaphone', 'Enviar promoção', 0],
+    ['provasocial', 'shield', 'Prova social', 0],
     ['config', 'settings', 'Configurações', 0],
   ];
 
@@ -273,7 +275,7 @@ export default function AdminDashboard({ adminEmail, users, metrics, daily, orde
       <main className="adm-main">
         {tab === 'cockpit' && (
           <>
-            <h1 className="adm-h">Cockpit</h1>
+            <h1 className="adm-h">Dashboard</h1>
             <p className="adm-sub">Visão geral do Comprei Barato em tempo real.</p>
             <div className="adm-stats">
               <div className="adm-stat"><div className="ic"><Icon name="money" size={20} /></div><b>{money(metrics.gmv)}</b><small>GMV (volume vendido)</small></div>
@@ -669,6 +671,14 @@ export default function AdminDashboard({ adminEmail, users, metrics, daily, orde
             <h1 className="adm-h">Enviar promoção</h1>
             <p className="adm-sub">Mande uma promoção por e-mail só para quem aceitou receber. Envie um teste para você antes.</p>
             <PromoForm />
+          </>
+        )}
+
+        {tab === 'provasocial' && (
+          <>
+            <h1 className="adm-h">Prova social</h1>
+            <p className="adm-sub">Escolha o que a página inicial mostra. Sempre com os dados reais da plataforma.</p>
+            <ProvaSocialForm settings={settings} />
           </>
         )}
 

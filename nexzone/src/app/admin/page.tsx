@@ -4,6 +4,7 @@ import AdminDashboard from './AdminDashboard';
 import { getSettings } from '@/lib/settings';
 import { stripeEnabledSetting, stripeEnvStatus } from '@/lib/payments/stripe';
 import { getPaymentConfigPublic } from '@/lib/payments/config';
+import { numerosReais, vendasRecentes } from '@/lib/provaSocial';
 
 export const dynamic = 'force-dynamic';
 
@@ -190,6 +191,13 @@ export default async function AdminPage() {
 
   // Stripe (cartão): liga/desliga salvo no settings + se as variáveis de ambiente existem (nunca os valores).
   settings.stripe = { enabled: await stripeEnabledSetting(), ...stripeEnvStatus() };
+
+  // Prova social: números reais atuais, para o admin escolher os mínimos.
+  try {
+    const [reais, recentes] = await Promise.all([numerosReais(admin), vendasRecentes(admin, 50)]);
+    settings.ps_reais = reais;
+    settings.ps_vendas_7d = recentes.length;
+  } catch { settings.ps_reais = { lojas: 0, produtos: 0, vendas: 0 }; settings.ps_vendas_7d = 0; }
 
   // Lista de administradores (perfil role=admin + e-mail vindo do auth)
   try {

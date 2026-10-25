@@ -136,7 +136,17 @@ function AnimatedNumber({ value, decimals = 0 }: { value: number; decimals?: num
 /* ---------- gráfico de área ---------- */
 function AreaChart({ series, granularity }: { series: { label: string; sessions: number; pageviews: number }[]; granularity: string }) {
   const [hover, setHover] = useState<number | null>(null);
-  const W = 760, H = 230, L = 40, R = 14, T = 14, B = 28;
+  // Desenha na largura real do cartão, com altura fixa de 220px: fontes dos eixos ficam com 11px de verdade.
+  const box = useRef<HTMLDivElement>(null);
+  const [W, setW] = useState(760);
+  useEffect(() => {
+    const el = box.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(([e]) => { const w = Math.round(e.contentRect.width); if (w > 0) setW(w); });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const H = 220, L = 40, R = 14, T = 12, B = 24;
   const n = series.length;
   const rawMax = Math.max(1, ...series.map((s) => s.sessions));
   const mag = Math.pow(10, Math.floor(Math.log10(rawMax)));
@@ -158,8 +168,8 @@ function AreaChart({ series, granularity }: { series: { label: string; sessions:
   const h = hover !== null ? series[hover] : null;
 
   return (
-    <div className="aud-chart">
-      <svg viewBox={`0 0 ${W} ${H}`} width="100%" role="img" aria-label="Sessões ao longo do tempo"
+    <div className="aud-chart" ref={box}>
+      <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={H} role="img" aria-label="Sessões ao longo do tempo"
         onMouseMove={onMove} onMouseLeave={() => setHover(null)} style={{ display: 'block', overflow: 'visible' }}>
         <defs>
           <linearGradient id="audArea" x1="0" y1="0" x2="0" y2="1">
@@ -463,24 +473,30 @@ export default function AudienceTab() {
     <div className="aud">
       <style>{`
         .aud{--live:#22C55E;}
-        .aud-top{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:20px;}
+        .aud-top{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px;}
         .aud-livebadge{display:inline-flex;align-items:center;gap:8px;font-family:'Outfit';font-weight:800;font-size:12px;letter-spacing:.6px;text-transform:uppercase;color:var(--live);background:color-mix(in srgb,var(--live) 14%,transparent);border-radius:50px;padding:5px 12px 5px 10px;}
         .aud-pdot{position:relative;width:9px;height:9px;border-radius:50%;background:var(--live);display:inline-block;}
         .aud-pdot::after{content:'';position:absolute;inset:0;border-radius:50%;background:var(--live);animation:audPing 1.8s cubic-bezier(0,0,.2,1) infinite;}
         @keyframes audPing{0%{transform:scale(1);opacity:.75}80%,100%{transform:scale(2.8);opacity:0}}
-        .aud-big{font-family:'Outfit';font-weight:900;font-size:clamp(30px,5vw,46px);letter-spacing:-1.5px;line-height:1.05;margin:10px 0 2px;}
+        .aud-big{font-family:'Outfit';font-weight:900;font-size:24px;letter-spacing:-.5px;line-height:1.15;margin:8px 0 2px;}
+        .aud-top .adm-sub{font-size:12px;}
         .aud-big b{color:var(--or);font-variant-numeric:tabular-nums;}
         .aud-chips{display:flex;gap:8px;flex-wrap:wrap;}
-        .aud-chips .adm-fb{margin:0;}
-        .aud-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px;margin-bottom:20px;}
-        .aud-kpis .adm-stat b{font-variant-numeric:tabular-nums;}
+        .aud-chips .adm-fb{margin:0;height:32px;min-height:32px;padding:0 13px;font-size:12px;}
+        .aud-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:14px;}
+        .aud-kpis .adm-stat{padding:14px;border-radius:16px;}
+        .aud-kpis .adm-stat .ic{width:28px;height:28px;border-radius:8px;margin-bottom:8px;}
+        .aud-kpis .adm-stat b{font-size:22px;letter-spacing:-.4px;font-variant-numeric:tabular-nums;}
+        .aud-kpis .adm-stat small{font-size:12px;}
+        .aud .adm-card{padding:16px;margin-bottom:14px;}
+        .aud .adm-ct{font-size:15px;margin-bottom:10px;}
         .aud-split{display:flex;height:6px;border-radius:6px;overflow:hidden;background:var(--panel2);margin:8px 0 6px;}
         .aud-split i{display:block;height:100%;background:#FF6B00;transition:width .6s;}
         .aud-chart{position:relative;}
         .aud-tip{position:absolute;transform:translate(-50%,calc(-100% - 12px));background:var(--tx);color:var(--bg);border-radius:10px;padding:8px 11px;font-size:12px;line-height:1.35;pointer-events:none;white-space:nowrap;display:flex;flex-direction:column;z-index:5;box-shadow:0 8px 24px rgba(0,0,0,.25);}
         .aud-tip b{font-family:'Outfit';font-size:12.5px;}
         .aud-tip-map{transform:translate(-50%,calc(-100% - 14px));}
-        .aud-cardhead{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px;flex-wrap:wrap;}
+        .aud-cardhead{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px;flex-wrap:wrap;}
         .aud-seg{display:inline-flex;background:var(--panel2);border:1px solid var(--bd2);border-radius:50px;padding:3px;}
         .aud-seg button{font-family:'Nunito';font-weight:800;font-size:13px;border:none;background:none;color:var(--sub);padding:7px 16px;border-radius:50px;cursor:pointer;min-height:34px;}
         .aud-seg button.on{background:#FF6B00;color:#16162A;}
@@ -498,20 +514,20 @@ export default function AudienceTab() {
         .aud-scale{margin-left:auto;}
         .aud-scale i{display:inline-block;width:18px;height:10px;border-radius:2px;border:1px solid var(--bd2);}
         .aud-scale em{font-style:normal;font-weight:700;}
-        .aud-grid2{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:18px;align-items:start;}
-        .aud-grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;align-items:start;}
-        .aud-rrow{position:relative;display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:9px;margin-bottom:4px;overflow:hidden;}
+        .aud-grid2{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:14px;align-items:start;}
+        .aud-grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;align-items:start;}
+        .aud-rrow{position:relative;display:flex;align-items:center;gap:10px;padding:8px;border-radius:8px;margin-bottom:2px;overflow:hidden;}
         .aud-rbar{position:absolute;left:0;top:0;bottom:0;background:color-mix(in srgb,#FF6B00 16%,transparent);border-radius:9px;transition:width .6s;}
-        .aud-rlabel{position:relative;flex:1;min-width:0;display:flex;align-items:center;gap:7px;font-size:13.5px;font-weight:700;}
+        .aud-rlabel{position:relative;flex:1;min-width:0;display:flex;align-items:center;gap:7px;font-size:13px;font-weight:700;}
         .aud-rlabel .t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-        .aud-rlabel .s{color:var(--sub);font-size:11.5px;font-weight:800;white-space:nowrap;}
-        .aud-rval{position:relative;font-family:'Outfit';font-weight:800;font-size:13.5px;white-space:nowrap;font-variant-numeric:tabular-nums;}
+        .aud-rlabel .s{color:var(--sub);font-size:11px;font-weight:800;white-space:nowrap;}
+        .aud-rval{position:relative;font-family:'Outfit';font-weight:800;font-size:13px;white-space:nowrap;font-variant-numeric:tabular-nums;}
         .aud-rval small{color:var(--sub);font-weight:700;font-size:11px;margin-left:4px;}
         .aud-live{max-height:430px;overflow-y:auto;}
-        .aud-lrow{display:flex;align-items:center;gap:10px;padding:10px 2px;border-bottom:1px solid var(--bd);}
+        .aud-lrow{display:flex;align-items:center;gap:10px;padding:8px 2px;border-bottom:1px solid var(--bd);font-size:13px;}
         .aud-lrow:last-child{border-bottom:none;}
         .aud-lmain{flex:1;min-width:0;display:flex;flex-direction:column;}
-        .aud-lmain b{font-family:'Outfit';font-size:13.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+        .aud-lmain b{font-family:'Outfit';font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
         .aud-lmain span{font-size:12px;color:var(--sub);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
         .aud-ldev{display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--sub);font-weight:700;}
         .aud-lago{font-size:12px;color:var(--sub);font-weight:800;min-width:56px;text-align:right;font-variant-numeric:tabular-nums;}
@@ -538,13 +554,13 @@ export default function AudienceTab() {
       {err && <div className="aud-warn">{err} Verifique se a migration <b>0002_analytics.sql</b> já foi aplicada no Supabase.</div>}
 
       <div className="aud-kpis" style={{ opacity: loading && data ? 0.6 : 1, transition: 'opacity .2s' }}>
-        <div className="adm-stat"><div className="ic"><Icon name="users" size={20} /></div><b><AnimatedNumber value={t.visitors} /></b><small>Visitantes · {rangeLabel}</small></div>
-        <div className="adm-stat"><div className="ic"><Icon name="activity" size={20} /></div><b><AnimatedNumber value={t.sessions} /></b><small>Sessões</small></div>
-        <div className="adm-stat"><div className="ic"><Icon name="eye" size={20} /></div><b><AnimatedNumber value={t.pageviews} /></b><small>Visualizações de página</small></div>
-        <div className="adm-stat"><div className="ic"><Icon name="file" size={20} /></div><b><AnimatedNumber value={t.pagesPerSession} decimals={1} /></b><small>Páginas por sessão</small></div>
+        <div className="adm-stat"><div className="ic"><Icon name="users" size={16} /></div><b><AnimatedNumber value={t.visitors} /></b><small>Visitantes · {rangeLabel}</small></div>
+        <div className="adm-stat"><div className="ic"><Icon name="activity" size={16} /></div><b><AnimatedNumber value={t.sessions} /></b><small>Sessões</small></div>
+        <div className="adm-stat"><div className="ic"><Icon name="eye" size={16} /></div><b><AnimatedNumber value={t.pageviews} /></b><small>Visualizações de página</small></div>
+        <div className="adm-stat"><div className="ic"><Icon name="file" size={16} /></div><b><AnimatedNumber value={t.pagesPerSession} decimals={1} /></b><small>Páginas por sessão</small></div>
         <div className="adm-stat">
-          <div className="ic"><Icon name="trending" size={20} /></div>
-          <b>{newPct}% <span style={{ fontSize: 14, color: 'var(--sub)', fontWeight: 800 }}>novos</span></b>
+          <div className="ic"><Icon name="trending" size={16} /></div>
+          <b>{newPct}% <span style={{ fontSize: 13, color: 'var(--sub)', fontWeight: 800 }}>novos</span></b>
           <div className="aud-split"><i style={{ width: `${newPct}%` }} /></div>
           <small>{fmt(t.newVisitors)} novos · {fmt(t.returning)} recorrentes</small>
         </div>
