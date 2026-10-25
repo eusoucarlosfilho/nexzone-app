@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from '@/lib/toast';
-import CategoryIcon from '@/components/CategoryIcon';
+import ProductThumb from '@/components/ProductThumb';
 import Icon from '@/components/Icon';
 
 const money = (v: number) => 'R$ ' + Number(v).toFixed(2).replace('.', ',');
@@ -55,7 +55,7 @@ function Step({ n, label, active, done }: { n: number; label: string; active?: b
   );
 }
 
-export default function CheckoutClient({ productId, titulo, emoji, categoria, loja, preco, cor, bump, aceitaCupom, meusPontos = 0, perBrl = 100, cartaoDisponivel = false }: any) {
+export default function CheckoutClient({ productId, titulo, emoji, categoria, capa_url, loja, preco, cor, bump, aceitaCupom, meusPontos = 0, perBrl = 100, cartaoDisponivel = false }: any) {
   const router = useRouter();
   const [cupom, setCupom] = useState('');
   const [aplicado, setAplicado] = useState<{ codigo: string; desconto: number; final: number } | null>(null);
@@ -150,7 +150,7 @@ export default function CheckoutClient({ productId, titulo, emoji, categoria, lo
 
       {/* Produto */}
       <div className="li" style={{ padding: '16px 0', borderBottom: '1px solid var(--border)' }}>
-        <div className="em"><CategoryIcon cat={categoria} /></div>
+        <ProductThumb className="em" capa_url={capa_url} categoria={categoria} titulo={titulo} tamanho={46} raio={14} icone={22} />
         <div style={{ flex: 1 }}>
           <strong style={{ fontFamily: 'Outfit' }}>{titulo}</strong>
           <div className="muted">{loja}</div>

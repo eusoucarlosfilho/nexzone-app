@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
-import CategoryIcon from '@/components/CategoryIcon';
+import ProductThumb from '@/components/ProductThumb';
 
 export const dynamic = 'force-dynamic';
 const money = (v: number) => 'R$ ' + Number(v).toFixed(2).replace('.', ',');
@@ -17,7 +17,7 @@ export default async function ConversasPage() {
   }
 
   const { data: pedidos } = await supabase.from('orders')
-    .select('id, total, status, created_at, comprador_email, products(titulo, emoji, categoria)')
+    .select('id, total, status, created_at, comprador_email, products(titulo, emoji, categoria, capa_url)')
     .eq('store_id', store.id)
     .in('status', ['pago', 'entregue'])
     .order('created_at', { ascending: false });
@@ -35,7 +35,7 @@ export default async function ConversasPage() {
         <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
           {lista.map((o: any, i: number) => (
             <Link key={o.id} href={`/vender/conversas/${o.id}`} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 18px', textDecoration: 'none', color: 'inherit', borderTop: i ? '1px solid var(--border)' : 'none' }}>
-              <div className="em" style={{ width: 42, height: 42, borderRadius: 11, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--surface)', flexShrink: 0 }}><CategoryIcon cat={o.products?.categoria} /></div>
+              <ProductThumb className="em" capa_url={o.products?.capa_url} categoria={o.products?.categoria} titulo={o.products?.titulo} tamanho={42} raio={11} icone={22} style={{ background: 'var(--surface)' }} />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <strong style={{ fontFamily: 'Outfit', fontSize: 14, display: 'block' }}>{o.products?.titulo ?? 'Produto'}</strong>
                 <span className="muted" style={{ fontSize: 12 }}>{o.comprador_email ?? 'Cliente'} · {new Date(o.created_at).toLocaleDateString('pt-BR')}</span>

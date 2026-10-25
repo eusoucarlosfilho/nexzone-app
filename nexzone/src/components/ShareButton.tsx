@@ -9,7 +9,7 @@ export default function ShareButton({ titulo, full }: { titulo: string; full?: b
 
   function copiar() { navigator.clipboard.writeText(url()); toast('Link copiado!', 'success'); setOpen(false); }
   function whats() {
-    const txt = encodeURIComponent(`Olha esse produto: ${titulo}\n${url()}`);
+    const txt = encodeURIComponent(`Neste site tem muita coisa barata! Olha este produto: ${titulo}\n${url()}`);
     window.open(`https://wa.me/?text=${txt}`, '_blank');
     setOpen(false);
   }

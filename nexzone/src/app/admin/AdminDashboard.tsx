@@ -10,7 +10,7 @@ import AudienceTab from './AudienceTab';
 import ProvaSocialForm from './ProvaSocialForm';
 import { ehJogos } from '@/lib/categorias';
 import Icon from '@/components/Icon';
-import CategoryIcon from '@/components/CategoryIcon';
+import ProductThumb from '@/components/ProductThumb';
 
 const money = (v: number) => 'R$ ' + Number(v).toFixed(2).replace('.', ',');
 const fmt = (v: number) => Number(v).toLocaleString('pt-BR');
@@ -267,13 +267,28 @@ export default function AdminDashboard({ adminEmail, users, metrics, daily, orde
         .adm-fb.on{background:var(--tx);color:var(--bg);border-color:var(--tx);}
         .adm-empty{text-align:center;color:var(--sub);padding:40px;font-size:14px;}
         .adm-soon{display:inline-block;font-size:10px;font-weight:800;color:var(--sub);background:var(--panel2);border:1px solid var(--bd2);border-radius:50px;padding:2px 9px;margin-left:8px;}
-        @media(max-width:820px){.adm{flex-direction:column;}.adm-side{width:100%;height:auto;position:static;flex-direction:row;overflow-x:auto;padding:10px;}.adm-logo{display:none;}.adm-foot{display:none;}.adm-nav{width:auto;white-space:nowrap;}.adm-main{padding:20px 16px;}}
+        @media(max-width:820px){
+          .adm{flex-direction:column;}
+          /* celular: menu vira uma faixa fixa no topo, com rolagem lateral */
+          .adm-side{width:100%;height:auto;position:sticky;top:0;z-index:50;flex-direction:row;align-items:center;gap:6px;overflow-x:auto;overflow-y:hidden;padding:10px 12px;border-right:none;border-bottom:1px solid var(--bd2);scrollbar-width:none;-webkit-overflow-scrolling:touch;}
+          .adm-side::-webkit-scrollbar{display:none;}
+          .adm-logo,.adm-who{display:none;}
+          .adm-nav{flex:none;width:auto;height:40px;min-height:40px;padding:0 13px;white-space:nowrap;font-size:13px;gap:8px;border-radius:50px;}
+          .adm-nav:hover{transform:none;}
+          .adm-nav.on{box-shadow:0 4px 12px rgba(255,107,0,.25);}
+          .adm-nav .bd{margin-left:4px;}
+          .adm-foot{display:flex;flex:none;align-items:center;gap:6px;margin:0;padding:0 0 0 6px;border-top:none;border-left:1px solid var(--bd2);}
+          .adm-foot a,.adm-foot form{flex:none;white-space:nowrap;}
+          .adm-foot a{padding:0 12px;line-height:40px;}
+          .adm-main{padding:18px 14px 50px;}
+          .adm-h{font-size:24px;}
+        }
       `}</style>
 
       <aside className="adm-side">
         <div className="adm-logo">Comprei <span>Barato</span></div>
         {adminEmail && (
-          <div style={{ fontSize: 11, color: 'var(--sub)', padding: '0 6px 12px', wordBreak: 'break-all', lineHeight: 1.4 }}>
+          <div className="adm-who" style={{ fontSize: 11, color: 'var(--sub)', padding: '0 6px 12px', wordBreak: 'break-all', lineHeight: 1.4 }}>
             Logado como<br /><strong style={{ color: 'var(--tx)' }}>{adminEmail}</strong>
           </div>
         )}
@@ -329,7 +344,7 @@ export default function AdminDashboard({ adminEmail, users, metrics, daily, orde
                   <tbody>
                     {orders.slice(0, 6).map((o: any) => (
                       <tr key={o.id}>
-                        <td><span className="em" style={{ display: 'inline-flex', verticalAlign: 'middle', marginRight: 4 }}><CategoryIcon cat={o.products?.categoria} size={18} /></span> {o.products?.titulo ?? 'Produto'}</td>
+                        <td><ProductThumb capa_url={o.products?.capa_url} categoria={o.products?.categoria} titulo={o.products?.titulo} tamanho={28} raio={7} icone={18} style={{ marginRight: 6 }} /> {o.products?.titulo ?? 'Produto'}</td>
                         <td style={{ color: 'var(--sub)' }}>{o.stores?.nome ?? '—'}</td>
                         <td>{money(o.total)}</td>
                         <td><Pill s={o.status} /></td>
@@ -352,7 +367,7 @@ export default function AdminDashboard({ adminEmail, users, metrics, daily, orde
             <div className="adm-card">
               {queue.length ? queue.map((p: any) => (
                 <div className="adm-row" key={p.id}>
-                  <div className="em"><CategoryIcon cat={p.categoria} size={22} /></div>
+                  <ProductThumb className="em" capa_url={p.capa_url} categoria={p.categoria} titulo={p.titulo} tamanho={42} raio={11} icone={22} />
                   <div className="info"><b>{p.titulo}{ehJogos(p.categoria) && <span title="Categoria Jogos & Games: confira se não é conta compartilhada, 'método', moeda/item de terceiros, key aleatória ou assinatura revendida." style={{ marginLeft: 8, verticalAlign: 1, fontSize: 10.5, fontWeight: 900, fontFamily: 'Outfit', color: '#fff', background: '#7C3AED', borderRadius: 50, padding: '2px 9px', display: 'inline-block' }}>Revisar com atenção</span>}</b><span>{p.stores?.nome ?? '—'} · {p.categoria} · {money(p.preco_promo ?? p.preco)}</span>
                     {Array.isArray(p.imagens) && p.imagens.length > 0 ? (
                       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
@@ -391,7 +406,7 @@ export default function AdminDashboard({ adminEmail, users, metrics, daily, orde
                   <tbody>
                     {filteredOrders.map((o: any) => (
                       <tr key={o.id}>
-                        <td><span className="em" style={{ display: 'inline-flex', verticalAlign: 'middle', marginRight: 4 }}><CategoryIcon cat={o.products?.categoria} size={18} /></span> {o.products?.titulo ?? 'Produto'}</td>
+                        <td><ProductThumb capa_url={o.products?.capa_url} categoria={o.products?.categoria} titulo={o.products?.titulo} tamanho={28} raio={7} icone={18} style={{ marginRight: 6 }} /> {o.products?.titulo ?? 'Produto'}</td>
                         <td style={{ color: 'var(--sub)' }}>{o.stores?.nome ?? '—'}</td>
                         <td>{money(o.total)}</td>
                         <td style={{ color: 'var(--or2)' }}>{money(o.taxa)}</td>
@@ -506,7 +521,7 @@ export default function AdminDashboard({ adminEmail, users, metrics, daily, orde
                   <tbody>
                     {allProducts.map((p: any) => (
                       <tr key={p.id}>
-                        <td><span className="em" style={{ display: 'inline-flex', verticalAlign: 'middle', marginRight: 4 }}><CategoryIcon cat={p.categoria} size={18} /></span> {p.titulo}</td>
+                        <td><ProductThumb capa_url={p?.capa_url} categoria={p?.categoria} titulo={p?.titulo} tamanho={28} raio={7} icone={18} style={{ marginRight: 6 }} /> {p.titulo}</td>
                         <td style={{ color: 'var(--sub)' }}>{p.stores?.nome ?? '—'}</td>
                         <td>{money(p.preco_promo ?? p.preco)}</td>
                         <td>{fmt(p.vendas)}</td>
@@ -572,7 +587,7 @@ export default function AdminDashboard({ adminEmail, users, metrics, daily, orde
                   <tbody>
                     {boostList.map((b: any) => (
                       <tr key={b.id}>
-                        <td><span className="em" style={{ display: 'inline-flex', verticalAlign: 'middle', marginRight: 4 }}><CategoryIcon cat={b.products?.categoria} size={18} /></span> {b.products?.titulo ?? '—'}</td>
+                        <td><ProductThumb capa_url={b.products?.capa_url} categoria={b.products?.categoria} titulo={b.products?.titulo} tamanho={28} raio={7} icone={18} style={{ marginRight: 6 }} /> {b.products?.titulo ?? '—'}</td>
                         <td style={{ color: 'var(--sub)' }}>{b.stores?.nome ?? '—'}</td>
                         <td>{b.dias} dias</td>
                         <td style={{ color: 'var(--or2)', fontFamily: 'Outfit', fontWeight: 800 }}>{money(b.valor)}</td>
@@ -607,7 +622,7 @@ export default function AdminDashboard({ adminEmail, users, metrics, daily, orde
                 {growth?.topProdutos?.length ? (
                   <table className="adm-table"><tbody>
                     {growth.topProdutos.map((p: any, i: number) => (
-                      <tr key={p.id}><td><span className="em" style={{ display: 'inline-flex', verticalAlign: 'middle', marginRight: 4 }}><CategoryIcon cat={p.categoria} size={18} /></span> {p.titulo}</td><td style={{ textAlign: 'right', fontFamily: 'Outfit', fontWeight: 800 }}>{fmt(p.vendas || 0)} vendas</td></tr>
+                      <tr key={p.id}><td><ProductThumb capa_url={p?.capa_url} categoria={p?.categoria} titulo={p?.titulo} tamanho={28} raio={7} icone={18} style={{ marginRight: 6 }} /> {p.titulo}</td><td style={{ textAlign: 'right', fontFamily: 'Outfit', fontWeight: 800 }}>{fmt(p.vendas || 0)} vendas</td></tr>
                     ))}
                   </tbody></table>
                 ) : <div className="adm-empty">Sem produtos ainda.</div>}
@@ -624,7 +639,7 @@ export default function AdminDashboard({ adminEmail, users, metrics, daily, orde
             return (
               <div key={c.id} className="adm-card" style={{ borderLeft: `3px solid ${resolvida ? '#1FA463' : '#E23B3B'}` }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
-                  <div style={{ width: 42, height: 42, borderRadius: 11, background: 'var(--panel2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}><CategoryIcon cat={o.products?.categoria} size={20} /></div>
+                  <ProductThumb capa_url={o.products?.capa_url} categoria={o.products?.categoria} titulo={o.products?.titulo} tamanho={42} raio={11} icone={20} style={{ background: 'var(--panel2)' }} />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <strong style={{ fontFamily: 'Outfit', fontSize: 14 }}>{o.products?.titulo ?? 'Produto'}</strong>
                     <div style={{ color: 'var(--sub)', fontSize: 12 }}>{o.stores?.nome ?? '—'} · {o.comprador_email ?? 'Cliente'} · {money(o.total ?? 0)} · {new Date(c.created_at).toLocaleDateString('pt-BR')}</div>

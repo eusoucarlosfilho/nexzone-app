@@ -15,7 +15,7 @@ export default async function VendasPage() {
   }
 
   const { data: vendas } = await supabase.from('orders')
-    .select('id, total, taxa, valor_vendedor, status, created_at, comprador_email, products(titulo, emoji)')
+    .select('id, total, taxa, valor_vendedor, status, created_at, comprador_email, products(titulo, emoji, categoria, capa_url)')
     .eq('store_id', store.id)
     .in('status', ['pago', 'entregue', 'reembolsado'])
     .order('created_at', { ascending: false });

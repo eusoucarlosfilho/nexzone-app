@@ -2,7 +2,7 @@ import Nav from '@/components/Nav';
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
-import CategoryIcon from '@/components/CategoryIcon';
+import ProductThumb from '@/components/ProductThumb';
 
 const money = (v: number) => 'R$ ' + Number(v).toFixed(2).replace('.', ',');
 export const dynamic = 'force-dynamic';
@@ -22,7 +22,7 @@ export default async function MinhasComprasPage() {
 
   const { data: orders } = await supabase
     .from('orders')
-    .select('id, status, total, created_at, products(titulo, emoji, categoria)')
+    .select('id, status, total, created_at, products(titulo, emoji, categoria, capa_url)')
     .eq('comprador', user.id)
     .order('created_at', { ascending: false });
 
@@ -41,7 +41,7 @@ export default async function MinhasComprasPage() {
               const pendente = o.status === 'pendente';
               return (
                 <Link href={`/pedido/${o.id}`} key={o.id} className="li" style={{ textDecoration: 'none', color: 'inherit' }}>
-                  <div className="em"><CategoryIcon cat={o.products?.categoria} /></div>
+                  <ProductThumb className="em" capa_url={o.products?.capa_url} categoria={o.products?.categoria} titulo={o.products?.titulo} tamanho={46} raio={14} icone={22} />
                   <div style={{ flex: 1 }}>
                     <strong style={{ fontFamily: 'Outfit' }}>{o.products?.titulo ?? 'Produto'}</strong>
                     <div className="muted">{money(o.total)} · {new Date(o.created_at).toLocaleDateString('pt-BR')}</div>

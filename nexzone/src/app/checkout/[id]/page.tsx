@@ -71,6 +71,7 @@ export default async function CheckoutPage({ params }: { params: { id: string } 
           titulo={p.titulo}
           emoji={p.emoji}
           categoria={(p as any).categoria}
+          capa_url={(p as any).capa_url}
           loja={loja.nome ?? 'Loja'}
           preco={Number(p.preco_promo ?? p.preco)}
           cor={cfg.cor || loja.cor || null}

@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import CategoryIcon from '@/components/CategoryIcon';
+import ProductThumb from '@/components/ProductThumb';
 import Icon from '@/components/Icon';
 
 const money = (v: number) => 'R$ ' + Number(v).toFixed(2).replace('.', ',');
@@ -86,7 +86,7 @@ export default function VendasClient({ vendas }: any) {
                   <>
                     <tr key={v.id} style={{ borderTop: '1px solid var(--border)', cursor: 'pointer' }} onClick={() => setAberta(open ? null : v.id)}>
                       <td style={td}>{new Date(v.created_at).toLocaleDateString('pt-BR')}</td>
-                      <td style={td}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><CategoryIcon cat={v.products?.categoria} size={16} />{v.products?.titulo ?? 'Produto'}</span></td>
+                      <td style={td}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><ProductThumb capa_url={v.products?.capa_url} categoria={v.products?.categoria} titulo={v.products?.titulo} tamanho={28} raio={7} icone={16} />{v.products?.titulo ?? 'Produto'}</span></td>
                       <td style={{ ...td, color: 'var(--muted)' }}>{v.comprador_email ?? '—'}</td>
                       <td style={td}><span className={`pill ${st[0]}`}>{st[1]}</span></td>
                       <td style={{ ...td, textAlign: 'right', fontFamily: 'Outfit', fontWeight: 800, color: 'var(--green)' }}>{money(v.valor_vendedor)}</td>

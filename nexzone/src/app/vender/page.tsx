@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { calcBalance } from '@/lib/balance';
 import Icon from '@/components/Icon';
-import CategoryIcon from '@/components/CategoryIcon';
+import ProductThumb from '@/components/ProductThumb';
 import JourneyBadge from '@/components/JourneyBadge';
 import { computeJourney, brl } from '@/lib/journey';
 
@@ -28,7 +28,7 @@ export default async function VenderCockpit() {
   }
 
   const { data: orders } = await supabase.from('orders')
-    .select('total, valor_vendedor, status, created_at, products(titulo, categoria)')
+    .select('total, valor_vendedor, status, created_at, products(titulo, categoria, capa_url)')
     .eq('store_id', store.id).order('created_at', { ascending: false });
   const all = (orders ?? []) as any[];
   const entregues = all.filter((o) => o.status === 'entregue' || o.status === 'pago');
@@ -137,7 +137,7 @@ export default async function VenderCockpit() {
         <strong style={{ fontFamily: 'Outfit', display: 'block', marginBottom: 8 }}>Vendas recentes</strong>
         {recentes.length ? recentes.map((o, i) => (
           <div className="li" key={i}>
-            <div className="em"><CategoryIcon cat={o.products?.categoria} size={22} /></div>
+            <ProductThumb className="em" capa_url={o.products?.capa_url} categoria={o.products?.categoria} titulo={o.products?.titulo} tamanho={46} raio={14} icone={22} />
             <div style={{ flex: 1 }}>
               <strong style={{ fontFamily: 'Outfit', fontSize: 14 }}>{o.products?.titulo ?? 'Produto'}</strong>
               <div className="muted">{new Date(o.created_at).toLocaleString('pt-BR')}</div>

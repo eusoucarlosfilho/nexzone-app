@@ -3,7 +3,7 @@ import { useState, useEffect, useRef, useTransition } from 'react';
 import { enviarAvaliacao } from './actions';
 import OrderChat from '@/components/OrderChat';
 import ComplaintBox from './ComplaintBox';
-import CategoryIcon from '@/components/CategoryIcon';
+import ProductThumb from '@/components/ProductThumb';
 import Icon from '@/components/Icon';
 
 const money = (v: number) => 'R$ ' + Number(v).toFixed(2).replace('.', ',');
@@ -19,6 +19,7 @@ type Props = {
   titulo: string;
   emoji: string;
   categoria?: string | null;
+  capa_url?: string | null;
   total: number;
   bumpTitulo?: string | null;
   bumpConteudo?: string | null;
@@ -89,7 +90,7 @@ export default function OrderView(props: Props) {
   return (
     <div className="card">
       <div className="li" style={{ padding: '0 0 16px', borderBottom: '1px solid var(--border)' }}>
-        <div className="em"><CategoryIcon cat={props.categoria} /></div>
+        <ProductThumb className="em" capa_url={props.capa_url} categoria={props.categoria} titulo={props.titulo} tamanho={46} raio={14} icone={22} />
         <div style={{ flex: 1 }}>
           <strong style={{ fontFamily: 'Outfit' }}>{props.titulo}</strong>
           <div className="muted">{money(props.total)}</div>

@@ -12,7 +12,7 @@ export default async function PedidoPage({ params, searchParams }: { params: { i
   if (!user) redirect('/login');
 
   const { data: order } = await supabase.from('orders')
-    .select('id, status, total, pix_code, pix_qr, conteudo_liberado, bump_product_id, bump_titulo, bump_conteudo, bump_arquivo_path, products(titulo, emoji, categoria, tipo_entrega, arquivo_path)')
+    .select('id, status, total, pix_code, pix_qr, conteudo_liberado, bump_product_id, bump_titulo, bump_conteudo, bump_arquivo_path, products(titulo, emoji, categoria, capa_url, tipo_entrega, arquivo_path)')
     .eq('id', params.id).eq('comprador', user.id).single();
   if (!order) notFound();
 
@@ -35,6 +35,7 @@ export default async function PedidoPage({ params, searchParams }: { params: { i
           titulo={p?.titulo ?? 'Produto'}
           emoji={p?.emoji ?? ''}
           categoria={p?.categoria}
+          capa_url={p?.capa_url}
           total={Number(order.total)}
           bumpTitulo={(order as any).bump_titulo}
           bumpConteudo={(order as any).bump_conteudo}

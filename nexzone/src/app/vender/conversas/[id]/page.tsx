@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { redirect, notFound } from 'next/navigation';
 import Link from 'next/link';
 import SellerChatView from './SellerChatView';
-import CategoryIcon from '@/components/CategoryIcon';
+import ProductThumb from '@/components/ProductThumb';
 import Icon from '@/components/Icon';
 
 export const dynamic = 'force-dynamic';
@@ -17,7 +17,7 @@ export default async function ConversaPage({ params }: { params: { id: string } 
   if (!store) redirect('/vender');
 
   const { data: order } = await supabase.from('orders')
-    .select('id, total, status, created_at, comprador_email, conteudo_liberado, products(titulo, emoji, categoria)')
+    .select('id, total, status, created_at, comprador_email, conteudo_liberado, products(titulo, emoji, categoria, capa_url)')
     .eq('id', params.id).eq('store_id', store.id).maybeSingle();
   if (!order) notFound();
 
@@ -27,7 +27,7 @@ export default async function ConversaPage({ params }: { params: { id: string } 
     <div style={{ maxWidth: 620 }}>
       <Link href="/vender/conversas" className="muted" style={{ fontSize: 13, textDecoration: 'none' }}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Icon name="arrowLeft" size={14} /> Voltar para conversas</span></Link>
       <div className="card" style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 12, marginBottom: 16 }}>
-        <div style={{ width: 46, height: 46, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--surface)' }}><CategoryIcon cat={p?.categoria} /></div>
+        <ProductThumb capa_url={p?.capa_url} categoria={p?.categoria} titulo={p?.titulo} tamanho={46} raio={12} icone={22} style={{ background: 'var(--surface)' }} />
         <div style={{ flex: 1 }}>
           <strong style={{ fontFamily: 'Outfit' }}>{p?.titulo ?? 'Produto'}</strong>
           <div className="muted" style={{ fontSize: 12 }}>{(order as any).comprador_email ?? 'Cliente'} · {money((order as any).total)}</div>

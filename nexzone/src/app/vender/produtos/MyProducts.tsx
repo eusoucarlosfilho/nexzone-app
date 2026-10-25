@@ -7,7 +7,7 @@ import GalleryUpload from './GalleryUpload';
 import { galeriaDe, MAX_FOTOS } from '@/lib/galeria';
 import { NOMES_CATEGORIAS, AVISO_JOGOS, ehJogos } from '@/lib/categorias';
 import BoostButton from './BoostButton';
-import CategoryIcon from '@/components/CategoryIcon';
+import ProductThumb from '@/components/ProductThumb';
 import Icon from '@/components/Icon';
 
 const money = (v: number) => 'R$ ' + Number(v).toFixed(2).replace('.', ',');
@@ -94,7 +94,7 @@ export default function MyProducts({ products, userId, planos }: { products: any
         return (
           <div key={p.id} style={{ borderBottom: '1px solid var(--border)' }}>
             <div className="li" style={{ borderBottom: 'none' }}>
-              <div className="em"><CategoryIcon cat={p.categoria} /></div>
+              <ProductThumb className="em" capa_url={p.capa_url} categoria={p.categoria} titulo={p.titulo} tamanho={46} raio={14} icone={22} />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <strong style={{ fontFamily: 'Outfit' }}>{p.titulo}</strong>
                 <div className="muted">{money(p.preco_promo ?? p.preco)} · {p.categoria} · {p.vendas} vendas</div>

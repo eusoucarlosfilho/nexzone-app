@@ -36,10 +36,10 @@ export default async function AdminPage() {
 
   const [ordersRes, productsRes, storesRes, buyersRes, payoutsRes, boostsRes, complaintsRes, alertsRes] = await Promise.all([
     supabase.from('orders')
-      .select('id, status, total, taxa, created_at, store_id, products(titulo, emoji, categoria), stores(nome)')
+      .select('id, status, total, taxa, created_at, store_id, products(titulo, emoji, categoria, capa_url), stores(nome)')
       .order('created_at', { ascending: false }),
     supabase.from('products')
-      .select('id, titulo, emoji, preco, preco_promo, categoria, status, vendas, nota, created_at, store_id, stores(nome)')
+      .select('id, titulo, emoji, capa_url, preco, preco_promo, categoria, status, vendas, nota, created_at, store_id, stores(nome)')
       .order('created_at', { ascending: false }),
     supabase.from('stores')
       .select('id, nome, slug, categoria, status, nivel, created_at, owner')
@@ -49,7 +49,7 @@ export default async function AdminPage() {
       .select('id, valor, status, pix_key, pix_tipo, created_at, pago_em, store_id, stores(nome)')
       .order('created_at', { ascending: false }),
     supabase.from('boosts')
-      .select('id, valor, dias, status, created_at, expira_em, store_id, products(titulo, emoji, categoria), stores(nome)')
+      .select('id, valor, dias, status, created_at, expira_em, store_id, products(titulo, emoji, categoria, capa_url), stores(nome)')
       .order('created_at', { ascending: false }),
     admin.from('complaints')
       .select('id, order_id, texto, status, created_at')
@@ -106,7 +106,7 @@ export default async function AdminPage() {
   ));
   if (detalheOrderIds.length) {
     const { data: detOrders } = await admin.from('orders')
-      .select('id, total, comprador_email, products(titulo, emoji, categoria), stores(nome)')
+      .select('id, total, comprador_email, products(titulo, emoji, categoria, capa_url), stores(nome)')
       .in('id', detalheOrderIds);
     const omap: Record<string, any> = Object.fromEntries(((detOrders ?? []) as any[]).map((o) => [o.id, o]));
     complaints.forEach((c: any) => { c.orders = omap[c.order_id] || {}; });

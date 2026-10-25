@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
-import CategoryIcon from '@/components/CategoryIcon';
+import ProductThumb from '@/components/ProductThumb';
 import Icon from '@/components/Icon';
 
 const money = (v: number) => 'R$ ' + Number(v).toFixed(2).replace('.', ',');
@@ -29,7 +29,7 @@ export default function BoostView(props: any) {
         <div className="em" style={{ color: 'var(--orange-ink)' }}><Icon name="rocket" size={22} /></div>
         <div style={{ flex: 1 }}>
           <strong style={{ fontFamily: 'Outfit' }}>Destaque — {props.dias} dias</strong>
-          <div className="muted" style={{ display: 'flex', alignItems: 'center', gap: 6 }}><CategoryIcon cat={props.categoria} size={14} /> {props.titulo} · {money(props.valor)}</div>
+          <div className="muted" style={{ display: 'flex', alignItems: 'center', gap: 6 }}><ProductThumb capa_url={props.capa_url} categoria={props.categoria} titulo={props.titulo} tamanho={24} raio={6} icone={14} /> {props.titulo} · {money(props.valor)}</div>
         </div>
       </div>
 
