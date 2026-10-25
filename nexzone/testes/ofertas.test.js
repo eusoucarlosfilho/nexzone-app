@@ -1,0 +1,74 @@
+const assert = require('assert');
+const url = require('./.build/ofertas/url.js');
+const val = require('./.build/ofertas/validar.js');
+const csv = require('./.build/ofertas/csv.js');
+const mix = require('./.build/ofertas/mix.js');
+const tipos = require('./.build/ofertas/tipos.js');
+let ok = 0, fail = 0;
+const t = (n, f) => { try { f(); ok++; console.log('OK  ', n); } catch (e) { fail++; console.log('FAIL', n, '-', e.message); } };
+
+// ---- URL (redirecionamento) ----
+const v = (u, p) => url.validarUrlExterna(u, p);
+t('aceita https Hotmart com parâmetros de afiliado', () => { const r = v('https://go.hotmart.com/X123?ap=abc&src=cb#topo', 'hotmart'); assert.ok(r.ok); assert.strictEqual(r.url, 'https://go.hotmart.com/X123?ap=abc&src=cb'); });
+t('aceita pay.kiwify.com.br', () => assert.ok(v('https://pay.kiwify.com.br/abc', 'kiwify').ok));
+t('recusa http', () => assert.ok(!v('http://pay.hotmart.com/x', 'hotmart').ok));
+t('recusa javascript:', () => assert.ok(!v('javascript:alert(1)', null).ok));
+t('recusa data:', () => assert.ok(!v('data:text/html,<b>x</b>', null).ok));
+t('recusa file:', () => assert.ok(!v('file:///etc/passwd', null).ok));
+t('recusa malformada', () => assert.ok(!v('https//sem-dois-pontos', null).ok));
+t('recusa IP literal', () => { assert.ok(!v('https://127.0.0.1/x', 'direto').ok); assert.ok(!v('https://10.0.0.5/', 'direto').ok); assert.ok(!v('https://[::1]/', 'direto').ok); });
+t('recusa IP numérico/hex', () => { assert.ok(!v('https://2130706433/', 'direto').ok); assert.ok(!v('https://0x7f000001/', 'direto').ok); });
+t('recusa localhost e .internal', () => { assert.ok(!v('https://localhost/', 'direto').ok); assert.ok(!v('https://api.internal/', 'direto').ok); });
+t('recusa usuário/senha', () => assert.ok(!v('https://user:pw@pay.hotmart.com/x', 'hotmart').ok));
+t('recusa porta não padrão', () => assert.ok(!v('https://pay.hotmart.com:8443/x', 'hotmart').ok));
+t('recusa domínio falso parecido', () => { assert.ok(!v('https://hotmart.com.golpe.io/x', 'hotmart').ok); assert.ok(!v('https://fakehotmart.com/x', 'hotmart').ok); });
+t('recusa domínio de outra plataforma', () => assert.ok(!v('https://pay.kiwify.com.br/x', 'hotmart').ok));
+t('parceiro direto aceita domínio público', () => assert.ok(v('https://loja.exemplo.com.br/produto', 'direto').ok));
+t('recusa espaço/controle', () => assert.ok(!v('https://pay.hotmart.com/a b', 'hotmart').ok));
+t('recusa > 2048', () => assert.ok(!v('https://pay.hotmart.com/' + 'a'.repeat(2100), 'hotmart').ok));
+t('chave de duplicidade ignora parâmetros e www', () => assert.strictEqual(url.chaveDuplicidade('https://www.pay.hotmart.com/X1/?ap=1'), url.chaveDuplicidade('https://pay.hotmart.com/X1?ap=2')));
+
+// ---- link de saída ----
+t('saída usa afiliado quando válido', () => assert.strictEqual(val.linkDeSaida({ affiliate_url: 'https://go.hotmart.com/A?ap=1', external_product_url: 'https://pay.hotmart.com/P', external_platform: 'hotmart' }), 'https://go.hotmart.com/A?ap=1'));
+t('saída cai no link do produto se afiliado inválido', () => assert.strictEqual(val.linkDeSaida({ affiliate_url: 'https://evil.com/x', external_product_url: 'https://pay.hotmart.com/P', external_platform: 'hotmart' }), 'https://pay.hotmart.com/P'));
+t('saída nula se nenhum link válido', () => assert.strictEqual(val.linkDeSaida({ affiliate_url: null, external_product_url: 'javascript:1', external_platform: 'hotmart' }), null));
+
+// ---- validação de oferta ----
+const base = { title: 'Curso de Excel', category: 'Cursos & Ebooks', external_platform: 'hotmart', external_product_url: 'https://pay.hotmart.com/X1' };
+t('oferta mínima válida vira rascunho', () => { const r = val.validarOferta(base); assert.ok(r.ok); assert.strictEqual(r.dados.status, 'rascunho'); assert.strictEqual(r.dados.slug, 'curso-de-excel'); });
+t('categoria por slug é normalizada', () => { const r = val.validarOferta({ ...base, category: 'cursos-ebooks' }); assert.ok(r.ok); assert.strictEqual(r.dados.category, 'Cursos & Ebooks'); });
+t('categoria inexistente', () => assert.ok(!val.validarOferta({ ...base, category: 'Armas' }).ok));
+t('preço brasileiro', () => { assert.strictEqual(val.lerPreco('1.297,90'), 1297.9); assert.strictEqual(val.lerPreco('97'), 97); assert.strictEqual(val.lerPreco('R$ 47,00'), 47); assert.strictEqual(val.lerPreco(''), null); assert.strictEqual(val.lerPreco('abc'), 'invalido'); assert.strictEqual(val.lerPreco('-5'), 'invalido'); });
+t('tags limpas e limitadas', () => { const r = val.validarOferta({ ...base, tags: 'Excel, planilha; excel|  ' }); assert.deepStrictEqual(r.dados.tags, ['excel', 'planilha']); });
+t('slug sem acento', () => assert.strictEqual(tipos.gerarSlug('Ação & Reação: Guia!'), 'acao-reacao-guia'));
+
+// ---- CSV ----
+const cab = 'nome,categoria,plataforma,url_produto,url_afiliado,preco_referencia,moeda,produtor,descricao\n';
+t('CSV válido com aspas, vírgula e quebra de linha', () => {
+  const p = csv.validarCsv(cab + '"Curso, avançado",Cursos & Ebooks,hotmart,https://pay.hotmart.com/A1,,"97,00",BRL,Ana,"linha 1\nlinha 2"\n');
+  assert.strictEqual(p.validas, 1); assert.strictEqual(p.linhas[0].dados.title, 'Curso, avançado'); assert.strictEqual(p.linhas[0].dados.description, 'linha 1\nlinha 2'); assert.strictEqual(p.linhas[0].dados.price_reference, 97);
+});
+t('CSV com ponto e vírgula', () => { const p = csv.validarCsv('nome;categoria;plataforma;url_produto\nX;Design;kiwify;https://pay.kiwify.com.br/z\n'); assert.strictEqual(p.validas, 1); });
+t('CSV: erro por linha', () => { const p = csv.validarCsv(cab + 'A,Design,hotmart,http://pay.hotmart.com/a\nB,Design,hotmart,https://pay.hotmart.com/b\n'); assert.strictEqual(p.validas, 1); assert.strictEqual(p.comErro, 1); assert.strictEqual(p.linhas[0].linha, 2); });
+t('CSV: duplicada no arquivo', () => { const p = csv.validarCsv(cab + 'A,Design,hotmart,https://pay.hotmart.com/a\nA2,Design,hotmart,https://pay.hotmart.com/a?x=1\n'); assert.strictEqual(p.duplicadas, 1); });
+t('CSV: duplicada no cadastro', () => { const p = csv.validarCsv(cab + 'A,Design,hotmart,https://pay.hotmart.com/a\n', { slugs: ['a'] }); assert.strictEqual(p.duplicadas, 1); assert.strictEqual(p.linhas[0].duplicada, 'ja_cadastrada'); });
+t('CSV: coluna obrigatória ausente', () => assert.ok(/url_produto/.test(csv.validarCsv('nome,categoria,plataforma\nA,Design,hotmart\n').erroGeral)));
+t('CSV: limite de linhas', () => { const linhas = Array.from({ length: 501 }, (_, i) => `P${i},Design,hotmart,https://pay.hotmart.com/p${i}`).join('\n'); assert.ok(/500/.test(csv.validarCsv(cab.split(',').slice(0, 4).join(',') + '\n' + linhas).erroGeral)); });
+t('CSV: limite de 1 MB', () => assert.ok(/1 MB/.test(csv.validarCsv('x'.repeat(1024 * 1024 + 10)).erroGeral)));
+t('CSV: sempre rascunho mesmo com status no arquivo', () => { const p = csv.validarCsv('nome,categoria,plataforma,url_produto,status\nA,Design,hotmart,https://pay.hotmart.com/a,ativo\n'); assert.strictEqual(p.linhas[0].dados.status, 'rascunho'); });
+t('SQL gerado escapa aspas', () => { const p = csv.validarCsv(cab + "\"D'Avila; drop table x\",Design,hotmart,https://pay.hotmart.com/a\n"); const s = csv.gerarSqlImportacao([p.linhas[0].dados], false); assert.ok(s.includes("'D''Avila; drop table x'")); assert.ok(s.includes("'rascunho'")); assert.ok(s.includes('NÃO EXECUTAR')); });
+
+// ---- mistura nativos x parceiros ----
+const cfg = mix.MIX_PADRAO; // 30%, máx 1 seguido, 12 sem nativos
+const N = (n) => Array.from({ length: n }, (_, i) => 'n' + i), P = (n) => Array.from({ length: n }, (_, i) => 'p' + i);
+t('sem nativos: até maxSemNativos', () => assert.strictEqual(mix.intercalar([], P(20), cfg).length, 12));
+t('teto de 30%', () => { const r = mix.intercalar(N(7), P(10), cfg); assert.strictEqual(r.filter((x) => x.tipo === 'parceiro').length, 3); });
+t('nativos mantêm ordem e vêm primeiro', () => { const r = mix.intercalar(N(7), P(10), cfg); assert.strictEqual(r[0].tipo, 'nativo'); assert.deepStrictEqual(r.filter((x) => x.tipo === 'nativo').map((x) => x.item), N(7)); });
+t('nunca dois parceiros seguidos com nativos disponíveis', () => { const r = mix.intercalar(N(20), P(10), cfg); for (let i = 1; i < r.length; i++) assert.ok(!(r[i].tipo === 'parceiro' && r[i - 1].tipo === 'parceiro')); });
+t('respeita vagas da página', () => assert.strictEqual(mix.intercalar(N(20), P(10), cfg, 2).filter((x) => x.tipo === 'parceiro').length, 2));
+t('desligado: só nativos', () => assert.strictEqual(mix.intercalar(N(3), P(3), { ...cfg, ativo: false }).length, 3));
+t('normalizarMix limita valores', () => { const m = mix.normalizarMix({ maxPct: 500, maxSeguidos: 0, homeQtd: -3, ativo: 'x' }); assert.strictEqual(m.maxPct, 100); assert.strictEqual(m.maxSeguidos, 1); assert.strictEqual(m.homeQtd, 0); assert.strictEqual(m.ativo, false); });
+t('precisaVerificar após 30 dias', () => { assert.ok(tipos.precisaVerificar(null)); assert.ok(tipos.precisaVerificar(new Date(Date.now() - 31 * 864e5).toISOString())); assert.ok(!tipos.precisaVerificar(new Date().toISOString())); });
+
+console.log(`\n${ok} passaram, ${fail} falharam`);
+process.exit(fail ? 1 : 0);
