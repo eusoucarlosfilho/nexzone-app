@@ -11,6 +11,7 @@ import type { Metadata } from 'next';
 import Icon from '@/components/Icon';
 import { CategoryCover } from '@/components/CategoryIcon';
 import { metaDescription, SITE_URL_FALLBACK } from '@/lib/seo';
+import { vendedorPublico, produtoPublico, produtosPublicos } from '@/lib/vendedorPublico';
 
 const money = (v: number) => 'R$ ' + v.toFixed(2).replace('.', ',');
 const ENTREGA: Record<string, string> = {
@@ -54,9 +55,11 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
 export default async function ProductPage({ params }: { params: { id: string } }) {
   const supabase = createClient();
   const { data } = await supabase.from('products')
-    .select('*, stores(nome, nivel, slug)').eq('id', params.id).eq('status', 'ativo').single();
+    .select('*, stores(nome, nivel, slug, ocultar_vendedor)').eq('id', params.id).eq('status', 'ativo').single();
   if (!data) notFound();
-  const p = data as Product;
+  // Dados públicos do vendedor (Comprei Barato quando a loja está oculta). O nome real não sai do servidor.
+  const p = produtoPublico(data as Product);
+  const vend = vendedorPublico(p.stores);
   const preco = p.preco_promo ?? p.preco;
   const desconto = p.preco_promo ? Math.round((1 - p.preco_promo / p.preco) * 100) : 0;
 
@@ -69,15 +72,15 @@ export default async function ProductPage({ params }: { params: { id: string } }
   const { data: notasData } = await supabase.from('reviews').select('nota').eq('product_id', p.id).limit(5000);
   const notas = ((notasData ?? []) as { nota: number }[]).map((r) => Number(r.nota)).filter((v) => v >= 1 && v <= 5);
 
-  const { data: relData } = await supabase.from('products')
-    .select('*, stores(nome, nivel)').eq('store_id', p.store_id).eq('status', 'ativo').neq('id', p.id).limit(4);
-  const relacionados = (relData ?? []) as Product[];
+  // "Mais deste vendedor": não aparece quando a loja está oculta
+  const relacionados: Product[] = vend.oficial ? [] : produtosPublicos((await supabase.from('products')
+    .select('*, stores(nome, nivel, ocultar_vendedor)').eq('store_id', p.store_id).eq('status', 'ativo').neq('id', p.id).limit(4)).data as Product[] | null);
 
   const { data: catData } = await supabase.from('products')
-    .select('*, stores(nome, nivel)').eq('categoria', p.categoria).eq('status', 'ativo').neq('id', p.id)
+    .select('*, stores(nome, nivel, ocultar_vendedor)').eq('categoria', p.categoria).eq('status', 'ativo').neq('id', p.id)
     .order('vendas', { ascending: false }).limit(8);
   const relIds = new Set(relacionados.map((r) => r.id));
-  const daCategoria = ((catData ?? []) as Product[]).filter((c) => !relIds.has(c.id)).slice(0, 4);
+  const daCategoria = produtosPublicos(catData as Product[] | null).filter((c) => !relIds.has(c.id)).slice(0, 4);
 
   const { data: { user } } = await supabase.auth.getUser();
   const { data: perguntasData } = await supabase.from('product_questions')
@@ -95,14 +98,14 @@ export default async function ProductPage({ params }: { params: { id: string } }
     url: pageUrl,
     ...(p.capa_url ? { image: [p.capa_url] } : {}),
     ...(p.categoria ? { category: p.categoria } : {}),
-    ...(p.stores?.nome ? { brand: { '@type': 'Brand', name: p.stores.nome } } : {}),
+    brand: { '@type': 'Brand', name: vend.nome },
     offers: {
       '@type': 'Offer',
       url: pageUrl,
       priceCurrency: 'BRL',
       price: Number(preco).toFixed(2),
       availability: 'https://schema.org/InStock',
-      ...(p.stores?.nome ? { seller: { '@type': 'Organization', name: p.stores.nome } } : {}),
+      seller: { '@type': 'Organization', name: vend.nome },
     },
   };
   if (notas.length > 0) {
@@ -130,7 +133,9 @@ export default async function ProductPage({ params }: { params: { id: string } }
       </div>
       <ShareButton titulo={p.titulo} full />
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 10, color: 'var(--sub)', fontSize: 13 }}><FavButton productId={p.id} /> Salvar nos favoritos</div>
-      <div className="pdp-soldby">Vendido por <strong>{p.stores?.nome}</strong> <Icon name="check" size={14} color="var(--green)" strokeWidth={2.6} style={{ verticalAlign: '-2px' }} /></div>
+      <div className="pdp-soldby">Vendido por <strong>{vend.nome}</strong> {vend.oficial
+        ? <span className="pdp-oficial">Oficial</span>
+        : <Icon name="check" size={14} color="var(--green)" strokeWidth={2.6} style={{ verticalAlign: '-2px' }} />}</div>
     </div>
   );
 
@@ -156,6 +161,9 @@ export default async function ProductPage({ params }: { params: { id: string } }
         .pdp-recebe div{display:flex;gap:10px;align-items:center;font-size:15px;font-weight:700;color:var(--text);background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:14px 16px;transition:transform .2s var(--ease);}.pdp-recebe div:hover{transform:translateX(4px);}
         .pdp-seller{display:flex;align-items:center;gap:14px;background:#fff;border:1px solid var(--border);border-radius:20px;padding:18px;transition:all .22s var(--ease);}.pdp-seller:hover{border-color:var(--orange);transform:translateY(-2px);}
         .pdp-seller .av{width:52px;height:52px;border-radius:16px;background:var(--text);display:flex;align-items:center;justify-content:center;color:#fff;font-family:'Outfit';font-weight:900;font-size:22px;}
+        .pdp-seller-oficial:hover{border-color:var(--border);transform:none;}
+        .pdp-seller .av-oficial{background:#fff url(/logo.png) center/contain no-repeat;border:1px solid var(--border);}
+        .pdp-oficial{display:inline-block;font-family:'Outfit';font-weight:800;font-size:11px;color:#fff;background:#FF6B00;border-radius:50px;padding:2px 8px;vertical-align:1px;}
         .pdp-rev{border:1px solid var(--border);border-radius:18px;padding:18px;margin-bottom:10px;}
         .pdp-rev .h{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;}
         .pdp-price{margin-bottom:16px;}
@@ -208,14 +216,24 @@ export default async function ProductPage({ params }: { params: { id: string } }
 
           <div className="pdp-sec">
             <h2>Vendedor</h2>
-            <a href={`/loja/${p.stores?.slug}`} className="pdp-seller" style={{ textDecoration: 'none', color: 'inherit' }}>
-              <div className="av">{(p.stores?.nome || 'L').charAt(0).toUpperCase()}</div>
-              <div style={{ flex: 1 }}>
-                <strong style={{ fontFamily: 'Outfit', display: 'inline-flex', alignItems: 'center', gap: 5 }}>{p.stores?.nome} <Icon name="check" size={15} color="var(--green)" strokeWidth={2.6} /></strong>
-                <div className="muted" style={{ fontSize: 13, textTransform: 'capitalize' }}>Ver loja · Nível {p.stores?.nivel}</div>
+            {vend.oficial ? (
+              <div className="pdp-seller pdp-seller-oficial">
+                <div className="av av-oficial" aria-hidden="true" />
+                <div style={{ flex: 1 }}>
+                  <strong style={{ fontFamily: 'Outfit', display: 'inline-flex', alignItems: 'center', gap: 6 }}>{vend.nome} <span className="pdp-oficial">Oficial</span></strong>
+                  <div className="muted" style={{ fontSize: 13 }}>Vendido e garantido pelo Comprei Barato</div>
+                </div>
               </div>
-              <Icon name="chevronRight" size={20} color="var(--sub)" />
-            </a>
+            ) : (
+              <a href={`/loja/${vend.slug}`} className="pdp-seller" style={{ textDecoration: 'none', color: 'inherit' }}>
+                <div className="av">{(vend.nome || 'L').charAt(0).toUpperCase()}</div>
+                <div style={{ flex: 1 }}>
+                  <strong style={{ fontFamily: 'Outfit', display: 'inline-flex', alignItems: 'center', gap: 5 }}>{vend.nome} <Icon name="check" size={15} color="var(--green)" strokeWidth={2.6} /></strong>
+                  <div className="muted" style={{ fontSize: 13, textTransform: 'capitalize' }}>Ver loja · Nível {vend.nivel}</div>
+                </div>
+                <Icon name="chevronRight" size={20} color="var(--sub)" />
+              </a>
+            )}
           </div>
 
           <div className="pdp-sec">
