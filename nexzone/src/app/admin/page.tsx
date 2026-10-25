@@ -224,6 +224,20 @@ export default async function AdminPage() {
     settings.admins = ((adminProfiles) ?? []).map((p: any) => ({ id: p.id, email: emailById[p.id] || '—' }));
   } catch { settings.admins = []; }
 
+  // Central de Suporte: chamados aguardando a equipe (badge do menu) e preferências de aviso.
+  // Protegido: se a migração 0008 ainda não rodou, o painel continua funcionando.
+  let suporteAbertos = 0;
+  try {
+    const { count } = await admin.from('support_tickets').select('id', { count: 'exact', head: true }).in('status', ['aberto', 'em_atendimento']);
+    suporteAbertos = count ?? 0;
+  } catch { suporteAbertos = 0; }
+  try {
+    const { data: sp } = await admin.from('settings').select('key, value').in('key', ['suporte_email_cliente', 'suporte_aviso_admins']);
+    const sm: any = Object.fromEntries(((sp as any[]) ?? []).map((r) => [r.key, r.value]));
+    const mapa = sm.suporte_aviso_admins && typeof sm.suporte_aviso_admins === 'object' ? sm.suporte_aviso_admins : {};
+    settings.suporte = { avisoMe: mapa[user.id] !== false, emailCliente: sm.suporte_email_cliente !== false };
+  } catch { settings.suporte = { avisoMe: true, emailCliente: true }; }
+
   const vendMap: Record<string, number> = {};
   paid.forEach((o) => { const n = o.stores?.nome || '—'; vendMap[n] = (vendMap[n] || 0) + Number(o.total); });
   const topVendedores = Object.entries(vendMap).map(([nome, total]) => ({ nome, total })).sort((a, b) => b.total - a.total).slice(0, 8);
@@ -244,6 +258,7 @@ export default async function AdminPage() {
     receitaDivulgacao: boosts.filter((b: any) => b.status === 'pago').reduce((s: number, b: any) => s + Number(b.valor), 0),
     destaquesAtivos: boosts.filter((b: any) => b.status === 'pago' && b.expira_em && new Date(b.expira_em) > new Date()).length,
     buyersCount,
+    suporteAbertos,
   };
 
   return <AdminDashboard adminEmail={user.email} users={users} metrics={metrics} daily={daily} orders={orders} products={products} stores={stores} payouts={payouts} boosts={boosts} settings={settings} growth={growth} sellers={sellers} complaints={complaints} alerts={alerts} />;

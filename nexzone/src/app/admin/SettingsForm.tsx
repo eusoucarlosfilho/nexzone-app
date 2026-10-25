@@ -108,8 +108,8 @@ export default function SettingsForm({ settings }: any) {
 
       <div style={{ marginBottom: 22 }}>
         <label style={lbl}>E-mail de suporte</label>
-        <input type="email" value={suporte} onChange={(e) => setSuporte(e.target.value)} placeholder="contato@seudominio.com.br" style={inp} />
-        <small style={hint}>Aparece no rodapé do site para os usuários.</small>
+        <input type="text" inputMode="email" value={suporte} onChange={(e) => setSuporte(e.target.value)} placeholder="contato@seudominio.com.br" style={inp} />
+        <small style={hint}>Recebe os avisos da Central de Suporte (chamado novo e cliente respondeu) e é o Reply-To dos e-mails ao cliente. Aceita mais de um, separados por vírgula.</small>
       </div>
 
       {/* ===== CB Points e liberação de saldo ===== */}

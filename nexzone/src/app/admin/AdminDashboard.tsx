@@ -8,6 +8,8 @@ import OrderChat from '@/components/OrderChat';
 import AdminNotes from './AdminNotes';
 import AudienceTab from './AudienceTab';
 import ProvaSocialForm from './ProvaSocialForm';
+import SupportTab from './SupportTab';
+import SuporteConfig from './SuporteConfig';
 import { ehJogos } from '@/lib/categorias';
 import Icon from '@/components/Icon';
 import ProductThumb from '@/components/ProductThumb';
@@ -28,6 +30,14 @@ const STATUS: Record<string, [string, string]> = {
 
 export default function AdminDashboard({ adminEmail, users, metrics, daily, orders, products, stores, payouts, boosts, settings, growth, sellers, complaints, alerts }: any) {
   const [tab, setTab] = useState('cockpit');
+  // Link "Abrir no Admin" dos e-mails do suporte: /admin?suporte=CB-AAAA-000001
+  const [suporteProtocolo, setSuporteProtocolo] = useState<string | null>(null);
+  useEffect(() => {
+    try {
+      const p = new URLSearchParams(window.location.search).get('suporte');
+      if (p) { setSuporteProtocolo(p.trim().toUpperCase()); setTab('suporte'); }
+    } catch {}
+  }, []);
 
   // Controle dos "badges" (números) do menu. Ao clicar numa aba, o número
   // atual é marcado como "visto" e some — só reaparece se o número aumentar
@@ -199,6 +209,7 @@ export default function AdminDashboard({ adminEmail, users, metrics, daily, orde
     ['destaques', 'star', 'Destaques', metrics.destaquesAtivos],
     ['crescimento', 'growth', 'Crescimento', 0],
     ['reclamacoes', 'shield', 'Reclamações', recPendentes.length],
+    ['suporte', 'help', 'Suporte', metrics.suporteAbertos || 0],
     ['observacoes', 'chat', 'Observações', 0],
     ['torpedos', 'bell', 'Torpedos enviados', 0],
     ['promocoes', 'megaphone', 'Enviar promoção', 0],
@@ -735,11 +746,16 @@ export default function AdminDashboard({ adminEmail, users, metrics, daily, orde
           </>
         )}
 
+        {tab === 'suporte' && (
+          <SupportTab protocoloInicial={suporteProtocolo} onVerPedidos={() => irPara('pedidos', 0)} />
+        )}
+
         {tab === 'config' && (
           <>
             <h1 className="adm-h">Configurações</h1>
             <p className="adm-sub">Ajuste a comissão, os preços de destaque e o e-mail de suporte — sem mexer no código.</p>
             <SettingsForm settings={settings} />
+            <SuporteConfig inicial={settings.suporte} />
           </>
         )}
       </main>

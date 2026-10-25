@@ -24,7 +24,7 @@ export const LOTE_MAXIMO = 100; // máximo por chamada do batch do Resend
 
 export type EmailTag =
   | 'compra_aprovada' | 'nova_venda' | 'nova_mensagem' | 'escalonamento'
-  | 'promocao' | 'promocao_teste' | 'outro';
+  | 'promocao' | 'promocao_teste' | 'suporte' | 'outro';
 
 export type SendResult =
   | { ok: true; id?: string }
@@ -81,6 +81,7 @@ export async function sendEmail(opts: {
   tag?: EmailTag;
   headers?: Record<string, string>;
   replyTo?: string;
+  from?: string; // remetente específico (ex.: suporte); padrão = RESEND_FROM
 }): Promise<SendResult> {
   const tag = opts.tag || 'outro';
   try {
@@ -96,7 +97,7 @@ export async function sendEmail(opts: {
     }
 
     const r = await postResend(RESEND_URL, {
-      from: remetente(),
+      from: opts.from || remetente(),
       to: [to],
       subject: opts.subject,
       html: opts.html,
@@ -210,6 +211,7 @@ export function layoutEmail(opts: {
   botaoUrl?: string;
   rodapeExtra?: string; // ex.: link "Não quero mais receber" nas promoções
   preheader?: string;   // resumo que aparece na caixa de entrada
+  logo?: boolean;       // mostra public/logo.png no topo (padrão: logo em texto)
 }): string {
   const fonte = 'Arial, Helvetica, sans-serif';
   const botao = opts.botaoTexto && opts.botaoUrl ? `
@@ -244,7 +246,9 @@ export function layoutEmail(opts: {
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;">
           <tr>
             <td align="left" style="padding:0 8px 18px 8px;font-family:${fonte};font-size:24px;font-weight:bold;letter-spacing:-0.5px;">
-              <a href="${SITE_URL}" target="_blank" style="text-decoration:none;"><span style="color:#16161F;">Comprei</span><span style="color:#FF6B00;">Barato</span></a>
+              ${opts.logo
+                ? `<a href="${SITE_URL}" target="_blank" style="text-decoration:none;"><img src="${SITE_URL}/logo.png" width="150" alt="Comprei Barato" style="display:block;border:0;outline:none;width:150px;max-width:150px;height:auto;"></a>`
+                : `<a href="${SITE_URL}" target="_blank" style="text-decoration:none;"><span style="color:#16161F;">Comprei</span><span style="color:#FF6B00;">Barato</span></a>`}
             </td>
           </tr>
           <tr>

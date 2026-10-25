@@ -1,6 +1,7 @@
 import Link from 'next/link';
 
-export default function Footer({ supportEmail }: { supportEmail?: string }) {
+// supportEmail continua aceito por compatibilidade; o link "Suporte" agora abre a Central de Suporte (/suporte).
+export default function Footer(_props: { supportEmail?: string }) {
   return (
     <footer className="ftr-wrap">
       <div className="ftr">
@@ -10,7 +11,7 @@ export default function Footer({ supportEmail }: { supportEmail?: string }) {
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           <div><Link href="/">Início</Link><Link href="/produtos">Explorar</Link><Link href="/seja-vendedor">Vender no Comprei Barato</Link><Link href="/minhas-compras">Minhas compras</Link></div>
-          <div><Link href="/termos">Termos de uso</Link><Link href="/privacidade">Privacidade</Link><a href={`mailto:${supportEmail || 'contato@compreibarato.com.br'}`}>Suporte</a></div>
+          <div><Link href="/termos">Termos de uso</Link><Link href="/privacidade">Privacidade</Link><Link href="/suporte">Suporte</Link></div>
         </div>
       </div>
     </footer>
