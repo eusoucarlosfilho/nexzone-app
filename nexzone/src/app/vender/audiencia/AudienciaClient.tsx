@@ -176,6 +176,7 @@ export default function AudienciaClient({ periodoInicial }: { periodoInicial: Pe
               <li><b>Acessos ao checkout:</b> aberturas da página de pagamento dos seus produtos. Não significa compra.</li>
               <li><b>Ao vivo:</b> visitantes com a página aberta na sua loja nos últimos {vivo?.janelaMin ?? 5} minutos, atualizado a cada {INTERVALO_AO_VIVO / 1000} s enquanto esta aba estiver visível.</li>
               <li>Contagens de 1 ou 2 por produto ou canal aparecem como &quot;menos de 3&quot;.</li>
+              <li>Suas próprias visitas, quando você está logado, não entram na conta.</li>
               <li>Todos os números são estimativas: bloqueadores, navegação anônima e robôs podem alterar a contagem.</li>
               <li>Pedidos e receita ainda não aparecem aqui porque o status dos pedidos está passando por uma correção de segurança.</li>
             </ul>

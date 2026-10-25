@@ -156,7 +156,7 @@ export default async function Home() {
           <div className="marquee-track">
             {[0, 1].map((k) => (
               <span key={k} style={{ display: 'flex', gap: 48 }}>
-                <span>Entrega imediata</span><i>●</i><span>Pagamento via Pix</span><i>●</i><span>Criadores verificados</span><i>●</i><span>Garantia em todas as compras</span><i>●</i><span>Ganhe CB Points a cada compra</span><i>●</i>
+                <span>Entrega imediata</span><i>●</i><span>Pagamento via Pix</span><i>●</i><span>Criadores verificados</span><i>●</i><span>Garantia em todas as compras</span><i>●</i>{cfg.cb_points_ativo && <><span>Ganhe CB Points a cada compra</span><i>●</i></>}
               </span>
             ))}
           </div>
