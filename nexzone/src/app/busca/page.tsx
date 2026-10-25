@@ -1,5 +1,8 @@
 import Nav from '@/components/Nav';
-import ProductCard from '@/components/ProductCard';
+import GradeMista from '@/components/GradeMista';
+import { configMix, ofertasAtivas } from '@/lib/ofertas/servidor';
+import { intercalar, type ItemMix } from '@/lib/ofertas/mix';
+import type { OfertaVitrine } from '@/lib/ofertas/tipos';
 import { createClient } from '@/lib/supabase/server';
 import type { Product } from '@/lib/types';
 import { produtosPublicos } from '@/lib/vendedorPublico';
@@ -17,6 +20,12 @@ export default async function BuscaPage({ searchParams }: { searchParams: { q?: 
       .order('vendas', { ascending: false }).limit(48);
     produtos = produtosPublicos(data as Product[] | null);
   }
+  // Ofertas de parceiros completam os resultados (nativos primeiro, com teto de participação)
+  let grade: ItemMix<Product, OfertaVitrine>[] = produtos.map((item) => ({ tipo: 'nativo' as const, item }));
+  if (q) {
+    const [mix, parceiros] = await Promise.all([configMix(), ofertasAtivas({ termo: termoBusca(q), limite: 24 })]);
+    if (mix.ativo) grade = intercalar(produtos, parceiros, mix);
+  }
 
   return (
     <>
@@ -27,8 +36,8 @@ export default async function BuscaPage({ searchParams }: { searchParams: { q?: 
           <h2>{q ? `Resultados para "${q}"` : 'Buscar produtos'}</h2>
         </div>
         {q
-          ? (produtos.length
-              ? <div className="pg">{produtos.map((p) => <ProductCard key={p.id} p={p} />)}</div>
+          ? (grade.length
+              ? <GradeMista itens={grade} />
               : <p className="muted">Nenhum produto encontrado para “{q}”. Tente outra palavra.</p>)
           : <p className="muted">Digite algo na busca da página inicial.</p>}
       </div></section>

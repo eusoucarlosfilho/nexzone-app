@@ -314,6 +314,9 @@ export default function AdminDashboard({ adminEmail, users, metrics, daily, orde
             <Icon name={ic} /> {label} {badge > (seenBadges[id] || 0) && <span className="bd">{badge}</span>}
           </button>
         ))}
+        <a className="adm-nav" href="/admin/ofertas-parceiras" style={{ textDecoration: 'none' }}>
+          <Icon name="link" /> Ofertas parceiras
+        </a>
         <div className="adm-foot">
           <button className="adm-nav" onClick={toggleTheme} style={{ marginBottom: 2 }}>
             <Icon name={theme === 'dark' ? 'sun' : 'moon'} size={16} /> {theme === 'dark' ? 'Modo claro' : 'Modo escuro'}
