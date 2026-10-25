@@ -16,8 +16,8 @@ type Aba = 'ofertas' | 'importar' | 'exibicao' | 'desempenho';
 type Props = { liberado: boolean; motivo: string | null; listaConfigurada: boolean; categorias: string[] };
 
 const VAZIA: Record<string, any> = {
-  title: '', slug: '', category: '', external_platform: 'hotmart', external_product_url: '', affiliate_url: '',
-  image_url: '', price_reference: '', currency: 'BRL', producer_name: '', short_description: '', description: '',
+  title: '', slug: '', category: '', external_platform: 'mercadolivre', external_product_url: '', affiliate_url: '',
+  image_url: '', price_reference: '', price_from: '', currency: 'BRL', producer_name: '', short_description: '', description: '',
   tags: '', authorization_note: '', priority: 0, featured: false, status: 'rascunho',
 };
 
@@ -35,8 +35,8 @@ export default function OfertasAdmin({ liberado, motivo, listaConfigurada, categ
       <header className="ofa-top">
         <div>
           <Link href="/admin" className="ofa-voltar">← Admin</Link>
-          <h1>Ofertas parceiras</h1>
-          <p className="muted">Produtos de outras plataformas exibidos no catálogo. A compra acontece no site do parceiro: sem pedido, saldo, comissão interna ou CB Points.</p>
+          <h1>Ofertas parceiras · produtos externos</h1>
+          <p className="muted">Produtos de outros sites (Mercado Livre, Shopee, Amazon, Magalu, AliExpress, Hotmart, Kiwify…) exibidos no layout da loja. O botão Comprar leva ao site de origem: sem pedido, saldo, comissão interna ou CB Points.</p>
         </div>
       </header>
 
@@ -143,7 +143,7 @@ function ListaOfertas({ categorias }: { categorias: string[] }) {
               <li key={o.id} className="card ofa-item">
                 <div className="ofa-item-info">
                   <strong>{o.title}</strong>
-                  <small>{ROTULO_PLATAFORMA[o.external_platform]} · {o.category} · {formatarPreco(o.price_reference, o.currency) || 'sem preço'}{o.producer_name ? ` · ${o.producer_name}` : ''}</small>
+                  <small>{ROTULO_PLATAFORMA[o.external_platform] || o.external_platform} · {o.category} · {formatarPreco(o.price_reference, o.currency) || 'sem preço'}{o.price_from ? ` (de ${formatarPreco(o.price_from, o.currency)})` : ''}{o.producer_name ? ` · ${o.producer_name}` : ''}</small>
                   <div className="ofa-tags">
                     <span className={`ofa-st st-${o.status}`}>{ROTULO_STATUS[o.status]}</span>
                     {o.featured && <span className="ofa-st st-dest">Destaque · prioridade {o.priority}</span>}
@@ -153,7 +153,7 @@ function ListaOfertas({ categorias }: { categorias: string[] }) {
                   </div>
                 </div>
                 <div className="ofa-acoes">
-                  <button className="btn btn-ghost btn-sm" onClick={() => setEditar({ ...o, tags: (o.tags || []).join(', '), price_reference: o.price_reference ?? '' })}>Editar</button>
+                  <button className="btn btn-ghost btn-sm" onClick={() => setEditar({ ...o, tags: (o.tags || []).join(', '), price_reference: o.price_reference ?? '', price_from: o.price_from ?? '' })}>Editar</button>
                   {o.status === 'ativo'
                     ? <button className="btn btn-ghost btn-sm" disabled={ocupado} onClick={() => acao(o, 'pausar', 'Oferta pausada.')}>Pausar</button>
                     : o.status !== 'arquivado' && <button className="btn btn-ghost btn-sm" disabled={ocupado} onClick={() => acao(o, 'ativar', 'Oferta publicada.')}>Publicar</button>}
@@ -187,8 +187,29 @@ function Formulario({ inicial, categorias, onFechar }: { inicial: Record<string,
   const [f, setF] = useState<Record<string, any>>(inicial);
   const [erros, setErros] = useState<Record<string, string>>({});
   const [salvando, setSalvando] = useState(false);
+  const [puxando, setPuxando] = useState(false);
   const editando = !!inicial.id;
   const set = (k: string, v: any) => setF((x) => ({ ...x, [k]: v }));
+
+  // "Puxar dados do link": preenche só os campos ainda vazios; tudo continua editável
+  async function puxar() {
+    const url = String(f.external_product_url || '').trim();
+    if (!url) { toast('Cole primeiro o link de compra.', 'error'); return; }
+    setPuxando(true);
+    const r = await api('/api/admin/partner-offers/puxar-dados', { method: 'POST', body: JSON.stringify({ url }) });
+    setPuxando(false);
+    if (!r.ok) { toast(r.d.error || 'Não foi possível ler o link. Preencha manualmente.', 'error'); return; }
+    const d = r.d.dados || {};
+    const preenchidos: string[] = [];
+    setF((x) => {
+      const n = { ...x };
+      for (const k of ['title', 'image_url', 'price_reference', 'currency', 'short_description'] as const) {
+        if (d[k] && (!x[k] || (k === 'currency' && x[k] === 'BRL'))) { n[k] = d[k]; preenchidos.push(k); }
+      }
+      return n;
+    });
+    toast(preenchidos.length ? 'Dados preenchidos a partir do link. Revise antes de salvar.' : 'O link não trouxe nada novo (campos já preenchidos).', 'success');
+  }
 
   async function salvar(e: React.FormEvent) {
     e.preventDefault();
@@ -217,13 +238,19 @@ function Formulario({ inicial, categorias, onFechar }: { inicial: Record<string,
         {campo('title', 'Nome do produto *', <input value={f.title} onChange={(e) => set('title', e.target.value)} maxLength={140} />)}
         {campo('category', 'Categoria *', <select value={f.category} onChange={(e) => set('category', e.target.value)}><option value="">Escolha</option>{categorias.map((c) => <option key={c}>{c}</option>)}</select>)}
         {campo('external_platform', 'Plataforma *', <select value={f.external_platform} onChange={(e) => set('external_platform', e.target.value)}>{PLATAFORMAS.map((p) => <option key={p} value={p}>{ROTULO_PLATAFORMA[p]}</option>)}</select>)}
-        {campo('producer_name', 'Produtor', <input value={f.producer_name || ''} onChange={(e) => set('producer_name', e.target.value)} maxLength={120} />)}
+        {campo('producer_name', 'Vendedor / produtor (interno)', <input value={f.producer_name || ''} onChange={(e) => set('producer_name', e.target.value)} maxLength={120} />, 'Só aparece no site se "Mostrar a origem" estiver ligado.')}
       </div>
-      {campo('external_product_url', 'Link da página do produto *', <input type="url" inputMode="url" value={f.external_product_url} onChange={(e) => set('external_product_url', e.target.value)} placeholder="https://..." />, 'Precisa ser https e do domínio oficial da plataforma escolhida.')}
-      {campo('affiliate_url', 'Link de afiliado autorizado', <input type="url" inputMode="url" value={f.affiliate_url || ''} onChange={(e) => set('affiliate_url', e.target.value)} placeholder="https://..." />, 'Se preenchido, é para ele que o comprador vai. Os parâmetros de afiliação são preservados.')}
+      {campo('external_product_url', 'Link de compra * (para onde o botão Comprar leva)', (
+        <span className="ofa-linha">
+          <input type="url" inputMode="url" value={f.external_product_url} onChange={(e) => set('external_product_url', e.target.value)} placeholder="https://..." />
+          <button type="button" className="btn btn-ghost btn-sm" onClick={puxar} disabled={puxando}>{puxando ? 'Lendo…' : 'Puxar dados do link'}</button>
+        </span>
+      ), 'https e do domínio oficial da plataforma escolhida ("Outro site" aceita qualquer https). Links encurtados (bit.ly etc.) são recusados.')}
+      {campo('affiliate_url', 'Link de afiliado (opcional)', <input type="url" inputMode="url" value={f.affiliate_url || ''} onChange={(e) => set('affiliate_url', e.target.value)} placeholder="https://..." />, 'Se preenchido, o botão Comprar usa este link no lugar do link de compra.')}
       {campo('image_url', 'Imagem (link https autorizado)', <input type="url" inputMode="url" value={f.image_url || ''} onChange={(e) => set('image_url', e.target.value)} placeholder="https://..." />, 'Use só imagens que o produtor autorizou.')}
-      <div className="ofa-grid3">
-        {campo('price_reference', 'Preço de referência', <input inputMode="decimal" value={f.price_reference ?? ''} onChange={(e) => set('price_reference', e.target.value)} placeholder="97,00" />, 'Vazio = "ver preço no parceiro".')}
+      <div className="ofa-grid4">
+        {campo('price_reference', 'Preço', <input inputMode="decimal" value={f.price_reference ?? ''} onChange={(e) => set('price_reference', e.target.value)} placeholder="97,00" />, 'Vazio = "Ver preço".')}
+        {campo('price_from', 'Preço "de" (opcional)', <input inputMode="decimal" value={f.price_from ?? ''} onChange={(e) => set('price_from', e.target.value)} placeholder="129,90" />, 'Maior que o preço: mostra o desconto.')}
         {campo('currency', 'Moeda', <select value={f.currency} onChange={(e) => set('currency', e.target.value)}>{MOEDAS.map((m) => <option key={m}>{m}</option>)}</select>)}
         {campo('priority', 'Prioridade (0 a 1000)', <input type="number" min={0} max={1000} value={f.priority} onChange={(e) => set('priority', e.target.value)} />)}
       </div>
@@ -346,8 +373,21 @@ function Exibicao() {
   return (
     <div className="card ofa-card">
       <h2>Exibição no site</h2>
-      <p className="muted">Produtos nativos aparecem sempre primeiro. As ofertas de parceiros só completam as seções, dentro destes limites.</p>
-      <label className="ofa-chk"><input type="checkbox" checked={mix.ativo} onChange={(e) => setMix({ ...mix, ativo: e.target.checked })} /> Mostrar ofertas de parceiros no site</label>
+      <p className="muted">Os produtos dos nossos vendedores aparecem sempre primeiro. Os produtos externos só completam as seções, dentro destes limites. As chaves valem na hora e não apagam nada.</p>
+      <label className="ofa-chk ofa-chave"><input type="checkbox" checked={mix.ativo} onChange={(e) => setMix({ ...mix, ativo: e.target.checked })} /> <strong>Mostrar produtos externos no site</strong> · {mix.ativo ? 'Ligado' : 'Desligado'}</label>
+      <fieldset className="ofa-plats" disabled={!mix.ativo}>
+        <legend>Origens exibidas</legend>
+        {PLATAFORMAS.map((p) => {
+          const ligada = !mix.plataformasDesligadas.includes(p);
+          return (
+            <label key={p} className="ofa-chk">
+              <input type="checkbox" checked={ligada} onChange={(e) => setMix({ ...mix, plataformasDesligadas: e.target.checked ? mix.plataformasDesligadas.filter((x) => x !== p) : [...mix.plataformasDesligadas, p] })} />
+              {ROTULO_PLATAFORMA[p]}
+            </label>
+          );
+        })}
+      </fieldset>
+      <label className="ofa-chk"><input type="checkbox" checked={mix.mostrarOrigem} onChange={(e) => setMix({ ...mix, mostrarOrigem: e.target.checked })} /> Mostrar a origem do produto (selo, nome da plataforma e do vendedor) · {mix.mostrarOrigem ? 'Ligado' : 'Desligado'}</label>
       <div className="ofa-grid2">
         <label className="ofa-campo"><span>Participação máxima numa seção com produtos nativos (%)</span><input type="number" min={0} max={100} value={mix.maxPct} onChange={(e) => num('maxPct', e.target.value)} /><small>Ex.: 30% = no máximo 3 ofertas a cada 7 produtos nativos.</small></label>
         <label className="ofa-campo"><span>Ofertas numa seção sem nenhum produto nativo</span><input type="number" min={0} max={48} value={mix.maxSemNativos} onChange={(e) => num('maxSemNativos', e.target.value)} /></label>
