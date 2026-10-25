@@ -6,6 +6,7 @@ import Countdown from '@/components/Countdown';
 import type { Product } from '@/lib/types';
 import { getSettings } from '@/lib/settings';
 import Icon from '@/components/Icon';
+import { stripeAvailable } from '@/lib/payments/stripe';
 
 export const dynamic = 'force-dynamic';
 
@@ -34,6 +35,7 @@ export default async function CheckoutPage({ params }: { params: { id: string } 
   const { data: prof } = await supabase.from('profiles').select('cb_points').eq('id', user.id).maybeSingle();
   const meusPontos = Number((prof as any)?.cb_points ?? 0);
   const { cb_points_per_brl: perBrl } = await getSettings();
+  const cartaoDisponivel = await stripeAvailable();
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--surface)' }}>
@@ -74,6 +76,7 @@ export default async function CheckoutPage({ params }: { params: { id: string } 
           aceitaCupom={!!(p as any).aceita_cupom}
           meusPontos={meusPontos}
           perBrl={perBrl}
+          cartaoDisponivel={cartaoDisponivel}
         />
         <div style={{ textAlign: 'center', marginTop: 22 }}>
           <span className="muted" style={{ fontSize: 12 }}>

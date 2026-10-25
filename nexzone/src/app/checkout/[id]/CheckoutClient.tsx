@@ -7,6 +7,41 @@ import Icon from '@/components/Icon';
 
 const money = (v: number) => 'R$ ' + Number(v).toFixed(2).replace('.', ',');
 
+// Valor mínimo que a Stripe aceita em BRL (o servidor confere de novo em /api/checkout/stripe).
+const CARTAO_MIN_BRL = 0.5;
+
+// Opção de forma de pagamento (radio visual).
+function OpcaoPagamento({ selecionada, onSelect, accent, icone, titulo, subtitulo }: {
+  selecionada: boolean; onSelect: () => void; accent: string; icone: React.ReactNode; titulo: string; subtitulo: string;
+}) {
+  return (
+    <div
+      role="radio"
+      aria-checked={selecionada}
+      tabIndex={0}
+      onClick={onSelect}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(); } }}
+      style={{
+        display: 'flex', alignItems: 'center', gap: 12, padding: '14px', cursor: 'pointer',
+        border: `2px solid ${selecionada ? accent : 'var(--border)'}`, borderRadius: 12,
+        background: selecionada ? 'var(--soft)' : '#fff', transition: 'border-color .15s, background .15s',
+      }}
+    >
+      <div style={{ width: 40, height: 40, borderRadius: 10, background: '#fff', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+        {icone}
+      </div>
+      <div style={{ flex: 1 }}>
+        <strong style={{ fontFamily: 'Outfit', fontSize: 15 }}>{titulo}</strong>
+        <div className="muted" style={{ fontSize: 12 }}>{subtitulo}</div>
+      </div>
+      <div style={{
+        width: 20, height: 20, borderRadius: '50%', background: '#fff', flexShrink: 0,
+        border: selecionada ? `6px solid ${accent}` : '2px solid var(--border)',
+      }} />
+    </div>
+  );
+}
+
 function Step({ n, label, active, done }: { n: number; label: string; active?: boolean; done?: boolean }) {
   const bg = done ? 'var(--green, #00B87A)' : active ? 'var(--orange, #FF6B00)' : '#E4E4ED';
   const col = done || active ? '#fff' : '#9A9AAE';
@@ -20,7 +55,7 @@ function Step({ n, label, active, done }: { n: number; label: string; active?: b
   );
 }
 
-export default function CheckoutClient({ productId, titulo, emoji, categoria, loja, preco, cor, bump, aceitaCupom, meusPontos = 0, perBrl = 100 }: any) {
+export default function CheckoutClient({ productId, titulo, emoji, categoria, loja, preco, cor, bump, aceitaCupom, meusPontos = 0, perBrl = 100, cartaoDisponivel = false }: any) {
   const router = useRouter();
   const [cupom, setCupom] = useState('');
   const [aplicado, setAplicado] = useState<{ codigo: string; desconto: number; final: number } | null>(null);
@@ -28,6 +63,7 @@ export default function CheckoutClient({ productId, titulo, emoji, categoria, lo
   const [gerando, setGerando] = useState(false);
   const [bumpAceito, setBumpAceito] = useState(false);
   const [erro, setErro] = useState('');
+  const [metodo, setMetodo] = useState<'pix' | 'cartao'>('pix');
 
   const subtotalProduto = aplicado ? aplicado.final : preco;
   const totalBruto = subtotalProduto + (bumpAceito && bump ? Number(bump.valor) : 0);
@@ -39,6 +75,11 @@ export default function CheckoutClient({ productId, titulo, emoji, categoria, lo
   const total = +(totalBruto - descontoPontos).toFixed(2);
   const podeUsarPontos = meusPontos > 0 && valorPontos >= 0.01 && totalBruto > 1;
   const accent = cor || 'var(--orange)';
+
+  // Cartão só aparece se o Admin ligou (e as chaves existem) e o total cobre o mínimo da Stripe.
+  const mostrarCartao = !!cartaoDisponivel && total >= CARTAO_MIN_BRL;
+  // Se o cartão sumir (ex.: cupom/pontos baixaram o total), volta para Pix.
+  const metodoEfetivo: 'pix' | 'cartao' = mostrarCartao ? metodo : 'pix';
 
   async function aplicarCupom() {
     if (!cupom.trim()) return;
@@ -62,9 +103,39 @@ export default function CheckoutClient({ productId, titulo, emoji, categoria, lo
     });
     if (res.status === 401) { router.push('/login'); return; }
     const data = await res.json();
-    if (!res.ok) { setGerando(false); setErro(data.error || 'Falha ao gerar o Pix.'); return; }
-    router.push(`/pedido/${data.orderId}`);
+    if (!res.ok) { setGerando(false); setErro(data.error || 'Falha ao gerar o pedido.'); return; }
+
+    if (metodoEfetivo === 'pix') {
+      router.push(`/pedido/${data.orderId}`);
+      return;
+    }
+
+    // Cartão: o pedido já existe; agora abre a Checkout Session da Stripe.
+    try {
+      const r = await fetch('/api/checkout/stripe', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+        body: JSON.stringify({ orderId: data.orderId }),
+      });
+      const d = await r.json().catch(() => ({} as any));
+      if (r.ok && d?.url) {
+        window.location.href = d.url;
+        return;
+      }
+      const msg = d?.error || 'Não foi possível abrir o pagamento com cartão. Você pode pagar com Pix.';
+      setErro(msg);
+      toast(msg, 'error');
+    } catch {
+      const msg = 'Falha de conexão ao abrir o pagamento com cartão. Você pode pagar com Pix.';
+      setErro(msg);
+      toast(msg, 'error');
+    }
+    // Leva ao pedido, onde o Pix continua disponível (e o botão "Prefere cartão?").
+    setTimeout(() => router.push(`/pedido/${data.orderId}`), 1800);
   }
+
+  const textoBotao = metodoEfetivo === 'cartao'
+    ? (gerando ? 'Abrindo pagamento seguro…' : `Pagar ${money(total)} com cartão`)
+    : (gerando ? 'Gerando Pix…' : `Pagar ${money(total)} com Pix`);
 
   return (
     <div className="card">
@@ -148,17 +219,33 @@ export default function CheckoutClient({ productId, titulo, emoji, categoria, lo
       {/* Forma de pagamento */}
       <div style={{ padding: '16px 0 4px' }}>
         <label style={{ fontSize: 13, fontWeight: 700, display: 'block', marginBottom: 10 }}>Forma de pagamento</label>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px', border: `2px solid ${accent}`, borderRadius: 12, background: 'var(--soft)' }}>
-          <div style={{ width: 40, height: 40, borderRadius: 10, background: '#fff', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={accent} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 2 2 12l10 10 10-10z" /><path d="M7 12l5 5 5-5-5-5z" />
-            </svg>
-          </div>
-          <div style={{ flex: 1 }}>
-            <strong style={{ fontFamily: 'Outfit', fontSize: 15 }}>Pix</strong>
-            <div className="muted" style={{ fontSize: 12 }}>Aprovação na hora · entrega imediata</div>
-          </div>
-          <div style={{ width: 20, height: 20, borderRadius: '50%', border: `6px solid ${accent}`, background: '#fff' }} />
+        <div role="radiogroup" aria-label="Forma de pagamento" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <OpcaoPagamento
+            selecionada={metodoEfetivo === 'pix'}
+            onSelect={() => !gerando && setMetodo('pix')}
+            accent={accent}
+            titulo="Pix"
+            subtitulo="Aprovação na hora · entrega imediata"
+            icone={
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={metodoEfetivo === 'pix' ? accent : 'var(--muted)'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 2 2 12l10 10 10-10z" /><path d="M7 12l5 5 5-5-5-5z" />
+              </svg>
+            }
+          />
+          {mostrarCartao && (
+            <OpcaoPagamento
+              selecionada={metodoEfetivo === 'cartao'}
+              onSelect={() => !gerando && setMetodo('cartao')}
+              accent={accent}
+              titulo="Cartão de crédito"
+              subtitulo="Visa, Master, Elo · pagamento seguro via Stripe"
+              icone={
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={metodoEfetivo === 'cartao' ? accent : 'var(--muted)'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="2" y="5" width="20" height="14" rx="2" /><path d="M2 10h20" /><path d="M6 15h4" />
+                </svg>
+              }
+            />
+          )}
         </div>
       </div>
 
@@ -169,7 +256,7 @@ export default function CheckoutClient({ productId, titulo, emoji, categoria, lo
       )}
 
       <button className="btn btn-pri" style={{ width: '100%', marginTop: 16, ...(cor ? { background: cor } : {}) }} onClick={pagar} disabled={gerando}>
-        {gerando ? 'Gerando Pix…' : <><Icon name="bolt" size={18} /> {`Pagar ${money(total)} com Pix`}</>}
+        {gerando ? textoBotao : <><Icon name={metodoEfetivo === 'cartao' ? 'lock' : 'bolt'} size={18} /> {textoBotao}</>}
       </button>
       <p className="muted" style={{ fontSize: 12, textAlign: 'center', marginTop: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}><Icon name="lock" size={13} /> Pagamento seguro · entrega imediata após o pagamento</p>
     </div>
