@@ -56,6 +56,8 @@ export async function POST(req: Request) {
   if (body.payment_gateway === 'misticpay' || body.payment_gateway === 'mercadopago') {
     rows.push({ key: 'payment_gateway', value: body.payment_gateway });
   }
+  // Cartão via Stripe: só o liga/desliga fica aqui (as chaves ficam nas variáveis de ambiente da Vercel)
+  if (typeof body.stripe_enabled === 'boolean') rows.push({ key: 'stripe_enabled', value: body.stripe_enabled });
   // Credenciais MisticPay
   if (typeof body.misticpay_ci === 'string') {
     rows.push({ key: 'misticpay_ci', value: body.misticpay_ci.trim() });
