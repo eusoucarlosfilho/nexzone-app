@@ -23,6 +23,9 @@ export async function POST(req: Request) {
   }
   if (body.support_email != null) rows.push({ key: 'support_email', value: String(body.support_email) });
 
+  // CB Points: liga/desliga do programa
+  if (typeof body.cb_points_ativo === 'boolean') rows.push({ key: 'cb_points_ativo', value: body.cb_points_ativo });
+
   // CB Points e liberação de saldo
   const numKeys: [string, number, number][] = [
     ['cb_points_per_purchase', 0, 100000],

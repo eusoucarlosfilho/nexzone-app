@@ -13,11 +13,28 @@ export default async function CBPointsPage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login?next=/cb-points');
 
+  // Programa desligado no admin: não mostra saldo nem extrato
+  const cfg = await getSettings();
+  if (!cfg.cb_points_ativo) {
+    return (
+      <>
+        <Nav />
+        <div className="page" style={{ maxWidth: 640 }}>
+          <h1 style={{ fontFamily: 'Outfit', fontSize: 28, fontWeight: 900, letterSpacing: '-.6px' }}>CB Points</h1>
+          <div className="card" style={{ marginTop: 14 }}>
+            <strong style={{ fontFamily: 'Outfit', display: 'block', marginBottom: 6 }}>Em breve</strong>
+            <p className="muted" style={{ fontSize: 14 }}>Estamos preparando o programa de pontos do Comprei Barato. Quando ele for lançado, você verá aqui seus pontos e como usá-los como desconto nas compras.</p>
+          </div>
+        </div>
+      </>
+    );
+  }
+
   const admin = createAdminClient();
   const { data: prof } = await admin.from('profiles').select('cb_points').eq('id', user.id).maybeSingle();
   const pontos = Number((prof as any)?.cb_points ?? 0);
   const { data: ledger } = await admin.from('points_ledger').select('delta, motivo, created_at').eq('user_id', user.id).order('created_at', { ascending: false }).limit(30);
-  const { cb_points_per_brl: perBrl } = await getSettings();
+  const perBrl = cfg.cb_points_per_brl;
   const valor = perBrl ? pontos / perBrl : 0;
 
   return (

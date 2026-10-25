@@ -24,13 +24,14 @@ export async function GET() {
   try {
     for (const bloco of ctx.blocos) {
       const { data } = await db.from('site_sessions')
-        .select('visitor_id, current_path')
+        .select('visitor_id, current_path, user_id')
         .gt('last_seen', desde)
         .in('current_path', bloco)
         .limit(TETO);
       for (const s of (data ?? []) as any[]) {
         const vid = s.visitor_id as string | null;
         if (!vid) continue;
+        if (s.user_id && s.user_id === ctx.userId) continue; // o próprio vendedor não conta como visitante
         const c = classificar(String(s.current_path || ''));
         if (!c) continue;
         visitantes.add(vid);

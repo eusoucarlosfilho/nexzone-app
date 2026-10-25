@@ -8,6 +8,7 @@ export default function SettingsForm({ settings }: any) {
   const [planos, setPlanos] = useState(settings.boost_plans.map((p: any) => ({ ...p })));
   const [suporte, setSuporte] = useState(settings.support_email || '');
 
+  const [cbAtivo, setCbAtivo] = useState<boolean>(settings.cb_points_ativo === true);
   const [ptCompra, setPtCompra] = useState(String(settings.cb_points_per_purchase ?? 3));
   const [ptBrl, setPtBrl] = useState(String(settings.cb_points_per_brl ?? 100));
   const [ptBonus, setPtBonus] = useState(String(settings.cb_points_review_bonus ?? 3));
@@ -69,6 +70,7 @@ export default function SettingsForm({ settings }: any) {
         commission_percent: Number(comissao),
         boost_plans: planos.map((p: any) => ({ dias: Number(p.dias), valor: Number(p.valor), label: p.label })),
         support_email: suporte,
+        cb_points_ativo: cbAtivo,
         cb_points_per_purchase: Number(ptCompra),
         cb_points_per_brl: Number(ptBrl),
         cb_points_review_bonus: Number(ptBonus),
@@ -115,6 +117,13 @@ export default function SettingsForm({ settings }: any) {
       {/* ===== CB Points e liberação de saldo ===== */}
       <div style={{ borderTop: '1px solid var(--border)', paddingTop: 20, marginBottom: 22 }}>
         <label style={lbl}>CB Points</label>
+        <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '12px 14px', border: '1px solid var(--border)', borderRadius: 12, marginBottom: 12, cursor: 'pointer', background: cbAtivo ? '#E3F6EE' : '#FFF8F3' }}>
+          <input type="checkbox" checked={cbAtivo} onChange={(e) => setCbAtivo(e.target.checked)} style={{ width: 20, height: 20, marginTop: 2 }} />
+          <span>
+            <strong style={{ display: 'block' }}>{cbAtivo ? 'Programa CB Points ATIVO' : 'Programa CB Points DESATIVADO'}</strong>
+            <small style={hint}>Desativado: some do menu, da página inicial e do checkout, e a página /cb-points mostra &quot;em breve&quot;. Ative só depois que a estrutura de pontos estiver pronta e segura no banco.</small>
+          </span>
+        </label>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           <div style={{ flex: '1 1 150px' }}>
             <small style={hint}>Pontos por compra (cliente e vendedor)</small>

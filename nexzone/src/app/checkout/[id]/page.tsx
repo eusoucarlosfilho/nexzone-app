@@ -34,9 +34,13 @@ export default async function CheckoutPage({ params }: { params: { id: string } 
   }
   const cor = cfg.cor || loja.cor || 'var(--orange)';
 
-  const { data: prof } = await supabase.from('profiles').select('cb_points').eq('id', user.id).maybeSingle();
-  const meusPontos = Number((prof as any)?.cb_points ?? 0);
-  const { cb_points_per_brl: perBrl } = await getSettings();
+  // CB Points desligado no admin: a opção "Usar meus CB Points" não aparece (meusPontos = 0)
+  const { cb_points_per_brl: perBrl, cb_points_ativo: cbAtivo } = await getSettings();
+  let meusPontos = 0;
+  if (cbAtivo) {
+    const { data: prof } = await supabase.from('profiles').select('cb_points').eq('id', user.id).maybeSingle();
+    meusPontos = Number((prof as any)?.cb_points ?? 0);
+  }
   const cartaoDisponivel = await stripeAvailable();
 
   return (

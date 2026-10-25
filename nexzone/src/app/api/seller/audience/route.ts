@@ -36,11 +36,11 @@ async function pageviews(blocos: string[][], iv: Intervalo) {
 
 async function sessoes(ids: string[]) {
   const db = admin();
-  const out = new Map<string, { visitor_id: string | null; referrer: string | null }>();
+  const out = new Map<string, { visitor_id: string | null; referrer: string | null; user_id: string | null }>();
   const alvo = ids.slice(0, MAX_SESSOES);
   for (let i = 0; i < alvo.length; i += 200) {
-    const { data } = await db.from('site_sessions').select('id, visitor_id, referrer').in('id', alvo.slice(i, i + 200));
-    for (const s of (data ?? []) as any[]) out.set(s.id, { visitor_id: s.visitor_id ?? null, referrer: s.referrer ?? null });
+    const { data } = await db.from('site_sessions').select('id, visitor_id, referrer, user_id').in('id', alvo.slice(i, i + 200));
+    for (const s of (data ?? []) as any[]) out.set(s.id, { visitor_id: s.visitor_id ?? null, referrer: s.referrer ?? null, user_id: s.user_id ?? null });
   }
   return { mapa: out, cortado: ids.length > MAX_SESSOES };
 }
@@ -71,11 +71,15 @@ export async function GET(req: NextRequest) {
 
   try {
     const [pa, pp] = await Promise.all([pageviews(ctx.blocos, atual), pageviews(ctx.blocos, anterior)]);
+
+    // Sessões dos dois períodos: visitante, origem e, para EXCLUIR, as visitas do próprio vendedor logado
+    const s = await sessoes(Array.from(new Set([...pa.linhas, ...pp.linhas].map((p) => p.session_id))));
+    const doVendedor = (pv: PV) => s.mapa.get(pv.session_id)?.user_id === ctx.userId;
+    pa.linhas = pa.linhas.filter((pv) => !doVendedor(pv));
+    pp.linhas = pp.linhas.filter((pv) => !doVendedor(pv));
     const ra = resumo(pa.linhas);
     const rp = resumo(pp.linhas);
 
-    // Visitantes únicos estimados e origem: só para o período atual
-    const s = await sessoes(ra.idsSessoes);
     const visitantes = new Set<string>();
     const porCanal = new Map<string, number>();
     const hostProprio = (req.headers.get('host') || '').replace(/^www\./, '').split(':')[0].toLowerCase();
