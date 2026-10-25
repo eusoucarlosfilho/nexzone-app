@@ -2,7 +2,7 @@ import Nav from '@/components/Nav';
 import BuyButton from './BuyButton';
 import ProductCard from '@/components/ProductCard';
 import PartnerOfferCard from '@/components/PartnerOfferCard';
-import { configMix, ofertasAtivas } from '@/lib/ofertas/servidor';
+import { configMix, ofertasAtivas, visiveis } from '@/lib/ofertas/servidor';
 import ShareButton from '@/components/ShareButton';
 import FavButton from '@/components/FavButton';
 import Questions from './Questions';
@@ -89,7 +89,7 @@ export default async function ProductPage({ params }: { params: { id: string } }
   const daCategoria = produtosPublicos(catData as Product[] | null).filter((c) => !relIds.has(c.id)).slice(0, 4);
   // Recomendações: ofertas de parceiros só completam as vagas que os nativos não preencheram
   const mixRec = daCategoria.length < 4 ? await configMix() : null;
-  const parceirasRec = mixRec?.ativo ? await ofertasAtivas({ categoria: p.categoria, limite: 4 - daCategoria.length }) : [];
+  const parceirasRec = mixRec?.ativo ? visiveis(await ofertasAtivas({ categoria: p.categoria, limite: 8 }), mixRec).slice(0, 4 - daCategoria.length) : [];
 
   const { data: { user } } = await supabase.auth.getUser();
   const { data: perguntasData } = await supabase.from('product_questions')
@@ -297,7 +297,7 @@ export default async function ProductPage({ params }: { params: { id: string } }
               <h2>Você também pode gostar</h2>
               <div className="pdp-grid">
                 {daCategoria.map((rp) => <ProductCard key={rp.id} p={rp} />)}
-                {parceirasRec.map((o) => <PartnerOfferCard key={o.id} o={o} />)}
+                {parceirasRec.map((o) => <PartnerOfferCard key={o.id} o={o} mostrarOrigem={mixRec?.mostrarOrigem} />)}
               </div>
             </div>
           )}
