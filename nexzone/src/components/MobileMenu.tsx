@@ -83,6 +83,7 @@ export default function MobileMenu({ loggedIn, cats }: { loggedIn: boolean; cats
                   {L({ href: '/minhas-compras', icon: 'bag', children: 'Minhas compras' })}
                   {L({ href: '/cb-points', icon: 'star', children: 'CB Points' })}
                   {L({ href: '/vender', icon: 'store', children: 'Minha loja' })}
+                  {L({ href: '/conta', icon: 'user', children: 'Minha conta' })}
                   <form action="/auth/signout" method="post">
                     <button type="submit" className="mm-link"><Icon name="logout" size={20} />Sair</button>
                   </form>

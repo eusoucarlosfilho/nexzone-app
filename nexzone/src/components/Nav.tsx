@@ -37,6 +37,7 @@ export default async function Nav() {
                   <NL href="/minhas-compras" icon="bag" label="Minhas compras" />
                   <NL href="/cb-points" icon="star" label="CB Points" />
                   <NL href="/vender" icon="store" label="Minha loja" />
+                  <NL href="/conta" icon="user" label="Minha conta" />
                   <form action="/auth/signout" method="post"><button type="submit" className="btn btn-dark btn-sm">Sair</button></form>
                 </>
               ) : (
