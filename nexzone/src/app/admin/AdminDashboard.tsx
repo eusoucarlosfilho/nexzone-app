@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { toast } from '@/lib/toast';
 import SettingsForm from './SettingsForm';
 import TorpedosForm from './TorpedosForm';
+import PromoForm from './PromoForm';
 import OrderChat from '@/components/OrderChat';
 import AdminNotes from './AdminNotes';
 import AudienceTab from './AudienceTab';
@@ -180,6 +181,7 @@ export default function AdminDashboard({ adminEmail, users, metrics, daily, orde
     ['reclamacoes', 'shield', 'Reclamações', recPendentes.length],
     ['observacoes', 'chat', 'Observações', 0],
     ['torpedos', 'bell', 'Torpedos enviados', 0],
+    ['promocoes', 'megaphone', 'Enviar promoção', 0],
     ['config', 'settings', 'Configurações', 0],
   ];
 
@@ -659,6 +661,14 @@ export default function AdminDashboard({ adminEmail, users, metrics, daily, orde
                 })}
               </div>
             )}
+          </>
+        )}
+
+        {tab === 'promocoes' && (
+          <>
+            <h1 className="adm-h">Enviar promoção</h1>
+            <p className="adm-sub">Mande uma promoção por e-mail só para quem aceitou receber. Envie um teste para você antes.</p>
+            <PromoForm />
           </>
         )}
 
