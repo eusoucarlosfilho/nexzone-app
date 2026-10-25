@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/server';
-import { ofertaParaSaida } from '@/lib/ofertas/servidor';
+import { configMix, ofertaParaSaida } from '@/lib/ofertas/servidor';
+import { plataformaVisivel } from '@/lib/ofertas/mix';
 import { linkDeSaida } from '@/lib/ofertas/validar';
 
 export const dynamic = 'force-dynamic';
@@ -24,8 +25,10 @@ function voltar(req: NextRequest, motivo: string) {
 
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   if (!UUID.test(params.id)) return voltar(req, 'oferta_indisponivel');
-  const oferta = await ofertaParaSaida(params.id);
+  const [oferta, cfg] = await Promise.all([ofertaParaSaida(params.id), configMix()]);
   if (!oferta || oferta.status !== 'ativo') return voltar(req, 'oferta_indisponivel');
+  // Chave geral ou da plataforma desligada no admin: não redireciona
+  if (!plataformaVisivel(oferta.external_platform, cfg)) return voltar(req, 'oferta_indisponivel');
   const destino = linkDeSaida(oferta);
   if (!destino) return voltar(req, 'oferta_indisponivel');
 
@@ -44,7 +47,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     status: 302,
     headers: {
       'Cache-Control': 'no-store',
-      'Referrer-Policy': 'origin', // o parceiro vê só que veio do Comprei Barato, nunca a página exata
+      'Referrer-Policy': 'origin', // o site de destino vê só que veio do Comprei Barato, nunca a página exata
       'X-Robots-Tag': 'noindex, nofollow',
     },
   });
