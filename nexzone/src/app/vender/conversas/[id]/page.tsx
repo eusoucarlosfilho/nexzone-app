@@ -17,11 +17,26 @@ export default async function ConversaPage({ params }: { params: { id: string } 
   if (!store) redirect('/vender');
 
   const { data: order } = await supabase.from('orders')
-    .select('id, total, status, created_at, comprador_email, conteudo_liberado, products(titulo, emoji, categoria, capa_url)')
+    .select('id, total, status, created_at, entregue_em, comprador_email, conteudo_liberado, products(titulo, emoji, categoria, capa_url)')
     .eq('id', params.id).eq('store_id', store.id).maybeSingle();
   if (!order) notFound();
 
   const p: any = (order as any).products;
+  const status = String((order as any).status);
+  // Mesma regra de /api/chat/deliver: só entrega pedido com pagamento confirmado.
+  // 'entregue' sem data de entrega não é alterado pelo vendedor: precisa de regularização administrativa.
+  const regularizar = status === 'entregue' && !(order as any).entregue_em;
+  const podeEntregar = status === 'pago' || (status === 'entregue' && !regularizar);
+  const SELO: Record<string, [string, string, string]> = {
+    entregue: ['Entregue', '#00875A', '#00875A22'],
+    pago: ['A entregar', '#B7791F', '#B7791F22'],
+    pendente: ['Aguardando pagamento', '#6B6B80', '#6B6B8022'],
+    cancelado: ['Cancelado', '#C62828', '#C6282822'],
+    reembolsado: ['Reembolsado', '#C62828', '#C6282822'],
+  };
+  const [rotulo, corTexto, corFundo] = regularizar
+    ? ['Precisa de regularização', '#7A5200', '#FFF1C7']
+    : (SELO[status] ?? [status, '#6B6B80', '#6B6B8022']);
 
   return (
     <div style={{ maxWidth: 620 }}>
@@ -32,12 +47,12 @@ export default async function ConversaPage({ params }: { params: { id: string } 
           <strong style={{ fontFamily: 'Outfit' }}>{p?.titulo ?? 'Produto'}</strong>
           <div className="muted" style={{ fontSize: 12 }}>{(order as any).comprador_email ?? 'Cliente'} · {money((order as any).total)}</div>
         </div>
-        <span style={{ fontSize: 11, fontWeight: 800, fontFamily: 'Outfit', padding: '4px 11px', borderRadius: 50, color: (order as any).status === 'entregue' ? '#00875A' : '#B7791F', background: (order as any).status === 'entregue' ? '#00875A22' : '#B7791F22' }}>
-          {(order as any).status === 'entregue' ? 'Entregue' : 'A entregar'}
+        <span style={{ fontSize: 11, fontWeight: 800, fontFamily: 'Outfit', padding: '4px 11px', borderRadius: 50, color: corTexto, background: corFundo }}>
+          {rotulo}
         </span>
       </div>
 
-      <SellerChatView orderId={(order as any).id} entregue={(order as any).status === 'entregue'} conteudoAtual={(order as any).conteudo_liberado ?? ''} />
+      <SellerChatView orderId={(order as any).id} status={regularizar ? 'regularizacao' : status} entregue={status === 'entregue'} podeEntregar={podeEntregar} conteudoAtual={(order as any).conteudo_liberado ?? ''} />
     </div>
   );
 }

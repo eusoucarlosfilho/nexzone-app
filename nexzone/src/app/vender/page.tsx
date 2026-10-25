@@ -4,8 +4,8 @@ import Link from 'next/link';
 import { calcBalance } from '@/lib/balance';
 import Icon from '@/components/Icon';
 import ProductThumb from '@/components/ProductThumb';
-import JourneyBadge from '@/components/JourneyBadge';
-import { computeJourney, brl } from '@/lib/journey';
+import JourneyChip from '@/components/JourneyChip';
+import { computeJourney } from '@/lib/journey';
 import StatCard from '@/components/ui/StatCard';
 import StatusBadge from '@/components/ui/StatusBadge';
 
@@ -60,6 +60,8 @@ export default async function VenderCockpit() {
   }
   const maxDay = Math.max(1, ...daily.map((d) => d.total));
   const recentes = entregues.slice(0, 5);
+  // Pedidos pagos que ainda aguardam a entrega manual do vendedor (status 'pago')
+  const aEntregar = all.filter((o) => o.status === 'pago').length;
 
   // Catálogo do vendedor (só os próprios produtos; números reais)
   const { data: prodRows } = await supabase.from('products').select('status, destaque_ate').eq('store_id', store.id);
@@ -82,6 +84,9 @@ export default async function VenderCockpit() {
         <div>
           <h1 style={{ fontFamily: 'Outfit', fontSize: 26, fontWeight: 900, letterSpacing: '-.6px' }}>Olá, {store.nome}</h1>
           <p className="muted" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>Aqui está o pulso da sua loja. <StatusBadge tipo="loja" status={(store as any).status} /></p>
+          <div style={{ marginTop: 12 }}>
+            <JourneyChip atual={jornada.atual} proximo={jornada.proximo} progresso={jornada.progresso} falta={jornada.falta} />
+          </div>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
             <Link href="/vender/produtos/novo" className="btn btn-pri btn-sm">+ Cadastrar produto</Link>
             <Link href="/vender/produtos" className="btn btn-ghost btn-sm"><Icon name="package" size={16} /> Gerenciar produtos</Link>
@@ -100,6 +105,32 @@ export default async function VenderCockpit() {
         <div className="sd-stat"><div className="ic"><Icon name="trophy" size={20} /></div><b>{money(fatTotal)}</b><small>Faturamento total</small></div>
       </div>
 
+      {aEntregar > 0 && (
+        <Link href="/vender/conversas" className="card" style={{ marginBottom: 20, display: 'flex', alignItems: 'center', gap: 12, textDecoration: 'none', color: 'inherit', borderLeft: '3px solid var(--orange)' }}>
+          <Icon name="package" size={20} color="var(--orange-ink)" />
+          <span style={{ flex: 1 }}><strong style={{ fontFamily: 'Outfit' }}>{aEntregar} pedido{aEntregar === 1 ? '' : 's'} pago{aEntregar === 1 ? '' : 's'} aguardando entrega</strong>
+            <span className="muted" style={{ display: 'block', fontSize: 13 }}>Entregue pela conversa do pedido.</span></span>
+          <Icon name="chevronRight" size={18} color="var(--sub)" />
+        </Link>
+      )}
+
+      <div className="card" style={{ marginBottom: 20 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', marginBottom: 8 }}>
+          <strong style={{ fontFamily: 'Outfit' }}>Vendas recentes</strong>
+          <Link href="/vender/vendas" style={{ fontSize: 13, fontWeight: 800, color: 'var(--orange-ink)', display: 'inline-flex', alignItems: 'center', gap: 4 }}>Ver todas <Icon name="arrowRight" size={14} /></Link>
+        </div>
+        {recentes.length ? recentes.map((o, i) => (
+          <div className="li" key={i}>
+            <ProductThumb className="em" capa_url={o.products?.capa_url} categoria={o.products?.categoria} titulo={o.products?.titulo} tamanho={46} raio={14} icone={22} />
+            <div style={{ flex: 1 }}>
+              <strong style={{ fontFamily: 'Outfit', fontSize: 14 }}>{o.products?.titulo ?? 'Produto'}</strong>
+              <div className="muted">{new Date(o.created_at).toLocaleString('pt-BR')}</div>
+            </div>
+            <strong style={{ fontFamily: 'Outfit', color: 'var(--green)' }}>+ {money(o.valor_vendedor)}</strong>
+          </div>
+        )) : <p className="muted" style={{ fontSize: 13 }}>Nenhuma venda ainda. Divulgue seus produtos e elas aparecem aqui.</p>}
+      </div>
+
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
         <strong style={{ fontFamily: 'Outfit', fontSize: 17 }}>Seu catálogo</strong>
         <Link href="/vender/produtos" style={{ fontSize: 13, fontWeight: 800, color: 'var(--orange-ink)', display: 'inline-flex', alignItems: 'center', gap: 4 }}>Ver todos <Icon name="arrowRight" size={14} /></Link>
@@ -109,32 +140,6 @@ export default async function VenderCockpit() {
         <StatCard label="Ativos" value={cat.ativos} icon="checkCircle" href="/vender/produtos" />
         <StatCard label="Em revisão" value={cat.revisao} icon="hourglass" href="/vender/produtos" />
         <StatCard label="Com destaque ativo" value={cat.destaque} icon="star" href="/vender/produtos" />
-      </div>
-
-      <div className="card" style={{ marginBottom: 20, display: 'flex', alignItems: 'center', gap: 18, flexWrap: 'wrap' }}>
-        <JourneyBadge tierId={jornada.atual?.id ?? 'estreia'} size={64} locked={!jornada.atual} />
-        <div style={{ flex: '1 1 220px', minWidth: 0 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', marginBottom: 10 }}>
-            <strong style={{ fontFamily: 'Outfit', display: 'flex', alignItems: 'center', gap: 8 }}>
-              <Icon name="rocket" size={18} /> Sua jornada{jornada.atual ? ` · ${jornada.atual.nome}` : ''}
-            </strong>
-            <Link href="/vender/jornada" style={{ fontSize: 13, fontWeight: 800, color: 'var(--orange-ink)', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-              Ver jornada <Icon name="arrowRight" size={14} />
-            </Link>
-          </div>
-          {jornada.proximo && jornada.proximo.id !== 'estreia' && (
-            <div className="sd-meta" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(jornada.progresso * 100)}>
-              <div className="fill" style={{ width: `${Math.max(2, jornada.progresso * 100)}%` }} />
-            </div>
-          )}
-          <p className="muted" style={{ fontSize: 12, marginTop: 8 }}>
-            {!jornada.proximo
-              ? 'Todos os selos conquistados. Você é uma lenda.'
-              : jornada.proximo.id === 'estreia'
-                ? 'Faça sua primeira venda para conquistar o selo Estreia.'
-                : `Faltam ${brl(jornada.falta)} para o selo ${jornada.proximo.nome}.`}
-          </p>
-        </div>
       </div>
 
       <div className="card" style={{ marginBottom: 20 }}>
@@ -161,19 +166,6 @@ export default async function VenderCockpit() {
         </div>
       </div>
 
-      <div className="card">
-        <strong style={{ fontFamily: 'Outfit', display: 'block', marginBottom: 8 }}>Vendas recentes</strong>
-        {recentes.length ? recentes.map((o, i) => (
-          <div className="li" key={i}>
-            <ProductThumb className="em" capa_url={o.products?.capa_url} categoria={o.products?.categoria} titulo={o.products?.titulo} tamanho={46} raio={14} icone={22} />
-            <div style={{ flex: 1 }}>
-              <strong style={{ fontFamily: 'Outfit', fontSize: 14 }}>{o.products?.titulo ?? 'Produto'}</strong>
-              <div className="muted">{new Date(o.created_at).toLocaleString('pt-BR')}</div>
-            </div>
-            <strong style={{ fontFamily: 'Outfit', color: 'var(--green)' }}>+ {money(o.valor_vendedor)}</strong>
-          </div>
-        )) : <p className="muted" style={{ fontSize: 13 }}>Nenhuma venda ainda. Divulgue seus produtos e elas aparecem aqui.</p>}
-      </div>
     </div>
   );
 }

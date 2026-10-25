@@ -1,6 +1,16 @@
+import type { Metadata, Viewport } from 'next';
 import Nav from '@/components/Nav';
 import SellerSidebar from './SellerSidebar';
 import SellerNotifier from './SellerNotifier';
+import SellerBell from '@/components/SellerBell';
+
+// PWA (preparação): manifest e modo "app" só nas páginas do painel do vendedor.
+// Nenhum service worker é registrado nesta versão.
+export const metadata: Metadata = {
+  manifest: '/manifest.webmanifest',
+  appleWebApp: { capable: true, title: 'Comprei Barato', statusBarStyle: 'default' },
+};
+export const viewport: Viewport = { themeColor: '#FF6B00' };
 
 export default function VenderLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -38,7 +48,10 @@ export default function VenderLayout({ children }: { children: React.ReactNode }
       <SellerNotifier />
       <div className="sd-shell">
         <SellerSidebar />
-        <div className="sd-main">{children}</div>
+        <div className="sd-main">
+          <div className="sd-toolbar"><SellerBell /></div>
+          {children}
+        </div>
       </div>
     </>
   );

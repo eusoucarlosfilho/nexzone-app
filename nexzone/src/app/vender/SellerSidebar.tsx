@@ -8,6 +8,7 @@ const ITEMS: [string, string, string][] = [
   ['/vender', 'cockpit', 'Visão geral'],
   ['/vender/produtos', 'package', 'Produtos'],
   ['/vender/vendas', 'receipt', 'Vendas'],
+  ['/vender/audiencia', 'activity', 'Audiência'],
   ['/vender/conversas', 'chat', 'Conversas'],
   ['/vender/perguntas', 'help', 'Perguntas'],
   ['/vender/cupons', 'ticket', 'Cupons'],

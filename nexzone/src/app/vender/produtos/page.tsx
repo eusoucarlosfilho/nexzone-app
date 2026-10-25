@@ -3,25 +3,81 @@ import { createClient } from '@/lib/supabase/server';
 import { getSettings } from '@/lib/settings';
 import { redirect } from 'next/navigation';
 import ProductManager from './ProductManager';
+import { termoBusca } from '@/lib/consultas';
 
 export const dynamic = 'force-dynamic';
 
-// Colunas que o painel do vendedor usa (lista + edição do PRÓPRIO produto).
-// O conteúdo de entrega entra porque o formulário de edição mostra o valor atual ao dono;
-// esta página só é acessível ao dono da loja (RLS de products por loja do usuário).
-const COLUNAS_VENDEDOR =
-  'id, titulo, descricao, categoria, preco, preco_promo, tipo_entrega, conteudo_entrega, garantia_dias, status, emoji, capa_url, imagens, arquivo_path, arquivo_nome, destaque_ate, vendas, nota, created_at';
+// Lista de Meus produtos: só o que a listagem mostra.
+// Conteúdo de entrega, arquivo e descrição NÃO vão para o navegador aqui:
+// a edição busca esses campos sob demanda em GET /api/seller/product?id= (com checagem de dono).
+const COLUNAS_LISTA = 'id, titulo, categoria, preco, preco_promo, status, capa_url, destaque_ate, vendas, nota, created_at';
+const POR_PAGINA = 10;
 
-export default async function ProdutosPage() {
+const ORDENS: Record<string, { col: string; asc: boolean }> = {
+  recentes: { col: 'created_at', asc: false },
+  antigos: { col: 'created_at', asc: true },
+  preco_menor: { col: 'preco', asc: true },
+  preco_maior: { col: 'preco', asc: false },
+  vendas: { col: 'vendas', asc: false },
+  nota: { col: 'nota', asc: false },
+};
+const FILTROS = ['todos', 'ativo', 'em_revisao', 'parados', 'destaque'] as const;
+
+type SP = { q?: string; status?: string; cat?: string; ordem?: string; page?: string };
+
+export default async function ProdutosPage({ searchParams }: { searchParams: SP }) {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect('/login');
+  if (!user) redirect('/login?next=/vender/produtos');
 
   const { data: store } = await supabase.from('stores').select('id').eq('owner', user.id).maybeSingle();
   const { boost_plans } = await getSettings();
-  const { data: produtos } = store
-    ? await supabase.from('products').select(COLUNAS_VENDEDOR).eq('store_id', store.id).order('created_at', { ascending: false })
-    : { data: [] as any[] };
+
+  const filtro = (FILTROS as readonly string[]).includes(searchParams.status || '') ? (searchParams.status as string) : 'todos';
+  const ordemKey = searchParams.ordem && ORDENS[searchParams.ordem] ? searchParams.ordem : 'recentes';
+  const ordem = ORDENS[ordemKey];
+  const termo = termoBusca(searchParams.q);
+  const cat = (searchParams.cat || '').slice(0, 80);
+  const pagina = Math.max(1, Math.floor(Number(searchParams.page) || 1));
+  const agoraIso = new Date().toISOString();
+
+  let produtos: any[] = [];
+  let total = 0;
+  let stats = { total: 0, ativo: 0, em_revisao: 0, parados: 0, destaque: 0 };
+  let categorias: string[] = [];
+
+  if (store) {
+    const base = () => supabase.from('products').select('id', { count: 'exact', head: true }).eq('store_id', store.id);
+    // Indicadores: contagens no banco (não dependem de carregar a lista inteira)
+    const [cTotal, cAtivo, cRev, cParados, cDest, cats] = await Promise.all([
+      base(),
+      base().eq('status', 'ativo'),
+      base().eq('status', 'em_revisao'),
+      base().in('status', ['reprovado', 'pausado']),
+      base().gt('destaque_ate', agoraIso),
+      // categorias usadas pelo vendedor (só a coluna, com teto)
+      supabase.from('products').select('categoria').eq('store_id', store.id).not('categoria', 'is', null).limit(1000),
+    ]);
+    stats = {
+      total: cTotal.count ?? 0, ativo: cAtivo.count ?? 0, em_revisao: cRev.count ?? 0,
+      parados: cParados.count ?? 0, destaque: cDest.count ?? 0,
+    };
+    categorias = Array.from(new Set(((cats.data ?? []) as { categoria: string }[]).map((c) => c.categoria).filter(Boolean))).sort();
+
+    // Página atual da lista: filtro, busca, ordem e intervalo no SERVIDOR
+    let q = supabase.from('products').select(COLUNAS_LISTA, { count: 'exact' }).eq('store_id', store.id);
+    if (filtro === 'ativo') q = q.eq('status', 'ativo');
+    if (filtro === 'em_revisao') q = q.eq('status', 'em_revisao');
+    if (filtro === 'parados') q = q.in('status', ['reprovado', 'pausado']);
+    if (filtro === 'destaque') q = q.gt('destaque_ate', agoraIso);
+    if (termo) q = q.ilike('titulo', `%${termo}%`);
+    if (cat) q = q.eq('categoria', cat);
+    q = q.order(ordem.col, { ascending: ordem.asc }).order('id', { ascending: true });
+    const de = (pagina - 1) * POR_PAGINA;
+    const { data, count } = await q.range(de, de + POR_PAGINA - 1);
+    produtos = (data ?? []) as any[];
+    total = count ?? produtos.length;
+  }
 
   return (
     <div>
@@ -32,7 +88,17 @@ export default async function ProdutosPage() {
         </div>
         <Link href="/vender/produtos/novo" className="btn btn-pri">+ Cadastrar novo produto</Link>
       </div>
-      <ProductManager products={(produtos ?? []) as any[]} userId={user.id} planos={boost_plans} />
+      <ProductManager
+        products={produtos}
+        total={total}
+        pagina={pagina}
+        porPagina={POR_PAGINA}
+        stats={stats}
+        categorias={categorias}
+        filtros={{ q: searchParams.q || '', status: filtro, cat, ordem: ordemKey }}
+        userId={user.id}
+        planos={boost_plans}
+      />
     </div>
   );
 }

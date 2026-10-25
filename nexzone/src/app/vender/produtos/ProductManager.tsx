@@ -1,7 +1,7 @@
 'use client';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { toast } from '@/lib/toast';
 import BoostButton from './BoostButton';
 import EditProductForm from './EditProductForm';
@@ -13,33 +13,35 @@ import ConfirmDialog from '@/components/ui/ConfirmDialog';
 
 const money = (v: number) => 'R$ ' + Number(v).toFixed(2).replace('.', ',');
 const data = (s?: string | null) => (s ? new Date(s).toLocaleDateString('pt-BR') : '—');
-const POR_PAGINA = 10;
 
-type Filtro = 'todos' | 'ativo' | 'em_revisao' | 'parados' | 'destaque';
-type Ordem = 'recentes' | 'antigos' | 'preco_menor' | 'preco_maior' | 'vendas' | 'nota';
 type Plano = { dias: number; valor: number; label: string };
+type Filtros = { q: string; status: string; cat: string; ordem: string };
+type Stats = { total: number; ativo: number; em_revisao: number; parados: number; destaque: number };
 
-export function destaqueAtivo(p: any, agora = Date.now()) {
-  return !!p.destaque_ate && new Date(p.destaque_ate).getTime() > agora;
+function destaqueAtivo(p: any) {
+  return !!p.destaque_ate && new Date(p.destaque_ate).getTime() > Date.now();
 }
 
-export default function ProductManager({ products, userId, planos }: { products: any[]; userId: string; planos: Plano[] }) {
+// Meus produtos — a lista, os filtros e a paginação vêm do SERVIDOR (page.tsx).
+// Este componente só recebe a página atual e troca os parâmetros da URL.
+export default function ProductManager({ products, total, pagina, porPagina, stats, categorias, filtros, userId, planos }: {
+  products: any[]; total: number; pagina: number; porPagina: number; stats: Stats; categorias: string[];
+  filtros: Filtros; userId: string; planos: Plano[];
+}) {
   const router = useRouter();
+  const pathname = usePathname();
   const [list, setList] = useState<any[]>(products);
   useEffect(() => { setList(products); }, [products]);
 
-  const [busca, setBusca] = useState('');
-  const [filtro, setFiltro] = useState<Filtro>('todos');
-  const [cat, setCat] = useState('');
-  const [ordem, setOrdem] = useState<Ordem>('recentes');
-  const [pagina, setPagina] = useState(1);
-  const [editar, setEditar] = useState<{ id: string; foco: 'imagens' | null } | null>(null);
+  const [busca, setBusca] = useState(filtros.q);
+  useEffect(() => { setBusca(filtros.q); }, [filtros.q]);
+  const [editar, setEditar] = useState<{ id: string; foco: 'imagens' | null; produto: any | null } | null>(null);
+  const [carregandoEdicao, setCarregandoEdicao] = useState<string | null>(null);
   const [menu, setMenu] = useState<string | null>(null);
   const [confirmar, setConfirmar] = useState<{ tipo: 'excluir' | 'pausar'; p: any } | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  // fecha o menu "Mais ações" com clique fora ou Esc
   useEffect(() => {
     if (!menu) return;
     const fora = (e: MouseEvent) => { if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenu(null); };
@@ -48,49 +50,34 @@ export default function ProductManager({ products, userId, planos }: { products:
     return () => { document.removeEventListener('mousedown', fora); document.removeEventListener('keydown', esc); };
   }, [menu]);
 
-  // Indicadores calculados dos produtos reais do vendedor
-  const stats = useMemo(() => {
-    const agora = Date.now();
-    return {
-      total: list.length,
-      ativo: list.filter((p) => p.status === 'ativo').length,
-      em_revisao: list.filter((p) => p.status === 'em_revisao').length,
-      parados: list.filter((p) => p.status === 'reprovado' || p.status === 'pausado').length,
-      destaque: list.filter((p) => destaqueAtivo(p, agora)).length,
-    };
-  }, [list]);
+  // Troca parâmetros da URL; qualquer filtro novo volta para a página 1
+  function irPara(mudancas: Partial<Filtros & { page: number }>) {
+    const atual: Record<string, string> = { q: filtros.q, status: filtros.status, cat: filtros.cat, ordem: filtros.ordem, page: String(pagina) };
+    const novo: Record<string, string> = { ...atual, ...Object.fromEntries(Object.entries(mudancas).map(([k, v]) => [k, String(v ?? '')])) };
+    if (!('page' in mudancas)) novo.page = '1';
+    const sp = new URLSearchParams();
+    if (novo.q) sp.set('q', novo.q);
+    if (novo.status && novo.status !== 'todos') sp.set('status', novo.status);
+    if (novo.cat) sp.set('cat', novo.cat);
+    if (novo.ordem && novo.ordem !== 'recentes') sp.set('ordem', novo.ordem);
+    if (novo.page && novo.page !== '1') sp.set('page', novo.page);
+    const s = sp.toString();
+    setEditar(null);
+    router.push(s ? `${pathname}?${s}` : pathname);
+  }
 
-  const categorias = useMemo(() => Array.from(new Set(list.map((p) => p.categoria).filter(Boolean))).sort(), [list]);
-
-  const filtrados = useMemo(() => {
-    const t = busca.trim().toLowerCase();
-    const agora = Date.now();
-    let l = list.filter((p) => {
-      if (t && !String(p.titulo || '').toLowerCase().includes(t)) return false;
-      if (cat && p.categoria !== cat) return false;
-      if (filtro === 'ativo' && p.status !== 'ativo') return false;
-      if (filtro === 'em_revisao' && p.status !== 'em_revisao') return false;
-      if (filtro === 'parados' && !(p.status === 'reprovado' || p.status === 'pausado')) return false;
-      if (filtro === 'destaque' && !destaqueAtivo(p, agora)) return false;
-      return true;
-    });
-    const preco = (p: any) => Number(p.preco_promo ?? p.preco);
-    const cmp: Record<Ordem, (a: any, b: any) => number> = {
-      recentes: (a, b) => String(b.created_at).localeCompare(String(a.created_at)),
-      antigos: (a, b) => String(a.created_at).localeCompare(String(b.created_at)),
-      preco_menor: (a, b) => preco(a) - preco(b),
-      preco_maior: (a, b) => preco(b) - preco(a),
-      vendas: (a, b) => Number(b.vendas || 0) - Number(a.vendas || 0),
-      nota: (a, b) => Number(b.nota || 0) - Number(a.nota || 0),
-    };
-    l = [...l].sort(cmp[ordem]);
-    return l;
-  }, [list, busca, cat, filtro, ordem]);
-
-  const totalPaginas = Math.max(1, Math.ceil(filtrados.length / POR_PAGINA));
-  const pag = Math.min(pagina, totalPaginas);
-  const visiveis = filtrados.slice((pag - 1) * POR_PAGINA, pag * POR_PAGINA);
-  useEffect(() => { setPagina(1); }, [busca, cat, filtro, ordem]);
+  // Abre a edição: busca os campos sensíveis do produto só agora, no servidor, com checagem de dono
+  async function abrirEdicao(id: string, foco: 'imagens' | null) {
+    if (editar?.id === id && editar.produto) { setEditar({ ...editar, foco }); return; }
+    setCarregandoEdicao(id);
+    try {
+      const r = await fetch(`/api/seller/product?id=${encodeURIComponent(id)}`, { credentials: 'include', cache: 'no-store' });
+      const d = await r.json().catch(() => ({}));
+      if (r.ok && d.produto) setEditar({ id, foco, produto: d.produto });
+      else toast(d.error || 'Não foi possível abrir a edição.', 'error');
+    } catch { toast('Falha de conexão. Tente de novo.', 'error'); }
+    finally { setCarregandoEdicao(null); }
+  }
 
   async function patch(id: string, action: 'pausar' | 'reativar') {
     setBusy(id);
@@ -103,6 +90,7 @@ export default function ProductManager({ products, userId, planos }: { products:
       if (r.ok) {
         setList((l) => l.map((p) => p.id === id ? { ...p, status: d.status } : p));
         toast(action === 'pausar' ? 'Produto pausado. Ele saiu do ar.' : 'Produto reenviado para revisão.', 'success');
+        router.refresh();
       } else toast(d.error || 'Não foi possível atualizar o produto.', 'error');
     } catch { toast('Falha de conexão. Tente de novo.', 'error'); }
     finally { setBusy(null); }
@@ -116,11 +104,12 @@ export default function ProductManager({ products, userId, planos }: { products:
         body: JSON.stringify({ id }),
       });
       const d = await r.json().catch(() => ({}));
-      if (r.ok) {
+      // Só confirma quando o servidor informa que uma linha foi realmente apagada
+      if (r.ok && Number(d.excluidos) > 0) {
         setList((l) => l.filter((p) => p.id !== id));
-        toast('Pedido de exclusão enviado.', 'success');
-        router.refresh(); // confere com o servidor: se o produto não foi excluído, ele volta à lista
-      } else toast(d.error || 'Não foi possível excluir.', 'error');
+        toast('Produto excluído.', 'success');
+        router.refresh();
+      } else toast(d.error || 'O produto não foi excluído.', 'error');
     } catch { toast('Falha de conexão. Tente de novo.', 'error'); }
     finally { setBusy(null); setConfirmar(null); }
   }
@@ -130,19 +119,21 @@ export default function ProductManager({ products, userId, planos }: { products:
     setMenu(null);
   }
 
-  const cards: { id: Filtro; label: string; value: number; icon: string }[] = [
+  const cards: { id: string; label: string; value: number; icon: string }[] = [
     { id: 'todos', label: 'Produtos cadastrados', value: stats.total, icon: 'package' },
     { id: 'ativo', label: 'Ativos', value: stats.ativo, icon: 'checkCircle' },
     { id: 'em_revisao', label: 'Em revisão', value: stats.em_revisao, icon: 'hourglass' },
     { id: 'parados', label: 'Pausados ou reprovados', value: stats.parados, icon: 'alert' },
     { id: 'destaque', label: 'Com destaque ativo', value: stats.destaque, icon: 'star' },
   ];
+  const totalPaginas = Math.max(1, Math.ceil(total / porPagina));
+  const temFiltro = !!(filtros.q || filtros.cat || filtros.status !== 'todos');
 
   return (
     <div>
       <div className="ui-stats" role="group" aria-label="Resumo dos seus produtos (clique para filtrar)">
         {cards.map((c) => (
-          <button key={c.id} type="button" className={`ui-stat ${filtro === c.id ? 'on' : ''}`} aria-pressed={filtro === c.id} onClick={() => setFiltro(c.id)}>
+          <button key={c.id} type="button" className={`ui-stat ${filtros.status === c.id ? 'on' : ''}`} aria-pressed={filtros.status === c.id} onClick={() => irPara({ status: c.id })}>
             <span className="ui-stat-ic" aria-hidden="true"><Icon name={c.icon} size={18} /></span>
             <b>{c.value}</b>
             <small>{c.label}</small>
@@ -150,7 +141,7 @@ export default function ProductManager({ products, userId, planos }: { products:
         ))}
       </div>
 
-      {list.length === 0 ? (
+      {stats.total === 0 ? (
         <div className="card">
           <EmptyState icon="package" title="Você ainda não cadastrou produtos"
             text="Cadastre seu primeiro produto digital. Ele passa por uma revisão rápida antes de ir ao ar."
@@ -159,12 +150,13 @@ export default function ProductManager({ products, userId, planos }: { products:
       ) : (
         <div className="card pm-card">
           <div className="ui-toolbar">
-            <label className="ui-grow" style={{ position: 'relative', display: 'flex' }}>
-              <span className="sr-only">Buscar produto pelo nome</span>
-              <input type="search" value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar pelo nome do produto" style={{ width: '100%' }} />
-            </label>
+            <form className="ui-grow" role="search" style={{ display: 'flex', gap: 8 }} onSubmit={(e) => { e.preventDefault(); irPara({ q: busca.trim() }); }}>
+              <label className="sr-only" htmlFor="pm-busca">Buscar produto pelo nome</label>
+              <input id="pm-busca" type="search" value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar pelo nome do produto" maxLength={100} style={{ flex: 1, minWidth: 0 }} />
+              <button type="submit" className="btn btn-ghost btn-sm">Buscar</button>
+            </form>
             <label><span className="sr-only">Status</span>
-              <select value={filtro} onChange={(e) => setFiltro(e.target.value as Filtro)}>
+              <select value={filtros.status} onChange={(e) => irPara({ status: e.target.value })}>
                 <option value="todos">Todos os status</option>
                 <option value="ativo">Ativos</option>
                 <option value="em_revisao">Em revisão</option>
@@ -173,35 +165,35 @@ export default function ProductManager({ products, userId, planos }: { products:
               </select>
             </label>
             <label><span className="sr-only">Categoria</span>
-              <select value={cat} onChange={(e) => setCat(e.target.value)}>
+              <select value={filtros.cat} onChange={(e) => irPara({ cat: e.target.value })}>
                 <option value="">Todas as categorias</option>
                 {categorias.map((c) => <option key={c}>{c}</option>)}
               </select>
             </label>
             <label><span className="sr-only">Ordenar</span>
-              <select value={ordem} onChange={(e) => setOrdem(e.target.value as Ordem)}>
+              <select value={filtros.ordem} onChange={(e) => irPara({ ordem: e.target.value })}>
                 <option value="recentes">Mais recentes</option>
                 <option value="antigos">Mais antigos</option>
                 <option value="preco_menor">Menor preço</option>
                 <option value="preco_maior">Maior preço</option>
-                <option value="vendas">Mais vendidos</option>
+                <option value="vendas">Mais vendas registradas</option>
                 <option value="nota">Melhor avaliados</option>
               </select>
             </label>
           </div>
           <div className="muted" style={{ fontSize: 13, marginBottom: 8 }} aria-live="polite">
-            {filtrados.length} de {list.length} produto{list.length === 1 ? '' : 's'}
+            {total} produto{total === 1 ? '' : 's'}{temFiltro ? ' com esses filtros' : ''} · página {Math.min(pagina, totalPaginas)} de {totalPaginas}
           </div>
 
-          {filtrados.length === 0 ? (
-            <EmptyState icon="search" title="Nenhum produto com esses filtros"
-              action={<button type="button" className="btn btn-ghost btn-sm" onClick={() => { setBusca(''); setCat(''); setFiltro('todos'); }}>Limpar filtros</button>} />
+          {list.length === 0 ? (
+            <EmptyState icon="search" title={temFiltro ? 'Nenhum produto com esses filtros' : 'Nenhum produto nesta página'}
+              action={<button type="button" className="btn btn-ghost btn-sm" onClick={() => router.push(pathname)}>Limpar filtros</button>} />
           ) : (
             <ul className="pm-list">
-              {visiveis.map((p) => {
+              {list.map((p) => {
                 const emDestaque = destaqueAtivo(p);
                 const ativo = p.status === 'ativo';
-                const aberto = editar?.id === p.id;
+                const aberto = !!editar && editar.id === p.id && !!editar.produto;
                 return (
                   <li key={p.id} className={`pm-item ${aberto ? 'open' : ''}`}>
                     <div className="pm-row">
@@ -218,7 +210,7 @@ export default function ProductManager({ products, userId, planos }: { products:
                             ? <span className="ui-badge hot"><Icon name="star" size={12} /> Destaque até {data(p.destaque_ate)}</span>
                             : <span className="ui-badge neutral">Sem destaque</span>}
                         </div>
-                        {p.status === 'em_revisao' && <div className="ui-help">Aguardando a aprovação da equipe. Você é avisado quando for publicado.</div>}
+                        {p.status === 'em_revisao' && <div className="ui-help">Aguardando a aprovação da equipe.</div>}
                         {p.status === 'reprovado' && <div className="ui-help">Não aprovado. Edite o anúncio e salve para enviar de novo à revisão.</div>}
                         {p.status === 'pausado' && <div className="ui-help">Pausado: não aparece no site. Reative para enviar de novo à revisão.</div>}
                       </div>
@@ -227,7 +219,7 @@ export default function ProductManager({ products, userId, planos }: { products:
                           {p.preco_promo ? <><s className="muted">{money(p.preco)}</s> <b>{money(p.preco_promo)}</b></> : <b>{money(p.preco)}</b>}
                         </div>
                         <div className="muted" style={{ fontSize: 12.5 }}>
-                          {Number(p.vendas || 0).toLocaleString('pt-BR')} venda{Number(p.vendas) === 1 ? '' : 's'}
+                          {Number(p.vendas || 0).toLocaleString('pt-BR')} venda{Number(p.vendas) === 1 ? '' : 's'} registrada{Number(p.vendas) === 1 ? '' : 's'}
                           {Number(p.nota) > 0 ? ` · ★ ${Number(p.nota).toFixed(1)}` : ''}
                         </div>
                       </div>
@@ -237,10 +229,12 @@ export default function ProductManager({ products, userId, planos }: { products:
                       {ativo
                         ? <Link href={`/produto/${p.id}`} className="btn btn-ghost btn-sm" target="_blank" rel="noopener"><Icon name="eye" size={16} /> Ver anúncio</Link>
                         : <span className="btn btn-ghost btn-sm pm-off" title="O anúncio só fica visível depois de aprovado">Ver anúncio</span>}
-                      <button type="button" className="btn btn-ghost btn-sm" disabled={busy === p.id} aria-expanded={aberto && editar?.foco !== 'imagens'}
-                        onClick={() => setEditar(aberto && editar?.foco !== 'imagens' ? null : { id: p.id, foco: null })}><Icon name="edit" size={16} /> {aberto ? 'Fechar edição' : 'Editar'}</button>
-                      <button type="button" className="btn btn-ghost btn-sm" disabled={busy === p.id}
-                        onClick={() => setEditar({ id: p.id, foco: 'imagens' })}><Icon name="image" size={16} /> Imagens</button>
+                      <button type="button" className="btn btn-ghost btn-sm" disabled={busy === p.id || carregandoEdicao === p.id} aria-expanded={aberto}
+                        onClick={() => aberto ? setEditar(null) : abrirEdicao(p.id, null)}>
+                        <Icon name="edit" size={16} /> {carregandoEdicao === p.id ? 'Abrindo…' : aberto ? 'Fechar edição' : 'Editar'}
+                      </button>
+                      <button type="button" className="btn btn-ghost btn-sm" disabled={busy === p.id || carregandoEdicao === p.id}
+                        onClick={() => abrirEdicao(p.id, 'imagens')}><Icon name="image" size={16} /> Imagens</button>
                       {ativo && !emDestaque && <BoostButton productId={p.id} destaqueAte={p.destaque_ate} planos={planos} />}
                       {!ativo && !emDestaque && <span className="btn btn-ghost btn-sm pm-off" title="O destaque fica disponível depois que o anúncio for aprovado"><Icon name="rocket" size={16} /> Destacar</span>}
 
@@ -262,9 +256,12 @@ export default function ProductManager({ products, userId, planos }: { products:
                     </div>
 
                     {aberto && (
-                      <EditProductForm key={`${p.id}-${editar?.foco}`} product={p} userId={userId} foco={editar?.foco}
+                      <EditProductForm key={`${p.id}-${editar?.foco}`} product={editar!.produto} userId={userId} foco={editar?.foco}
                         onCancel={() => setEditar(null)}
-                        onSaved={(novo) => { setList((l) => l.map((x) => x.id === p.id ? novo : x)); setEditar(null); router.refresh(); }} />
+                        onSaved={(novo) => {
+                          setList((l) => l.map((x) => x.id === p.id ? { ...x, titulo: novo.titulo, categoria: novo.categoria, preco: novo.preco, preco_promo: novo.preco_promo, capa_url: novo.capa_url, status: novo.status } : x));
+                          setEditar(null); router.refresh();
+                        }} />
                     )}
                   </li>
                 );
@@ -274,9 +271,9 @@ export default function ProductManager({ products, userId, planos }: { products:
 
           {totalPaginas > 1 && (
             <nav className="ui-pager" aria-label="Páginas da lista de produtos">
-              <button type="button" className={pag <= 1 ? 'off' : ''} disabled={pag <= 1} onClick={() => setPagina(pag - 1)}>‹ Anterior</button>
-              <span aria-current="page" className="on">{pag} de {totalPaginas}</span>
-              <button type="button" className={pag >= totalPaginas ? 'off' : ''} disabled={pag >= totalPaginas} onClick={() => setPagina(pag + 1)}>Próxima ›</button>
+              <button type="button" className={pagina <= 1 ? 'off' : ''} disabled={pagina <= 1} onClick={() => irPara({ page: pagina - 1 })}>‹ Anterior</button>
+              <span aria-current="page" className="on">{Math.min(pagina, totalPaginas)} de {totalPaginas}</span>
+              <button type="button" className={pagina >= totalPaginas ? 'off' : ''} disabled={pagina >= totalPaginas} onClick={() => irPara({ page: pagina + 1 })}>Próxima ›</button>
             </nav>
           )}
         </div>
@@ -286,7 +283,7 @@ export default function ProductManager({ products, userId, planos }: { products:
         open={!!confirmar}
         title={confirmar?.tipo === 'excluir' ? 'Excluir este produto?' : 'Pausar este anúncio?'}
         text={confirmar?.tipo === 'excluir'
-          ? `"${confirmar?.p?.titulo}" será removido do seu catálogo. Esta ação não pode ser desfeita. Produtos que já têm vendas podem não ser excluídos.`
+          ? `"${confirmar?.p?.titulo}" será removido do seu catálogo. Esta ação não pode ser desfeita. Produtos com pedidos não podem ser excluídos.`
           : `"${confirmar?.p?.titulo}" sai do ar imediatamente. Para voltar, ele passa por uma nova revisão.`}
         confirmLabel={confirmar?.tipo === 'excluir' ? 'Excluir produto' : 'Pausar anúncio'}
         danger={confirmar?.tipo === 'excluir'}
