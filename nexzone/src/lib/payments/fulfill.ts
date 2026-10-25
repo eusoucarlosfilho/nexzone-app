@@ -2,6 +2,7 @@
 // Compartilhado pelos webhooks do Pix (/api/webhooks/payment) e do cartão (/api/webhooks/stripe).
 // USO EXCLUSIVO NO SERVIDOR: recebe o client admin (service_role).
 import { awardPoints, getSettingNum } from '@/lib/points';
+import { notificarCompraAprovada } from '@/lib/notificacoes';
 
 export type PaymentEvent = {
   status: 'pago' | 'recusado' | 'estornado' | 'pendente';
@@ -59,6 +60,12 @@ export async function processarPedido(admin: any, order: any, event: PaymentEven
       const { data: cup } = await admin.from('coupons').select('id, usos').eq('store_id', order.store_id).eq('codigo', order.cupom).maybeSingle();
       if (cup) await admin.from('coupons').update({ usos: (cup.usos ?? 0) + 1 }).eq('id', cup.id);
     }
+
+    // E-mails "Compra aprovada" (comprador) e "Você vendeu" (dono da loja).
+    // Só chega aqui quem efetivamente mudou o pedido para 'entregue' (upd com linha),
+    // então avisos repetidos do gateway não duplicam e-mails. Nunca lança erro.
+    await notificarCompraAprovada(admin, order.id);
+
     return true;
   } else if (event.status === 'estornado') {
     await admin.from('orders').update({ status: 'reembolsado' }).eq('id', order.id);
