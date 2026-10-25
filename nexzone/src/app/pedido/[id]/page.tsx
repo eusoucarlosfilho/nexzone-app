@@ -2,10 +2,11 @@ import Nav from '@/components/Nav';
 import { createClient } from '@/lib/supabase/server';
 import { redirect, notFound } from 'next/navigation';
 import OrderView from './OrderView';
+import { stripeAvailable } from '@/lib/payments/stripe';
 
 export const dynamic = 'force-dynamic';
 
-export default async function PedidoPage({ params }: { params: { id: string } }) {
+export default async function PedidoPage({ params, searchParams }: { params: { id: string }; searchParams?: { cartao?: string } }) {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login');
@@ -18,6 +19,7 @@ export default async function PedidoPage({ params }: { params: { id: string } })
   const { data: rev } = await supabase.from('reviews').select('id').eq('order_id', order.id).maybeSingle();
   const { data: cmp } = await supabase.from('complaints').select('id').eq('order_id', order.id).eq('status', 'aberta').maybeSingle();
   const p: any = (order as any).products;
+  const cartaoDisponivel = order.status === 'pendente' ? await stripeAvailable() : false;
   return (
     <>
       <Nav />
@@ -38,6 +40,8 @@ export default async function PedidoPage({ params }: { params: { id: string } })
           bumpConteudo={(order as any).bump_conteudo}
           bumpTemArquivo={!!(order as any).bump_arquivo_path}
           reclamacaoAberta={!!cmp}
+          cartaoDisponivel={cartaoDisponivel}
+          voltouDoCartao={searchParams?.cartao === 'ok'}
         />
       </div>
     </>

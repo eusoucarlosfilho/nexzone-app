@@ -24,6 +24,8 @@ type Props = {
   bumpConteudo?: string | null;
   bumpTemArquivo?: boolean;
   reclamacaoAberta?: boolean;
+  cartaoDisponivel?: boolean;
+  voltouDoCartao?: boolean;
 };
 
 export default function OrderView(props: Props) {
@@ -38,6 +40,25 @@ export default function OrderView(props: Props) {
   const [coment, setComent] = useState('');
   const [msg, setMsg] = useState('');
   const [pending, start] = useTransition();
+
+  // Cartão (Stripe Checkout): o servidor cria a sessão e devolve a URL hospedada pela Stripe.
+  const [cartaoBusy, setCartaoBusy] = useState(false);
+  const [cartaoErro, setCartaoErro] = useState('');
+  async function pagarComCartao() {
+    setCartaoBusy(true); setCartaoErro('');
+    try {
+      const r = await fetch('/api/checkout/stripe', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+        body: JSON.stringify({ orderId: props.orderId }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (r.ok && d.url) { window.location.href = d.url; return; }
+      setCartaoErro(d.error || 'Não foi possível abrir o pagamento com cartão. Tente o Pix.');
+    } catch {
+      setCartaoErro('Falha de conexão. Tente novamente ou pague com Pix.');
+    }
+    setCartaoBusy(false);
+  }
 
   useEffect(() => {
     if (pago) return;
@@ -139,6 +160,12 @@ export default function OrderView(props: Props) {
         </div>
       ) : (
         <div style={{ textAlign: 'center', paddingTop: 18 }}>
+          {props.voltouDoCartao && (
+            <div role="status" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, background: 'var(--soft)', border: '1px solid var(--border)', borderRadius: 14, padding: '14px 16px', marginBottom: 18, fontWeight: 800 }}>
+              <span aria-hidden="true" style={{ width: 18, height: 18, borderRadius: '50%', border: '3px solid #FFD9BD', borderTopColor: 'var(--orange)', display: 'inline-block', animation: 'spinCartao .8s linear infinite' }} />
+              Processando pagamento com cartão…
+            </div>
+          )}
           <div className="slabel" style={{ color: 'var(--orange-ink)' }}>Pague com Pix</div>
           {props.pixQr && <img alt="QR Pix" src={`data:image/png;base64,${props.pixQr}`} style={{ width: 200, height: 200 }} />}
           {props.pixCode && (
@@ -154,7 +181,20 @@ export default function OrderView(props: Props) {
           <p className="muted" style={{ fontSize: 12, marginTop: 6, maxWidth: 320, marginLeft: 'auto', marginRight: 'auto' }}>
             Transação 100% segura via Pix. Assim que o pagamento for identificado, a confirmação aparece aqui sozinha — não precisa enviar comprovante.
           </p>
-          <style>{`@keyframes pulsePix{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.8)}}`}</style>
+          {props.cartaoDisponivel && (
+            <div style={{ borderTop: '1px solid var(--border)', marginTop: 20, paddingTop: 18 }}>
+              <div className="muted" style={{ fontSize: 13, marginBottom: 10 }}>Prefere cartão?</div>
+              <button className="btn btn-dark" style={{ width: '100%', maxWidth: 360 }} onClick={pagarComCartao} disabled={cartaoBusy}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="2" y="5" width="20" height="14" rx="2" /><path d="M2 10h20M6 15h4" /></svg>
+                {cartaoBusy ? 'Abrindo pagamento seguro…' : 'Pagar com cartão de crédito'}
+              </button>
+              <p className="muted" style={{ fontSize: 12, marginTop: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                <Icon name="lock" size={13} /> Você será levado ao ambiente seguro da Stripe. Não guardamos dados do cartão.
+              </p>
+              {cartaoErro && <p role="alert" style={{ color: 'var(--red)', fontSize: 13, marginTop: 6 }}>{cartaoErro}</p>}
+            </div>
+          )}
+          <style>{`@keyframes pulsePix{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.8)}}@keyframes spinCartao{to{transform:rotate(360deg)}}`}</style>
         </div>
       )}
     </div>
