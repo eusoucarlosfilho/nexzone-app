@@ -32,7 +32,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       paginar<{ id: string; created_at: string | null }>((a, b) =>
         admin.from('products').select('id, created_at').eq('status', 'ativo').order('created_at', { ascending: false }).range(a, b)),
       paginar<{ slug: string | null; created_at: string | null }>((a, b) =>
-        admin.from('stores').select('slug, created_at').neq('status', 'suspenso').not('slug', 'is', null).order('created_at', { ascending: false }).range(a, b)),
+        admin.from('stores').select('slug, created_at').neq('status', 'suspenso').eq('ocultar_vendedor', false).not('slug', 'is', null).order('created_at', { ascending: false }).range(a, b)),
     ]);
 
     const prodUrls: MetadataRoute.Sitemap = produtos.map((p) => ({

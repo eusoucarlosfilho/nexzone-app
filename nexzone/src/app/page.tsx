@@ -10,6 +10,7 @@ import { getSettings } from '@/lib/settings';
 import { numerosReais, vendasRecentes, type ProvaSocialNumeros, type VendaRecente } from '@/lib/provaSocial';
 import { stripeAvailable } from '@/lib/payments/stripe';
 import type { Product } from '@/lib/types';
+import { produtosPublicos } from '@/lib/vendedorPublico';
 
 export const dynamic = 'force-dynamic';
 
@@ -44,16 +45,16 @@ export default async function Home() {
   const algumContador = mostra.produtos || mostra.lojas || mostra.vendas;
 
   const [destRes, ofertaRes, altaRes, novoRes, catsRes] = await Promise.all([
-    supabase.from('products').select('*, stores(nome, nivel)').eq('status', 'ativo').gt('destaque_ate', nowIso).order('destaque_ate', { ascending: false }).limit(6),
-    supabase.from('products').select('*, stores(nome, nivel)').eq('status', 'ativo').order('vendas', { ascending: false }).order('nota', { ascending: false }).limit(8),
-    supabase.from('products').select('*, stores(nome, nivel)').eq('status', 'ativo').order('vendas', { ascending: false }).limit(8),
-    supabase.from('products').select('*, stores(nome, nivel)').eq('status', 'ativo').order('created_at', { ascending: false }).limit(8),
+    supabase.from('products').select('*, stores(nome, nivel, ocultar_vendedor)').eq('status', 'ativo').gt('destaque_ate', nowIso).order('destaque_ate', { ascending: false }).limit(6),
+    supabase.from('products').select('*, stores(nome, nivel, ocultar_vendedor)').eq('status', 'ativo').order('vendas', { ascending: false }).order('nota', { ascending: false }).limit(8),
+    supabase.from('products').select('*, stores(nome, nivel, ocultar_vendedor)').eq('status', 'ativo').order('vendas', { ascending: false }).limit(8),
+    supabase.from('products').select('*, stores(nome, nivel, ocultar_vendedor)').eq('status', 'ativo').order('created_at', { ascending: false }).limit(8),
     supabase.from('categories').select('nome, slug'),
   ]);
-  const destaques = (destRes.data ?? []) as Product[];
-  const ofertas = (ofertaRes.data ?? []) as Product[];
-  const emAlta = (altaRes.data ?? []) as Product[];
-  const novidades = (novoRes.data ?? []) as Product[];
+  const destaques = produtosPublicos(destRes.data as Product[] | null);
+  const ofertas = produtosPublicos(ofertaRes.data as Product[] | null);
+  const emAlta = produtosPublicos(altaRes.data as Product[] | null);
+  const novidades = produtosPublicos(novoRes.data as Product[] | null);
   const cats = catsRes.data ?? [];
   const vazio = emAlta.length === 0;
   const vitrine = (destaques.length ? destaques : ofertas).slice(0, 2);
