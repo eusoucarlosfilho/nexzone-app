@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { verificarEscalonamento } from '@/lib/escalonamento';
+import { notificarMensagem } from '@/lib/notificacoes';
 
 // Descobre o papel do usuário em relação ao pedido e devolve dados do pedido.
 async function autorizar(orderId: string, userId: string) {
@@ -85,6 +86,10 @@ export async function POST(req: Request) {
     order_id: orderId, remetente: user.id, papel, texto: String(texto).trim().slice(0, 2000),
   }).select('id, papel, texto, created_at').single();
   if (error || !msg) return NextResponse.json({ error: 'falha ao enviar' }, { status: 500 });
+
+  // Avisa a outra parte por e-mail (máx. 1 a cada 15 min por pedido + destinatário).
+  // Nunca lança erro: falha de e-mail não impede a mensagem.
+  await notificarMensagem(admin, { orderId, papel, remetenteId: user.id, texto: (msg as any).texto });
 
   return NextResponse.json({ message: { ...msg, mine: true } });
 }
