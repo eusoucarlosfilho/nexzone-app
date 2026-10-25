@@ -2,7 +2,7 @@ import Nav from '@/components/Nav';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import GradeMista from '@/components/GradeMista';
-import { configMix, ofertasAtivas } from '@/lib/ofertas/servidor';
+import { configMix, ofertasAtivas, visiveis } from '@/lib/ofertas/servidor';
 import { intercalar, type ItemMix } from '@/lib/ofertas/mix';
 import type { OfertaVitrine } from '@/lib/ofertas/tipos';
 import { acharCategoria } from '@/lib/categorias';
@@ -39,7 +39,7 @@ export default async function CategoriaPage({ params }: { params: { slug: string
   // Ofertas de parceiros completam a categoria (nativos primeiro, com teto de participação)
   const [mix, parceiros] = await Promise.all([configMix(), ofertasAtivas({ categoria: cat.nome, limite: 24 })]);
   const grade: ItemMix<Product, OfertaVitrine>[] = mix.ativo
-    ? intercalar(produtos, parceiros, mix)
+    ? intercalar(produtos, visiveis(parceiros, mix), mix)
     : produtos.map((item) => ({ tipo: 'nativo' as const, item }));
   const temParceiros = grade.some((g) => g.tipo === 'parceiro');
 
@@ -52,9 +52,9 @@ export default async function CategoriaPage({ params }: { params: { slug: string
           <h2 style={{ display: 'flex', alignItems: 'center', gap: 10 }}><CategoryIcon cat={params.slug} size={28} /> {cat.nome}</h2>
         </div>
         {grade.length
-          ? <GradeMista itens={grade} />
+          ? <GradeMista itens={grade} mostrarOrigem={mix.mostrarOrigem} />
           : <p className="muted">Ainda não há produtos nesta categoria. <Link href="/produtos" style={{ color: 'var(--orange-ink)', fontWeight: 800 }}>Ver todos os produtos</Link></p>}
-        {temParceiros && <p className="muted" style={{ fontSize: 12.5, marginTop: 12 }}>Itens com o selo &quot;Oferta de parceiro&quot; são vendidos em sites parceiros, fora do Comprei Barato.</p>}
+        {temParceiros && mix.mostrarOrigem && <p className="muted" style={{ fontSize: 12.5, marginTop: 12 }}>Itens com o selo &quot;Oferta de parceiro&quot; são vendidos em sites parceiros, fora do Comprei Barato.</p>}
       </div></section>
     </>
   );
