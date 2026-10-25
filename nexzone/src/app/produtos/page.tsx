@@ -11,7 +11,7 @@ import Pagination from '@/components/ui/Pagination';
 import EmptyState from '@/components/ui/EmptyState';
 import Link from 'next/link';
 import GradeMista from '@/components/GradeMista';
-import { configMix, ofertasAtivas } from '@/lib/ofertas/servidor';
+import { configMix, ofertasAtivas, visiveis } from '@/lib/ofertas/servidor';
 import { intercalar, type ItemMix } from '@/lib/ofertas/mix';
 import type { OfertaVitrine } from '@/lib/ofertas/tipos';
 
@@ -59,12 +59,14 @@ export default async function ProdutosPage({ searchParams }: { searchParams: { q
   // Ofertas de parceiros: só completam a ÚLTIMA página (os nativos vêm sempre antes),
   // com o teto de participação definido no admin. Sem a tabela, a lista vem vazia.
   const ultimaPagina = page >= totalPages;
+  let mostrarOrigem = false;
   let grade: ItemMix<Product, OfertaVitrine>[] = produtos.map((item) => ({ tipo: 'nativo' as const, item }));
   if (ultimaPagina) {
     const catSel = searchParams.cat ? acharCategoria(searchParams.cat) : null;
     const [mix, parceiros] = await Promise.all([configMix(), ofertasAtivas({ categoria: catSel?.nome ?? null, termo: termo || null, min, max, limite: 24 })]);
     if (mix.ativo) {
-      grade = intercalar(produtos, parceiros, mix, POR_PAGINA - produtos.length);
+      grade = intercalar(produtos, visiveis(parceiros, mix), mix, POR_PAGINA - produtos.length);
+      mostrarOrigem = mix.mostrarOrigem;
     }
   }
   const temParceiros = grade.some((g) => g.tipo === 'parceiro');
@@ -91,11 +93,11 @@ export default async function ProdutosPage({ searchParams }: { searchParams: { q
             <div className="card" role="status" style={{ marginBottom: 14, fontSize: 14 }}>Essa oferta de parceiro não está mais disponível. Veja outras opções abaixo.</div>
           )}
           {grade.length
-            ? <GradeMista itens={grade} />
+            ? <GradeMista itens={grade} mostrarOrigem={mostrarOrigem} />
             : <EmptyState icon="search" title="Nenhum produto encontrado"
                 text={temFiltro ? 'Tente outra palavra, outra categoria ou uma faixa de preço maior.' : 'Ainda não há produtos publicados.'}
                 action={temFiltro ? <Link href="/produtos" className="btn btn-ghost btn-sm">Limpar filtros</Link> : undefined} />}
-          {temParceiros && <p className="muted" style={{ fontSize: 12.5, marginTop: 12 }}>Itens com o selo &quot;Oferta de parceiro&quot; são vendidos em sites parceiros, fora do Comprei Barato.</p>}
+          {temParceiros && mostrarOrigem && <p className="muted" style={{ fontSize: 12.5, marginTop: 12 }}>Itens com o selo &quot;Oferta de parceiro&quot; são vendidos em sites parceiros, fora do Comprei Barato.</p>}
           <Pagination basePath="/produtos" params={searchParams as Record<string, string | undefined>} page={Math.min(page, totalPages)} totalPages={totalPages} />
         </div>
       </div>
