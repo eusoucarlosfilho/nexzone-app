@@ -6,26 +6,33 @@ export default function VenderLayout({ children }: { children: React.ReactNode }
   return (
     <>
       <style>{`
-        .sd-shell{display:flex;min-height:calc(100vh - 110px);max-width:1280px;margin:0 auto;}
-        .sd-side{width:230px;flex-shrink:0;border-right:1px solid var(--border);padding:24px 14px;}
-        .sd-shead{font-size:10px;font-weight:800;letter-spacing:1.5px;color:var(--muted);text-transform:uppercase;padding:0 12px 10px;}
-        .sd-nav{display:flex;align-items:center;gap:11px;padding:11px 13px;border-radius:11px;font-family:'Outfit';font-weight:600;font-size:14px;color:var(--sub);text-decoration:none;transition:.15s;margin-bottom:2px;}
-        .sd-nav:hover{background:var(--surface);color:var(--text);}
-        .sd-nav.on{background:var(--soft);color:var(--orange);}
-        .sd-main{flex:1;padding:30px 36px;min-width:0;}
-        .sd-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:22px;}
-        .sd-stat{background:#fff;border:1px solid var(--border);border-radius:16px;padding:20px;box-shadow:var(--sh);}
-        .sd-stat .ic{width:40px;height:40px;border-radius:11px;background:var(--soft);color:var(--orange);display:flex;align-items:center;justify-content:center;font-size:18px;margin-bottom:12px;}
-        .sd-stat b{font-family:'Outfit';font-size:25px;font-weight:800;display:block;letter-spacing:-.5px;}
-        .sd-stat small{color:var(--muted);font-size:12px;font-weight:700;}
-        .sd-bars{display:flex;align-items:flex-end;gap:10px;height:150px;}
+        body{background:var(--bg2);}
+        .sd-shell{display:flex;min-height:calc(100vh - 160px);max-width:1360px;margin:0 auto;gap:0;}
+        .sd-side{width:250px;flex-shrink:0;padding:22px 14px;position:sticky;top:150px;align-self:flex-start;display:flex;flex-direction:column;gap:3px;}
+        .sd-shead{font-size:12px;font-weight:900;letter-spacing:1.5px;color:var(--muted);text-transform:uppercase;padding:0 14px 10px;}
+        .sd-nav{display:flex;align-items:center;gap:12px;padding:11px 14px;border-radius:14px;font-weight:800;font-size:15px;color:#3A3A52;text-decoration:none;min-height:46px;transition:background .18s,color .18s,transform .18s var(--ease);}
+        .sd-nav:hover{background:#fff;color:var(--text);transform:translateX(3px);}
+        .sd-nav.on{background:var(--text);color:#fff;box-shadow:0 8px 20px rgba(22,22,42,.18);}
+        .sd-cta{margin-top:14px;display:flex;flex-direction:column;gap:8px;padding:0 4px;}
+        .sd-main{flex:1;padding:28px 30px 60px;min-width:0;}
+        .sd-main h1{font-family:'Outfit';font-weight:900;letter-spacing:-1px;}
+        .sd-main .card{border-color:#EDE6DF;border-radius:22px;}
+        .sd-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:22px;}
+        .sd-stat{background:#fff;border:1px solid #EDE6DF;border-radius:20px;padding:20px;transition:transform .22s var(--ease),box-shadow .22s;animation:cb-up .55s var(--ease) both;}
+        .sd-stat:nth-child(2){animation-delay:.06s}.sd-stat:nth-child(3){animation-delay:.12s}.sd-stat:nth-child(4){animation-delay:.18s}
+        .sd-stat:hover{transform:translateY(-4px);box-shadow:0 18px 36px rgba(22,22,42,.08);}
+        .sd-stat .ic{width:42px;height:42px;border-radius:13px;background:var(--soft);color:var(--orange-ink);display:flex;align-items:center;justify-content:center;font-size:18px;margin-bottom:12px;}
+        .sd-stat b{font-family:'Outfit';font-size:28px;font-weight:900;display:block;letter-spacing:-.8px;}
+        .sd-stat small{color:var(--sub);font-size:13px;font-weight:800;}
+        .sd-bars{display:flex;align-items:flex-end;gap:10px;height:180px;}
         .sd-bar{flex:1;display:flex;flex-direction:column;align-items:center;gap:8px;justify-content:flex-end;height:100%;}
-        .sd-bar .b{width:100%;max-width:40px;background:var(--grad);border-radius:7px 7px 0 0;min-height:4px;}
-        .sd-bar .l{font-size:11px;color:var(--muted);font-weight:700;}
-        .sd-bar .v{font-size:11px;color:var(--text);font-weight:800;font-family:'Outfit';}
+        .sd-bar .b{width:100%;max-width:38px;background:#FFCBA1;border-radius:10px 10px 4px 4px;min-height:4px;transform-origin:bottom;animation:cb-grow .9s var(--ease) both;transition:background .2s;}
+        .sd-bar:hover .b{background:var(--orange);}
+        .sd-bar .l{font-size:12px;color:var(--muted);font-weight:800;}
+        .sd-bar .v{font-size:12px;color:var(--text);font-weight:900;font-family:'Outfit';}
         .sd-meta{height:14px;border-radius:50px;background:var(--surface);overflow:hidden;border:1px solid var(--border);}
-        .sd-meta .fill{height:100%;background:var(--grad);border-radius:50px;}
-        @media(max-width:820px){.sd-shell{flex-direction:column;}.sd-side{width:100%;border-right:none;border-bottom:1px solid var(--border);display:flex;gap:4px;overflow-x:auto;padding:10px;}.sd-shead{display:none;}.sd-nav{white-space:nowrap;}.sd-main{padding:20px 16px;}}
+        .sd-meta .fill{height:100%;background:var(--orange);border-radius:50px;transform-origin:left;animation:cb-growx 1s var(--ease) both;}
+        @media(max-width:860px){.sd-shell{flex-direction:column;}.sd-side{width:100%;position:static;flex-direction:row;overflow-x:auto;padding:10px 12px;gap:6px;}.sd-shead,.sd-cta{display:none;}.sd-nav{white-space:nowrap;}.sd-main{padding:20px 16px 50px;}}
       `}</style>
       <Nav />
       <SellerNotifier />

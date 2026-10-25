@@ -114,13 +114,13 @@ export default function CreateProduct({ userId }: { userId: string }) {
               </button>
             </div>
             <button type="button" onClick={() => setBloqueado(true)}
-              style={{ marginTop: 8, background: 'none', border: 'none', padding: 0, color: 'var(--orange)', fontSize: 12.5, cursor: 'pointer', textDecoration: 'underline' }}>
+              style={{ marginTop: 8, background: 'none', border: 'none', padding: 0, color: 'var(--orange-ink)', fontSize: 12.5, cursor: 'pointer', textDecoration: 'underline' }}>
               ou colar o texto do anúncio manualmente
             </button>
           </div>
         ) : (
           <div>
-            <div style={{ fontSize: 12.5, color: 'var(--orange)', marginBottom: 6 }}>Cole aqui o texto do anúncio (título, descrição, preço):</div>
+            <div style={{ fontSize: 12.5, color: 'var(--orange-ink)', marginBottom: 6 }}>Cole aqui o texto do anúncio (título, descrição, preço):</div>
             <textarea value={impTexto} onChange={(e) => setImpTexto(e.target.value)} rows={4} placeholder="Cole aqui o conteúdo do anúncio…"
               style={{ width: '100%', borderRadius: 10, border: '1px solid var(--border)', padding: 10, fontSize: 13, fontFamily: 'inherit', resize: 'vertical', background: '#fff' }} />
             <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>

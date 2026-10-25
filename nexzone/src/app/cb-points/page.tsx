@@ -27,7 +27,7 @@ export default async function CBPointsPage() {
         <h1 style={{ fontFamily: 'Outfit', fontSize: 28, fontWeight: 900, letterSpacing: '-.6px' }}>CB Points</h1>
         <p className="muted" style={{ marginBottom: 18 }}>Você ganha pontos a cada compra e venda. Use como desconto ou troque por saldo.</p>
 
-        <div className="card" style={{ background: 'var(--grad)', color: '#fff', marginBottom: 16 }}>
+        <div className="card" style={{ background: 'var(--text)', color: '#fff', marginBottom: 16, border: 0 }}>
           <div style={{ fontSize: 13, fontWeight: 700, opacity: .9 }}>Seu saldo de pontos</div>
           <div style={{ fontFamily: 'Outfit', fontSize: 40, fontWeight: 900, letterSpacing: '-1px', lineHeight: 1.1 }}>{pontos.toLocaleString('pt-BR')}</div>
           <div style={{ fontSize: 14, opacity: .92 }}>equivalente a <strong>{money(valor)}</strong></div>

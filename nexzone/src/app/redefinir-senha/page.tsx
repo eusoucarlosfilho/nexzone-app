@@ -60,7 +60,7 @@ export default function RedefinirSenhaPage() {
           <p className="muted" style={{ marginTop: 8 }}>Validando seu link…</p>
         ) : !ready ? (
           <p className="muted" style={{ marginTop: 8 }}>
-            Link inválido ou expirado. Volte e solicite um novo em <Link href="/esqueci-senha" style={{ color: 'var(--orange)' }}>Esqueci minha senha</Link>.
+            Link inválido ou expirado. Volte e solicite um novo em <Link href="/esqueci-senha" style={{ color: 'var(--orange-ink)' }}>Esqueci minha senha</Link>.
           </p>
         ) : (
           <>

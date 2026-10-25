@@ -60,7 +60,7 @@ export default function VendasClient({ vendas }: any) {
           <button key={k} onClick={() => setFiltro(k)}
             className="btn btn-sm"
             style={filtro === k
-              ? { background: 'var(--soft)', color: 'var(--orange)', border: '1px solid var(--orange)' }
+              ? { background: 'var(--soft)', color: 'var(--orange-ink)', border: '1px solid var(--orange)' }
               : { background: 'var(--surface)', color: 'var(--muted)', border: '1px solid var(--border)' }}>
             {l}
           </button>

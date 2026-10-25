@@ -41,7 +41,7 @@ export default function BoostView(props: any) {
         </div>
       ) : (
         <div style={{ textAlign: 'center', paddingTop: 18 }}>
-          <div className="slabel" style={{ color: 'var(--orange)' }}>Pague com Pix para ativar o destaque</div>
+          <div className="slabel" style={{ color: 'var(--orange-ink)' }}>Pague com Pix para ativar o destaque</div>
           {props.pixQr && <img alt="QR Pix" src={`data:image/png;base64,${props.pixQr}`} style={{ width: 200, height: 200 }} />}
           {props.pixCode && (
             <>

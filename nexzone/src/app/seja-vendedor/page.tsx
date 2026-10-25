@@ -36,21 +36,21 @@ export default function SejaVendedorPage() {
     <>
       <Nav />
       <style>{`
-        .sv-hero{background:var(--grad);color:#fff;padding:64px 22px 72px;text-align:center}
-        .sv-hero .eye{display:inline-block;background:rgba(255,255,255,.2);border-radius:50px;padding:6px 16px;font-size:13px;font-weight:800;font-family:'Outfit';margin-bottom:18px}
-        .sv-hero h1{font-family:'Outfit';font-size:42px;font-weight:900;letter-spacing:-1.2px;line-height:1.08;max-width:740px;margin:0 auto 16px}
+        .sv-hero{background:var(--text);color:#fff;padding:64px 22px 72px;text-align:center}
+        .sv-hero .eye{display:inline-block;background:#FF6B00;color:#16162A;animation:cb-pop .5s both;border-radius:50px;padding:6px 16px;font-size:13px;font-weight:800;font-family:'Outfit';margin-bottom:18px}
+        .sv-hero h1{animation:cb-up .6s var(--ease) .08s both;font-family:'Outfit';font-size:42px;font-weight:900;letter-spacing:-1.2px;line-height:1.08;max-width:740px;margin:0 auto 16px}
         .sv-hero p{font-size:18px;opacity:.95;max-width:560px;margin:0 auto 28px}
         .sv-cta{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
         .sv-sec{max-width:1080px;margin:0 auto;padding:58px 22px}
         .sv-h2{font-family:'Outfit';font-size:30px;font-weight:900;text-align:center;letter-spacing:-.8px;margin-bottom:8px}
         .sv-sub{text-align:center;color:var(--sub);margin-bottom:38px}
         .sv-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px}
-        .sv-card{background:#fff;border:1px solid var(--border);border-radius:18px;padding:24px;box-shadow:var(--sh)}
+        .sv-card{background:#fff;border:1px solid var(--border);border-radius:20px;padding:24px;box-shadow:var(--sh);transition:transform .22s var(--ease),box-shadow .22s}.sv-card:hover{transform:translateY(-4px);box-shadow:var(--sh-md)}
         .sv-card .ic{font-size:30px;margin-bottom:12px}
         .sv-card h3{font-family:'Outfit';font-weight:800;font-size:17px;margin-bottom:6px}
         .sv-card p{color:var(--sub);font-size:14px;line-height:1.6}
         .sv-steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:18px}
-        .sv-step .n{width:42px;height:42px;border-radius:12px;background:var(--soft);color:var(--orange);font-family:'Outfit';font-weight:900;font-size:20px;display:flex;align-items:center;justify-content:center;margin-bottom:14px}
+        .sv-step .n{width:42px;height:42px;border-radius:12px;background:var(--soft);color:var(--orange-ink);font-family:'Outfit';font-weight:900;font-size:20px;display:flex;align-items:center;justify-content:center;margin-bottom:14px}
         .sv-step h3{font-family:'Outfit';font-weight:800;font-size:16px;margin-bottom:6px}
         .sv-step p{color:var(--sub);font-size:14px;line-height:1.6}
         .sv-faq{max-width:760px;margin:0 auto}
@@ -58,9 +58,9 @@ export default function SejaVendedorPage() {
         .sv-faq summary{font-family:'Outfit';font-weight:800;font-size:15px;cursor:pointer;list-style:none}
         .sv-faq summary::-webkit-details-marker{display:none}
         .sv-faq p{color:var(--sub);font-size:14px;line-height:1.7;margin-top:10px}
-        .sv-band{background:var(--grad);color:#fff;border-radius:24px;padding:48px;text-align:center;max-width:1080px;margin:0 auto 60px}
+        .sv-band{background:var(--text);color:#fff;border-radius:28px;padding:48px;text-align:center;max-width:1080px;margin:0 auto 60px}
         .sv-band h2{font-family:'Outfit';font-size:30px;font-weight:900;letter-spacing:-.8px;margin-bottom:8px}
-        @media(max-width:640px){.sv-hero h1{font-size:32px}}
+        @media(max-width:640px){.sv-hero h1{animation:cb-up .6s var(--ease) .08s both;font-size:32px}}
       `}</style>
 
       <section className="sv-hero">
@@ -68,8 +68,8 @@ export default function SejaVendedorPage() {
         <h1>Venda seus produtos digitais e fique com <span style={{ whiteSpace: 'nowrap' }}>97% de cada venda</span>.</h1>
         <p>Crie sua loja grátis, entregue automaticamente na hora do pagamento e receba via Pix. Sem mensalidade. Só 3% por venda.</p>
         <div className="sv-cta">
-          <Link href="/login" className="btn btn-lg" style={{ background: '#fff', color: 'var(--orange)', fontWeight: 800 }}>Criar minha loja grátis</Link>
-          <Link href="/produtos" className="btn btn-lg" style={{ background: 'rgba(255,255,255,.18)', color: '#fff' }}>Ver o marketplace</Link>
+          <Link href="/login" className="btn btn-pri btn-lg">Criar minha loja grátis</Link>
+          <Link href="/produtos" className="btn btn-lg" style={{ background: 'rgba(255,255,255,.1)', color: '#fff', border: '1.5px solid rgba(255,255,255,.3)' }}>Ver o marketplace</Link>
         </div>
       </section>
 
@@ -106,7 +106,7 @@ export default function SejaVendedorPage() {
       <div className="sv-band">
         <h2>Pronto para vender?</h2>
         <p style={{ opacity: .93, marginBottom: 22 }}>Crie sua loja grátis agora e comece a vender hoje mesmo.</p>
-        <Link href="/login" className="btn btn-lg" style={{ background: '#fff', color: 'var(--orange)', fontWeight: 800 }}>Começar a vender agora</Link>
+        <Link href="/login" className="btn btn-pri btn-lg">Começar a vender agora</Link>
       </div>
     </>
   );

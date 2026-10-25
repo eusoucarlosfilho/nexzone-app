@@ -24,6 +24,10 @@ export default function SellerSidebar() {
           <Icon name={ic} /> {label}
         </Link>
       ))}
+      <div className="sd-cta">
+        <Link href="/vender/produtos" className="btn btn-pri">+ Novo produto</Link>
+        <Link href="/" className="btn btn-ghost btn-sm">Ver o site</Link>
+      </div>
     </aside>
   );
 }

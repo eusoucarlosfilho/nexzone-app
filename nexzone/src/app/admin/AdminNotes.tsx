@@ -157,7 +157,7 @@ export default function AdminNotes({ adminEmail }: { adminEmail?: string }) {
         .an-formrow{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:12px;flex-wrap:wrap;}
         .an-pris{display:flex;gap:8px;flex-wrap:wrap;}
         .an-prib{font-family:'Outfit';font-weight:700;font-size:12px;padding:7px 13px;border-radius:50px;background:var(--panel2);color:var(--sub);border:1px solid var(--bd2);cursor:pointer;}
-        .an-save{font-family:'Outfit';font-weight:700;font-size:13px;padding:9px 22px;border-radius:9px;border:none;cursor:pointer;background:var(--grad);color:#fff;}
+        .an-save{font-family:'Outfit';font-weight:700;font-size:13px;padding:9px 22px;border-radius:9px;border:none;cursor:pointer;background:#FF6B00;color:#16162A;}
         .an-save:disabled{opacity:.5;}
         .an-list{display:flex;flex-direction:column;gap:12px;}
         .an-item{background:var(--panel);border:1px solid var(--bd2);border-radius:14px;padding:16px 18px;}

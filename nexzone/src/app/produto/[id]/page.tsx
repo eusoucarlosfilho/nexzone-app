@@ -69,9 +69,9 @@ export default async function ProductPage({ params }: { params: { id: string } }
       </div>
       <BuyButton productId={p.id} />
       <div className="pdp-trust">
-        <div>⚡ Entrega imediata após o pagamento</div>
-        <div>🔒 Pagamento seguro via Pix</div>
-        <div>🛡️ Garantia de {p.garantia_dias} dias</div>
+        <div className="flex"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#B84A00" strokeWidth="2.2" strokeLinejoin="round" aria-hidden="true"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z" /></svg>Liberado assim que o Pix for aprovado</div>
+        <div className="flex"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#B84A00" strokeWidth="2.2" strokeLinejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2" /><path d="M8 11V7a4 4 0 0 1 8 0v4" /></svg>Pagamento seguro via Pix</div>
+        <div className="flex"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#B84A00" strokeWidth="2.2" strokeLinejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>Garantia de {p.garantia_dias} dias</div>
       </div>
       <ShareButton titulo={p.titulo} full />
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 10, color: 'var(--sub)', fontSize: 13 }}><FavButton productId={p.id} /> Salvar nos favoritos</div>
@@ -83,39 +83,39 @@ export default async function ProductPage({ params }: { params: { id: string } }
     <>
       <Nav />
       <style>{`
-        .pdp{display:flex;gap:34px;max-width:1100px;margin:0 auto;padding:28px 20px 60px;}
+        .pdp{display:flex;gap:36px;max-width:1240px;margin:0 auto;padding:28px 24px 60px;animation:cb-up .5s var(--ease) both;}
         .pdp-main{flex:1;min-width:0;}
-        .pdp-aside{width:340px;flex-shrink:0;}
-        .pdp-box{position:sticky;top:90px;background:#fff;border:1px solid var(--border);border-radius:18px;padding:22px;box-shadow:0 8px 30px rgba(0,0,0,.06);}
-        .pdp-hero{aspect-ratio:16/10;border-radius:18px;overflow:hidden;background:var(--grad);display:flex;align-items:center;justify-content:center;font-size:96px;margin-bottom:20px;}
-        .pdp-hero img{width:100%;height:100%;object-fit:cover;}
-        .pdp-chip{display:inline-block;background:var(--soft);color:var(--orange);font-weight:800;font-size:12px;padding:5px 12px;border-radius:50px;font-family:'Outfit';}
-        .pdp-title{font-family:'Outfit';font-size:30px;font-weight:900;letter-spacing:-.8px;margin:12px 0 8px;line-height:1.15;}
+        .pdp-aside{width:380px;flex-shrink:0;}
+        .pdp-box{position:sticky;top:150px;background:#fff;border:1px solid var(--border);border-radius:28px;padding:28px;box-shadow:0 20px 50px rgba(22,22,42,.08);animation:cb-up .6s var(--ease) .08s both;}
+        .pdp-hero{aspect-ratio:16/10;border-radius:28px;overflow:hidden;background:var(--soft);display:flex;align-items:center;justify-content:center;font-size:110px;margin-bottom:22px;}
+        .pdp-hero img{width:100%;height:100%;object-fit:cover;transition:transform .6s var(--ease);}.pdp-hero:hover img{transform:scale(1.03);}
+        .pdp-chip{display:inline-block;background:var(--soft);color:var(--orange-ink);font-weight:900;font-size:13px;padding:6px 13px;border-radius:50px;}
+        .pdp-title{font-family:'Outfit';font-size:clamp(26px,3vw,36px);font-weight:900;letter-spacing:-1px;margin:12px 0 8px;line-height:1.12;}
         .pdp-meta{color:var(--sub);font-size:14px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
-        .pdp-star{color:#FFB200;font-size:15px;letter-spacing:1px;}
-        .pdp-sec{margin-top:30px;}
-        .pdp-sec h2{font-family:'Outfit';font-size:19px;font-weight:800;margin-bottom:12px;}
+        .pdp-star{color:#FF9A3C;font-size:15px;letter-spacing:1px;}
+        .pdp-sec{margin-top:34px;}
+        .pdp-sec h2{font-family:'Outfit';font-size:21px;font-weight:800;margin-bottom:14px;letter-spacing:-.4px;}
         .pdp-desc{color:var(--sub);font-size:15px;line-height:1.7;white-space:pre-wrap;}
         .pdp-recebe{display:grid;gap:10px;}
-        .pdp-recebe div{display:flex;gap:10px;align-items:center;font-size:14px;color:var(--text);background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 14px;}
-        .pdp-seller{display:flex;align-items:center;gap:14px;background:#fff;border:1px solid var(--border);border-radius:16px;padding:16px;}
-        .pdp-seller .av{width:50px;height:50px;border-radius:14px;background:var(--grad);display:flex;align-items:center;justify-content:center;color:#fff;font-family:'Outfit';font-weight:900;font-size:22px;}
-        .pdp-rev{border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:10px;}
+        .pdp-recebe div{display:flex;gap:10px;align-items:center;font-size:15px;font-weight:700;color:var(--text);background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:14px 16px;transition:transform .2s var(--ease);}.pdp-recebe div:hover{transform:translateX(4px);}
+        .pdp-seller{display:flex;align-items:center;gap:14px;background:#fff;border:1px solid var(--border);border-radius:20px;padding:18px;transition:all .22s var(--ease);}.pdp-seller:hover{border-color:var(--orange);transform:translateY(-2px);}
+        .pdp-seller .av{width:52px;height:52px;border-radius:16px;background:var(--text);display:flex;align-items:center;justify-content:center;color:#fff;font-family:'Outfit';font-weight:900;font-size:22px;}
+        .pdp-rev{border:1px solid var(--border);border-radius:18px;padding:18px;margin-bottom:10px;}
         .pdp-rev .h{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;}
         .pdp-price{margin-bottom:16px;}
-        .pdp-old{color:var(--muted);text-decoration:line-through;font-size:15px;}
-        .pdp-now{font-family:'Outfit';font-size:34px;font-weight:900;letter-spacing:-1px;display:flex;align-items:center;gap:10px;}
-        .pdp-off{background:#E6FBF3;color:var(--green);font-size:13px;font-weight:800;padding:3px 10px;border-radius:50px;font-family:'Outfit';}
-        .pdp-trust{margin-top:16px;display:grid;gap:9px;font-size:13px;color:var(--sub);border-top:1px solid var(--border);padding-top:16px;}
-        .pdp-soldby{margin-top:14px;font-size:12px;color:var(--muted);text-align:center;}
-        .pdp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:16px;}
+        .pdp-old{color:var(--muted);text-decoration:line-through;font-size:16px;}
+        .pdp-now{font-family:'Outfit';font-size:44px;font-weight:900;letter-spacing:-1.5px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+        .pdp-off{background:var(--green-bg);color:var(--green);font-size:14px;font-weight:900;padding:4px 11px;border-radius:50px;letter-spacing:0;}
+        .pdp-trust{margin-top:18px;display:grid;gap:10px;font-size:14px;font-weight:700;color:#3A3A52;border-top:1px solid var(--border);padding-top:18px;}
+        .pdp-soldby{margin-top:14px;font-size:13px;color:var(--sub);text-align:center;}
+        .pdp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:18px;}
         .pdp-mbar{display:none;}
         @media(max-width:860px){
           .pdp{flex-direction:column;gap:20px;padding-bottom:90px;}
           .pdp-aside{display:none;}
           .pdp-hero{font-size:72px;}
           .pdp-title{font-size:24px;}
-          .pdp-mbar{display:flex;position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--border);box-shadow:0 -4px 20px rgba(0,0,0,.08);padding:12px 16px;z-index:50;align-items:center;gap:14px;}
+          .pdp-mbar{display:flex;position:fixed;bottom:0;left:0;right:0;background:rgba(255,255,255,.96);backdrop-filter:blur(10px);border-top:1px solid var(--border);box-shadow:0 -4px 20px rgba(0,0,0,.08);padding:12px 16px;z-index:50;align-items:center;gap:14px;animation:cb-up .4s var(--ease) both;}
           .pdp-mbar .pp{font-family:'Outfit';font-size:22px;font-weight:900;flex:1;}
         }
       `}</style>

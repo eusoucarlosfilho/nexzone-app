@@ -5,16 +5,12 @@ export default function FavButton({ productId, overlay }: { productId: string; o
   const fav = useFavorites();
   const active = !!fav?.favs?.has(productId);
   function click(e: React.MouseEvent) { e.preventDefault(); e.stopPropagation(); fav?.toggle(productId); }
-  const base: React.CSSProperties = {
-    border: 'none', cursor: 'pointer', borderRadius: 50, display: 'inline-flex', alignItems: 'center',
-    justifyContent: 'center', lineHeight: 1, fontSize: overlay ? 16 : 20,
-  };
-  const ov: React.CSSProperties = overlay
-    ? { position: 'absolute', top: 10, right: 10, width: 34, height: 34, background: 'rgba(255,255,255,.92)', boxShadow: '0 2px 8px rgba(0,0,0,.15)', zIndex: 3 }
-    : { background: 'transparent', padding: 4 };
   return (
-    <button onClick={click} aria-label={active ? 'Remover dos favoritos' : 'Favoritar'} title={active ? 'Remover dos favoritos' : 'Favoritar'} style={{ ...base, ...ov }}>
-      {active ? '❤️' : '🤍'}
+    <button onClick={click} aria-label={active ? 'Remover dos favoritos' : 'Favoritar'} title={active ? 'Remover dos favoritos' : 'Favoritar'}
+      aria-pressed={active} className={`fav-btn ${overlay ? 'ov' : 'inl'} ${active ? 'on' : ''}`}>
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#16162A" strokeWidth="2.2" aria-hidden="true">
+        <path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8l1 1.1L12 21l7.8-7.5 1-1.1a5.5 5.5 0 0 0 0-7.8z" />
+      </svg>
     </button>
   );
 }

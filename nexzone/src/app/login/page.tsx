@@ -47,12 +47,12 @@ export default function LoginPage() {
       <Link href="/" className="logo">Comprei <span className="g">Barato</span></Link>
 
       {mode === 'login' && (
-        <div style={{ marginTop: 20, background: 'var(--grad)', borderRadius: 16, padding: '18px 20px', color: '#fff', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+        <div style={{ marginTop: 20, background: 'var(--text)', borderRadius: 16, padding: '18px 20px', color: '#fff', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
           <div>
             <strong style={{ fontFamily: 'Outfit', fontSize: 16 }}>🚀 Venda seus produtos digitais</strong>
             <div style={{ fontSize: 13, opacity: .92 }}>Crie sua loja grátis. Só 3% por venda.</div>
           </div>
-          <button className="btn btn-sm" style={{ background: '#fff', color: 'var(--orange)', fontWeight: 800, whiteSpace: 'nowrap' }} onClick={() => { setMode('register'); setMsg(''); }}>Começar a vender agora</button>
+          <button className="btn btn-sm" style={{ background: '#fff', color: 'var(--orange-ink)', fontWeight: 800, whiteSpace: 'nowrap' }} onClick={() => { setMode('register'); setMsg(''); }}>Começar a vender agora</button>
         </div>
       )}
 

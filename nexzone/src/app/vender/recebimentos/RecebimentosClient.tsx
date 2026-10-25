@@ -45,7 +45,7 @@ export default function RecebimentosClient({ bal, pixKey, pixTipo, payouts }: an
         <div className="card" style={{ padding: 20 }}>
           <div style={{ fontSize: 12, color: 'var(--muted)', fontWeight: 700 }}>⏳ A liberar (garantia {bal.garantiaDias}d)</div>
           <div style={{ fontFamily: 'Outfit', fontSize: 26, fontWeight: 900 }}>{money(bal.aLiberar)}</div>
-          {bal.proxima && <div style={{ fontSize: 12, color: 'var(--orange)', fontWeight: 700, marginTop: 4 }}>{money(bal.proxima.valor)} libera em {bal.proxima.dias === 0 ? 'hoje' : bal.proxima.dias === 1 ? '1 dia' : `${bal.proxima.dias} dias`}</div>}
+          {bal.proxima && <div style={{ fontSize: 12, color: 'var(--orange-ink)', fontWeight: 700, marginTop: 4 }}>{money(bal.proxima.valor)} libera em {bal.proxima.dias === 0 ? 'hoje' : bal.proxima.dias === 1 ? '1 dia' : `${bal.proxima.dias} dias`}</div>}
         </div>
         <div className="card" style={{ padding: 20 }}>
           <div style={{ fontSize: 12, color: 'var(--muted)', fontWeight: 700 }}>📤 Em processamento</div>

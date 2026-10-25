@@ -136,7 +136,7 @@ export default function OrderView(props: Props) {
         </div>
       ) : (
         <div style={{ textAlign: 'center', paddingTop: 18 }}>
-          <div className="slabel" style={{ color: 'var(--orange)' }}>Pague com Pix</div>
+          <div className="slabel" style={{ color: 'var(--orange-ink)' }}>Pague com Pix</div>
           {props.pixQr && <img alt="QR Pix" src={`data:image/png;base64,${props.pixQr}`} style={{ width: 200, height: 200 }} />}
           {props.pixCode && (
             <>
