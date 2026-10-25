@@ -3,7 +3,7 @@
 // a vitrine, a busca e o admin continuam funcionando sem ofertas.
 import { createAdminClient, createClient } from '@/lib/supabase/server';
 import { COLUNAS_PAGINA, COLUNAS_VITRINE, type OfertaParceira, type OfertaVitrine } from './tipos';
-import { MIX_PADRAO, normalizarMix, type ConfigMix } from './mix';
+import { MIX_PADRAO, normalizarMix, plataformaVisivel, type ConfigMix } from './mix';
 
 export const CHAVE_MIX = 'ofertas_parceiras_mix';
 
@@ -69,4 +69,9 @@ export async function ofertaParaSaida(id: string): Promise<Pick<OfertaParceira, 
   } catch {
     return null;
   }
+}
+
+/** Remove do resultado as ofertas de plataformas desligadas no admin (ou tudo, com a chave geral desligada). */
+export function visiveis<T extends { external_platform: string }>(ofertas: T[], cfg: ConfigMix): T[] {
+  return ofertas.filter((o) => plataformaVisivel(o.external_platform, cfg));
 }

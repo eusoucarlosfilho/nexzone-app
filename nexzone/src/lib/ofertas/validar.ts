@@ -1,6 +1,6 @@
 // Validação ÚNICA de uma oferta parceira: usada pelo formulário, pela API e pelo importador CSV.
 import { acharCategoria } from '../categorias';
-import { MOEDAS, PLATAFORMAS, STATUS_OFERTA, gerarSlug, type Moeda, type Plataforma, type StatusOferta } from './tipos';
+import { MOEDAS, PLATAFORMAS, STATUS_OFERTA, gerarSlug, normalizarPlataforma, type Moeda, type Plataforma, type StatusOferta } from './tipos';
 import { validarUrlExterna, validarUrlImagem } from './url';
 
 export const LIMITES = {
@@ -19,6 +19,7 @@ export type DadosOferta = {
   external_product_url: string;
   affiliate_url: string | null;
   price_reference: number | null;
+  price_from: number | null;
   currency: Moeda;
   producer_name: string | null;
   authorization_note: string | null;
@@ -54,7 +55,7 @@ export function validarOferta(entrada: Record<string, unknown>, opcoes: { status
   const cat = acharCategoria(texto(entrada.category));
   if (!cat) erros.category = 'Categoria inexistente. Use uma das categorias do site.';
 
-  const plat = texto(entrada.external_platform).toLowerCase() as Plataforma;
+  const plat = (normalizarPlataforma(entrada.external_platform) ?? texto(entrada.external_platform).toLowerCase()) as Plataforma;
   if (!PLATAFORMAS.includes(plat)) erros.external_platform = `Plataforma inválida. Use: ${PLATAFORMAS.join(', ')}.`;
 
   const prod = validarUrlExterna(entrada.external_product_url, PLATAFORMAS.includes(plat) ? plat : null);
@@ -74,6 +75,10 @@ export function validarOferta(entrada: Record<string, unknown>, opcoes: { status
 
   const preco = lerPreco(entrada.price_reference);
   if (preco === 'invalido') erros.price_reference = 'Preço inválido (ex.: 97,00).';
+  const precoDe = lerPreco(entrada.price_from);
+  if (precoDe === 'invalido') erros.price_from = 'Preço "de" inválido (ex.: 129,90).';
+  else if (precoDe !== null && (preco === null || preco === 'invalido')) erros.price_from = 'Para usar o preço "de", informe também o preço atual.';
+  else if (precoDe !== null && typeof preco === 'number' && precoDe <= preco) erros.price_from = 'O preço "de" precisa ser maior que o preço atual.';
 
   const moeda = (texto(entrada.currency) || 'BRL').toUpperCase() as Moeda;
   if (!MOEDAS.includes(moeda)) erros.currency = `Moeda inválida. Use: ${MOEDAS.join(', ')}.`;
@@ -115,6 +120,7 @@ export function validarOferta(entrada: Record<string, unknown>, opcoes: { status
       external_product_url: (prod as { url: string }).url,
       affiliate_url,
       price_reference: preco as number | null,
+      price_from: precoDe as number | null,
       currency: moeda,
       producer_name: producer_name || null,
       authorization_note: authorization_note || null,

@@ -17,6 +17,9 @@ export const COLUNAS_CSV: Record<string, keyof DadosOferta> = {
   url_produto: 'external_product_url',
   url_afiliado: 'affiliate_url',
   preco_referencia: 'price_reference',
+  preco: 'price_reference',
+  preco_de: 'price_from',
+  url_compra: 'external_product_url',
   moeda: 'currency',
   produtor: 'producer_name',
   tags: 'tags',
@@ -24,7 +27,9 @@ export const COLUNAS_CSV: Record<string, keyof DadosOferta> = {
   prioridade: 'priority',
   destaque: 'featured',
 };
-export const OBRIGATORIAS = ['nome', 'categoria', 'plataforma', 'url_produto'];
+export const OBRIGATORIAS = ['nome', 'categoria', 'plataforma'];
+/** O link de compra pode vir como url_compra (modelo novo) ou url_produto (modelo antigo). */
+export const COLUNAS_LINK = ['url_compra', 'url_produto'];
 
 /** Parser CSV (RFC 4180): aspas, aspas duplicadas, quebras de linha dentro de aspas; separador , ou ; */
 export function lerCsv(texto: string): string[][] {
@@ -74,6 +79,7 @@ export function validarCsv(texto: string, existentes: { slugs?: string[]; urls?:
 
   const cab = tabela[0].map((h) => h.trim().toLowerCase());
   const faltando = OBRIGATORIAS.filter((c) => !cab.includes(c));
+  if (!COLUNAS_LINK.some((c) => cab.includes(c))) faltando.push('url_compra');
   if (faltando.length) return { ...vazio, erroGeral: `Colunas obrigatórias ausentes: ${faltando.join(', ')}.` };
   const desconhecidas = cab.filter((c) => c && !(c in COLUNAS_CSV));
 
@@ -84,7 +90,7 @@ export function validarCsv(texto: string, existentes: { slugs?: string[]; urls?:
 
   tabela.slice(1).forEach((cols, i) => {
     const entrada: Record<string, unknown> = {};
-    cab.forEach((c, j) => { const campo = COLUNAS_CSV[c]; if (campo) entrada[campo] = cols[j] ?? ''; });
+    cab.forEach((c, j) => { const campo = COLUNAS_CSV[c]; const v = (cols[j] ?? '').trim(); if (campo && (v || !(campo in entrada))) entrada[campo] = v; });
     entrada.status = 'rascunho';
     const r = validarOferta(entrada);
     const num = i + 2;
@@ -118,18 +124,18 @@ export function gerarSqlImportacao(dados: DadosOferta[], publicar: boolean) {
   const status = publicar ? 'ativo' : 'rascunho';
   const linhas = dados.map((d) =>
     `  (${q(d.title)}, ${q(d.slug)}, ${q(d.description)}, ${q(d.short_description)}, ${q(d.image_url)}, ${q(d.category)}, ${arr(d.tags)}, ` +
-    `${q(d.external_platform)}, ${q(d.external_product_url)}, ${q(d.affiliate_url)}, ${d.price_reference === null ? 'null' : d.price_reference.toFixed(2)}, ` +
+    `${q(d.external_platform)}, ${q(d.external_product_url)}, ${q(d.affiliate_url)}, ${d.price_reference === null ? 'null' : d.price_reference.toFixed(2)}, ${d.price_from === null ? 'null' : d.price_from.toFixed(2)}, ` +
     `${q(d.currency)}, ${q(d.producer_name)}, ${q(d.authorization_note)}, ${q(status)}, ${d.featured ? 'true' : 'false'}, ${d.priority}, now())`);
   return [
     '-- ============================================================',
     '-- NÃO EXECUTAR — AGUARDANDO APROVAÇÃO EXPRESSA',
     `-- Importação de ${dados.length} oferta(s) parceira(s) gerada pelo painel em ${new Date().toISOString()}`,
-    `-- Status ao inserir: ${status}. Requer a tabela public.partner_offers (script 01).`,
+    `-- Status ao inserir: ${status}. Requer os scripts 01 e 05 (tabela public.partner_offers + plataformas novas e preço "de").`,
     '-- Ofertas com o mesmo slug já cadastrado são ignoradas (on conflict do nothing).',
     '-- ============================================================',
     'insert into public.partner_offers',
     '  (title, slug, description, short_description, image_url, category, tags, external_platform, external_product_url,',
-    '   affiliate_url, price_reference, currency, producer_name, authorization_note, status, featured, priority, last_verified_at)',
+    '   affiliate_url, price_reference, price_from, currency, producer_name, authorization_note, status, featured, priority, last_verified_at)',
     'values',
     linhas.join(',\n'),
     'on conflict (slug) do nothing;',

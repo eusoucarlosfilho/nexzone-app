@@ -5,15 +5,28 @@ import type { Plataforma } from './tipos';
 export const MAX_URL = 2048;
 
 /** Domínios aceitos por plataforma (o host precisa ser igual ou subdomínio). */
+// Domínios curtos OFICIAIS das próprias plataformas (amzn.to, shope.ee, hotm.art) são aceitos;
+// encurtadores genéricos (bit.ly etc.) são recusados em qualquer plataforma.
 export const DOMINIOS_PLATAFORMA: Record<Plataforma, string[] | null> = {
+  mercadolivre: ['mercadolivre.com.br', 'mercadolivre.com', 'mercadolibre.com'],
+  shopee: ['shopee.com.br', 'shopee.com', 'shope.ee'],
+  amazon: ['amazon.com.br', 'amazon.com', 'amzn.to', 'a.co'],
+  magalu: ['magazineluiza.com.br', 'magalu.com', 'magalu.com.br'],
+  aliexpress: ['aliexpress.com', 'aliexpress.us'],
   hotmart: ['hotmart.com', 'hotm.art'],
   kiwify: ['kiwify.com.br', 'kiwify.com', 'kiwify.app'],
   monetizze: ['monetizze.com.br'],
   eduzz: ['eduzz.com', 'nutror.com'],
   braip: ['braip.com'],
   direto: null, // parceiro direto: qualquer domínio público com HTTPS
-  outra: null,
+  outra: null, // "Outro site": qualquer domínio público com HTTPS (menos encurtadores)
 };
+
+export const ENCURTADORES = [
+  'bit.ly', 'bitly.com', 'tinyurl.com', 't.co', 'goo.gl', 'ow.ly', 'is.gd', 'buff.ly', 'cutt.ly', 'rebrand.ly',
+  'shorturl.at', 'rb.gy', 'tiny.cc', 's.id', 'linktr.ee', 'encurtador.com.br', 'shre.ink', 'v.gd', 'lnkd.in', 'tr.ee',
+];
+const ehEncurtador = (host: string) => ENCURTADORES.some((d) => host === d || host.endsWith('.' + d));
 
 export type ResultadoUrl = { ok: true; url: string; host: string } | { ok: false; erro: string };
 
@@ -52,6 +65,7 @@ export function validarUrlExterna(bruta: unknown, plataforma?: Plataforma | null
   if (u.port && u.port !== '443') return { ok: false, erro: 'Porta não permitida.' };
   const host = u.hostname.toLowerCase().replace(/\.$/, '');
   if (hostBloqueado(host)) return { ok: false, erro: 'Endereço não permitido.' };
+  if (ehEncurtador(host)) return { ok: false, erro: 'Links encurtados não são aceitos. Use o link completo do produto.' };
   if (plataforma && !dominioPermitido(host, DOMINIOS_PLATAFORMA[plataforma] ?? null)) {
     const lista = (DOMINIOS_PLATAFORMA[plataforma] || []).join(', ');
     return { ok: false, erro: `O link não é do domínio oficial da plataforma (${lista}).` };

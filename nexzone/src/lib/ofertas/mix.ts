@@ -7,10 +7,12 @@ export type ConfigMix = {
   maxPct: number;          // participação máxima de parceiros numa seção com nativos (0 a 100)
   maxSemNativos: number;   // quantas ofertas mostrar quando a seção não tem nenhum nativo
   maxSeguidos: number;     // máximo de parceiros em sequência enquanto ainda há nativos
-  homeQtd: number;         // ofertas na seção "Ofertas de parceiros" da página inicial (0 = esconde)
+  homeQtd: number;         // ofertas na seção da página inicial (0 = esconde)
+  plataformasDesligadas: string[]; // origens escondidas do site (ex.: ['shopee'])
+  mostrarOrigem: boolean;  // mostrar selo "Oferta de parceiro", plataforma e produtor (padrão: NÃO)
 };
 
-export const MIX_PADRAO: ConfigMix = { ativo: true, maxPct: 30, maxSemNativos: 12, maxSeguidos: 1, homeQtd: 8 };
+export const MIX_PADRAO: ConfigMix = { ativo: true, maxPct: 30, maxSemNativos: 12, maxSeguidos: 1, homeQtd: 8, plataformasDesligadas: [], mostrarOrigem: false };
 
 export function normalizarMix(v: any): ConfigMix {
   const n = (x: any, min: number, max: number, def: number) => {
@@ -24,6 +26,10 @@ export function normalizarMix(v: any): ConfigMix {
     maxSemNativos: n(o.maxSemNativos, 0, 48, MIX_PADRAO.maxSemNativos),
     maxSeguidos: n(o.maxSeguidos, 1, 4, MIX_PADRAO.maxSeguidos),
     homeQtd: n(o.homeQtd, 0, 24, MIX_PADRAO.homeQtd),
+    plataformasDesligadas: Array.isArray(o.plataformasDesligadas)
+      ? Array.from(new Set(o.plataformasDesligadas.filter((x: unknown) => typeof x === 'string' && /^[a-z]{2,20}$/.test(x)))).slice(0, 20) as string[]
+      : [],
+    mostrarOrigem: o.mostrarOrigem === true,
   };
 }
 
@@ -58,4 +64,9 @@ export function intercalar<N, P>(nativos: N[], parceiros: P[], cfg: ConfigMix, v
   });
   while (p < usados.length) out.push({ tipo: 'parceiro', item: usados[p++] });
   return out;
+}
+
+/** A oferta pode aparecer no site? (chave geral + chave da plataforma) */
+export function plataformaVisivel(plataforma: string, cfg: ConfigMix) {
+  return cfg.ativo && !cfg.plataformasDesligadas.includes(plataforma);
 }
