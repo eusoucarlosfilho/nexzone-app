@@ -7,6 +7,7 @@ import type { Product } from '@/lib/types';
 import { getSettings } from '@/lib/settings';
 import Icon from '@/components/Icon';
 import { stripeAvailable } from '@/lib/payments/stripe';
+import { vendedorPublico } from '@/lib/vendedorPublico';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,10 +17,11 @@ export default async function CheckoutPage({ params }: { params: { id: string } 
   if (!user) redirect(`/login?next=/checkout/${params.id}`);
 
   const { data } = await supabase.from('products')
-    .select('*, stores(nome, logo_url, cor)').eq('id', params.id).eq('status', 'ativo').single();
+    .select('*, stores(nome, logo_url, cor, ocultar_vendedor)').eq('id', params.id).eq('status', 'ativo').single();
   if (!data) notFound();
   const p = data as Product;
-  const loja: any = (p as any).stores || {};
+  // Nome, logo e cor públicos (Comprei Barato quando a loja vende oculta). O pagamento continua indo para a loja real.
+  const loja = vendedorPublico((p as any).stores);
   const cfg: any = (p as any).checkout_config || {};
 
   let bump: any = null;
@@ -41,7 +43,7 @@ export default async function CheckoutPage({ params }: { params: { id: string } 
     <div style={{ minHeight: '100vh', background: 'var(--surface)' }}>
       <header style={{ background: '#fff', borderBottom: '1px solid var(--border)', padding: '14px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ width: 36, height: 36, borderRadius: 10, background: loja.logo_url ? `url(${loja.logo_url}) center/cover` : `linear-gradient(135deg, ${cor}, #FF9A3C)`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontFamily: 'Outfit', fontWeight: 900 }}>
+          <div style={{ width: 36, height: 36, borderRadius: 10, background: loja.logo_url ? `${loja.oficial ? '#fff ' : ''}url(${loja.logo_url}) center/${loja.oficial ? 'contain no-repeat' : 'cover'}` : `linear-gradient(135deg, ${cor}, #FF9A3C)`, ...(loja.oficial ? { border: '1px solid var(--border)' } : {}), display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontFamily: 'Outfit', fontWeight: 900 }}>
             {!loja.logo_url && (loja.nome || 'L').charAt(0).toUpperCase()}
           </div>
           <strong style={{ fontFamily: 'Outfit' }}>{loja.nome || 'Loja'}</strong>
