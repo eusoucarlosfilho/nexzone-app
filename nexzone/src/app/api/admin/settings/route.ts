@@ -67,6 +67,18 @@ export async function POST(req: Request) {
     rows.push({ key: 'misticpay_cs', value: body.misticpay_cs.trim() });
   }
 
+  // Prova social da página inicial (só liga/desliga e mínimos; os números exibidos são sempre os reais)
+  for (const key of ['ps_mostrar_contadores', 'ps_mostrar_vendas', 'ps_mostrar_ultimas_vendas', 'ps_selos']) {
+    if (typeof body[key] === 'boolean') rows.push({ key, value: body[key] });
+  }
+  for (const key of ['ps_min_lojas', 'ps_min_produtos', 'ps_min_vendas']) {
+    if (body[key] != null) {
+      const v = Number(body[key]);
+      if (!Number.isInteger(v) || v < 0 || v > 1000000) return NextResponse.json({ error: `mínimo inválido para ${key} (número inteiro de 0 a 1.000.000)` }, { status: 400 });
+      rows.push({ key, value: v });
+    }
+  }
+
   for (const r of rows) {
     const { error } = await admin.from('settings').upsert({ key: r.key, value: r.value, updated_at: new Date().toISOString() });
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
