@@ -5,6 +5,7 @@ import Toolbar from './Toolbar';
 import { Suspense } from 'react';
 import { createClient } from '@/lib/supabase/server';
 import type { Product } from '@/lib/types';
+import { produtosPublicos } from '@/lib/vendedorPublico';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,7 +24,7 @@ export default async function ProdutosPage({ searchParams }: { searchParams: { q
   const sortKey = searchParams.sort && SORTS[searchParams.sort] ? searchParams.sort : 'vendas';
   const sort = SORTS[sortKey];
 
-  let q = supabase.from('products').select('*, stores(nome, nivel)').eq('status', 'ativo');
+  let q = supabase.from('products').select('*, stores(nome, nivel, ocultar_vendedor)').eq('status', 'ativo');
   if (searchParams.q) q = q.ilike('titulo', `%${searchParams.q}%`);
   if (searchParams.cat) {
     const cat = categorias.find((c: any) => c.slug === searchParams.cat);
@@ -35,7 +36,7 @@ export default async function ProdutosPage({ searchParams }: { searchParams: { q
   q = q.order(sort.col, { ascending: sort.asc });
 
   const { data } = await q.limit(60);
-  const produtos = (data ?? []) as Product[];
+  const produtos = produtosPublicos(data as Product[] | null);
 
   return (
     <>
