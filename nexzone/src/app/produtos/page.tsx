@@ -5,6 +5,7 @@ import Toolbar from './Toolbar';
 import { Suspense } from 'react';
 import { createClient } from '@/lib/supabase/server';
 import type { Product } from '@/lib/types';
+import { CATEGORIAS, acharCategoria, contarPorCategoria } from '@/lib/categorias';
 import { produtosPublicos } from '@/lib/vendedorPublico';
 
 export const dynamic = 'force-dynamic';
@@ -18,8 +19,10 @@ const SORTS: Record<string, { col: string; asc: boolean }> = {
 
 export default async function ProdutosPage({ searchParams }: { searchParams: { q?: string; cat?: string; min?: string; max?: string; sort?: string } }) {
   const supabase = createClient();
-  const { data: cats } = await supabase.from('categories').select('nome, slug, emoji');
-  const categorias = cats ?? [];
+  // Filtro lateral: todas as categorias da fonte única, com a contagem de produtos ativos
+  const { data: catRows } = await supabase.from('products').select('categoria').eq('status', 'ativo');
+  const porCategoria = contarPorCategoria(catRows as { categoria: string }[] | null);
+  const categorias = CATEGORIAS.map((c) => ({ nome: c.nome, slug: c.slug, qtd: porCategoria[c.nome] || 0 }));
 
   const sortKey = searchParams.sort && SORTS[searchParams.sort] ? searchParams.sort : 'vendas';
   const sort = SORTS[sortKey];
@@ -27,7 +30,7 @@ export default async function ProdutosPage({ searchParams }: { searchParams: { q
   let q = supabase.from('products').select('*, stores(nome, nivel, ocultar_vendedor)').eq('status', 'ativo');
   if (searchParams.q) q = q.ilike('titulo', `%${searchParams.q}%`);
   if (searchParams.cat) {
-    const cat = categorias.find((c: any) => c.slug === searchParams.cat);
+    const cat = acharCategoria(searchParams.cat);
     if (cat) q = q.eq('categoria', cat.nome);
   }
   const min = Number(searchParams.min); const max = Number(searchParams.max);

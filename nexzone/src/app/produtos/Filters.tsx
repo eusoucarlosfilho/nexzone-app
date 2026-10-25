@@ -22,7 +22,7 @@ export default function Filters({ categorias }: any) {
         <h3 style={h3}>Categorias</h3>
         <button onClick={() => setParam({ cat: '' })} style={catBtn(!catAtiva)}>Todas</button>
         {categorias.map((c: any) => (
-          <button key={c.slug} onClick={() => setParam({ cat: c.slug })} style={{ ...catBtn(catAtiva === c.slug), display: 'flex', alignItems: 'center', gap: 8 }}><CategoryIcon cat={c.slug} size={16} color="currentColor" /> {c.nome}</button>
+          <button key={c.slug} onClick={() => setParam({ cat: c.slug })} style={{ ...catBtn(catAtiva === c.slug), display: 'flex', alignItems: 'center', gap: 8 }}><CategoryIcon cat={c.slug} size={16} color="currentColor" /> <span style={{ flex: 1 }}>{c.nome}</span><span style={{ fontSize: 12, fontWeight: 700, opacity: c.qtd ? .9 : .5 }}>{Number(c.qtd || 0).toLocaleString('pt-BR')}</span></button>
         ))}
       </div>
       <div style={card}>

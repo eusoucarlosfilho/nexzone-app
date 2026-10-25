@@ -11,6 +11,7 @@ import { numerosReais, vendasRecentes, type ProvaSocialNumeros, type VendaRecent
 import { stripeAvailable } from '@/lib/payments/stripe';
 import type { Product } from '@/lib/types';
 import { produtosPublicos } from '@/lib/vendedorPublico';
+import { CATEGORIAS, contarPorCategoria } from '@/lib/categorias';
 
 export const dynamic = 'force-dynamic';
 
@@ -49,13 +50,15 @@ export default async function Home() {
     supabase.from('products').select('*, stores(nome, nivel, ocultar_vendedor)').eq('status', 'ativo').order('vendas', { ascending: false }).order('nota', { ascending: false }).limit(8),
     supabase.from('products').select('*, stores(nome, nivel, ocultar_vendedor)').eq('status', 'ativo').order('vendas', { ascending: false }).limit(8),
     supabase.from('products').select('*, stores(nome, nivel, ocultar_vendedor)').eq('status', 'ativo').order('created_at', { ascending: false }).limit(8),
-    supabase.from('categories').select('nome, slug'),
+    supabase.from('products').select('categoria').eq('status', 'ativo'),
   ]);
   const destaques = produtosPublicos(destRes.data as Product[] | null);
   const ofertas = produtosPublicos(ofertaRes.data as Product[] | null);
   const emAlta = produtosPublicos(altaRes.data as Product[] | null);
   const novidades = produtosPublicos(novoRes.data as Product[] | null);
-  const cats = catsRes.data ?? [];
+  // Grade de categorias: só as que têm pelo menos 1 produto ativo, na ordem da fonte única
+  const porCategoria = contarPorCategoria(catsRes.data as { categoria: string }[] | null);
+  const cats = CATEGORIAS.filter((c) => (porCategoria[c.nome] || 0) > 0);
   const vazio = emAlta.length === 0;
   const vitrine = (destaques.length ? destaques : ofertas).slice(0, 2);
   const taxa = commission_percent ?? 3;
@@ -167,11 +170,14 @@ export default async function Home() {
             <div className="c">
               <div className="st"><div className="slabel">Explore</div><h2>Categorias</h2></div>
               <div className="catgrid">
-                {cats.map((c: any) => (
+                {cats.map((c) => (
                   <Link key={c.slug} href={`/produtos?cat=${c.slug}`} className="cattile">
                     <span className="e" aria-hidden="true" style={{ background: categoryColors(c.slug).bg }}><CategoryIcon cat={c.slug} size={24} /></span>{c.nome}
                   </Link>
                 ))}
+              </div>
+              <div style={{ textAlign: 'center', marginTop: 18 }}>
+                <Link href="/produtos" className="btn btn-ghost">Ver todas as categorias →</Link>
               </div>
             </div>
           </section>

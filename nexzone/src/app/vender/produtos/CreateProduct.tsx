@@ -4,11 +4,13 @@ import { useRouter } from 'next/navigation';
 import { toast } from '@/lib/toast';
 import { criarProduto } from '../actions';
 import FileUpload from './FileUpload';
-import CoverUpload from './CoverUpload';
+import GalleryUpload from './GalleryUpload';
+import { MAX_FOTOS } from '@/lib/galeria';
+import { NOMES_CATEGORIAS, AVISO_JOGOS, ehJogos } from '@/lib/categorias';
 import SeoPanel from './SeoPanel';
 import Icon from '@/components/Icon';
 
-const CATS = ['IA & Ferramentas', 'Templates & Planilhas', 'Design', 'Automações', 'Marketing Digital', 'Cursos & Ebooks'];
+const CATS = NOMES_CATEGORIAS;
 
 export default function CreateProduct({ userId }: { userId: string }) {
   // campos do produto (controlados — pra importação preencher)
@@ -23,7 +25,7 @@ export default function CreateProduct({ userId }: { userId: string }) {
   const [tipo, setTipo] = useState('arquivo');
   const [arquivoPath, setArquivoPath] = useState('');
   const [arquivoNome, setArquivoNome] = useState('');
-  const [capaUrl, setCapaUrl] = useState('');
+  const [imagens, setImagens] = useState<string[]>([]); // galeria: a 1ª é a capa
   const [busy, setBusy] = useState(false);
 
   // importação de anúncio
@@ -70,7 +72,7 @@ export default function CreateProduct({ userId }: { userId: string }) {
         body: JSON.stringify({ rehost: true, imagem_url: imagemSugerida }),
       });
       const d = await r.json();
-      if (d.ok) { setCapaUrl(d.capa_url); setImagemSugerida(''); toast('Capa definida!', 'success'); }
+      if (d.ok) { setImagens((l) => [d.capa_url, ...l.filter((u) => u !== d.capa_url)].slice(0, MAX_FOTOS)); setImagemSugerida(''); toast('Capa definida!', 'success'); }
       else toast(d.error || 'Não consegui usar a imagem. Suba a capa manualmente.', 'error');
     } catch { toast('Falha ao definir a capa.', 'error'); }
     setRehost(false);
@@ -79,7 +81,8 @@ export default function CreateProduct({ userId }: { userId: string }) {
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
-    fd.set('capa_url', capaUrl);
+    fd.set('imagens', JSON.stringify(imagens));
+    fd.set('capa_url', imagens[0] || '');
     fd.set('arquivo_path', arquivoPath);
     fd.set('arquivo_nome', arquivoNome);
     setBusy(true);
@@ -89,7 +92,7 @@ export default function CreateProduct({ userId }: { userId: string }) {
       toast('Produto enviado para revisão!', 'success');
       formRef.current?.reset();
       setTitulo(''); setDescricao(''); setPreco(''); setPrecoPromo(''); setCategoria(CATS[0]); setGarantia('7'); setConteudoEntrega('');
-      setCapaUrl(''); setArquivoPath(''); setArquivoNome(''); setTipo('arquivo');
+      setImagens([]); setArquivoPath(''); setArquivoNome(''); setTipo('arquivo');
       setImpUrl(''); setImpTexto(''); setImagemSugerida(''); setBloqueado(false);
       router.refresh();
     } else {
@@ -146,13 +149,16 @@ export default function CreateProduct({ userId }: { userId: string }) {
       </div>
 
       <div className="fg"><label>Título</label><input name="titulo" value={titulo} onChange={(e) => setTitulo(e.target.value)} required placeholder="Ex: Pack 100 Templates de Carrossel" /></div>
-      <div className="fg"><label>Imagem de capa</label>
-        {capaUrl && <img src={capaUrl} alt="capa" style={{ width: '100%', maxWidth: 280, borderRadius: 12, marginBottom: 8, display: 'block', border: '1px solid var(--border)' }} />}
-        <CoverUpload userId={userId} onUploaded={setCapaUrl} hint="Recomendado 1200×900px (proporção 4:3), até ~2MB" />
-        <input type="hidden" name="capa_url" value={capaUrl} />
+      <div className="fg"><label>Fotos do produto (até {MAX_FOTOS})</label>
+        <GalleryUpload userId={userId} value={imagens} onChange={setImagens} />
       </div>
       <div className="fg"><label>Categoria</label>
         <select name="categoria" value={categoria} onChange={(e) => setCategoria(e.target.value)}>{CATS.map((c) => <option key={c}>{c}</option>)}</select>
+      {ehJogos(categoria) && (
+        <div role="note" style={{ display: 'flex', gap: 8, alignItems: 'flex-start', background: '#F3EDFF', border: '1px solid #D9C8FF', color: '#3B1E7A', borderRadius: 12, padding: '10px 12px', fontSize: 12.5, lineHeight: 1.45, marginTop: 8 }}>
+          <Icon name="alert" size={15} style={{ marginTop: 1, flexShrink: 0 }} /><span><b>Regras de Jogos &amp; Games.</b> {AVISO_JOGOS}</span>
+        </div>
+      )}
       </div>
       <div className="fg"><label>Descrição</label><textarea name="descricao" value={descricao} onChange={(e) => setDescricao(e.target.value)} rows={6} placeholder="Para quem é, o que resolve, o que o comprador recebe e em qual formato." /></div>
       <div className="fg2">
@@ -187,7 +193,7 @@ export default function CreateProduct({ userId }: { userId: string }) {
 
       <SeoPanel
         titulo={titulo} descricao={descricao} categoria={categoria} preco={preco} precoPromo={precoPromo}
-        temCapa={!!capaUrl} tipoEntrega={tipo} garantiaDias={garantia}
+        temCapa={imagens.length > 0} tipoEntrega={tipo} garantiaDias={garantia}
         onApplyTitle={(t) => { setTitulo(t); toast('Título atualizado.', 'success'); }}
         onApplyDescription={(d) => { setDescricao(d); toast('Descrição atualizada.', 'success'); }}
       />

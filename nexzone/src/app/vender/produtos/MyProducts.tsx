@@ -3,7 +3,9 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from '@/lib/toast';
 import FileUpload from './FileUpload';
-import CoverUpload from './CoverUpload';
+import GalleryUpload from './GalleryUpload';
+import { galeriaDe, MAX_FOTOS } from '@/lib/galeria';
+import { NOMES_CATEGORIAS, AVISO_JOGOS, ehJogos } from '@/lib/categorias';
 import BoostButton from './BoostButton';
 import CategoryIcon from '@/components/CategoryIcon';
 import Icon from '@/components/Icon';
@@ -12,7 +14,7 @@ const money = (v: number) => 'R$ ' + Number(v).toFixed(2).replace('.', ',');
 const ST: Record<string, [string, string]> = {
   em_revisao: ['rev', 'Em revisão'], ativo: ['act', 'Ativo'], reprovado: ['rej', 'Reprovado'], pausado: ['rev', 'Pausado'],
 };
-const CATS = ['IA & Ferramentas', 'Templates & Planilhas', 'Design', 'Automações', 'Marketing Digital', 'Cursos & Ebooks'];
+const CATS = NOMES_CATEGORIAS;
 
 export default function MyProducts({ products, userId, planos }: { products: any[]; userId: string; planos: { dias: number; valor: number; label: string }[] }) {
   const [list, setList] = useState<any[]>(products);
@@ -27,7 +29,7 @@ export default function MyProducts({ products, userId, planos }: { products: any
       titulo: p.titulo, descricao: p.descricao || '', categoria: p.categoria || CATS[0],
       preco: p.preco, preco_promo: p.preco_promo || '', tipo_entrega: p.tipo_entrega || 'arquivo',
       garantia_dias: p.garantia_dias || 7, conteudo_entrega: p.conteudo_entrega || '', emoji: p.emoji || '\uD83D\uDCE6',
-      arquivo_path: p.arquivo_path || '', arquivo_nome: p.arquivo_nome || '', capa_url: p.capa_url || '',
+      arquivo_path: p.arquivo_path || '', arquivo_nome: p.arquivo_nome || '', imagens: galeriaDe(p),
     });
   }
 
@@ -36,11 +38,11 @@ export default function MyProducts({ products, userId, planos }: { products: any
     try {
       const r = await fetch('/api/seller/product', {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
-        body: JSON.stringify({ id, ...form }),
+        body: JSON.stringify({ id, ...form, capa_url: form.imagens?.[0] || null }),
       });
       const d = await r.json();
       if (r.ok) {
-        setList((l) => l.map((p) => p.id === id ? { ...p, ...form, preco: Number(form.preco), preco_promo: form.preco_promo ? Number(form.preco_promo) : null, status: 'em_revisao' } : p));
+        setList((l) => l.map((p) => p.id === id ? { ...p, ...form, preco: Number(form.preco), preco_promo: form.preco_promo ? Number(form.preco_promo) : null, capa_url: form.imagens?.[0] || null, status: 'em_revisao' } : p));
         setEditId(null);
         router.refresh();
         toast('Produto salvo! Enviado para revisão.', 'success');
@@ -118,6 +120,11 @@ export default function MyProducts({ products, userId, planos }: { products: any
                   <select value={form.categoria} onChange={(e) => setForm({ ...form, categoria: e.target.value })}>
                     {CATS.map((c) => <option key={c}>{c}</option>)}
                   </select>
+                  {ehJogos(form.categoria) && (
+                    <div role="note" style={{ display: 'flex', gap: 8, alignItems: 'flex-start', background: '#F3EDFF', border: '1px solid #D9C8FF', color: '#3B1E7A', borderRadius: 12, padding: '10px 12px', fontSize: 12.5, lineHeight: 1.45, marginTop: 8 }}>
+                      <Icon name="alert" size={15} style={{ marginTop: 1, flexShrink: 0 }} /><span><b>Regras de Jogos &amp; Games.</b> {AVISO_JOGOS}</span>
+                    </div>
+                  )}
                 </div>
                 <div className="fg"><label>Descrição</label><textarea rows={3} value={form.descricao} onChange={(e) => setForm({ ...form, descricao: e.target.value })} /></div>
                 <div className="fg2">
@@ -133,8 +140,8 @@ export default function MyProducts({ products, userId, planos }: { products: any
                   <div className="fg"><label>Garantia (dias)</label><input type="number" value={form.garantia_dias} onChange={(e) => setForm({ ...form, garantia_dias: e.target.value })} /></div>
                 </div>
 
-                <div className="fg"><label>Imagem de capa</label>
-                  <CoverUpload userId={userId} value={form.capa_url} onUploaded={(u) => setForm({ ...form, capa_url: u })} hint="Recomendado 1200×900px (proporção 4:3), até ~2MB" />
+                <div className="fg"><label>Fotos do produto (até {MAX_FOTOS})</label>
+                  <GalleryUpload userId={userId} value={form.imagens || []} onChange={(imgs) => setForm((f: any) => ({ ...f, imagens: imgs }))} />
                 </div>
                 {form.tipo_entrega === 'arquivo' ? (
                   <div className="fg">

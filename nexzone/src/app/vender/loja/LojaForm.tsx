@@ -2,8 +2,9 @@
 import { useState } from 'react';
 import { salvarLoja } from './actions';
 import CoverUpload from '../produtos/CoverUpload';
+import { NOMES_CATEGORIAS } from '@/lib/categorias';
 
-const CATS = ['IA & Ferramentas', 'Templates & Planilhas', 'Design', 'Automações', 'Marketing Digital', 'Cursos & Ebooks'];
+const CATS = NOMES_CATEGORIAS;
 
 export default function LojaForm({ store, userId }: any) {
   const [logo, setLogo] = useState(store.logo_url || '');

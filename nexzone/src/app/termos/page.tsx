@@ -1,5 +1,6 @@
 import Nav from '@/components/Nav';
 import Icon from '@/components/Icon';
+import { AVISO_JOGOS } from '@/lib/categorias';
 
 export const metadata = { title: 'Termos de Uso — Comprei Barato' };
 
@@ -38,6 +39,9 @@ export default function TermosPage() {
 
           <h2 style={h2}>8. Condutas proibidas</h2>
           <p>É proibido anunciar ou comercializar: conteúdo ilegal, pirateado ou que viole direitos autorais; contas ou acessos de terceiros; conteúdo que infrinja os termos de outras plataformas; e qualquer material vedado por lei. A violação pode levar à remoção do produto e ao encerramento da conta.</p>
+
+          <h2 style={h2}>8.1 Categoria Jogos &amp; Games</h2>
+          <p>{AVISO_JOGOS}</p>
 
           <h2 style={h2}>9. Propriedade intelectual</h2>
           <p>A marca, o layout e o software do Comprei Barato pertencem à Plataforma. O conteúdo dos produtos pertence aos respectivos Vendedores.</p>

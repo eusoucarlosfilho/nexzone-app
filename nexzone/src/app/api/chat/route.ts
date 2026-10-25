@@ -2,12 +2,13 @@ import { NextResponse } from 'next/server';
 import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { verificarEscalonamento } from '@/lib/escalonamento';
 import { notificarMensagem } from '@/lib/notificacoes';
+import { vendedorPublico } from '@/lib/vendedorPublico';
 
 // Descobre o papel do usuário em relação ao pedido e devolve dados do pedido.
 async function autorizar(orderId: string, userId: string) {
   const admin = createAdminClient();
   const { data: order } = await admin.from('orders')
-    .select('id, comprador, store_id, status, conteudo_liberado, products(titulo, emoji), stores(nome)')
+    .select('id, comprador, store_id, status, conteudo_liberado, products(titulo, emoji), stores(nome, ocultar_vendedor)')
     .eq('id', orderId).maybeSingle();
   if (!order) return { erro: 'pedido não encontrado' as const };
 
@@ -65,7 +66,9 @@ export async function GET(req: Request) {
     status: (order as any).status,
     conteudo: (order as any).conteudo_liberado ?? null,
     produto: { titulo: (order as any).products?.titulo ?? 'Produto', emoji: (order as any).products?.emoji ?? '\uD83D\uDCE6' },
-    loja: (order as any).stores?.nome ?? 'Loja',
+    // O comprador vê "Comprei Barato" quando a loja vende oculta; vendedor e admin veem o nome real.
+    loja: papel === 'comprador' ? vendedorPublico((order as any).stores).nome : ((order as any).stores?.nome ?? 'Loja'),
+    oficial: papel === 'comprador' && vendedorPublico((order as any).stores).oficial,
     messages: lista,
   });
 }

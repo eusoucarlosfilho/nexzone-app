@@ -8,6 +8,7 @@ import OrderChat from '@/components/OrderChat';
 import AdminNotes from './AdminNotes';
 import AudienceTab from './AudienceTab';
 import ProvaSocialForm from './ProvaSocialForm';
+import { ehJogos } from '@/lib/categorias';
 import Icon from '@/components/Icon';
 import CategoryIcon from '@/components/CategoryIcon';
 
@@ -266,13 +267,28 @@ export default function AdminDashboard({ adminEmail, users, metrics, daily, orde
         .adm-fb.on{background:var(--tx);color:var(--bg);border-color:var(--tx);}
         .adm-empty{text-align:center;color:var(--sub);padding:40px;font-size:14px;}
         .adm-soon{display:inline-block;font-size:10px;font-weight:800;color:var(--sub);background:var(--panel2);border:1px solid var(--bd2);border-radius:50px;padding:2px 9px;margin-left:8px;}
-        @media(max-width:820px){.adm{flex-direction:column;}.adm-side{width:100%;height:auto;position:static;flex-direction:row;overflow-x:auto;padding:10px;}.adm-logo{display:none;}.adm-foot{display:none;}.adm-nav{width:auto;white-space:nowrap;}.adm-main{padding:20px 16px;}}
+        @media(max-width:820px){
+          .adm{flex-direction:column;}
+          /* celular: menu vira uma faixa fixa no topo, com rolagem lateral */
+          .adm-side{width:100%;height:auto;position:sticky;top:0;z-index:50;flex-direction:row;align-items:center;gap:6px;overflow-x:auto;overflow-y:hidden;padding:10px 12px;border-right:none;border-bottom:1px solid var(--bd2);scrollbar-width:none;-webkit-overflow-scrolling:touch;}
+          .adm-side::-webkit-scrollbar{display:none;}
+          .adm-logo,.adm-who{display:none;}
+          .adm-nav{flex:none;width:auto;height:40px;min-height:40px;padding:0 13px;white-space:nowrap;font-size:13px;gap:8px;border-radius:50px;}
+          .adm-nav:hover{transform:none;}
+          .adm-nav.on{box-shadow:0 4px 12px rgba(255,107,0,.25);}
+          .adm-nav .bd{margin-left:4px;}
+          .adm-foot{display:flex;flex:none;align-items:center;gap:6px;margin:0;padding:0 0 0 6px;border-top:none;border-left:1px solid var(--bd2);}
+          .adm-foot a,.adm-foot form{flex:none;white-space:nowrap;}
+          .adm-foot a{padding:0 12px;line-height:40px;}
+          .adm-main{padding:18px 14px 50px;}
+          .adm-h{font-size:24px;}
+        }
       `}</style>
 
       <aside className="adm-side">
         <div className="adm-logo">Comprei <span>Barato</span></div>
         {adminEmail && (
-          <div style={{ fontSize: 11, color: 'var(--sub)', padding: '0 6px 12px', wordBreak: 'break-all', lineHeight: 1.4 }}>
+          <div className="adm-who" style={{ fontSize: 11, color: 'var(--sub)', padding: '0 6px 12px', wordBreak: 'break-all', lineHeight: 1.4 }}>
             Logado como<br /><strong style={{ color: 'var(--tx)' }}>{adminEmail}</strong>
           </div>
         )}
@@ -352,7 +368,18 @@ export default function AdminDashboard({ adminEmail, users, metrics, daily, orde
               {queue.length ? queue.map((p: any) => (
                 <div className="adm-row" key={p.id}>
                   <div className="em"><CategoryIcon cat={p.categoria} size={22} /></div>
-                  <div className="info"><b>{p.titulo}</b><span>{p.stores?.nome ?? '—'} · {p.categoria} · {money(p.preco_promo ?? p.preco)}</span></div>
+                  <div className="info"><b>{p.titulo}{ehJogos(p.categoria) && <span title="Categoria Jogos & Games: confira se não é conta compartilhada, 'método', moeda/item de terceiros, key aleatória ou assinatura revendida." style={{ marginLeft: 8, verticalAlign: 1, fontSize: 10.5, fontWeight: 900, fontFamily: 'Outfit', color: '#fff', background: '#7C3AED', borderRadius: 50, padding: '2px 9px', display: 'inline-block' }}>Revisar com atenção</span>}</b><span>{p.stores?.nome ?? '—'} · {p.categoria} · {money(p.preco_promo ?? p.preco)}</span>
+                    {Array.isArray(p.imagens) && p.imagens.length > 0 ? (
+                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
+                        {p.imagens.map((u: string, i: number) => (
+                          <a key={u} href={u} target="_blank" rel="noreferrer" title={i === 0 ? 'Capa — abrir em nova aba' : `Foto ${i + 1} — abrir em nova aba`}
+                            style={{ position: 'relative', width: 64, height: 48, borderRadius: 8, overflow: 'hidden', border: `1.5px solid ${i === 0 ? '#FF6B00' : 'var(--bd2)'}`, flexShrink: 0 }}>
+                            <img src={u} alt={`Foto ${i + 1}`} loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                          </a>
+                        ))}
+                      </div>
+                    ) : <span style={{ display: 'block', marginTop: 6, fontSize: 11, color: 'var(--sub)' }}>Sem fotos</span>}
+                  </div>
                   <button className="adm-btn ap" disabled={busy === p.id} onClick={() => moderar(p.id, 'aprovar')}>Aprovar</button>
                   <button className="adm-btn rp" disabled={busy === p.id} onClick={() => moderar(p.id, 'reprovar')}>Reprovar</button>
                 </div>

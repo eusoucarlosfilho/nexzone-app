@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server';
 import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { fetchAndExtract, askDeepSeek, baixarImagemSegura } from '@/lib/import';
+import { NOMES_CATEGORIAS } from '@/lib/categorias';
 
-const CATS = ['IA & Ferramentas', 'Templates & Planilhas', 'Design', 'Automações', 'Marketing Digital', 'Cursos & Ebooks'];
+// A IA de importação escolhe entre as categorias da fonte única (src/lib/categorias.ts)
+const CATS = NOMES_CATEGORIAS;
 
 export async function POST(req: Request) {
   const supabase = createClient();

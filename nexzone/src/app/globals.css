@@ -84,6 +84,10 @@ nav.nz{background:rgba(255,255,255,.92);backdrop-filter:saturate(1.4) blur(14px)
 .nav-cats.fl.fr{-webkit-mask-image:linear-gradient(to right,transparent 0,#000 40px,#000 calc(100% - 40px),transparent 100%);mask-image:linear-gradient(to right,transparent 0,#000 40px,#000 calc(100% - 40px),transparent 100%)}
 .nav-cats .chip{height:40px;min-height:40px;padding:0 16px 0 12px;scroll-snap-align:start;flex:none}
 .nav-cats .chip.on svg{stroke:#fff}
+.nav-cats .chip-todas{color:var(--orange-ink);border-style:dashed;gap:4px;padding:0 12px 0 16px}
+.nav-cats-arrow{display:none;position:absolute;top:0;z-index:2;width:40px;height:40px;border-radius:50%;border:1.5px solid var(--border);background:#fff;color:var(--text);align-items:center;justify-content:center;cursor:pointer;box-shadow:0 4px 12px rgba(22,22,42,.08)}
+.nav-cats-arrow.l{left:0}.nav-cats-arrow.r{right:0}
+@media(hover:hover) and (min-width:861px){.nav-cats-arrow{display:inline-flex}}
 
 @media(max-width:860px){
   .topbar{font-size:12px;padding:7px var(--gut);gap:10px}

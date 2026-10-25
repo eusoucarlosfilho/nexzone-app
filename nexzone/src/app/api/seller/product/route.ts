@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { validarImagens, galeriaDe } from '@/lib/galeria';
 
 async function ownsProduct(supabase: any, userId: string, productId: string) {
   const { data } = await supabase
@@ -29,6 +30,10 @@ export async function PATCH(req: Request) {
     // edição de campos: volta para revisão
     const preco = Number(body.preco);
     if (!body.titulo || !preco || preco <= 0) return NextResponse.json({ error: 'título e preço válidos são obrigatórios' }, { status: 400 });
+    // Galeria: até 8 fotos do nosso bucket. Fotos que o produto já tinha (ex.: capa antiga) continuam aceitas.
+    const { data: atual } = await supabase.from('products').select('*').eq('id', id).maybeSingle();
+    const gal = validarImagens(body.imagens, user.id, galeriaDe(atual as any));
+    if (!gal.ok) return NextResponse.json({ error: gal.error }, { status: 400 });
     patch = {
       titulo: String(body.titulo).trim(),
       descricao: String(body.descricao || ''),
@@ -41,7 +46,8 @@ export async function PATCH(req: Request) {
       emoji: String(body.emoji || '\uD83D\uDCE6'),
       arquivo_path: body.arquivo_path ? String(body.arquivo_path) : null,
       arquivo_nome: body.arquivo_nome ? String(body.arquivo_nome) : null,
-      capa_url: body.capa_url ? String(body.capa_url) : null,
+      imagens: gal.imagens,
+      capa_url: gal.imagens[0] ?? null,
       status: 'em_revisao',
     };
   }

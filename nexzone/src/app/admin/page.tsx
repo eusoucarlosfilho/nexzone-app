@@ -4,6 +4,7 @@ import AdminDashboard from './AdminDashboard';
 import { getSettings } from '@/lib/settings';
 import { stripeEnabledSetting, stripeEnvStatus } from '@/lib/payments/stripe';
 import { getPaymentConfigPublic } from '@/lib/payments/config';
+import { galeriaDe } from '@/lib/galeria';
 import { numerosReais, vendasRecentes } from '@/lib/provaSocial';
 
 export const dynamic = 'force-dynamic';
@@ -60,6 +61,16 @@ export default async function AdminPage() {
 
   const orders = (ordersRes.data ?? []) as any[];
   const products = (productsRes.data ?? []) as any[];
+
+  // Fotos dos produtos na fila de aprovação (lidas à parte: o painel não quebra se a migração 0006 ainda não rodou)
+  try {
+    const filaIds = products.filter((p) => p.status === 'em_revisao').map((p) => p.id);
+    if (filaIds.length) {
+      const { data: fotosRows } = await admin.from('products').select('*').in('id', filaIds);
+      const fotosPor: Record<string, string[]> = Object.fromEntries(((fotosRows ?? []) as any[]).map((r) => [r.id, galeriaDe(r)]));
+      products.forEach((p) => { if (fotosPor[p.id]) p.imagens = fotosPor[p.id]; });
+    }
+  } catch { /* sem fotos: a fila continua funcionando */ }
   const stores = (storesRes.data ?? []) as any[];
   const payouts = (payoutsRes.data ?? []) as any[];
   const boosts = (boostsRes.data ?? []) as any[];

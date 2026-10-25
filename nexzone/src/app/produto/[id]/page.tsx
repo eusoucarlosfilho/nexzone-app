@@ -12,6 +12,8 @@ import Icon from '@/components/Icon';
 import { CategoryCover } from '@/components/CategoryIcon';
 import { metaDescription, SITE_URL_FALLBACK } from '@/lib/seo';
 import { vendedorPublico, produtoPublico, produtosPublicos } from '@/lib/vendedorPublico';
+import { galeriaDe } from '@/lib/galeria';
+import ProductGallery from './ProductGallery';
 
 const money = (v: number) => 'R$ ' + v.toFixed(2).replace('.', ',');
 const ENTREGA: Record<string, string> = {
@@ -60,6 +62,7 @@ export default async function ProductPage({ params }: { params: { id: string } }
   // Dados públicos do vendedor (Comprei Barato quando a loja está oculta). O nome real não sai do servidor.
   const p = produtoPublico(data as Product);
   const vend = vendedorPublico(p.stores);
+  const fotos = galeriaDe(p as any); // galeria; produto antigo sem galeria = [capa_url]
   const preco = p.preco_promo ?? p.preco;
   const desconto = p.preco_promo ? Math.round((1 - p.preco_promo / p.preco) * 100) : 0;
 
@@ -96,7 +99,7 @@ export default async function ProductPage({ params }: { params: { id: string } }
     description: metaDescription(p.descricao, p.titulo),
     sku: p.id,
     url: pageUrl,
-    ...(p.capa_url ? { image: [p.capa_url] } : {}),
+    ...(fotos.length ? { image: fotos } : {}),
     ...(p.categoria ? { category: p.categoria } : {}),
     brand: { '@type': 'Brand', name: vend.nome },
     offers: {
@@ -186,9 +189,9 @@ export default async function ProductPage({ params }: { params: { id: string } }
 
       <div className="pdp">
         <div className="pdp-main">
-          <div className="pdp-hero">
-            {p.capa_url ? <img src={p.capa_url} alt={p.titulo} /> : <CategoryCover cat={p.categoria} size={96} />}
-          </div>
+          {fotos.length
+            ? <ProductGallery fotos={fotos} titulo={p.titulo} />
+            : <div className="pdp-hero"><CategoryCover cat={p.categoria} size={96} /></div>}
           <span className="pdp-chip">{p.categoria}</span>
           <h1 className="pdp-title">{p.titulo}</h1>
           <div className="pdp-meta">
