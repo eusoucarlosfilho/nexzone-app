@@ -153,18 +153,18 @@ export default function WhatsAppPainel() {
             </div>
           )}
 
-          <h3 style={{ fontFamily: 'Outfit', fontWeight: 800, fontSize: 15, margin: '6px 0 8px' }}>Provedor (Evolution API)</h3>
-          <label style={lbl}>URL da API</label>
-          <input style={inp} value={cfg.apiUrl} onChange={(e) => setCfg({ ...cfg, apiUrl: e.target.value })} placeholder="https://sua-evolution.up.railway.app" />
-          <label style={lbl}>Chave da API</label>
-          <input style={inp} type="password" autoComplete="new-password" value={novaChave} onChange={(e) => setNovaChave(e.target.value)} placeholder={chaveMascarada || 'cole a chave (AUTHENTICATION_API_KEY)'} />
+          <h3 style={{ fontFamily: 'Outfit', fontWeight: 800, fontSize: 15, margin: '6px 0 8px' }}>Servidor do WhatsApp (Square Cloud)</h3>
+          <label style={lbl}>Endereço do servidor</label>
+          <input style={inp} value={cfg.apiUrl} onChange={(e) => setCfg({ ...cfg, apiUrl: e.target.value })} placeholder="https://compreibarato-whatsapp.squareweb.app" />
+          <label style={lbl}>Chave (API_KEY)</label>
+          <input style={inp} type="password" autoComplete="new-password" value={novaChave} onChange={(e) => setNovaChave(e.target.value)} placeholder={chaveMascarada || 'cole a API_KEY definida na Square Cloud'} />
           <small style={hint}>{chaveMascarada ? `Chave salva: ${chaveMascarada}. Deixe em branco para manter.` : 'Nenhuma chave salva.'} A chave nunca é mostrada inteira.</small>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 10 }}>
             <div><label style={lbl}>Nome da instância</label><input style={inp} value={cfg.instancia} onChange={(e) => setCfg({ ...cfg, instancia: e.target.value })} /></div>
             <div><label style={lbl}>Limite por minuto</label><input style={inp} type="number" min={1} max={60} value={cfg.limitePorMinuto} onChange={(e) => setCfg({ ...cfg, limitePorMinuto: Number(e.target.value) })} /></div>
             <div><label style={lbl}>WhatsApp do admin (avisos de suporte)</label><input style={inp} type="tel" value={cfg.adminNumero ? formatarTelefone(cfg.adminNumero) : ''} onChange={(e) => setCfg({ ...cfg, adminNumero: e.target.value })} placeholder="(63) 99999-9999" /></div>
           </div>
-          <button className="adm-btn" onClick={() => salvar()} disabled={salvando}>{salvando ? 'Salvando…' : 'Salvar provedor'}</button>
+          <button className="adm-btn" onClick={() => salvar()} disabled={salvando}>{salvando ? 'Salvando…' : 'Salvar servidor'}</button>
 
           <h3 style={{ fontFamily: 'Outfit', fontWeight: 800, fontSize: 15, margin: '18px 0 8px' }}>Mensagem de teste</h3>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>

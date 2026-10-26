@@ -1,5 +1,6 @@
 // Camada ÚNICA de acesso ao provedor de WhatsApp. O resto do site só usa estas funções.
-// Provedor atual: Evolution API v2 (sessão por QR Code mantida FORA da Vercel, ex.: Railway).
+// Provedor atual: "ponte" própria na Square Cloud (pasta compreibarato-whatsapp), que mantém o número
+// conectado por QR Code 24 h e fala as mesmas rotas da Evolution API v2 (também compatível com ela).
 // Para trocar de provedor (Z-API, API oficial da Meta), basta implementar este mesmo contrato.
 // SÓ SERVIDOR: usa a chave do provedor.
 import { lerChave, lerConfig, type ConfigWhatsApp } from '@/lib/whatsapp/config';
@@ -46,7 +47,7 @@ const inst = (ctx: Ctx) => encodeURIComponent(ctx.cfg.instancia);
 /** Cria a instância no provedor (idempotente: se já existir, segue). */
 export async function createInstance(): Promise<{ ok: boolean; erro?: string }> {
   const ctx = await contexto();
-  if (!ctx) return { ok: false, erro: 'Configure a URL e a chave do provedor.' };
+  if (!ctx) return { ok: false, erro: 'Configure o endereço e a chave do servidor do WhatsApp.' };
   const r = await chamar(ctx, 'POST', '/instance/create', { instanceName: ctx.cfg.instancia, integration: 'WHATSAPP-BAILEYS', qrcode: true });
   if (r.ok || r.status === 403 || /already|exist|em uso|in use/i.test(erroDe(r))) return { ok: true };
   return { ok: false, erro: erroDe(r) };
@@ -55,7 +56,7 @@ export async function createInstance(): Promise<{ ok: boolean; erro?: string }> 
 /** QR Code atual (imagem base64) para escanear em Aparelhos conectados. */
 export async function getQrCode(): Promise<{ ok: true; qr: string | null; codigoPareamento: string | null } | { ok: false; erro: string }> {
   const ctx = await contexto();
-  if (!ctx) return { ok: false, erro: 'Configure a URL e a chave do provedor.' };
+  if (!ctx) return { ok: false, erro: 'Configure o endereço e a chave do servidor do WhatsApp.' };
   const r = await chamar(ctx, 'GET', `/instance/connect/${inst(ctx)}`);
   if (!r.ok) return { ok: false, erro: erroDe(r) };
   const b64: string | null = r.dados?.base64 || r.dados?.qrcode?.base64 || null;
