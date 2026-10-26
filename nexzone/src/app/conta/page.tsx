@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { salvarPreferencias, salvarWhatsapp } from './actions';
 import { formatarTelefone } from '@/lib/whatsapp/telefone';
+import LocalizacaoForm from './LocalizacaoForm';
 
 export const dynamic = 'force-dynamic';
 
@@ -81,6 +82,8 @@ export default async function ContaPage({ searchParams }: { searchParams: { salv
             <button type="submit" className="btn btn-pri btn-sm" style={{ marginTop: 16 }}>Salvar WhatsApp</button>
           </form>
         )}
+
+        <LocalizacaoForm ufInicial={String((user.user_metadata as any)?.uf || '')} cidadeInicial={String((user.user_metadata as any)?.cidade || '')} />
 
         <p className="muted" style={{ marginTop: 16, fontSize: 13 }}>
           Veja como tratamos seus dados na <Link href="/privacidade" style={{ color: 'var(--orange)' }}>Política de Privacidade</Link>.

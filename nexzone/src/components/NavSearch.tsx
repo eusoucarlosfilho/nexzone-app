@@ -4,24 +4,142 @@ import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import Icon from './Icon';
 import CategoryIcon from './CategoryIcon';
+import { CATEGORIAS } from '@/lib/categorias';
 
 export type NavCat = { nome: string; slug: string };
 
+const CHAVE_RECENTES = 'cb_buscas_recentes';
+const MAX_RECENTES = 6;
+const semAcento = (s: string) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+// Buscas recentes ficam SÓ neste navegador. Nada que pareça e-mail ou número longo (CPF, telefone) é guardado.
+const pareceDadoPessoal = (t: string) => /[^\s@]+@[^\s@]+/.test(t) || /\d{6,}/.test(t.replace(/[\s.\-/()]/g, ''));
+
+function lerRecentes(): string[] {
+  try {
+    const v = JSON.parse(localStorage.getItem(CHAVE_RECENTES) || '[]');
+    return Array.isArray(v) ? v.filter((x) => typeof x === 'string' && x.trim()).slice(0, MAX_RECENTES) : [];
+  } catch { return []; }
+}
+function guardarRecente(t: string) {
+  if (!t || t.length > 60 || pareceDadoPessoal(t)) return;
+  try {
+    const atual = lerRecentes().filter((x) => semAcento(x) !== semAcento(t));
+    localStorage.setItem(CHAVE_RECENTES, JSON.stringify([t, ...atual].slice(0, MAX_RECENTES)));
+  } catch {}
+}
+
+type Sugestao =
+  | { tipo: 'buscar'; texto: string }
+  | { tipo: 'recente'; texto: string }
+  | { tipo: 'categoria'; texto: string; slug: string };
+
 export default function NavSearch() {
   const params = useSearchParams();
-  const [q, setQ] = useState(params?.get('q') ?? '');
+  const pathname = usePathname();
+  const atualQ = params?.get('q') ?? '';
+  const [q, setQ] = useState(atualQ);
+  const [aberto, setAberto] = useState(false);
+  const [ativo, setAtivo] = useState(-1);
+  const [recentes, setRecentes] = useState<string[]>([]);
   const router = useRouter();
+  const wrap = useRef<HTMLFormElement>(null);
+
+  // Ao trocar de página/termo, o campo mostra o termo da URL
+  useEffect(() => { setQ(atualQ); setAberto(false); }, [atualQ, pathname]);
+  useEffect(() => { setRecentes(lerRecentes()); }, []);
+
+  const termo = q.trim();
+  const sugestoes: Sugestao[] = (() => {
+    const out: Sugestao[] = [];
+    const t = semAcento(termo);
+    if (!t) return recentes.map((texto) => ({ tipo: 'recente' as const, texto }));
+    out.push({ tipo: 'buscar', texto: termo });
+    for (const c of CATEGORIAS) {
+      if (out.length >= 5) break;
+      const n = semAcento(c.nome);
+      if (t.length >= 2 && (n.includes(t) || n.split(/[^a-z0-9]+/).some((p) => p.length >= 3 && t.startsWith(p)))) out.push({ tipo: 'categoria', texto: c.nome, slug: c.slug });
+    }
+    for (const r of recentes) {
+      if (out.length >= 8) break;
+      const rn = semAcento(r);
+      if (rn !== t && rn.includes(t)) out.push({ tipo: 'recente', texto: r });
+    }
+    return out;
+  })();
+  const mostrar = aberto && sugestoes.length > 0;
+
+  function buscar(t: string) {
+    const v = t.trim();
+    if (v) { guardarRecente(v); setRecentes(lerRecentes()); }
+    setAberto(false);
+    router.push(v ? `/produtos?q=${encodeURIComponent(v)}` : '/produtos');
+  }
+  function escolher(s: Sugestao) {
+    if (s.tipo === 'categoria') { setAberto(false); router.push(`/produtos?cat=${encodeURIComponent(s.slug)}`); return; }
+    setQ(s.texto);
+    buscar(s.texto);
+  }
   function go(e: React.FormEvent) {
     e.preventDefault();
-    const t = q.trim();
-    router.push(t ? `/produtos?q=${encodeURIComponent(t)}` : '/produtos');
+    if (mostrar && ativo >= 0 && sugestoes[ativo]) { escolher(sugestoes[ativo]); return; }
+    buscar(q);
   }
+  function onKey(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === 'Escape') { setAberto(false); setAtivo(-1); return; }
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      if (!sugestoes.length) return;
+      e.preventDefault();
+      setAberto(true);
+      setAtivo((i) => {
+        const n = sugestoes.length;
+        return e.key === 'ArrowDown' ? (i + 1) % n : (i <= 0 ? n - 1 : i - 1);
+      });
+    }
+  }
+  function limparRecentes() {
+    try { localStorage.removeItem(CHAVE_RECENTES); } catch {}
+    setRecentes([]);
+  }
+
+  // Fecha ao tocar fora
+  useEffect(() => {
+    if (!aberto) return;
+    const fora = (e: MouseEvent | TouchEvent) => { if (wrap.current && !wrap.current.contains(e.target as Node)) setAberto(false); };
+    document.addEventListener('mousedown', fora);
+    document.addEventListener('touchstart', fora, { passive: true });
+    return () => { document.removeEventListener('mousedown', fora); document.removeEventListener('touchstart', fora); };
+  }, [aberto]);
+
+  const idOpcao = (i: number) => `nsg-op-${i}`;
   return (
-    <form onSubmit={go} className="nav-search" role="search">
+    <form ref={wrap} onSubmit={go} className="nav-search" role="search" aria-label="Buscar no Comprei Barato">
       <Icon name="search" size={18} color="#5A5A72" strokeWidth={2.2} />
-      <input value={q} onChange={(e) => setQ(e.target.value)} aria-label="Buscar produtos" type="search"
-        enterKeyHint="search" placeholder="Busque prompts, planilhas, templates, automações…" />
+      <input value={q} type="search" enterKeyHint="search" maxLength={100} autoComplete="off"
+        role="combobox" aria-label="Buscar produtos" aria-autocomplete="list" aria-expanded={mostrar} aria-controls="nsg-lista"
+        aria-activedescendant={mostrar && ativo >= 0 ? idOpcao(ativo) : undefined}
+        onChange={(e) => { setQ(e.target.value); setAberto(true); setAtivo(-1); }}
+        onFocus={() => { setRecentes(lerRecentes()); setAberto(true); }}
+        onKeyDown={onKey}
+        placeholder="Busque prompts, planilhas, cursos, templates…" />
       <button type="submit">Buscar</button>
+      {mostrar && (
+        <div className="nsg">
+          {!termo && <div className="nsg-t"><span>Buscas recentes</span><button type="button" onMouseDown={(e) => e.preventDefault()} onClick={limparRecentes}>Limpar</button></div>}
+          <ul id="nsg-lista" role="listbox" aria-label="Sugestões de busca">
+            {sugestoes.map((s, i) => (
+              <li key={s.tipo + s.texto} id={idOpcao(i)} role="option" aria-selected={i === ativo}
+                className={`nsg-op${i === ativo ? ' on' : ''}`}
+                onMouseDown={(e) => e.preventDefault()} onClick={() => escolher(s)} onMouseEnter={() => setAtivo(i)}>
+                {s.tipo === 'categoria'
+                  ? <><span className="nsg-ic"><CategoryIcon cat={s.slug} size={16} /></span><span className="nsg-tx">{s.texto}</span><small>Categoria</small></>
+                  : s.tipo === 'recente'
+                    ? <><span className="nsg-ic"><Icon name="clock" size={16} /></span><span className="nsg-tx">{s.texto}</span></>
+                    : <><span className="nsg-ic"><Icon name="search" size={16} /></span><span className="nsg-tx">Buscar “{s.texto}”</span></>}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </form>
   );
 }

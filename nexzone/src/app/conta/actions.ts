@@ -47,3 +47,33 @@ export async function salvarWhatsapp(formData: FormData) {
   revalidatePath(destino);
   redirect(`${destino}?whats=ok`);
 }
+
+// Localização DECLARADA pelo próprio usuário (opcional): estado e cidade.
+// Fica nos metadados da conta (Auth) e, se o SQL V3 de perfil já foi aplicado, também no perfil.
+// Nunca usa GPS nem endereço. Enviar os dois vazios apaga a informação.
+export async function salvarLocalizacao(formData: FormData) {
+  const { ufValida, cidadeValida } = await import('@/lib/brasil');
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect('/login?next=/conta');
+
+  const uf = ufValida(formData.get('uf'));
+  const cidade = uf ? cidadeValida(formData.get('cidade')) : null;
+  const dados = uf
+    ? { uf, cidade: cidade ?? null, pais: 'BR', loc_fonte: 'declarada' }
+    : { uf: null, cidade: null, pais: null, loc_fonte: null };
+  const { error } = await supabase.auth.updateUser({ data: dados });
+  if (error) {
+    console.error('[conta] localização:', error.message);
+    redirect('/conta?erro=1');
+  }
+  // Colunas do perfil (SQL V3 02). Sem elas, o update falha em silêncio e os metadados bastam.
+  try {
+    await supabase.from('profiles').update({
+      uf: dados.uf, cidade: dados.cidade, pais: dados.pais, localizacao_fonte: dados.loc_fonte,
+      localizacao_em: uf ? new Date().toISOString() : null,
+    }).eq('id', user.id);
+  } catch {}
+  revalidatePath('/conta');
+  redirect('/conta?salvo=1');
+}

@@ -7,6 +7,7 @@ import { stripeEnabledSetting, stripeEnvStatus } from '@/lib/payments/stripe';
 import { getPaymentConfigPublic } from '@/lib/payments/config';
 import { galeriaDe } from '@/lib/galeria';
 import { numerosReais, vendasRecentes } from '@/lib/provaSocial';
+import { adminSeguro } from '@/lib/ofertas/adminSeguro';
 
 export const dynamic = 'force-dynamic';
 
@@ -28,9 +29,12 @@ export default async function AdminPage() {
   // para reclamações/torpedos, que dependem de RLS e não apareciam com o client comum.
   const admin = createAdminClient();
 
+  // V3 (C1): e-mails e outros dados pessoais só para admins também listados em ADMIN_USER_IDS.
+  const reforcado = (await adminSeguro()).ok;
+
   // Mapa id->email (usado para "quem atendeu" a reclamação e para a lista de admins)
   let emailById: Record<string, string> = {};
-  try {
+  if (reforcado) try {
     const { data: usersList } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
     emailById = Object.fromEntries(((usersList?.users) ?? []).map((u: any) => [u.id, u.email ?? '—']));
   } catch { emailById = {}; }
@@ -123,7 +127,7 @@ export default async function AdminPage() {
     const { data: detOrders } = await admin.from('orders')
       .select('id, total, comprador_email, products(titulo, emoji, categoria, capa_url), stores(nome)')
       .in('id', detalheOrderIds);
-    const omap: Record<string, any> = Object.fromEntries(((detOrders ?? []) as any[]).map((o) => [o.id, o]));
+    const omap: Record<string, any> = Object.fromEntries(((detOrders ?? []) as any[]).map((o) => [o.id, reforcado ? o : { ...o, comprador_email: null }]));
     complaints.forEach((c: any) => { c.orders = omap[c.order_id] || {}; });
     alerts.forEach((a: any) => { a.orders = omap[a.order_id] || {}; });
   }
@@ -187,7 +191,8 @@ export default async function AdminPage() {
     (a, b) => new Date(b?.created_at || 0).getTime() - new Date(a?.created_at || 0).getTime()
   );
 
-  const users = (profilesAll).map((p: any) => ({
+  // V3 (C1): a lista clássica com e-mails só é montada para admins da lista ADMIN_USER_IDS.
+  const users = (reforcado ? profilesAll : []).map((p: any) => ({
     id: p.id,
     email: emailById[p.id] || '—',
     nome: p.nome || (emailById[p.id] && emailById[p.id] !== '—' ? String(emailById[p.id]).split('@')[0] : 'Usuário'),

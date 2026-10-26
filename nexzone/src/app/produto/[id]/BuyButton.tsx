@@ -1,8 +1,10 @@
 'use client';
 import { useRouter } from 'next/navigation';
+import { trackEvento } from '@/lib/rastreio-cliente';
 
 // Botão de compra VERDE (mais visível que o laranja da marca). Esgotado: desabilitado, sem ir ao checkout.
-export default function BuyButton({ productId, esgotado = false }: { productId: string; esgotado?: boolean }) {
+// V3: o evento "compra_clique" é só um registro anônimo do clique e nunca bloqueia a navegação.
+export default function BuyButton({ productId, esgotado = false, categoria }: { productId: string; esgotado?: boolean; categoria?: string | null }) {
   const router = useRouter();
   return (
     <div style={{ width: '100%' }}>
@@ -14,7 +16,7 @@ export default function BuyButton({ productId, esgotado = false }: { productId: 
       `}</style>
       <button type="button" className="btn btn-lg btn-comprar" style={{ width: '100%', fontSize: 17 }}
         disabled={esgotado} aria-disabled={esgotado}
-        onClick={() => { if (!esgotado) router.push(`/checkout/${productId}`); }}>
+        onClick={() => { if (esgotado) return; trackEvento('compra_clique', { tipo: 'nativo', ...(categoria ? { categoria } : {}) }); router.push(`/checkout/${productId}`); }}>
         {esgotado ? 'Esgotado' : 'Comprar'}
       </button>
     </div>

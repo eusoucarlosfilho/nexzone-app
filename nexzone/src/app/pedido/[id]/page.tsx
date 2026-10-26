@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic';
 export default async function PedidoPage({ params, searchParams }: { params: { id: string }; searchParams?: { cartao?: string; whats?: string } }) {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect('/login');
+  if (!user) redirect(`/login?next=${encodeURIComponent(`/pedido/${params.id}`)}`);
 
   const { data: order } = await supabase.from('orders')
     .select('id, status, total, pix_code, pix_qr, conteudo_liberado, bump_product_id, bump_titulo, bump_conteudo, bump_arquivo_path, products(titulo, emoji, categoria, capa_url, tipo_entrega, arquivo_path)')

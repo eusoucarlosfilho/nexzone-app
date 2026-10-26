@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient, createAdminClient } from '@/lib/supabase/server';
+import { adminSeguro } from '@/lib/ofertas/adminSeguro';
 
 export async function POST(req: Request) {
   const supabase = createClient();
@@ -8,6 +9,9 @@ export async function POST(req: Request) {
 
   const { data: me } = await supabase.from('profiles').select('role').eq('id', user.id).single();
   if (me?.role !== 'admin') return NextResponse.json({ error: 'acesso negado' }, { status: 403 });
+  // V3 (C1): promover/rebaixar administradores exige também estar em ADMIN_USER_IDS.
+  const reforco = await adminSeguro();
+  if (!reforco.ok) return NextResponse.json({ error: reforco.mensagem }, { status: reforco.status });
 
   const { email, action } = await req.json();
   const alvoEmail = String(email || '').trim().toLowerCase();
