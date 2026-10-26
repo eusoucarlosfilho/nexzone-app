@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
+import { formatarTelefone, normalizarTelefone } from '@/lib/whatsapp/telefone';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
@@ -40,6 +41,8 @@ export default function LoginPage() {
   const [email, setEmail] = useState(''); const [senha, setSenha] = useState(''); const [nome, setNome] = useState('');
   const [msg, setMsg] = useState(''); const [loading, setLoading] = useState(false);
   const [lembrar, setLembrar] = useState(true);
+  // WhatsApp (opcional no cadastro). Aceite vem marcado e pode ser desmarcado aqui ou depois em Minha conta.
+  const [whats, setWhats] = useState(''); const [whatsAceite, setWhatsAceite] = useState(true);
   const [googleLoading, setGoogleLoading] = useState(false);
   const router = useRouter();
 
@@ -68,7 +71,10 @@ export default function LoginPage() {
     const next = calcNext();
     const supabase = createClient();
     if (mode === 'register') {
-      const { data, error } = await supabase.auth.signUp({ email, password: senha, options: { data: { nome } } });
+      const tel = whats.trim() ? normalizarTelefone(whats) : null;
+      if (whats.trim() && !tel) { setMsg('WhatsApp inválido. Use DDD + número, por exemplo (63) 99999-9999. Ou deixe em branco.'); setLoading(false); return; }
+      const extra = tel ? { whatsapp: tel, whatsapp_avisos: whatsAceite, whatsapp_promocoes: whatsAceite } : {};
+      const { data, error } = await supabase.auth.signUp({ email, password: senha, options: { data: { nome, ...extra } } });
       if (error) setMsg(traduzErro(error.message));
       else if (data.session) router.push(next);
       else { setMsg('Conta criada! Confirme seu e-mail e depois faça login.'); setMode('login'); }
@@ -139,6 +145,21 @@ export default function LoginPage() {
             autoComplete={mode === 'login' ? 'current-password' : 'new-password'} aria-describedby={mode === 'register' ? 'cb-senha-hint' : undefined} />
           {mode === 'register' && <PasswordHint value={senha} id="cb-senha-hint" />}
         </div>
+        {mode === 'register' && (
+          <>
+            <div className="fg">
+              <label htmlFor="cb-whats">WHATSAPP <span style={{ fontWeight: 600, textTransform: 'none', letterSpacing: 0 }}>(opcional)</span></label>
+              <input id="cb-whats" name="tel" type="tel" inputMode="tel" autoComplete="tel-national" value={whats}
+                onChange={e => setWhats(formatarTelefone(e.target.value))} placeholder="(63) 99999-9999" maxLength={16} />
+            </div>
+            {whats.trim() && (
+              <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 13, margin: '-4px 0 14px', cursor: 'pointer', color: 'var(--muted)' }}>
+                <input type="checkbox" checked={whatsAceite} onChange={e => setWhatsAceite(e.target.checked)} style={{ width: 16, height: 16, marginTop: 2, accentColor: 'var(--orange, #FF6B00)', cursor: 'pointer' }} />
+                Quero receber pelo WhatsApp avisos das minhas compras e vendas, novidades e promoções do Comprei Barato. Posso desativar quando quiser em Minha conta.
+              </label>
+            )}
+          </>
+        )}
         {mode === 'login' && (
           <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, margin: '2px 0 14px', cursor: 'pointer', color: 'var(--muted)' }}>
             <input type="checkbox" checked={lembrar} onChange={e => setLembrar(e.target.checked)} style={{ width: 16, height: 16, accentColor: 'var(--orange, #FF6B00)', cursor: 'pointer' }} />

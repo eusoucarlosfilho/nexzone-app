@@ -5,6 +5,7 @@
 // ============================================================
 import { sendEmail, layoutEmail, emailDoUsuario, esc, moneyBR, SITE_URL } from '@/lib/email';
 import { vendedorPublico } from '@/lib/vendedorPublico';
+import { avisarWhatsApp, janela10min, link as linkSite } from '@/lib/whatsapp/enviar';
 
 // ------------------------------------------------------------
 // Compra aprovada (comprador) + Nova venda (dono da loja)
@@ -32,6 +33,19 @@ export async function notificarCompraAprovada(admin: any, orderId: string) {
     const extraBump = bump ? `<br>Inclui também: <b>${esc(bump)}</b>.` : '';
 
     const tarefas: Promise<unknown>[] = [];
+
+    // WhatsApp: mesmos eventos, em paralelo com os e-mails. Nunca lança erro (ver lib/whatsapp/enviar.ts).
+    const pedidoCurto = String(orderId).slice(0, 8);
+    tarefas.push(avisarWhatsApp({
+      evento: 'compra_aprovada', chave: `compra_aprovada:${orderId}`, userId: (o as any).comprador,
+      vars: { produto: titulo, valor: moneyBR(total), pedido: pedidoCurto, link: linkSite(`/pedido/${orderId}`) },
+    }));
+    if (owner && owner !== (o as any).comprador) {
+      tarefas.push(avisarWhatsApp({
+        evento: 'nova_venda', chave: `nova_venda:${orderId}`, userId: owner,
+        vars: { produto: titulo, valor: moneyBR(total), pedido: pedidoCurto, link: linkSite('/vender/vendas') },
+      }));
+    }
 
     if (emailComprador) {
       tarefas.push(sendEmail({
@@ -111,6 +125,11 @@ export async function notificarMensagem(admin: any, p: {
     await Promise.allSettled(destinos
       .filter((d) => d.id && d.id !== p.remetenteId)
       .map(async (d) => {
+        // WhatsApp: no máximo 1 aviso por conversa e destinatário a cada janela de 10 min (chave única)
+        await avisarWhatsApp({
+          evento: 'nova_mensagem', chave: `nova_mensagem:${p.orderId}:${d.id}:${janela10min()}`, userId: d.id,
+          vars: { produto: titulo, pedido: String(p.orderId).slice(0, 8), link: linkSite(d.lado === 'comprador' ? `/pedido/${p.orderId}` : `/vender/conversas/${p.orderId}`) },
+        });
         // reserva o envio (1 a cada 15 min por pedido + destinatário). Sem reserva = não envia.
         const { data: liberado, error } = await admin.rpc('email_throttle_reservar', {
           p_order: p.orderId, p_recipient: d.id, p_minutos: 15,

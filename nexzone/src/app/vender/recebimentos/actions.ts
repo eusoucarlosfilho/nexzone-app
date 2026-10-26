@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { calcBalance } from '@/lib/balance';
 import { revalidatePath } from 'next/cache';
 import { contaStatus } from '@/lib/account';
+import { avisarSaque } from '@/lib/whatsapp/avisos';
 
 async function getStore() {
   const supabase = createClient();
@@ -36,6 +37,8 @@ export async function solicitarSaque() {
     store_id: store.id, valor: bal.disponivel, status: 'solicitado',
     pix_key: store.pix_key, pix_tipo: store.pix_tipo,
   });
+  // WhatsApp de confirmação (se ligado). Só aviso: não muda valor nem regra do saque; nunca lança erro.
+  await avisarSaque(null, store.id, 'saque_solicitado', bal.disponivel);
   revalidatePath('/vender/recebimentos');
   return { ok: true };
 }

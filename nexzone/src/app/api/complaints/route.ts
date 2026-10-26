@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient, createAdminClient } from '@/lib/supabase/server';
+import { avisarReclamacaoAberta } from '@/lib/whatsapp/avisos';
 
 export async function POST(req: Request) {
   const supabase = createClient();
@@ -40,5 +41,6 @@ export async function POST(req: Request) {
     texto: 'O cliente abriu uma reclamação. O saldo desta venda fica retido até o suporte resolver. Converse por aqui para tentar resolver.',
   });
 
+  await avisarReclamacaoAberta(orderId); // WhatsApp ao vendedor (se ligado); nunca lança erro
   return NextResponse.json({ ok: true });
 }

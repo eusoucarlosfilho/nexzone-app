@@ -2,6 +2,7 @@
 import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
 import { awardPoints, getSettingNum } from '@/lib/points';
+import { avisarAvaliacao } from '@/lib/whatsapp/avisos';
 
 export async function enviarAvaliacao(orderId: string, nota: number, comentario: string) {
   const supabase = createClient();
@@ -35,6 +36,7 @@ export async function enviarAvaliacao(orderId: string, nota: number, comentario:
   const bonus = await getSettingNum(admin, 'cb_points_review_bonus', 3);
   if (bonus > 0) await awardPoints(admin, user.id, bonus, 'Avaliação enviada', orderId);
 
+  await avisarAvaliacao(orderId, nota); // WhatsApp ao vendedor (se ligado); nunca lança erro
   revalidatePath(`/pedido/${orderId}`);
   return { ok: true };
 }

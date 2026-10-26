@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient, createAdminClient } from '@/lib/supabase/server';
+import { adminSeguro } from '@/lib/ofertas/adminSeguro';
+import { avisarAvisoAdmin } from '@/lib/whatsapp/avisos';
 
 const ACOES = ['block', 'unblock', 'restrict', 'unrestrict', 'aviso', 'advertencia'] as const;
 type Acao = typeof ACOES[number];
@@ -25,10 +27,13 @@ export async function POST(req: Request) {
   if (action === 'aviso' || action === 'advertencia') {
     const t = String(texto || '').trim();
     if (!t) return NextResponse.json({ error: 'escreva a mensagem' }, { status: 400 });
-    const { error } = await admin.from('user_notices').insert({
+    const { data: notice, error } = await admin.from('user_notices').insert({
       user_id: userId, tipo: action, texto: t.slice(0, 2000), autor_admin: user.id, lida: false,
-    });
+    }).select('id').single();
     if (error) { console.error('[user-action] notice falhou:', error); return NextResponse.json({ error: 'falha ao enviar' }, { status: 500 }); }
+    // WhatsApp com o mesmo texto: só para admin com a autorização reforçada (C1), porque o texto é livre.
+    const seguro = await adminSeguro();
+    if (seguro.ok) await avisarAvisoAdmin(String(userId), t, String((notice as any)?.id ?? Date.now()));
     return NextResponse.json({ ok: true });
   }
 

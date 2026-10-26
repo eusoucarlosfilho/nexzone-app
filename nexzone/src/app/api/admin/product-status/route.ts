@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { avisarProdutoModerado } from '@/lib/whatsapp/avisos';
 
 export async function POST(req: Request) {
   const supabase = createClient();
@@ -11,5 +12,6 @@ export async function POST(req: Request) {
   const status = action === 'aprovar' ? 'ativo' : 'reprovado';
   const { error } = await supabase.from('products').update({ status }).eq('id', id);
   if (error) return NextResponse.json({ error: 'falha' }, { status: 500 });
+  await avisarProdutoModerado(String(id), status === 'ativo'); // WhatsApp (se ligado); nunca lança erro
   return NextResponse.json({ ok: true, status });
 }

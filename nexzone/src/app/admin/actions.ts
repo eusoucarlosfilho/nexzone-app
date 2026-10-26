@@ -1,6 +1,7 @@
 'use server';
 import { createClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
+import { avisarProdutoModerado } from '@/lib/whatsapp/avisos';
 
 async function assertAdmin() {
   const supabase = createClient();
@@ -14,10 +15,12 @@ async function assertAdmin() {
 export async function aprovarProduto(id: string) {
   const supabase = await assertAdmin();
   await supabase.from('products').update({ status: 'ativo' }).eq('id', id);
+  await avisarProdutoModerado(id, true); // WhatsApp (se ligado); nunca lança erro
   revalidatePath('/admin');
 }
 export async function reprovarProduto(id: string) {
   const supabase = await assertAdmin();
   await supabase.from('products').update({ status: 'reprovado' }).eq('id', id);
+  await avisarProdutoModerado(id, false); // WhatsApp (se ligado); nunca lança erro
   revalidatePath('/admin');
 }

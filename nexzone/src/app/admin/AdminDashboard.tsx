@@ -3,6 +3,8 @@ import { useState, useEffect } from 'react';
 import { toast } from '@/lib/toast';
 import SettingsForm from './SettingsForm';
 import TorpedosForm from './TorpedosForm';
+import WhatsAppPainel from './WhatsAppPainel';
+import WhatsAppLog from './WhatsAppLog';
 import PromoForm from './PromoForm';
 import OrderChat from '@/components/OrderChat';
 import AdminNotes from './AdminNotes';
@@ -753,10 +755,11 @@ export default function AdminDashboard({ adminEmail, users, metrics, daily, orde
         {tab === 'torpedos' && (
           <>
             <h1 className="adm-h">Torpedos enviados</h1>
-            <p className="adm-sub">Avisos automáticos para o vendedor quando ele demora a responder o cliente no chat. Configure o tempo e os canais (e-mail/SMS).</p>
+            <p className="adm-sub">Avisos automáticos para o vendedor quando ele demora a responder o cliente no chat. Configure o tempo e os canais (e-mail/SMS/WhatsApp).</p>
             <div style={{ marginBottom: 22 }}>
               <TorpedosForm settings={settings} />
             </div>
+            <WhatsAppPainel />
             <h2 style={{ fontFamily: 'Outfit', fontWeight: 800, fontSize: 16, margin: '8px 0 12px' }}>Histórico de envios</h2>
             {(!alerts || alerts.length === 0) ? (
               <div className="adm-card"><p style={{ color: 'var(--sub)', textAlign: 'center', padding: 18 }}>Nenhum aviso enviado ainda.</p></div>
@@ -781,6 +784,8 @@ export default function AdminDashboard({ adminEmail, users, metrics, daily, orde
             )}
           </>
         )}
+
+        {tab === 'torpedos' && <WhatsAppLog />}
 
         {tab === 'promocoes' && (
           <>

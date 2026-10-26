@@ -7,6 +7,7 @@ import { createAdminClient } from '@/lib/supabase/server';
 import { calcBalance } from '@/lib/balance';
 import { computeJourney, getStoreRevenue } from '@/lib/journey';
 import { sendEmail, layoutEmail, esc, textoParaHtml, SITE_URL, moneyBR } from '@/lib/email';
+import { avisarWhatsApp, primeiroNome } from '@/lib/whatsapp/enviar';
 import {
   ANEXO_MAX_BYTES, ANEXO_TIPOS, BUCKET_ANEXOS, LIMITE_CHAMADOS_HORA, REABRIR_DIAS,
   nomeCategoria, nomePrioridade, nomeStatus,
@@ -381,6 +382,19 @@ function caixaMensagem(autor: string, data: string, corpo: string, destaque = fa
   </div>`;
 }
 
+// WhatsApp dos avisos de suporte (mesmos eventos do e-mail). Nunca lança erro.
+// Cliente: telefone do perfil (se logado) ou o WhatsApp informado no chamado.
+async function whatsSuporte(evento: string, t: any, link: string, paraAdmin = false) {
+  await avisarWhatsApp({
+    evento,
+    chave: `${evento}:${t.id}:${paraAdmin ? 'admin' : 'cliente'}:${Date.now() - (Date.now() % 60000)}`,
+    userId: paraAdmin ? null : t.user_id ?? null,
+    telefone: paraAdmin ? null : t.requester_phone ?? null,
+    paraAdmin,
+    vars: { nome: primeiroNome(t.requester_name), protocolo: t.protocol, assunto: String(t.subject || '').slice(0, 80), link },
+  });
+}
+
 async function enviarParaVarios(destinos: string[], assunto: string, html: string, replyTo?: string) {
   let ok = 0; const erros: string[] = [];
   for (const to of destinos) {
@@ -392,6 +406,7 @@ async function enviarParaVarios(destinos: string[], assunto: string, html: strin
 
 /** Chamado novo → admins. */
 export async function avisarAdminsChamadoNovo(admin: Admin, t: any, mensagem: string) {
+  await whatsSuporte('suporte_novo', t, urlAdminChamado(t.protocol), true);
   const destinos = await destinatariosAdmins(admin);
   if (!destinos.length) return { status: 'desativado' as const };
   const snap = t.customer_snapshot || {};
@@ -417,6 +432,7 @@ export async function avisarAdminsChamadoNovo(admin: Admin, t: any, mensagem: st
 
 /** Cliente respondeu pelo site → admins. */
 export async function avisarAdminsClienteRespondeu(admin: Admin, t: any, mensagem: string) {
+  await whatsSuporte('suporte_cliente_respondeu', t, urlAdminChamado(t.protocol), true);
   const destinos = await destinatariosAdmins(admin);
   if (!destinos.length) return { status: 'desativado' as const };
   const html = layoutEmail({
@@ -433,6 +449,7 @@ export async function avisarAdminsClienteRespondeu(admin: Admin, t: any, mensage
 
 /** Confirmação para o cliente ao abrir. */
 export async function confirmarParaCliente(admin: Admin, t: any) {
+  await whatsSuporte('suporte_confirmacao', t, urlChamado(t.protocol, t.id));
   const cfg = await lerConfigSuporte(admin);
   const html = layoutEmail({
     logo: true,
@@ -449,6 +466,7 @@ export async function confirmarParaCliente(admin: Admin, t: any) {
 
 /** Resposta do admin → cliente (com as últimas mensagens da conversa abaixo). */
 export async function enviarRespostaAoCliente(admin: Admin, t: any, msg: any) {
+  await whatsSuporte('suporte_resposta', t, urlChamado(t.protocol, t.id));
   const cfg = await lerConfigSuporte(admin);
   const { data: anteriores } = await admin.from('support_messages')
     .select('id, sender_type, body, created_at').eq('ticket_id', t.id).eq('is_internal_note', false)
@@ -472,6 +490,7 @@ export async function enviarRespostaAoCliente(admin: Admin, t: any, msg: any) {
 
 /** Marcado como resolvido → cliente (pode reabrir em até 7 dias). */
 export async function avisarResolvido(admin: Admin, t: any) {
+  await whatsSuporte('suporte_resolvido', t, urlChamado(t.protocol, t.id));
   const cfg = await lerConfigSuporte(admin);
   const html = layoutEmail({
     logo: true,
@@ -487,6 +506,7 @@ export async function avisarResolvido(admin: Admin, t: any) {
 
 /** Fechado automaticamente (aguardando cliente por 5 dias) → cliente. */
 export async function avisarFechadoAutomatico(admin: Admin, t: any, texto: string) {
+  await whatsSuporte('suporte_encerrado', t, `${SITE_URL}/suporte`);
   const cfg = await lerConfigSuporte(admin);
   const html = layoutEmail({
     logo: true,

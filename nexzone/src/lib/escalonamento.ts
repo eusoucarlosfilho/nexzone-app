@@ -5,6 +5,7 @@
 // as credenciais. Sem credencial, fica registrado como pendente.
 // ============================================================
 import { sendEmail, layoutEmail, esc, SITE_URL } from '@/lib/email';
+import { avisarWhatsApp, link as linkSite } from '@/lib/whatsapp/enviar';
 
 type Cfg = {
   horas: number;
@@ -114,6 +115,13 @@ export async function verificarEscalonamento(admin: any, orderId: string) {
           botaoTexto: 'Abrir a conversa',
           botaoUrl: linkPedido,
         }));
+    }
+    // WhatsApp (se ligado no admin e o vendedor tiver número no perfil). Nunca lança erro.
+    if ((store as any)?.owner) {
+      await avisarWhatsApp({
+        evento: 'escalonamento', chave: `escalonamento:${orderId}`, userId: (store as any).owner,
+        vars: { produto: titulo, horas: cfg.horas, pedido: String(orderId).slice(0, 8), link: linkSite(`/vender/conversas/${orderId}`) },
+      });
     }
     await enviarSms(admin, cfg, orderId, phone,
       `Comprei Barato: um cliente comprou "${titulo}" e aguarda sua resposta no chat há ${cfg.horas}h. Responda: ${linkPedido}`);
