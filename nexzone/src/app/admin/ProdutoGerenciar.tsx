@@ -25,7 +25,7 @@ export default function ProdutoGerenciar({ id, onLoja }: { id: string; onLoja?: 
   const [mNota, setMNota] = useState('');
   const txt = (v: number | null | undefined, nota = false) => (v === null || v === undefined ? '' : nota ? Number(v).toFixed(1).replace('.', ',') : String(v));
   function aplicar(j: Dados) {
-    aplicar(j);
+    setD(j); setEstoque(j.estoque === null || j.estoque === undefined ? '' : String(j.estoque));
     const m = j.manual ?? { ativo: false, vendas: null, avaliacoes: null, nota: null };
     setMAtivo(m.ativo);
     // Ao abrir sem manual, o rascunho começa com os números automáticos atuais
