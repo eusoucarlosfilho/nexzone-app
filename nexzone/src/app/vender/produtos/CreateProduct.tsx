@@ -20,6 +20,7 @@ export default function CreateProduct({ userId }: { userId: string }) {
   const [precoPromo, setPrecoPromo] = useState('');
   const [categoria, setCategoria] = useState(CATS[0]);
   const [garantia, setGarantia] = useState('7');
+  const [estoque, setEstoque] = useState('');
   const [conteudoEntrega, setConteudoEntrega] = useState('');
 
   const [tipo, setTipo] = useState('arquivo');
@@ -92,6 +93,7 @@ export default function CreateProduct({ userId }: { userId: string }) {
     }
     const g = Number(garantia);
     if (!Number.isFinite(g) || g < 0 || g > 365) e.garantia = 'Use um número de 0 a 365 dias.';
+    if (estoque !== '' && !(/^\d+$/.test(estoque) && Number(estoque) <= 1000000)) e.estoque = 'Digite só números inteiros (ex.: 25), ou deixe em branco.';
     setErros(e);
     return Object.keys(e).length === 0;
   }
@@ -216,6 +218,10 @@ export default function CreateProduct({ userId }: { userId: string }) {
         <div className="fg"><label htmlFor="np-gar">Garantia (dias)</label><input id="np-gar" name="garantia_dias" type="number" min={0} max={365} value={garantia} onChange={(e) => setGarantia(e.target.value)} aria-invalid={!!erros.garantia} />
           {err('garantia') || <div className="ui-help">Prazo em que o comprador pode abrir reclamação.</div>}</div>
       </div>
+      <div className="fg"><label htmlFor="np-est">Quantidade disponível (opcional)</label>
+        <input id="np-est" name="estoque" type="text" inputMode="numeric" pattern="[0-9]*" maxLength={7} placeholder="Ilimitado"
+          value={estoque} onChange={(e) => setEstoque(e.target.value.replace(/[^\d]/g, ''))} aria-invalid={!!erros.estoque} />
+        {err('estoque') || <div className="ui-help">Aparece na página do produto (ex.: &quot;Restam só 5 unidades&quot;). Cai 1 a cada venda paga; ao zerar, mostra &quot;Esgotado&quot; e para de vender. Em branco = sem limite.</div>}</div>
 
       {tipo === 'arquivo' ? (
         <div className="fg">

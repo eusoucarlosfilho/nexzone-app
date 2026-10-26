@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { validarImagens, galeriaDe } from '@/lib/galeria';
+import { lerEstoque } from '@/lib/estoque';
 
 async function ownsProduct(supabase: any, userId: string, productId: string) {
   const { data } = await supabase
@@ -42,6 +43,21 @@ export async function PATCH(req: Request) {
   }
 
   const action = body.action;
+
+  // Estoque: atualização direta, SEM voltar para revisão (só muda a quantidade).
+  // Produto que estava "esgotado" (pausado pelo estoque) volta ao ar sozinho ao receber estoque (gatilho do SQL 07).
+  if (action === 'estoque') {
+    const lido = lerEstoque(body.estoque);
+    if (!lido.ok) return NextResponse.json({ error: lido.erro }, { status: 400 });
+    const { data: upd, error } = await supabase.from('products').update({ estoque: lido.valor }).eq('id', id)
+      .select('id, estoque, status, pausado_sem_estoque').maybeSingle();
+    if (error) {
+      const semColuna = /estoque/i.test(error.message || '') && /column|coluna|schema/i.test(error.message || '');
+      return NextResponse.json({ error: semColuna ? 'O controle de estoque ainda não foi ativado no banco (SQL 07).' : 'falha ao salvar o estoque' }, { status: 500 });
+    }
+    return NextResponse.json({ ok: true, estoque: (upd as any)?.estoque ?? null, status: (upd as any)?.status, pausado_sem_estoque: (upd as any)?.pausado_sem_estoque === true });
+  }
+
   let patch: any = {};
   if (action === 'pausar') patch = { status: 'pausado' };
   else if (action === 'reativar') patch = { status: 'em_revisao' }; // reativar passa por revisão

@@ -6,7 +6,8 @@ import { configMix, ofertasAtivas, visiveis } from '@/lib/ofertas/servidor';
 import ShareButton from '@/components/ShareButton';
 import FavButton from '@/components/FavButton';
 import Questions from './Questions';
-import { createClient } from '@/lib/supabase/server';
+import { createClient, createAdminClient } from '@/lib/supabase/server';
+import { avisoEstoque, extrasDe, EXTRAS_VAZIO, manuaisDe, contadoresExibidos } from '@/lib/estoque';
 import { notFound } from 'next/navigation';
 import type { Product } from '@/lib/types';
 import type { Metadata } from 'next';
@@ -59,8 +60,25 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
 
 export default async function ProductPage({ params }: { params: { id: string } }) {
   const supabase = createClient();
-  const { data } = await supabase.from('products')
-    .select(PRODUTO_PAGINA).eq('id', params.id).eq('status', 'ativo').single();
+  let { data } = await supabase.from('products')
+    .select(PRODUTO_PAGINA).eq('id', params.id).eq('status', 'ativo').maybeSingle();
+  // Esgotado: o produto foi pausado AUTOMATICAMENTE porque o estoque zerou (SQL 07).
+  // A página continua no ar mostrando "Esgotado", sem botão de compra (o checkout só aceita produto ativo).
+  let esgotadoPausado = false;
+  if (!data && /^[0-9a-f-]{36}$/i.test(params.id)) {
+    try {
+      const adm = createAdminClient();
+      const { data: pausado, error } = await adm.from('products')
+        .select(PRODUTO_PAGINA).eq('id', params.id).eq('status', 'pausado').eq('pausado_sem_estoque', true).maybeSingle();
+      if (!error && pausado) {
+        const st: any = (pausado as any).stores;
+        // loja não verificada: o público não veria os dados dela, então não expõe slug/nível
+        if (st && st.status !== 'verificado' && st.ocultar_vendedor !== true) (pausado as any).stores = { nome: 'Loja parceira', slug: null, nivel: '', status: st.status, ocultar_vendedor: false };
+        data = pausado;
+        esgotadoPausado = true;
+      }
+    } catch { /* sem SQL 07 ou sem chave: segue como antes (404) */ }
+  }
   if (!data) notFound();
   // Dados públicos do vendedor (Comprei Barato quando a loja está oculta). O nome real não sai do servidor.
   const p = produtoPublico(data as unknown as Product);
@@ -72,11 +90,24 @@ export default async function ProductPage({ params }: { params: { id: string } }
   const { data: reviewsData } = await supabase.from('reviews')
     .select('nota, comentario, created_at').eq('product_id', p.id).order('created_at', { ascending: false }).limit(10);
   const reviews = reviewsData ?? [];
-  const media = reviews.length ? reviews.reduce((s, r) => s + r.nota, 0) / reviews.length : (p.nota || 0);
 
-  // agregado real de avaliações (para o JSON-LD), sem o limite da lista exibida
+  // agregado real de avaliações (contagem, média e JSON-LD), sem o limite de 10 da lista exibida
   const { data: notasData } = await supabase.from('reviews').select('nota').eq('product_id', p.id).limit(5000);
   const notas = ((notasData ?? []) as { nota: number }[]).map((r) => Number(r.nota)).filter((v) => v >= 1 && v <= 5);
+  const autoAvaliacoes = notas.length;
+  const autoMedia = autoAvaliacoes ? notas.reduce((s, v) => s + v, 0) / autoAvaliacoes : 0;
+  // Modo manual do admin (SQL 08): mostra os números digitados no lugar dos automáticos
+  const manuais = await manuaisDe(supabase, p.id);
+  const exib = contadoresExibidos({ vendas: Number(p.vendas) || 0, avaliacoes: autoAvaliacoes, media: autoMedia }, manuais);
+  const qtdAvaliacoes = exib.avaliacoes;
+  const media = qtdAvaliacoes > 0 && exib.media > 0 ? exib.media : 0;
+  const vendas = exib.vendas;
+
+  // Estoque e exibição dos contadores (SQL 07). Sem o SQL 07: nada muda.
+  const extras = (await extrasDe(supabase, [p.id]))[p.id] ?? EXTRAS_VAZIO;
+  const aviso = esgotadoPausado ? avisoEstoque(0) : avisoEstoque(extras.estoque);
+  const esgotado = aviso?.nivel === 'esgotado';
+  const mostrarContadores = !extras.ocultar_contadores;
 
   // "Mais deste vendedor": não aparece quando a loja está oculta
   const relacionados: Product[] = vend.oficial ? [] : produtosPublicos((await supabase.from('products')
@@ -113,11 +144,11 @@ export default async function ProductPage({ params }: { params: { id: string } }
       url: pageUrl,
       priceCurrency: 'BRL',
       price: Number(preco).toFixed(2),
-      availability: 'https://schema.org/InStock',
+      availability: esgotado ? 'https://schema.org/OutOfStock' : 'https://schema.org/InStock',
       seller: { '@type': 'Organization', name: vend.nome },
     },
   };
-  if (notas.length > 0) {
+  if (notas.length > 0 && mostrarContadores) {
     jsonLd.aggregateRating = {
       '@type': 'AggregateRating',
       ratingValue: (notas.reduce((s, v) => s + v, 0) / notas.length).toFixed(1),
@@ -134,7 +165,8 @@ export default async function ProductPage({ params }: { params: { id: string } }
         {desconto > 0 && <span className="pdp-old">{money(p.preco)}</span>}
         <div className="pdp-now">{money(preco)}{desconto > 0 && <span className="pdp-off">-{desconto}%</span>}</div>
       </div>
-      <BuyButton productId={p.id} />
+      {aviso && <div className={`pdp-stock ${aviso.nivel}`} role="status">{aviso.texto}</div>}
+      <BuyButton productId={p.id} esgotado={esgotado} />
       <div className="pdp-trust">
         <div className="flex"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#B84A00" strokeWidth="2.2" strokeLinejoin="round" aria-hidden="true"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z" /></svg>Liberado assim que o Pix for aprovado</div>
         <div className="flex"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#B84A00" strokeWidth="2.2" strokeLinejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2" /><path d="M8 11V7a4 4 0 0 1 8 0v4" /></svg>Pagamento seguro via Pix</div>
@@ -182,6 +214,12 @@ export default async function ProductPage({ params }: { params: { id: string } }
         .pdp-trust{margin-top:18px;display:grid;gap:10px;font-size:14px;font-weight:700;color:#3A3A52;border-top:1px solid var(--border);padding-top:18px;}
         .pdp-soldby{margin-top:14px;font-size:13px;color:var(--sub);text-align:center;}
         .pdp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:18px;}
+        .pdp-stock{display:inline-flex;align-items:center;gap:6px;font-size:13.5px;font-weight:800;padding:6px 12px;border-radius:50px;margin-bottom:12px;}
+        .pdp-stock::before{content:'';width:8px;height:8px;border-radius:50%;background:currentColor;}
+        .pdp-stock.ok{background:var(--green-bg);color:var(--green);}
+        .pdp-stock.pouco{background:#FFF1E6;color:#C2410C;}
+        .pdp-stock.esgotado{background:var(--red-bg);color:var(--red);}
+        .pdp-novo{display:inline-block;background:var(--green-bg);color:var(--green);font-weight:800;font-size:12.5px;padding:3px 10px;border-radius:50px;}
         .pdp-mbar{display:none;}
         .pdp-mact{display:none;}
         .pdp-mact-row{display:flex;align-items:center;gap:10px;}
@@ -203,18 +241,24 @@ export default async function ProductPage({ params }: { params: { id: string } }
             : <div className="pdp-hero"><CategoryCover cat={p.categoria} size={96} /></div>}
           <span className="pdp-chip">{p.categoria}</span>
           <h1 className="pdp-title">{p.titulo}</h1>
-          <div className="pdp-meta">
-            <Stars n={media} />
-            <span>{media ? media.toFixed(1) : '—'}</span>
-            <span>· {reviews.length} avaliações</span>
-            <span>· {p.vendas.toLocaleString('pt-BR')} vendas</span>
-          </div>
+          {/* Automáticos ou manuais (admin). O que for zero não aparece; o admin pode ocultar a linha inteira. */}
+          {mostrarContadores && (qtdAvaliacoes > 0 || vendas > 0) ? (
+            <div className="pdp-meta">
+              {qtdAvaliacoes > 0 && <>
+                <Stars n={media} />
+                <span>{media.toFixed(1).replace('.', ',')}</span>
+                <span>· {qtdAvaliacoes.toLocaleString('pt-BR')} {qtdAvaliacoes === 1 ? 'avaliação' : 'avaliações'}</span>
+              </>}
+              {vendas > 0 && <span>{qtdAvaliacoes > 0 ? '· ' : ''}{vendas.toLocaleString('pt-BR')} {vendas === 1 ? 'venda' : 'vendas'}</span>}
+            </div>
+          ) : mostrarContadores ? <div className="pdp-meta"><span className="pdp-novo">Novo</span></div> : null}
 
           {/* Celular: o bloco lateral fica oculto, então preço, compartilhar e favoritar aparecem aqui */}
           <div className="pdp-mact">
             <div className="pdp-price" style={{ marginBottom: 0 }}>
               {desconto > 0 && <span className="pdp-old">{money(p.preco)}</span>}
               <div className="pdp-now" style={{ fontSize: 32 }}>{money(preco)}{desconto > 0 && <span className="pdp-off">-{desconto}%</span>}</div>
+              {aviso && <div className={`pdp-stock ${aviso.nivel}`} role="status" style={{ marginTop: 8 }}>{aviso.texto}</div>}
             </div>
             <div className="pdp-mact-row">
               <FavButton productId={p.id} />
@@ -308,7 +352,7 @@ export default async function ProductPage({ params }: { params: { id: string } }
 
       <div className="pdp-mbar">
         <div className="pp">{money(preco)}</div>
-        <BuyButton productId={p.id} />
+        <BuyButton productId={p.id} esgotado={esgotado} />
       </div>
     </>
   );

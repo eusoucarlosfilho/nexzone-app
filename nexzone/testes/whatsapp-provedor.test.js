@@ -30,9 +30,10 @@ srv.listen(0, '127.0.0.1', async () => {
   const porta = srv.address().port;
   // Substitui a leitura de configuração (que normalmente vem do banco)
   const cfg = { ativo: true, apiUrl: `http://127.0.0.1:${porta}`, instancia: 'cb' };
+  let chaveSalva = 'chave-teste';
   const original = Module._load;
   Module._load = function (req, ...rest) {
-    if (req === '@/lib/whatsapp/config') return { lerConfig: async () => cfg, lerChave: async () => 'chave-teste' };
+    if (req === '@/lib/whatsapp/config') return { lerConfig: async () => cfg, lerChave: async () => chaveSalva };
     return original.call(this, req, ...rest);
   };
   const w = require('./.build/whatsapp.js');
@@ -49,11 +50,25 @@ srv.listen(0, '127.0.0.1', async () => {
   await t('sendText envia número e texto', async () => { const r = await w.sendText('5563999991234', 'Olá'); assert.deepStrictEqual(r, { ok: true, id: 'MSG123' }); const c = chamadas.filter((x) => x.url === '/message/sendText/cb').pop(); assert.deepStrictEqual(c.corpo, { number: '5563999991234', text: 'Olá' }); });
   await t('sendText recusa número fora do padrão sem chamar o provedor', async () => { const n = chamadas.length; const r = await w.sendText('63999991234', 'x'); assert.ok(!r.ok); assert.strictEqual(chamadas.length, n); });
   await t('disconnect', async () => { assert.deepStrictEqual(await w.disconnect(), { ok: true }); assert.strictEqual((await w.getStatus()).estado, 'desconectado'); });
+  await t('conectado() = false quando desconectado', async () => assert.strictEqual(await w.conectado(), false));
+  chaveSalva = 'chave-errada';
+  await t('chave diferente da do servidor: "chave_recusada" com explicação', async () => { const s = await w.getStatus(); assert.strictEqual(s.estado, 'chave_recusada'); assert.match(s.detalhe, /API_KEY/); });
+  await t('chave recusada também ao conectar (mensagem clara)', async () => { const r = await w.createInstance(); assert.ok(!r.ok); assert.match(r.erro, /recusou a chave/); });
+  chaveSalva = 'chave-teste';
+  // servidor que responde HTML (endereço errado)
+  const html = http.createServer((q, s2) => { s2.writeHead(200, { 'Content-Type': 'text/html' }); s2.end('<html>outra coisa</html>'); });
+  await new Promise((ok) => html.listen(0, '127.0.0.1', ok));
+  cfg.apiUrl = `http://127.0.0.1:${html.address().port}`;
+  await t('endereço que não é o servidor do WhatsApp: "inacessivel"', async () => { const s = await w.getStatus(); assert.strictEqual(s.estado, 'inacessivel'); assert.match(s.detalhe, /não parece ser o servidor/); });
+  html.close();
   cfg.apiUrl = 'http://127.0.0.1:1';
   await t('provedor fora do ar: erro, sem travar', async () => { const r = await w.sendText('5563999991234', 'x', 1500); assert.ok(!r.ok); });
-  await t('status com provedor fora do ar: erro', async () => assert.strictEqual((await w.getStatus()).estado, 'erro'));
-  cfg.apiUrl = '';
-  await t('sem configuração: não chama nada', async () => { assert.strictEqual((await w.getStatus()).estado, 'nao_configurado'); assert.ok(!(await w.sendText('5563999991234', 'x')).ok); });
+  await t('status com provedor fora do ar: "inacessivel"', async () => assert.strictEqual((await w.getStatus()).estado, 'inacessivel'));
+  await t('conectado() = false com servidor fora do ar (sem lançar erro)', async () => assert.strictEqual(await w.conectado(), false));
+  chaveSalva = '';
+  await t('sem chave salva: "sem_chave"', async () => assert.strictEqual((await w.getStatus()).estado, 'sem_chave'));
+  chaveSalva = 'chave-teste'; cfg.apiUrl = '';
+  await t('sem endereço salvo: "sem_endereco" e não chama nada', async () => { assert.strictEqual((await w.getStatus()).estado, 'sem_endereco'); assert.ok(!(await w.sendText('5563999991234', 'x')).ok); });
 
   console.log(`\n${ok} passaram, ${fail} falharam`);
   srv.close();

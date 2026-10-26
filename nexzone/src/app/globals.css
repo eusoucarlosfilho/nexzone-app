@@ -349,6 +349,11 @@ button.ui-stat{text-align:left;cursor:pointer;font:inherit}
 .pm-nums{text-align:right;display:flex;flex-direction:column;gap:4px;align-items:flex-end}
 .pm-price b{font-family:'Outfit';font-size:18px;font-weight:900}
 .pm-price s{font-size:12.5px}
+.pm-estoque{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:12px;font-size:13.5px}
+.pm-estoque label{font-weight:800;color:var(--text)}
+.pm-estoque input{width:110px;height:36px;border-radius:10px;border:1px solid var(--border2);padding:0 10px;font-size:14px;font-weight:700}
+.pm-est-h{flex-basis:100%;font-size:12.5px;color:var(--sub)}
+.pm-est-h.ok{color:var(--green)}.pm-est-h.pouco{color:#C2410C}.pm-est-h.esgotado,.pm-est-h.erro{color:var(--red);font-weight:700}
 .pm-actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px;padding-top:12px;border-top:1px dashed var(--border);align-items:center}
 .pm-off{opacity:.45;cursor:not-allowed}
 .pm-more{position:relative}

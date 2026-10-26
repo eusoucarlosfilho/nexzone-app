@@ -9,7 +9,7 @@
 // - tudo registrado em whatsapp_log (aba Torpedos enviados).
 // Se a tabela whatsapp_log não existir (SQL não aplicado), nada é enviado.
 import { createAdminClient } from '@/lib/supabase/server';
-import { sendText } from '@/lib/whatsapp';
+import { conectado, sendText } from '@/lib/whatsapp';
 import { lerConfig } from './config';
 import { acharEvento, montarTexto } from './eventos';
 import { normalizarTelefone } from './telefone';
@@ -73,6 +73,9 @@ async function executar(a: Aviso): Promise<void> {
   const texto = montarTexto(ev.modelo || def.padrao, { nome: primeiroNome(nome), ...a.vars });
   if (!texto) return;
 
+  // Interruptor LIGADO mas WhatsApp desconectado: não envia, não registra erro e não atrapalha o site
+  if (!(await conectado())) return;
+
   // Registro + trava de duplicidade (chave única no banco)
   const { data: linha, error } = await admin.from('whatsapp_log').insert({
     evento: a.evento, chave: a.chave.slice(0, 200), user_id: a.userId ?? null, destino, texto, status: 'enviando',
@@ -111,6 +114,7 @@ export async function reenviar(id: number): Promise<{ ok: boolean; erro?: string
   if (!['falhou', 'adiado'].includes((l as any).status)) return { ok: false, erro: 'Só dá para reenviar avisos que falharam ou foram adiados.' };
   const cfg = await lerConfig();
   if (!cfg.ativo) return { ok: false, erro: 'O WhatsApp está desligado.' };
+  if (!(await conectado())) return { ok: false, erro: 'O WhatsApp não está conectado.' };
   const r = await sendText((l as any).destino, (l as any).texto);
   const tent = Number((l as any).tentativas || 0) + 1;
   await admin.from('whatsapp_log').update(r.ok
