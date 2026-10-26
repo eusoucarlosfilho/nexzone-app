@@ -6,6 +6,7 @@ import { createPortal } from 'react-dom';
 import Icon from './Icon';
 import CategoryIcon, { categoryColors } from './CategoryIcon';
 import type { NavCat } from './NavSearch';
+import { trackEvento } from '@/lib/rastreio-cliente';
 
 const ID = 'menu-mobile';
 
@@ -91,7 +92,7 @@ export default function MobileMenu({ loggedIn, cats, cbPoints = false }: { logge
               ) : (
                 <>
                   {L({ href: '/login', icon: 'user', children: 'Entrar' })}
-                  <Link href="/vender" className="btn btn-dark mm-cta" onClick={close}><Icon name="store" size={18} />Vender</Link>
+                  <Link href="/vender" className="btn btn-dark mm-cta" onClick={() => { trackEvento('vendedor_cta', { origem: 'nav' }); close(); }}><Icon name="store" size={18} />Vender</Link>
                 </>
               )}
               {cats.length > 0 && (
@@ -107,6 +108,10 @@ export default function MobileMenu({ loggedIn, cats, cbPoints = false }: { logge
                   })}
                 </>
               )}
+              <div className="mm-sec">Ajuda</div>
+              {L({ href: '/como-funciona', icon: 'info', children: 'Como funciona a compra' })}
+              {L({ href: '/ajuda', icon: 'help', children: 'Perguntas frequentes' })}
+              {L({ href: '/suporte', icon: 'chat', children: 'Falar com o suporte' })}
             </div>
           </div>
         </>,

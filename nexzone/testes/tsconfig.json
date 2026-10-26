@@ -13,13 +13,7 @@
     "esModuleInterop": true,
     "types": [
       "node"
-    ],
-    "baseUrl": "..",
-    "paths": {
-      "@/*": [
-        "./src/*"
-      ]
-    }
+    ]
   },
   "files": [
     "../src/lib/ofertas/tipos.ts",
@@ -30,11 +24,10 @@
     "../src/lib/ofertas/puxarDados.ts",
     "../src/lib/categorias.ts",
     "../src/lib/audiencia.ts",
-    "../src/lib/whatsapp/telefone.ts",
-    "../src/lib/whatsapp/eventos.ts",
-    "../src/lib/whatsapp.ts",
-    "../src/lib/whatsapp/config.ts",
-    "../src/lib/estoque.ts",
-    "../src/lib/edicoes.ts"
+    "../src/lib/eventos.ts",
+    "../src/lib/brasil.ts",
+    "../src/lib/admin/tempo.ts",
+    "../src/lib/admin/usuarios.ts",
+    "../src/lib/admin/audiencia-v3.ts"
   ]
 }

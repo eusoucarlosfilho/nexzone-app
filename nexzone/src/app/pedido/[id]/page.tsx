@@ -2,15 +2,14 @@ import Nav from '@/components/Nav';
 import { createClient } from '@/lib/supabase/server';
 import { redirect, notFound } from 'next/navigation';
 import OrderView from './OrderView';
-import ConviteWhatsApp from './ConviteWhatsApp';
 import { stripeAvailable } from '@/lib/payments/stripe';
 
 export const dynamic = 'force-dynamic';
 
-export default async function PedidoPage({ params, searchParams }: { params: { id: string }; searchParams?: { cartao?: string; whats?: string } }) {
+export default async function PedidoPage({ params, searchParams }: { params: { id: string }; searchParams?: { cartao?: string } }) {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect('/login');
+  if (!user) redirect(`/login?next=${encodeURIComponent(`/pedido/${params.id}`)}`);
 
   const { data: order } = await supabase.from('orders')
     .select('id, status, total, pix_code, pix_qr, conteudo_liberado, bump_product_id, bump_titulo, bump_conteudo, bump_arquivo_path, products(titulo, emoji, categoria, capa_url, tipo_entrega, arquivo_path)')
@@ -21,9 +20,6 @@ export default async function PedidoPage({ params, searchParams }: { params: { i
   const { data: cmp } = await supabase.from('complaints').select('id').eq('order_id', order.id).eq('status', 'aberta').maybeSingle();
   const p: any = (order as any).products;
   const cartaoDisponivel = order.status === 'pendente' ? await stripeAvailable() : false;
-  // Convite de WhatsApp: só se a coluna existir (SQL aplicado) e o comprador ainda não tiver número
-  const { data: wp, error: wpErro } = await supabase.from('profiles').select('whatsapp').eq('id', user.id).maybeSingle();
-  const mostrarConvite = !wpErro && !(wp as any)?.whatsapp;
   return (
     <>
       <Nav />
@@ -48,8 +44,6 @@ export default async function PedidoPage({ params, searchParams }: { params: { i
           cartaoDisponivel={cartaoDisponivel}
           voltouDoCartao={searchParams?.cartao === 'ok'}
         />
-        {mostrarConvite && <ConviteWhatsApp orderId={order.id} aviso={searchParams?.whats} />}
-        {searchParams?.whats === 'ok' && <p className="muted" role="status" style={{ marginTop: 12, fontSize: 14 }}>Pronto! Você vai receber os avisos no WhatsApp.</p>}
       </div>
     </>
   );

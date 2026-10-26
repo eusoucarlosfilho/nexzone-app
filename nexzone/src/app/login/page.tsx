@@ -1,11 +1,13 @@
 'use client';
-import { useState, useEffect } from 'react';
-import { formatarTelefone, normalizarTelefone } from '@/lib/whatsapp/telefone';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import Icon from '@/components/Icon';
 import PasswordInput, { PasswordHint } from '@/components/PasswordInput';
+import LocalizacaoCampos from '@/components/LocalizacaoCampos';
+import { trackEvento, origemGuardada } from '@/lib/rastreio-cliente';
+import { ufValida, cidadeValida } from '@/lib/brasil';
 
 function traduzErro(m: string) {
   const t = m.toLowerCase();
@@ -18,10 +20,31 @@ function traduzErro(m: string) {
   return m;
 }
 
-// Destino depois do login: só caminhos internos ("/algo"), padrão '/vender'.
+// Código do erro para o funil (nunca o texto digitado).
+function codigoErro(m: string): 'senha_fraca' | 'email_existente' | 'email_invalido' | 'muitas_tentativas' | 'outro' {
+  const t = m.toLowerCase();
+  if (t.includes('user already registered')) return 'email_existente';
+  if (t.includes('for security purposes') || t.includes('rate limit')) return 'muitas_tentativas';
+  if (t.includes('password should be') || t.includes('weak password')) return 'senha_fraca';
+  if (t.includes('invalid') && t.includes('email')) return 'email_invalido';
+  return 'outro';
+}
+
+// Destino pedido na URL (?next=): só caminhos internos ("/algo"). Null se não houver.
+function nextPedido(): string | null {
+  if (typeof window === 'undefined') return null;
+  const raw = new URLSearchParams(window.location.search).get('next') || '';
+  // Recusa caracteres de controle e barra invertida (ex.: "/\t/site.com" viraria "//site.com").
+  if (!raw.startsWith('/') || /[\u0000-\u001f\u007f\\]/.test(raw)) return null;
+  try {
+    const u = new URL(raw, window.location.origin);
+    if (u.origin !== window.location.origin) return null;
+    return u.pathname + u.search + u.hash;
+  } catch { return null; }
+}
+// Destino do Google (antes de saber quem é): o pedido, ou o painel do vendedor como antes.
 function calcNext(): string {
-  const raw = (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('next')) || '';
-  return raw.startsWith('/') && !raw.startsWith('//') && !raw.startsWith('/\\') ? raw : '/vender';
+  return nextPedido() || '/vender';
 }
 
 // Logo oficial "G" do Google (cores da marca), 18px.
@@ -41,10 +64,28 @@ export default function LoginPage() {
   const [email, setEmail] = useState(''); const [senha, setSenha] = useState(''); const [nome, setNome] = useState('');
   const [msg, setMsg] = useState(''); const [loading, setLoading] = useState(false);
   const [lembrar, setLembrar] = useState(true);
-  // WhatsApp (opcional no cadastro). Aceite vem marcado e pode ser desmarcado aqui ou depois em Minha conta.
-  const [whats, setWhats] = useState(''); const [whatsAceite, setWhatsAceite] = useState(true);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [uf, setUf] = useState(''); const [cidade, setCidade] = useState('');
+  // Intenção declarada: chegou pelo "Começar a vender" ou por um link de vendedor.
+  const [intencao, setIntencao] = useState<'comprador' | 'vendedor'>('comprador');
+  const iniciado = useRef(false);
+  const etapas = useRef<Set<string>>(new Set());
   const router = useRouter();
+
+  // Funil de cadastro (anônimo; nenhum valor digitado é enviado)
+  useEffect(() => {
+    if (mode === 'register') { iniciado.current = false; etapas.current = new Set(); trackEvento('cadastro_aberto', { tipo: intencao }); }
+  }, [mode, intencao]);
+  function marcarInicio() {
+    if (mode !== 'register' || iniciado.current) return;
+    iniciado.current = true;
+    trackEvento('cadastro_iniciado', { tipo: intencao });
+  }
+  function marcarEtapa(etapa: 'dados' | 'senha' | 'localizacao' | 'enviado') {
+    if (mode !== 'register' || etapas.current.has(etapa)) return;
+    etapas.current.add(etapa);
+    trackEvento('cadastro_etapa', { tipo: intencao, etapa });
+  }
 
   // Lembrar login: pré-preenche o e-mail salvo neste dispositivo (nunca guarda a senha).
   useEffect(() => {
@@ -53,7 +94,11 @@ export default function LoginPage() {
       if (saved) { setEmail(saved); setLembrar(true); }
     } catch {}
     try {
-      if (new URLSearchParams(window.location.search).get('erro') === 'link') setMsg('Não conseguimos concluir o login. Tente de novo.');
+      const sp = new URLSearchParams(window.location.search);
+      if (sp.get('erro') === 'link') setMsg('Não conseguimos concluir o login. Tente de novo.');
+      const n = sp.get('next') || '';
+      if (sp.get('cadastro') === '1' || sp.get('modo') === 'cadastro') setMode('register');
+      if (sp.get('vender') === '1' || n.startsWith('/vender') || n.startsWith('/seja-vendedor')) setIntencao('vendedor');
     } catch {}
   }, []);
 
@@ -67,20 +112,50 @@ export default function LoginPage() {
   async function submit(e?: React.FormEvent) {
     e?.preventDefault();
     if (loading) return;
-    setLoading(true); setMsg('');
-    const next = calcNext();
+    setMsg('');
     const supabase = createClient();
     if (mode === 'register') {
-      const tel = whats.trim() ? normalizarTelefone(whats) : null;
-      if (whats.trim() && !tel) { setMsg('WhatsApp inválido. Use DDD + número, por exemplo (63) 99999-9999. Ou deixe em branco.'); setLoading(false); return; }
-      const extra = tel ? { whatsapp: tel, whatsapp_avisos: whatsAceite, whatsapp_promocoes: whatsAceite } : {};
-      const { data, error } = await supabase.auth.signUp({ email, password: senha, options: { data: { nome, ...extra } } });
-      if (error) setMsg(traduzErro(error.message));
-      else if (data.session) router.push(next);
-      else { setMsg('Conta criada! Confirme seu e-mail e depois faça login.'); setMode('login'); }
+      marcarEtapa('enviado');
+      if (!email.trim() || !senha) {
+        setMsg('Preencha e-mail e senha para criar a conta.');
+        trackEvento('cadastro_erro', { tipo: intencao, codigo: 'campos_vazios' });
+        return;
+      }
+      setLoading(true);
+      // Metadados do cadastro: nome, localização DECLARADA (opcional) e origem da visita (só UTM/domínio).
+      const dados: Record<string, any> = { nome, intencao };
+      const ufOk = ufValida(uf); const cidadeOk = ufOk ? cidadeValida(cidade) : null;
+      if (ufOk) { dados.uf = ufOk; dados.pais = 'BR'; dados.loc_fonte = 'declarada'; }
+      if (cidadeOk) dados.cidade = cidadeOk;
+      const origem = origemGuardada();
+      if (origem) { const { t, ...o } = origem; dados.origem = o; }
+      const { data, error } = await supabase.auth.signUp({ email, password: senha, options: { data: dados } });
+      if (error) {
+        setMsg(traduzErro(error.message));
+        trackEvento('cadastro_erro', { tipo: intencao, codigo: codigoErro(error.message) });
+      } else if (data.session) {
+        trackEvento('cadastro_concluido', { tipo: intencao, metodo: 'email', confirmacao: 'imediata' });
+        router.push(nextPedido() || (intencao === 'vendedor' ? '/vender' : '/'));
+      } else {
+        trackEvento('cadastro_concluido', { tipo: intencao, metodo: 'email', confirmacao: 'por_email' });
+        setMsg('Conta criada! Confirme seu e-mail e depois faça login.'); setMode('login');
+      }
     } else {
-      const { error } = await supabase.auth.signInWithPassword({ email, password: senha });
-      if (error) setMsg(traduzErro(error.message)); else { salvarLembrar(); router.push(next); }
+      setLoading(true);
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password: senha });
+      if (error) setMsg(traduzErro(error.message));
+      else {
+        salvarLembrar();
+        // Sem destino pedido: quem tem loja vai ao painel do vendedor; os demais, à página inicial.
+        let destino = nextPedido();
+        if (!destino) {
+          try {
+            const { data: loja } = await supabase.from('stores').select('id').eq('owner', data.user!.id).maybeSingle();
+            destino = loja ? '/vender' : '/';
+          } catch { destino = '/vender'; }
+        }
+        router.push(destino);
+      }
     }
     setLoading(false);
   }
@@ -117,7 +192,7 @@ export default function LoginPage() {
             <strong style={{ fontFamily: 'Outfit', fontSize: 16, display: 'inline-flex', alignItems: 'center', gap: 8 }}><Icon name="rocket" size={18} color="#FFB273" />Venda seus produtos digitais</strong>
             <div style={{ fontSize: 13, opacity: .92 }}>Crie sua loja grátis. Só 3% por venda.</div>
           </div>
-          <button type="button" className="btn btn-sm" style={{ background: '#fff', color: 'var(--orange-ink)', fontWeight: 800, whiteSpace: 'nowrap' }} onClick={() => { setMode('register'); setMsg(''); }}>Começar a vender agora</button>
+          <button type="button" className="btn btn-sm" style={{ background: '#fff', color: 'var(--orange-ink)', fontWeight: 800, whiteSpace: 'nowrap' }} onClick={() => { setIntencao('vendedor'); setMode('register'); setMsg(''); trackEvento('vendedor_cta', { origem: 'login' }); }}>Começar a vender agora</button>
         </div>
       )}
 
@@ -136,29 +211,23 @@ export default function LoginPage() {
           ou
           <span style={{ flex: 1, height: 1, background: 'var(--border)' }} />
         </div>
-        <form onSubmit={submit} noValidate>
-        {mode === 'register' && <div className="fg"><label htmlFor="cb-nome">NOME</label><input id="cb-nome" name="name" autoComplete="name" value={nome} onChange={e => setNome(e.target.value)} placeholder="Seu nome" /></div>}
-        <div className="fg"><label htmlFor="cb-email">E-MAIL</label><input id="cb-email" name="email" type="email" autoComplete="email" inputMode="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="seu@email.com" required /></div>
-        <div className="fg">
+        <form onSubmit={submit} noValidate onFocusCapture={marcarInicio}>
+        {mode === 'register' && <div className="fg"><label htmlFor="cb-nome">NOME</label><input id="cb-nome" name="name" autoComplete="name" value={nome} onChange={e => setNome(e.target.value)} onFocus={() => marcarEtapa('dados')} placeholder="Seu nome" /></div>}
+        <div className="fg"><label htmlFor="cb-email">E-MAIL</label><input id="cb-email" name="email" type="email" autoComplete="email" inputMode="email" value={email} onChange={e => setEmail(e.target.value)} onFocus={() => marcarEtapa('dados')} placeholder="seu@email.com" required /></div>
+        <div className="fg" onFocusCapture={() => marcarEtapa('senha')}>
           <label htmlFor="cb-senha">SENHA</label>
           <PasswordInput id="cb-senha" name="password" value={senha} onChange={e => setSenha(e.target.value)} required
             autoComplete={mode === 'login' ? 'current-password' : 'new-password'} aria-describedby={mode === 'register' ? 'cb-senha-hint' : undefined} />
           {mode === 'register' && <PasswordHint value={senha} id="cb-senha-hint" />}
         </div>
         {mode === 'register' && (
-          <>
-            <div className="fg">
-              <label htmlFor="cb-whats">WHATSAPP <span style={{ fontWeight: 600, textTransform: 'none', letterSpacing: 0 }}>(opcional)</span></label>
-              <input id="cb-whats" name="tel" type="tel" inputMode="tel" autoComplete="tel-national" value={whats}
-                onChange={e => setWhats(formatarTelefone(e.target.value))} placeholder="(63) 99999-9999" maxLength={16} />
-            </div>
-            {whats.trim() && (
-              <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 13, margin: '-4px 0 14px', cursor: 'pointer', color: 'var(--muted)' }}>
-                <input type="checkbox" checked={whatsAceite} onChange={e => setWhatsAceite(e.target.checked)} style={{ width: 16, height: 16, marginTop: 2, accentColor: 'var(--orange, #FF6B00)', cursor: 'pointer' }} />
-                Quero receber pelo WhatsApp avisos das minhas compras e vendas, novidades e promoções do Comprei Barato. Posso desativar quando quiser em Minha conta.
-              </label>
-            )}
-          </>
+          <div onFocusCapture={() => marcarEtapa('localizacao')} style={{ marginBottom: 14 }}>
+            <LocalizacaoCampos uf={uf} cidade={cidade} onUf={setUf} onCidade={setCidade} />
+            <p className="muted" style={{ fontSize: 12, marginTop: 6, lineHeight: 1.45 }}>
+              Opcional. Usamos só estado e cidade, de forma agregada, para entender de onde vêm nossos clientes.
+              Não pedimos endereço nem localização do aparelho. <Link href="/privacidade" style={{ textDecoration: 'underline' }}>Privacidade</Link>
+            </p>
+          </div>
         )}
         {mode === 'login' && (
           <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, margin: '2px 0 14px', cursor: 'pointer', color: 'var(--muted)' }}>
@@ -167,7 +236,7 @@ export default function LoginPage() {
           </label>
         )}
         <button type="submit" className="btn btn-pri" style={{ width: '100%' }} disabled={loading}>
-          {loading ? 'Aguarde…' : mode === 'login' ? 'Entrar' : 'Criar conta grátis'}
+          {loading ? 'Aguarde…' : mode === 'login' ? 'Entrar' : intencao === 'vendedor' ? 'Criar conta e começar a vender' : 'Criar conta grátis'}
         </button>
         </form>
         {mode === 'login' && (

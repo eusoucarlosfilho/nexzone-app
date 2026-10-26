@@ -1,4 +1,6 @@
 import Nav from '@/components/Nav';
+import Footer from '@/components/Footer';
+import Link from 'next/link';
 import BuyButton from './BuyButton';
 import ProductCard from '@/components/ProductCard';
 import PartnerOfferCard from '@/components/PartnerOfferCard';
@@ -6,8 +8,7 @@ import { configMix, ofertasAtivas, visiveis } from '@/lib/ofertas/servidor';
 import ShareButton from '@/components/ShareButton';
 import FavButton from '@/components/FavButton';
 import Questions from './Questions';
-import { createClient, createAdminClient } from '@/lib/supabase/server';
-import { avisoEstoque, extrasDe, EXTRAS_VAZIO, manuaisDe, contadoresExibidos } from '@/lib/estoque';
+import { createClient } from '@/lib/supabase/server';
 import { notFound } from 'next/navigation';
 import type { Product } from '@/lib/types';
 import type { Metadata } from 'next';
@@ -18,10 +19,16 @@ import { vendedorPublico, produtoPublico, produtosPublicos } from '@/lib/vendedo
 import { galeriaDe } from '@/lib/galeria';
 import ProductGallery from './ProductGallery';
 import { PRODUTO_CARD, PRODUTO_PAGINA } from '@/lib/consultas';
+import { acharCategoria } from '@/lib/categorias';
+import { stripeAvailable } from '@/lib/payments/stripe';
 
 const money = (v: number) => 'R$ ' + v.toFixed(2).replace('.', ',');
-const ENTREGA: Record<string, string> = {
-  arquivo: 'Arquivo para download', chave: 'Chave / código de acesso', link: 'Link de acesso', acesso: 'Acesso liberado',
+// Forma de entrega: só o TIPO (products.tipo_entrega). O conteúdo pago nunca é lido nesta página.
+const ENTREGA: Record<string, { titulo: string; texto: string }> = {
+  arquivo: { titulo: 'Arquivo para download', texto: 'Você baixa o arquivo na página do pedido, em Minhas compras.' },
+  chave: { titulo: 'Chave ou código de acesso', texto: 'O código aparece na página do pedido, em Minhas compras.' },
+  link: { titulo: 'Link de acesso', texto: 'O link fica disponível na página do pedido, em Minhas compras.' },
+  acesso: { titulo: 'Acesso liberado', texto: 'As instruções de acesso ficam na página do pedido, em Minhas compras.' },
 };
 const SITE = (process.env.NEXT_PUBLIC_SITE_URL || SITE_URL_FALLBACK).replace(/\/+$/, '');
 
@@ -60,25 +67,8 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
 
 export default async function ProductPage({ params }: { params: { id: string } }) {
   const supabase = createClient();
-  let { data } = await supabase.from('products')
-    .select(PRODUTO_PAGINA).eq('id', params.id).eq('status', 'ativo').maybeSingle();
-  // Esgotado: o produto foi pausado AUTOMATICAMENTE porque o estoque zerou (SQL 07).
-  // A página continua no ar mostrando "Esgotado", sem botão de compra (o checkout só aceita produto ativo).
-  let esgotadoPausado = false;
-  if (!data && /^[0-9a-f-]{36}$/i.test(params.id)) {
-    try {
-      const adm = createAdminClient();
-      const { data: pausado, error } = await adm.from('products')
-        .select(PRODUTO_PAGINA).eq('id', params.id).eq('status', 'pausado').eq('pausado_sem_estoque', true).maybeSingle();
-      if (!error && pausado) {
-        const st: any = (pausado as any).stores;
-        // loja não verificada: o público não veria os dados dela, então não expõe slug/nível
-        if (st && st.status !== 'verificado' && st.ocultar_vendedor !== true) (pausado as any).stores = { nome: 'Loja parceira', slug: null, nivel: '', status: st.status, ocultar_vendedor: false };
-        data = pausado;
-        esgotadoPausado = true;
-      }
-    } catch { /* sem SQL 07 ou sem chave: segue como antes (404) */ }
-  }
+  const { data } = await supabase.from('products')
+    .select(PRODUTO_PAGINA).eq('id', params.id).eq('status', 'ativo').single();
   if (!data) notFound();
   // Dados públicos do vendedor (Comprei Barato quando a loja está oculta). O nome real não sai do servidor.
   const p = produtoPublico(data as unknown as Product);
@@ -87,46 +77,39 @@ export default async function ProductPage({ params }: { params: { id: string } }
   const preco = p.preco_promo ?? p.preco;
   const desconto = p.preco_promo ? Math.round((1 - p.preco_promo / p.preco) * 100) : 0;
 
-  const { data: reviewsData } = await supabase.from('reviews')
-    .select('nota, comentario, created_at').eq('product_id', p.id).order('created_at', { ascending: false }).limit(10);
-  const reviews = reviewsData ?? [];
+  const cat = acharCategoria(p.categoria);
+  const garantia = Math.max(0, Math.floor(Number(p.garantia_dias) || 0));
+  const entrega = ENTREGA[p.tipo_entrega] || { titulo: 'Acesso ao produto', texto: 'O acesso fica na página do pedido, em Minhas compras.' };
 
-  // agregado real de avaliações (contagem, média e JSON-LD), sem o limite de 10 da lista exibida
-  const { data: notasData } = await supabase.from('reviews').select('nota').eq('product_id', p.id).limit(5000);
-  const notas = ((notasData ?? []) as { nota: number }[]).map((r) => Number(r.nota)).filter((v) => v >= 1 && v <= 5);
-  const autoAvaliacoes = notas.length;
-  const autoMedia = autoAvaliacoes ? notas.reduce((s, v) => s + v, 0) / autoAvaliacoes : 0;
-  // Modo manual do admin (SQL 08): mostra os números digitados no lugar dos automáticos
-  const manuais = await manuaisDe(supabase, p.id);
-  const exib = contadoresExibidos({ vendas: Number(p.vendas) || 0, avaliacoes: autoAvaliacoes, media: autoMedia }, manuais);
-  const qtdAvaliacoes = exib.avaliacoes;
-  const media = qtdAvaliacoes > 0 && exib.media > 0 ? exib.media : 0;
-  const vendas = exib.vendas;
-
-  // Estoque e exibição dos contadores (SQL 07). Sem o SQL 07: nada muda.
-  const extras = (await extrasDe(supabase, [p.id]))[p.id] ?? EXTRAS_VAZIO;
-  const aviso = esgotadoPausado ? avisoEstoque(0) : avisoEstoque(extras.estoque);
-  const esgotado = aviso?.nivel === 'esgotado';
-  const mostrarContadores = !extras.ocultar_contadores;
-
-  // "Mais deste vendedor": não aparece quando a loja está oculta
-  const relacionados: Product[] = vend.oficial ? [] : produtosPublicos((await supabase.from('products')
-    .select(PRODUTO_CARD).eq('store_id', p.store_id).eq('status', 'ativo').neq('id', p.id).limit(4)).data as Product[] | null);
-
-  const { data: catData } = await supabase.from('products')
-    .select(PRODUTO_CARD).eq('categoria', p.categoria).eq('status', 'ativo').neq('id', p.id)
-    .order('vendas', { ascending: false }).limit(8);
+  // Tudo em paralelo. Relacionados: só ativos, sem o próprio produto, poucos itens.
+  const [reviewsRes, notasRes, lojaRes, catRes, userRes, perguntasRes, cartao] = await Promise.all([
+    supabase.from('reviews').select('nota, comentario, created_at').eq('product_id', p.id).order('created_at', { ascending: false }).limit(10),
+    // agregado real de avaliações, sem o limite da lista exibida
+    supabase.from('reviews').select('nota').eq('product_id', p.id).limit(5000),
+    // "Mais deste vendedor": não aparece quando a loja está oculta
+    vend.oficial ? Promise.resolve({ data: [] as Product[] }) : supabase.from('products')
+      .select(PRODUTO_CARD).eq('store_id', p.store_id).eq('status', 'ativo').neq('id', p.id).limit(4),
+    p.categoria ? supabase.from('products')
+      .select(PRODUTO_CARD).eq('categoria', p.categoria).eq('status', 'ativo').neq('id', p.id)
+      .order('vendas', { ascending: false }).limit(8) : Promise.resolve({ data: [] as Product[] }),
+    supabase.auth.getUser(),
+    supabase.from('product_questions')
+      .select('id, autor, autor_nome, pergunta, resposta, respondida_em, created_at')
+      .eq('product_id', p.id).order('created_at', { ascending: false }).limit(50),
+    stripeAvailable().catch(() => false),
+  ]);
+  const reviews = (reviewsRes.data ?? []) as { nota: number; comentario: string | null; created_at: string }[];
+  const notas = ((notasRes.data ?? []) as { nota: number }[]).map((r) => Number(r.nota)).filter((v) => v >= 1 && v <= 5);
+  const media = notas.length ? notas.reduce((s, v) => s + v, 0) / notas.length : 0;
+  const relacionados = produtosPublicos(lojaRes.data as Product[] | null);
   const relIds = new Set(relacionados.map((r) => r.id));
-  const daCategoria = produtosPublicos(catData as Product[] | null).filter((c) => !relIds.has(c.id)).slice(0, 4);
+  const daCategoria = produtosPublicos(catRes.data as Product[] | null).filter((c) => !relIds.has(c.id)).slice(0, 4);
   // Recomendações: ofertas de parceiros só completam as vagas que os nativos não preencheram
   const mixRec = daCategoria.length < 4 ? await configMix() : null;
-  const parceirasRec = mixRec?.ativo ? visiveis(await ofertasAtivas({ categoria: p.categoria, limite: 8 }), mixRec).slice(0, 4 - daCategoria.length) : [];
-
-  const { data: { user } } = await supabase.auth.getUser();
-  const { data: perguntasData } = await supabase.from('product_questions')
-    .select('id, autor, autor_nome, pergunta, resposta, respondida_em, created_at')
-    .eq('product_id', p.id).order('created_at', { ascending: false }).limit(50);
-  const perguntas = (perguntasData ?? []) as any[];
+  const parceirasRec = mixRec?.ativo && p.categoria ? visiveis(await ofertasAtivas({ categoria: p.categoria, limite: 8 }), mixRec).slice(0, 4 - daCategoria.length) : [];
+  const user = userRes.data.user;
+  const perguntas = (perguntasRes.data ?? []) as any[];
+  const vendas = Number(p.vendas) || 0;
 
   const pageUrl = `${SITE}/produto/${p.id}`;
   const jsonLd: Record<string, any> = {
@@ -144,11 +127,11 @@ export default async function ProductPage({ params }: { params: { id: string } }
       url: pageUrl,
       priceCurrency: 'BRL',
       price: Number(preco).toFixed(2),
-      availability: esgotado ? 'https://schema.org/OutOfStock' : 'https://schema.org/InStock',
+      availability: 'https://schema.org/InStock',
       seller: { '@type': 'Organization', name: vend.nome },
     },
   };
-  if (notas.length > 0 && mostrarContadores) {
+  if (notas.length > 0) {
     jsonLd.aggregateRating = {
       '@type': 'AggregateRating',
       ratingValue: (notas.reduce((s, v) => s + v, 0) / notas.length).toFixed(1),
@@ -159,19 +142,23 @@ export default async function ProductPage({ params }: { params: { id: string } }
   }
   const jsonLdHtml = JSON.stringify(jsonLd).replace(/</g, '\\u003c');
 
+  const Confianca = (
+    <ul className="pdp-trust">
+      <li><Icon name="bolt" size={16} color="var(--orange-ink)" />Liberado após a confirmação do pagamento</li>
+      <li><Icon name="lock" size={16} color="var(--orange-ink)" />{cartao ? 'Pagamento via Pix ou cartão' : 'Pagamento via Pix'}</li>
+      {garantia > 0 && <li><Icon name="shield" size={16} color="var(--orange-ink)" />Garantia de {garantia} {garantia === 1 ? 'dia' : 'dias'}</li>}
+    </ul>
+  );
+
   const BuyBox = (
     <div className="pdp-box">
       <div className="pdp-price">
-        {desconto > 0 && <span className="pdp-old">{money(p.preco)}</span>}
+        {desconto > 0 && <span className="pdp-old"><span className="sr-only">De </span>{money(p.preco)}</span>}
         <div className="pdp-now">{money(preco)}{desconto > 0 && <span className="pdp-off">-{desconto}%</span>}</div>
       </div>
-      {aviso && <div className={`pdp-stock ${aviso.nivel}`} role="status">{aviso.texto}</div>}
-      <BuyButton productId={p.id} esgotado={esgotado} />
-      <div className="pdp-trust">
-        <div className="flex"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#B84A00" strokeWidth="2.2" strokeLinejoin="round" aria-hidden="true"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z" /></svg>Liberado assim que o Pix for aprovado</div>
-        <div className="flex"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#B84A00" strokeWidth="2.2" strokeLinejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2" /><path d="M8 11V7a4 4 0 0 1 8 0v4" /></svg>Pagamento seguro via Pix</div>
-        <div className="flex"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#B84A00" strokeWidth="2.2" strokeLinejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>Garantia de {p.garantia_dias} dias</div>
-      </div>
+      <BuyButton productId={p.id} categoria={cat?.slug ?? null} />
+      {Confianca}
+      <Link href="/como-funciona" className="pdp-como">Como funciona a compra<Icon name="chevronRight" size={14} /></Link>
       <ShareButton titulo={p.titulo} full />
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 10, color: 'var(--sub)', fontSize: 13 }}><FavButton productId={p.id} /> Salvar nos favoritos</div>
       <div className="pdp-soldby">Vendido por <strong>{vend.nome}</strong> {vend.oficial
@@ -185,99 +172,110 @@ export default async function ProductPage({ params }: { params: { id: string } }
       <Nav />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdHtml }} />
       <style>{`
-        .pdp{display:flex;gap:36px;max-width:1240px;margin:0 auto;padding:28px 24px 60px;animation:cb-up .5s var(--ease) both;}
+        .pdp{display:flex;gap:36px;max-width:1240px;margin:0 auto;padding:20px 24px 60px;animation:cb-up .5s var(--ease) both;}
         .pdp-main{flex:1;min-width:0;}
         .pdp-aside{width:380px;flex-shrink:0;}
         .pdp-box{position:sticky;top:150px;background:#fff;border:1px solid var(--border);border-radius:28px;padding:28px;box-shadow:0 20px 50px rgba(22,22,42,.08);animation:cb-up .6s var(--ease) .08s both;}
         .pdp-hero{position:relative;aspect-ratio:16/10;border-radius:28px;overflow:hidden;background:var(--soft);display:flex;align-items:center;justify-content:center;font-size:110px;margin-bottom:22px;}
         .pdp-hero img{width:100%;height:100%;object-fit:cover;transition:transform .6s var(--ease);}.pdp-hero:hover img{transform:scale(1.03);}
-        .pdp-chip{display:inline-block;background:var(--soft);color:var(--orange-ink);font-weight:900;font-size:13px;padding:6px 13px;border-radius:50px;}
-        .pdp-title{font-family:'Outfit';font-size:clamp(26px,3vw,36px);font-weight:900;letter-spacing:-1px;margin:12px 0 8px;line-height:1.12;}
+        .pdp-chip{display:inline-flex;align-items:center;min-height:32px;background:var(--soft);color:var(--orange-ink);font-weight:900;font-size:13px;padding:6px 13px;border-radius:50px;}
+        a.pdp-chip:hover{background:#FFE3CC}
+        .pdp-title{font-family:Outfit;font-size:clamp(26px,3vw,36px);font-weight:900;letter-spacing:-1px;margin:12px 0 8px;line-height:1.12;overflow-wrap:anywhere;}
         .pdp-meta{color:var(--sub);font-size:14px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+        .pdp-meta a{color:var(--orange-ink);font-weight:800}
         .pdp-star{display:inline-flex;gap:2px;align-items:center;}
         .pdp-sec{margin-top:34px;}
-        .pdp-sec h2{font-family:'Outfit';font-size:21px;font-weight:800;margin-bottom:14px;letter-spacing:-.4px;}
-        .pdp-desc{color:var(--sub);font-size:15px;line-height:1.7;white-space:pre-wrap;}
-        .pdp-recebe{display:grid;gap:10px;}
-        .pdp-recebe div{display:flex;gap:10px;align-items:center;font-size:15px;font-weight:700;color:var(--text);background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:14px 16px;transition:transform .2s var(--ease);}.pdp-recebe div:hover{transform:translateX(4px);}
+        .pdp-sec h2{font-family:Outfit;font-size:21px;font-weight:800;margin-bottom:14px;letter-spacing:-.4px;}
+        .pdp-desc{color:var(--sub);font-size:15px;line-height:1.7;white-space:pre-wrap;overflow-wrap:anywhere;}
         .pdp-seller{display:flex;align-items:center;gap:14px;background:#fff;border:1px solid var(--border);border-radius:20px;padding:18px;transition:all .22s var(--ease);}.pdp-seller:hover{border-color:var(--orange);transform:translateY(-2px);}
-        .pdp-seller .av{width:52px;height:52px;border-radius:16px;background:var(--text);display:flex;align-items:center;justify-content:center;color:#fff;font-family:'Outfit';font-weight:900;font-size:22px;}
+        .pdp-seller .av{width:52px;height:52px;border-radius:16px;background:var(--text);display:flex;align-items:center;justify-content:center;color:#fff;font-family:Outfit;font-weight:900;font-size:22px;flex:none}
         .pdp-seller-oficial:hover{border-color:var(--border);transform:none;}
         .pdp-seller .av-oficial{background:#fff url(/logo.png) center/contain no-repeat;border:1px solid var(--border);}
-        .pdp-oficial{display:inline-block;font-family:'Outfit';font-weight:800;font-size:11px;color:#fff;background:#FF6B00;border-radius:50px;padding:2px 8px;vertical-align:1px;}
+        .pdp-oficial{display:inline-block;font-family:Outfit;font-weight:800;font-size:11px;color:#fff;background:#FF6B00;border-radius:50px;padding:2px 8px;vertical-align:1px;}
+        .pdp-rev-hd{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:-4px 0 14px;color:var(--sub);font-size:14px}
+        .pdp-rev-hd b{font-family:Outfit;font-size:26px;color:var(--text)}
         .pdp-rev{border:1px solid var(--border);border-radius:18px;padding:18px;margin-bottom:10px;}
         .pdp-rev .h{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;}
         .pdp-price{margin-bottom:16px;}
         .pdp-old{color:var(--muted);text-decoration:line-through;font-size:16px;}
-        .pdp-now{font-family:'Outfit';font-size:44px;font-weight:900;letter-spacing:-1.5px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+        .pdp-now{font-family:Outfit;font-size:44px;font-weight:900;letter-spacing:-1.5px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
         .pdp-off{background:var(--green-bg);color:var(--green);font-size:14px;font-weight:900;padding:4px 11px;border-radius:50px;letter-spacing:0;}
-        .pdp-trust{margin-top:18px;display:grid;gap:10px;font-size:14px;font-weight:700;color:#3A3A52;border-top:1px solid var(--border);padding-top:18px;}
+        .pdp-trust{margin-top:18px;display:grid;gap:10px;font-size:14px;font-weight:700;color:#3A3A52;border-top:1px solid var(--border);padding-top:18px;list-style:none;}
+        .pdp-trust li{display:flex;align-items:center;gap:10px}
+        .pdp-como{display:inline-flex;align-items:center;gap:4px;margin-top:12px;font-size:13px;font-weight:800;color:var(--orange-ink);min-height:32px}
         .pdp-soldby{margin-top:14px;font-size:13px;color:var(--sub);text-align:center;}
         .pdp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:18px;}
-        .pdp-stock{display:inline-flex;align-items:center;gap:6px;font-size:13.5px;font-weight:800;padding:6px 12px;border-radius:50px;margin-bottom:12px;}
-        .pdp-stock::before{content:'';width:8px;height:8px;border-radius:50%;background:currentColor;}
-        .pdp-stock.ok{background:var(--green-bg);color:var(--green);}
-        .pdp-stock.pouco{background:#FFF1E6;color:#C2410C;}
-        .pdp-stock.esgotado{background:var(--red-bg);color:var(--red);}
-        .pdp-novo{display:inline-block;background:var(--green-bg);color:var(--green);font-weight:800;font-size:12.5px;padding:3px 10px;border-radius:50px;}
         .pdp-mbar{display:none;}
         .pdp-mact{display:none;}
         .pdp-mact-row{display:flex;align-items:center;gap:10px;}
         @media(max-width:860px){
-          .pdp{flex-direction:column;gap:20px;padding-bottom:90px;}
+          .pdp{flex-direction:column;gap:20px;padding:14px var(--gut) 24px;}
           .pdp-aside{display:none;}
-          .pdp-mact{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:14px;padding:14px 16px;border:1px solid var(--border);border-radius:18px;background:#fff;}
-          .pdp-hero{font-size:72px;}
-          .pdp-title{font-size:24px;}
-          .pdp-mbar{display:flex;position:fixed;bottom:0;left:0;right:0;background:rgba(255,255,255,.96);backdrop-filter:blur(10px);border-top:1px solid var(--border);box-shadow:0 -4px 20px rgba(0,0,0,.08);padding:12px 16px;z-index:50;align-items:center;gap:14px;animation:cb-up .4s var(--ease) both;}
-          .pdp-mbar .pp{font-family:'Outfit';font-size:22px;font-weight:900;flex:1;}
+          .pdp-mact{display:block;margin-top:14px;padding:14px 16px;border:1px solid var(--border);border-radius:18px;background:#fff;}
+          .pdp-mact-top{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+          .pdp-mact .pdp-trust{margin-top:12px;padding-top:12px;font-size:13px;gap:8px}
+          .pdp-hero{font-size:72px;border-radius:20px;}
+          .pdp-title{font-size:24px;letter-spacing:-.6px}
+          .pdp-grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+          .pdp-mbar{display:flex;position:fixed;bottom:0;left:0;right:0;background:rgba(255,255,255,.97);backdrop-filter:blur(10px);border-top:1px solid var(--border);box-shadow:0 -4px 20px rgba(0,0,0,.08);padding:10px var(--gut) calc(10px + env(safe-area-inset-bottom));z-index:50;align-items:center;gap:14px;animation:cb-up .4s var(--ease) both;}
+          .pdp-mbar .pp{font-family:Outfit;font-size:22px;font-weight:900;flex:1;min-width:0;line-height:1.1}
+          .pdp-mbar .pp small{display:block;font-family:Nunito;font-size:12px;font-weight:700;color:var(--muted);text-decoration:line-through}
+          .pdp-mbar .btn{min-width:150px}
         }
       `}</style>
 
       <div className="pdp">
         <div className="pdp-main">
+          <nav className="v3-trilha" aria-label="Você está em">
+            <Link href="/">Início</Link><span aria-hidden="true">›</span>
+            {cat ? <Link href={`/categoria/${cat.slug}`}>{cat.nome}</Link> : <Link href="/produtos">Produtos</Link>}
+          </nav>
           {fotos.length
             ? <ProductGallery fotos={fotos} titulo={p.titulo} />
             : <div className="pdp-hero"><CategoryCover cat={p.categoria} size={96} /></div>}
-          <span className="pdp-chip">{p.categoria}</span>
+          {cat ? <Link href={`/categoria/${cat.slug}`} className="pdp-chip">{cat.nome}</Link> : p.categoria && <span className="pdp-chip">{p.categoria}</span>}
           <h1 className="pdp-title">{p.titulo}</h1>
-          {/* Automáticos ou manuais (admin). O que for zero não aparece; o admin pode ocultar a linha inteira. */}
-          {mostrarContadores && (qtdAvaliacoes > 0 || vendas > 0) ? (
-            <div className="pdp-meta">
-              {qtdAvaliacoes > 0 && <>
+          <div className="pdp-meta">
+            {notas.length > 0 ? (
+              <a href="#avaliacoes" className="pdp-mi" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                 <Stars n={media} />
                 <span>{media.toFixed(1).replace('.', ',')}</span>
-                <span>· {qtdAvaliacoes.toLocaleString('pt-BR')} {qtdAvaliacoes === 1 ? 'avaliação' : 'avaliações'}</span>
-              </>}
-              {vendas > 0 && <span>{qtdAvaliacoes > 0 ? '· ' : ''}{vendas.toLocaleString('pt-BR')} {vendas === 1 ? 'venda' : 'vendas'}</span>}
-            </div>
-          ) : mostrarContadores ? <div className="pdp-meta"><span className="pdp-novo">Novo</span></div> : null}
+                <span>({notas.length} {notas.length === 1 ? 'avaliação' : 'avaliações'})</span>
+              </a>
+            ) : <span className="pdp-mi">Ainda sem avaliações</span>}
+            {vendas > 0 && <span className="pdp-mi">{vendas.toLocaleString('pt-BR')} {vendas === 1 ? 'venda' : 'vendas'}</span>}
+            <span className="pdp-mi">por {vend.slug && !vend.oficial ? <Link href={`/loja/${vend.slug}`}>{vend.nome}</Link> : <strong>{vend.nome}</strong>}</span>
+          </div>
 
-          {/* Celular: o bloco lateral fica oculto, então preço, compartilhar e favoritar aparecem aqui */}
+          {/* Celular: o bloco lateral fica oculto; preço, confiança, compartilhar e favoritar aparecem aqui e o botão fica na barra fixa */}
           <div className="pdp-mact">
-            <div className="pdp-price" style={{ marginBottom: 0 }}>
-              {desconto > 0 && <span className="pdp-old">{money(p.preco)}</span>}
-              <div className="pdp-now" style={{ fontSize: 32 }}>{money(preco)}{desconto > 0 && <span className="pdp-off">-{desconto}%</span>}</div>
-              {aviso && <div className={`pdp-stock ${aviso.nivel}`} role="status" style={{ marginTop: 8 }}>{aviso.texto}</div>}
+            <div className="pdp-mact-top">
+              <div className="pdp-price" style={{ marginBottom: 0 }}>
+                {desconto > 0 && <span className="pdp-old"><span className="sr-only">De </span>{money(p.preco)}</span>}
+                <div className="pdp-now" style={{ fontSize: 32 }}>{money(preco)}{desconto > 0 && <span className="pdp-off">-{desconto}%</span>}</div>
+              </div>
+              <div className="pdp-mact-row">
+                <FavButton productId={p.id} />
+                <ShareButton titulo={p.titulo} />
+              </div>
             </div>
-            <div className="pdp-mact-row">
-              <FavButton productId={p.id} />
-              <ShareButton titulo={p.titulo} />
-            </div>
+            {Confianca}
           </div>
 
           <div className="pdp-sec">
             <h2>Sobre o produto</h2>
-            <div className="pdp-desc">{p.descricao || 'Sem descrição.'}</div>
+            <div className="pdp-desc">{p.descricao || 'O vendedor ainda não escreveu uma descrição. Use as perguntas abaixo para tirar dúvidas antes de comprar.'}</div>
           </div>
 
           <div className="pdp-sec">
-            <h2>O que você recebe</h2>
-            <div className="pdp-recebe">
-              <div><Icon name="bolt" color="var(--orange-ink)" /> Entrega imediata e automática após o pagamento</div>
-              <div><Icon name="package" color="var(--orange-ink)" /> {ENTREGA[p.tipo_entrega] || 'Acesso ao produto'}</div>
-              <div><Icon name="shield" color="var(--orange-ink)" /> Garantia de {p.garantia_dias} dias</div>
-            </div>
+            <h2>Como você recebe</h2>
+            <ul className="pdp-recebe">
+              <li><Icon name="package" color="var(--orange-ink)" /><div><b>{entrega.titulo}</b><span>{entrega.texto}</span></div></li>
+              <li><Icon name="bolt" color="var(--orange-ink)" /><div><b>Liberação automática</b><span>Assim que o pagamento é confirmado, o pedido é liberado. Na página do pedido você também conversa com o vendedor.</span></div></li>
+              {garantia > 0 && (
+                <li><Icon name="shield" color="var(--orange-ink)" /><div><b>Garantia de {garantia} {garantia === 1 ? 'dia' : 'dias'}</b><span>Dentro desse prazo você pode pedir reembolso, conforme os <Link href="/termos">Termos de uso</Link>.</span></div></li>
+              )}
+            </ul>
           </div>
 
           <Questions productId={p.id} initial={perguntas} userId={user?.id ?? null} loggedIn={!!user} />
@@ -293,18 +291,18 @@ export default async function ProductPage({ params }: { params: { id: string } }
                 </div>
               </div>
             ) : vend.slug ? (
-              <a href={`/loja/${vend.slug}`} className="pdp-seller" style={{ textDecoration: 'none', color: 'inherit' }}>
-                <div className="av">{(vend.nome || 'L').charAt(0).toUpperCase()}</div>
-                <div style={{ flex: 1 }}>
-                  <strong style={{ fontFamily: 'Outfit', display: 'inline-flex', alignItems: 'center', gap: 5 }}>{vend.nome} {vend.verificada && <span className="ui-badge ok" style={{ fontSize: 11, padding: '2px 8px' }}><Icon name="check" size={12} strokeWidth={2.6} /> Verificada</span>}</strong>
+              <Link href={`/loja/${vend.slug}`} className="pdp-seller" style={{ textDecoration: 'none', color: 'inherit' }}>
+                <div className="av" aria-hidden="true">{(vend.nome || 'L').charAt(0).toUpperCase()}</div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <strong style={{ fontFamily: 'Outfit', display: 'inline-flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>{vend.nome} {vend.verificada && <span className="ui-badge ok" style={{ fontSize: 11, padding: '2px 8px' }}><Icon name="check" size={12} strokeWidth={2.6} /> Verificada</span>}</strong>
                   <div className="muted" style={{ fontSize: 13, textTransform: 'capitalize' }}>Ver loja{vend.nivel ? ` · Nível ${vend.nivel}` : ''}</div>
                 </div>
                 <Icon name="chevronRight" size={20} color="var(--sub)" />
-              </a>
+              </Link>
             ) : (
               // Loja não verificada: a RLS não devolve os dados da loja ao público; sem link quebrado /loja/null
               <div className="pdp-seller pdp-seller-oficial">
-                <div className="av">L</div>
+                <div className="av" aria-hidden="true">L</div>
                 <div style={{ flex: 1 }}>
                   <strong style={{ fontFamily: 'Outfit' }}>Loja parceira</strong>
                   <div className="muted" style={{ fontSize: 13 }}>Loja ainda não verificada</div>
@@ -313,25 +311,28 @@ export default async function ProductPage({ params }: { params: { id: string } }
             )}
           </div>
 
-          <div className="pdp-sec">
+          <div className="pdp-sec" id="avaliacoes">
             <h2>Avaliações</h2>
+            {notas.length > 0 && (
+              <div className="pdp-rev-hd"><b>{media.toFixed(1).replace('.', ',')}</b><Stars n={media} size={16} /><span>{notas.length} {notas.length === 1 ? 'avaliação' : 'avaliações'} de quem comprou</span></div>
+            )}
             {reviews.length ? reviews.map((r, i) => (
               <div className="pdp-rev" key={i}>
                 <div className="h">
                   <Stars n={r.nota} size={14} />
                   <span className="muted" style={{ fontSize: 12 }}>{new Date(r.created_at).toLocaleDateString('pt-BR')}</span>
                 </div>
-                <div style={{ fontSize: 14, color: 'var(--sub)' }}>{r.comentario || 'Sem comentário.'}</div>
+                <div style={{ fontSize: 14, color: 'var(--sub)', overflowWrap: 'anywhere' }}>{r.comentario || 'Sem comentário.'}</div>
                 <div className="muted" style={{ fontSize: 12, marginTop: 6 }}>Comprador verificado</div>
               </div>
-            )) : <p className="muted" style={{ fontSize: 14 }}>Ainda não há avaliações. Seja o primeiro a avaliar após a compra.</p>}
+            )) : <p className="muted" style={{ fontSize: 14 }}>Ainda não há avaliações. Quem compra pode avaliar pela página do pedido.</p>}
           </div>
 
           {relacionados.length > 0 && (
             <div className="pdp-sec">
               <h2>Mais deste vendedor</h2>
               <div className="pdp-grid">
-                {relacionados.map((rp) => <ProductCard key={rp.id} p={rp} />)}
+                {relacionados.map((rp) => <ProductCard key={rp.id} p={rp} origem="relacionados" />)}
               </div>
             </div>
           )}
@@ -340,20 +341,21 @@ export default async function ProductPage({ params }: { params: { id: string } }
             <div className="pdp-sec">
               <h2>Você também pode gostar</h2>
               <div className="pdp-grid">
-                {daCategoria.map((rp) => <ProductCard key={rp.id} p={rp} />)}
-                {parceirasRec.map((o) => <PartnerOfferCard key={o.id} o={o} mostrarOrigem={mixRec?.mostrarOrigem} />)}
+                {daCategoria.map((rp) => <ProductCard key={rp.id} p={rp} origem="relacionados" />)}
+                {parceirasRec.map((o) => <PartnerOfferCard key={o.id} o={o} mostrarOrigem={mixRec?.mostrarOrigem} origem="relacionados" />)}
               </div>
             </div>
           )}
         </div>
 
-        <aside className="pdp-aside">{BuyBox}</aside>
+        <aside className="pdp-aside" aria-label="Comprar">{BuyBox}</aside>
       </div>
 
       <div className="pdp-mbar">
-        <div className="pp">{money(preco)}</div>
-        <BuyButton productId={p.id} esgotado={esgotado} />
+        <div className="pp">{desconto > 0 && <small><span className="sr-only">De </span>{money(p.preco)}</small>}{money(preco)}</div>
+        <BuyButton productId={p.id} categoria={cat?.slug ?? null} />
       </div>
+      <Footer />
     </>
   );
 }

@@ -1,10 +1,8 @@
 'use client';
-import { useState, useEffect, Fragment } from 'react';
+import { useState, useEffect } from 'react';
 import { toast } from '@/lib/toast';
 import SettingsForm from './SettingsForm';
 import TorpedosForm from './TorpedosForm';
-import WhatsAppPainel from './WhatsAppPainel';
-import WhatsAppLog from './WhatsAppLog';
 import PromoForm from './PromoForm';
 import OrderChat from '@/components/OrderChat';
 import AdminNotes from './AdminNotes';
@@ -12,11 +10,11 @@ import AudienceTab from './AudienceTab';
 import ProvaSocialForm from './ProvaSocialForm';
 import SupportTab from './SupportTab';
 import SuporteConfig from './SuporteConfig';
+import UsersPanel from './v3/UsersPanel';
+import GrowthPanel from './v3/GrowthPanel';
 import { ehJogos } from '@/lib/categorias';
 import Icon from '@/components/Icon';
 import ProductThumb from '@/components/ProductThumb';
-import ProdutoGerenciar from './ProdutoGerenciar';
-import AlteracoesAnuncio from './AlteracoesAnuncio';
 
 const money = (v: number) => 'R$ ' + Number(v).toFixed(2).replace('.', ',');
 const fmt = (v: number) => Number(v).toLocaleString('pt-BR');
@@ -101,6 +99,7 @@ export default function AdminDashboard({ adminEmail, users, metrics, daily, orde
   const [userQuery, setUserQuery] = useState('');
   const [userFiltro, setUserFiltro] = useState<'todos' | 'vendedores' | 'compradores' | 'flag'>('todos');
   const [expUser, setExpUser] = useState<string | null>(null);
+  const [usuariosClassico, setUsuariosClassico] = useState(false);
 
   async function userAction(userId: string, action: string, texto?: string) {
     setBusy(userId + ':' + action);
@@ -159,7 +158,6 @@ export default function AdminDashboard({ adminEmail, users, metrics, daily, orde
   const [prodStatus, setProdStatus] = useState('todos');
   const [prodCat, setProdCat] = useState('');
   const [prodPage, setProdPage] = useState(1);
-  const [prodAberto, setProdAberto] = useState<string | null>(null);
   const [orderFilter, setOrderFilter] = useState('todos');
   const [orderList, setOrderList] = useState(orders || []);
   const [expSeller, setExpSeller] = useState<string | null>(null);
@@ -238,7 +236,7 @@ export default function AdminDashboard({ adminEmail, users, metrics, daily, orde
 
   return (
     <div className={`adm ${theme}`}>
-      <style>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         .adm{--bg:#0F0F1A;--panel:#181828;--panel2:#1E1E30;--bd:#22223A;--bd2:#26263A;--tx:#F4F4FA;--sub:#A9A9C2;--or:#FF7A14;--or2:#FF9A3C;--grad:linear-gradient(135deg,#FF6B00,#FF9A3C);min-height:100vh;background:var(--bg);color:var(--tx);font-family:'Nunito',sans-serif;display:flex;}
         .adm.light{--bg:#F7F4F0;--panel:#FFFFFF;--panel2:#F3EEE8;--bd:#EDE6DF;--bd2:#EDE6DF;--tx:#16162A;--sub:#5A5A72;}
         .adm.light .adm-stat,.adm.light .adm-card{box-shadow:0 1px 3px rgba(20,20,40,.05);}
@@ -305,7 +303,7 @@ export default function AdminDashboard({ adminEmail, users, metrics, daily, orde
           .adm-main{padding:18px 14px 50px;}
           .adm-h{font-size:24px;}
         }
-      `}</style>
+      ` }} />
 
       <aside className="adm-side">
         <div className="adm-logo">Comprei <span>Barato</span></div>
@@ -404,7 +402,6 @@ export default function AdminDashboard({ adminEmail, users, metrics, daily, orde
                         ))}
                       </div>
                     ) : <span style={{ display: 'block', marginTop: 6, fontSize: 11, color: 'var(--sub)' }}>Sem fotos</span>}
-                    <AlteracoesAnuncio r={p.alteracoes} />
                   </div>
                   <button className="adm-btn ap" disabled={busy === p.id} onClick={() => moderar(p.id, 'aprovar')}>Aprovar</button>
                   <button className="adm-btn rp" disabled={busy === p.id} onClick={() => moderar(p.id, 'reprovar')}>Reprovar</button>
@@ -451,7 +448,16 @@ export default function AdminDashboard({ adminEmail, users, metrics, daily, orde
           </>
         )}
 
-        {tab === 'vendedores' && (() => {
+        {tab === 'vendedores' && !usuariosClassico && (
+          <>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: -8 }}>
+              <button className="adm-btn rp" onClick={() => setUsuariosClassico(true)}>Lista clássica (financeiro por vendedor)</button>
+            </div>
+            <UsersPanel onVerReclamacoes={() => setTab('reclamacoes')} />
+          </>
+        )}
+
+        {tab === 'vendedores' && usuariosClassico && (() => {
           const Det = ({ l, v }: any) => (<div style={{ background: 'var(--soft)', borderRadius: 10, padding: '10px 12px' }}><div className="muted" style={{ fontSize: 11, fontWeight: 700 }}>{l}</div><div style={{ fontFamily: 'Outfit', fontWeight: 800, marginTop: 2 }}>{v}</div></div>);
           const roleLabel = (r: string) => r === 'admin' ? 'Admin' : r === 'vendedor' ? 'Vendedor' : r === 'ambos' ? 'Cliente + Vendedor' : 'Cliente';
           const badge = (txt: string, bg: string, col: string) => (<span style={{ fontSize: 10, fontWeight: 800, fontFamily: 'Outfit', background: bg, color: col, borderRadius: 50, padding: '2px 9px' }}>{txt}</span>);
@@ -465,8 +471,11 @@ export default function AdminDashboard({ adminEmail, users, metrics, daily, orde
           });
           return (
           <>
-            <h1 className="adm-h">Usuários</h1>
-            <p className="adm-sub">Todos os usuários da plataforma (clientes e vendedores). Clique para ver detalhes e ações.</p>
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button className="adm-btn rp" onClick={() => setUsuariosClassico(false)}>‹ Voltar ao painel de inteligência</button>
+            </div>
+            <h1 className="adm-h">Usuários · lista clássica</h1>
+            <p className="adm-sub">Visão anterior, com faturamento por vendedor. Atenção: valores de vendas dependem do status do pedido, que ainda não comprova pagamento (K2).</p>
             <input
               value={userQuery} onChange={(e) => setUserQuery(e.target.value)}
               placeholder="Buscar por e-mail, nome ou ID…"
@@ -574,11 +583,10 @@ export default function AdminDashboard({ adminEmail, users, metrics, daily, orde
             <div className="adm-card" style={{ overflowX: 'auto' }}>
               {vis.length ? (
                 <table className="adm-table">
-                  <thead><tr><th>Produto</th><th>Vendedor</th><th>Categoria</th><th>Preço</th><th>Vendas</th><th>Cadastro</th><th>Status</th><th></th></tr></thead>
+                  <thead><tr><th>Produto</th><th>Vendedor</th><th>Categoria</th><th>Preço</th><th>Vendas</th><th>Cadastro</th><th>Status</th></tr></thead>
                   <tbody>
                     {vis.map((p: any) => (
-                      <Fragment key={p.id}>
-                      <tr>
+                      <tr key={p.id}>
                         <td><ProductThumb capa_url={p?.capa_url} categoria={p?.categoria} titulo={p?.titulo} tamanho={28} raio={7} icone={18} style={{ marginRight: 6 }} /> {p.titulo}</td>
                         <td style={{ color: 'var(--sub)' }}>{p.stores?.nome ?? '—'}</td>
                         <td style={{ color: 'var(--sub)' }}>{p.categoria ?? '—'}</td>
@@ -586,15 +594,7 @@ export default function AdminDashboard({ adminEmail, users, metrics, daily, orde
                         <td>{fmt(p.vendas)}</td>
                         <td style={{ color: 'var(--sub)', whiteSpace: 'nowrap' }}>{p.created_at ? new Date(p.created_at).toLocaleDateString('pt-BR') : '—'}</td>
                         <td><Pill s={p.status} /></td>
-                        <td><button type="button" className="adm-btn rp" style={{ whiteSpace: 'nowrap' }} aria-expanded={prodAberto === p.id}
-                          onClick={() => setProdAberto(prodAberto === p.id ? null : p.id)}>{prodAberto === p.id ? 'Fechar' : 'Gerenciar'}</button></td>
                       </tr>
-                      {prodAberto === p.id && (
-                        <tr><td colSpan={8} style={{ padding: '4px 8px 16px' }}>
-                          <ProdutoGerenciar id={p.id} onLoja={(storeId, oculto) => setUserList((l) => l.map((x) => x.seller?.id === storeId ? { ...x, seller: { ...x.seller, ocultarVendedor: oculto } } : x))} />
-                        </td></tr>
-                      )}
-                      </Fragment>
                     ))}
                   </tbody>
                 </table>
@@ -682,8 +682,9 @@ export default function AdminDashboard({ adminEmail, users, metrics, daily, orde
 
         {tab === 'crescimento' && (
           <>
-            <h1 className="adm-h">Crescimento</h1>
-            <p className="adm-sub">Quem mais vende e o que mais vende na plataforma.</p>
+            <GrowthPanel />
+            <h2 className="adm-ct" style={{ marginTop: 26 }}>Ranking de vendas</h2>
+            <p className="adm-sub" style={{ marginBottom: 14 }}>Baseado no status dos pedidos, que ainda não comprova pagamento (K2). Use como referência, não como número financeiro.</p>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(320px,1fr))', gap: 18 }}>
               <div className="adm-card">
                 <h3 style={{ fontFamily: 'Outfit', fontWeight: 800, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}><Icon name="store" size={18} /> Top vendedores (faturamento)</h3>
@@ -768,11 +769,10 @@ export default function AdminDashboard({ adminEmail, users, metrics, daily, orde
         {tab === 'torpedos' && (
           <>
             <h1 className="adm-h">Torpedos enviados</h1>
-            <p className="adm-sub">Avisos automáticos para o vendedor quando ele demora a responder o cliente no chat. Configure o tempo e os canais (e-mail/SMS/WhatsApp).</p>
+            <p className="adm-sub">Avisos automáticos para o vendedor quando ele demora a responder o cliente no chat. Configure o tempo e os canais (e-mail/SMS).</p>
             <div style={{ marginBottom: 22 }}>
               <TorpedosForm settings={settings} />
             </div>
-            <WhatsAppPainel />
             <h2 style={{ fontFamily: 'Outfit', fontWeight: 800, fontSize: 16, margin: '8px 0 12px' }}>Histórico de envios</h2>
             {(!alerts || alerts.length === 0) ? (
               <div className="adm-card"><p style={{ color: 'var(--sub)', textAlign: 'center', padding: 18 }}>Nenhum aviso enviado ainda.</p></div>
@@ -797,8 +797,6 @@ export default function AdminDashboard({ adminEmail, users, metrics, daily, orde
             )}
           </>
         )}
-
-        {tab === 'torpedos' && <WhatsAppLog />}
 
         {tab === 'promocoes' && (
           <>

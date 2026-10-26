@@ -1,12 +1,12 @@
 import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import AdminDashboard from './AdminDashboard';
-import { resumirAlteracoes } from '@/lib/edicoes';
 import { getSettings } from '@/lib/settings';
 import { stripeEnabledSetting, stripeEnvStatus } from '@/lib/payments/stripe';
 import { getPaymentConfigPublic } from '@/lib/payments/config';
 import { galeriaDe } from '@/lib/galeria';
 import { numerosReais, vendasRecentes } from '@/lib/provaSocial';
+import { adminSeguro } from '@/lib/ofertas/adminSeguro';
 
 export const dynamic = 'force-dynamic';
 
@@ -28,9 +28,12 @@ export default async function AdminPage() {
   // para reclamações/torpedos, que dependem de RLS e não apareciam com o client comum.
   const admin = createAdminClient();
 
+  // V3 (C1): e-mails e outros dados pessoais só para admins também listados em ADMIN_USER_IDS.
+  const reforcado = (await adminSeguro()).ok;
+
   // Mapa id->email (usado para "quem atendeu" a reclamação e para a lista de admins)
   let emailById: Record<string, string> = {};
-  try {
+  if (reforcado) try {
     const { data: usersList } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
     emailById = Object.fromEntries(((usersList?.users) ?? []).map((u: any) => [u.id, u.email ?? '—']));
   } catch { emailById = {}; }
@@ -72,20 +75,6 @@ export default async function AdminPage() {
       products.forEach((p) => { if (fotosPor[p.id]) p.imagens = fotosPor[p.id]; });
     }
   } catch { /* sem fotos: a fila continua funcionando */ }
-  // O que mudou em cada anúncio da fila (SQL 09). Sem a tabela: alteracoes = null e a fila segue igual.
-  try {
-    const filaIds = products.filter((p) => p.status === 'em_revisao').map((p) => p.id);
-    if (filaIds.length) {
-      const { data: eds, error: edErr } = await admin.from('product_edicoes')
-        .select('product_id, tipo, alteracoes, created_at').in('product_id', filaIds).is('revisado_em', null)
-        .order('created_at', { ascending: true }).limit(2000);
-      if (!edErr) {
-        const por: Record<string, any[]> = {};
-        ((eds ?? []) as any[]).forEach((e) => { (por[e.product_id] ||= []).push(e); });
-        products.forEach((p) => { if (p.status === 'em_revisao') p.alteracoes = resumirAlteracoes(por[p.id] ?? []); });
-      }
-    }
-  } catch { /* sem SQL 09 */ }
   const stores = (storesRes.data ?? []) as any[];
   const payouts = (payoutsRes.data ?? []) as any[];
   const boosts = (boostsRes.data ?? []) as any[];
@@ -123,7 +112,7 @@ export default async function AdminPage() {
     const { data: detOrders } = await admin.from('orders')
       .select('id, total, comprador_email, products(titulo, emoji, categoria, capa_url), stores(nome)')
       .in('id', detalheOrderIds);
-    const omap: Record<string, any> = Object.fromEntries(((detOrders ?? []) as any[]).map((o) => [o.id, o]));
+    const omap: Record<string, any> = Object.fromEntries(((detOrders ?? []) as any[]).map((o) => [o.id, reforcado ? o : { ...o, comprador_email: null }]));
     complaints.forEach((c: any) => { c.orders = omap[c.order_id] || {}; });
     alerts.forEach((a: any) => { a.orders = omap[a.order_id] || {}; });
   }
@@ -187,7 +176,8 @@ export default async function AdminPage() {
     (a, b) => new Date(b?.created_at || 0).getTime() - new Date(a?.created_at || 0).getTime()
   );
 
-  const users = (profilesAll).map((p: any) => ({
+  // V3 (C1): a lista clássica com e-mails só é montada para admins da lista ADMIN_USER_IDS.
+  const users = (reforcado ? profilesAll : []).map((p: any) => ({
     id: p.id,
     email: emailById[p.id] || '—',
     nome: p.nome || (emailById[p.id] && emailById[p.id] !== '—' ? String(emailById[p.id]).split('@')[0] : 'Usuário'),
