@@ -26,7 +26,8 @@ export async function POST(req: Request) {
     .order('created_at', { ascending: false }).limit(1).maybeSingle();
   if (existing && (existing as any).pix_code) return NextResponse.json({ boostId: existing.id });
 
-  const { data: boost, error } = await supabase.from('boosts').insert({
+  // Gravado pelo servidor, com dias e valor do plano das Configurações (o lojista não cria destaque direto, SQL 13)
+  const { data: boost, error } = await createAdminClient().from('boosts').insert({
     store_id: store.id, product_id: productId, dias: plano.dias, valor: plano.valor, status: 'pendente',
   }).select().single();
   if (error || !boost) return NextResponse.json({ error: 'falha ao criar' }, { status: 500 });

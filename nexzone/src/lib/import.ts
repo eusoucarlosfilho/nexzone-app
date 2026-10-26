@@ -12,13 +12,45 @@ function ipBloqueado(ip: string): boolean {
     if (p[0] === 192 && p[1] === 168) return true; // 192.168.0.0/16
     if (p[0] === 172 && p[1] >= 16 && p[1] <= 31) return true; // 172.16-31
     if (p[0] === 100 && p[1] >= 64 && p[1] <= 127) return true; // CGNAT
+    if (p[0] === 198 && (p[1] === 18 || p[1] === 19)) return true; // testes de rede
+    if (p[0] >= 224) return true;                  // multicast / reservado / broadcast
     return false;
   }
-  const low = ip.toLowerCase();
-  if (low === '::1' || low === '::' ) return true;
-  if (low.startsWith('fe80') || low.startsWith('fc') || low.startsWith('fd')) return true; // local/ULA
-  if (low.startsWith('::ffff:')) return ipBloqueado(low.replace('::ffff:', ''));
+  if (!net.isIPv6(ip)) return true;                // formato estranho: bloqueia
+  const low = ip.toLowerCase().replace(/^\[|\]$/g, '');
+  if (low === '::1' || low === '::') return true;
+  if (low.startsWith('fe80') || low.startsWith('fc') || low.startsWith('fd') || low.startsWith('ff')) return true; // local/ULA/multicast
+  // IPv4 dentro do IPv6 (::ffff:1.2.3.4 ou ::ffff:7f00:1): checa o IPv4 de verdade
+  const mapeado = low.match(/^(?:0*:)*:?ffff:(.+)$/) || low.match(/^::(.+)$/);
+  if (mapeado) {
+    const resto = mapeado[1];
+    if (net.isIPv4(resto)) return ipBloqueado(resto);
+    const hex = resto.split(':');
+    if (hex.length === 2 && hex.every((h) => /^[0-9a-f]{1,4}$/.test(h))) {
+      const a = parseInt(hex[0], 16), b = parseInt(hex[1], 16);
+      return ipBloqueado(`${a >> 8}.${a & 255}.${b >> 8}.${b & 255}`);
+    }
+  }
+  if (low.startsWith('64:ff9b:')) return true;     // NAT64
   return false;
+}
+
+// Busca seguindo redirecionamentos MANUALMENTE: cada destino é validado de novo (anti-SSRF).
+async function fetchSeguro(url: URL, init: RequestInit, maxSaltos = 5): Promise<Response> {
+  let atual = url;
+  for (let i = 0; i <= maxSaltos; i++) {
+    const res = await fetch(atual.toString(), { ...init, redirect: 'manual' });
+    if (res.status >= 300 && res.status < 400 && res.headers.get('location')) {
+      let prox: URL;
+      try { prox = new URL(res.headers.get('location') as string, atual); } catch { throw new Error('redirecionamento inválido'); }
+      const seg = await urlSegura(prox.toString());
+      if (!seg.ok) throw new Error('redirecionamento para endereço não permitido');
+      atual = seg.url;
+      continue;
+    }
+    return res;
+  }
+  throw new Error('redirecionamentos demais');
 }
 
 async function urlSegura(raw: string): Promise<{ ok: true; url: URL } | { ok: false; error: string }> {
@@ -67,8 +99,8 @@ export async function fetchAndExtract(rawUrl: string): Promise<Extracao> {
   const timer = setTimeout(() => ctrl.abort(), 12000);
   let res: Response;
   try {
-    res = await fetch(seg.url.toString(), {
-      redirect: 'follow', signal: ctrl.signal,
+    res = await fetchSeguro(seg.url, {
+      signal: ctrl.signal,
       headers: { 'User-Agent': UA, 'Accept': 'text/html,application/xhtml+xml', 'Accept-Language': 'pt-BR,pt;q=0.9' },
     });
   } catch (e: any) {
@@ -174,7 +206,7 @@ export async function baixarImagemSegura(rawUrl: string): Promise<{ ok: true; by
   const timer = setTimeout(() => ctrl.abort(), 12000);
   let res: Response;
   try {
-    res = await fetch(seg.url.toString(), { redirect: 'follow', signal: ctrl.signal, headers: { 'User-Agent': UA, 'Accept': 'image/*' } });
+    res = await fetchSeguro(seg.url, { signal: ctrl.signal, headers: { 'User-Agent': UA, 'Accept': 'image/*' } });
   } catch { clearTimeout(timer); return { ok: false, error: 'Não consegui baixar a imagem.' }; }
   clearTimeout(timer);
   const ct = (res.headers.get('content-type') || '').toLowerCase();

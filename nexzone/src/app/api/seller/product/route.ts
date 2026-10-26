@@ -3,6 +3,7 @@ import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { validarImagens, galeriaDe } from '@/lib/galeria';
 import { lerEstoque } from '@/lib/estoque';
 import { mensagemPadraoDaLoja } from '@/lib/mensagemPadrao';
+import { arquivoPermitido } from '@/lib/arquivoEntrega';
 
 async function ownsProduct(supabase: any, userId: string, productId: string) {
   const { data } = await supabase
@@ -73,6 +74,11 @@ export async function PATCH(req: Request) {
     if (!body.titulo || !preco || preco <= 0) return NextResponse.json({ error: 'título e preço válidos são obrigatórios' }, { status: 400 });
     // Galeria: até 8 fotos do nosso bucket. Fotos que o produto já tinha (ex.: capa antiga) continuam aceitas.
     const { data: atual } = await supabase.from('products').select('id, imagens, capa_url').eq('id', id).maybeSingle();
+    // Arquivo de entrega: só um arquivo enviado por este vendedor (ou o que o produto já tinha)
+    const { data: arqAtual } = await createAdminClient().from('products').select('arquivo_path').eq('id', id).maybeSingle();
+    if (!arquivoPermitido(body.arquivo_path, user.id, (arqAtual as any)?.arquivo_path ?? null)) {
+      return NextResponse.json({ error: 'Arquivo de entrega inválido. Envie o arquivo pelo botão de upload.' }, { status: 400 });
+    }
     const gal = validarImagens(body.imagens, user.id, galeriaDe(atual as any));
     if (!gal.ok) return NextResponse.json({ error: gal.error }, { status: 400 });
     patch = {

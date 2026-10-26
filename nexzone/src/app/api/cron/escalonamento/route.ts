@@ -7,11 +7,10 @@ import { verificarEscalonamento } from '@/lib/escalonamento';
 // Também aceita ?key=<CRON_SECRET> para um cron externo.
 export async function GET(req: Request) {
   const secret = process.env.CRON_SECRET;
-  if (secret) {
-    const key = new URL(req.url).searchParams.get('key');
-    const auth = req.headers.get('authorization') || '';
-    if (key !== secret && auth !== `Bearer ${secret}`) return NextResponse.json({ error: 'sem permissão' }, { status: 401 });
-  }
+  if (!secret) return NextResponse.json({ error: 'CRON_SECRET não configurada na Vercel' }, { status: 503 });
+  const key = new URL(req.url).searchParams.get('key');
+  const auth = req.headers.get('authorization') || '';
+  if (key !== secret && auth !== `Bearer ${secret}`) return NextResponse.json({ error: 'sem permissão' }, { status: 401 });
   const admin = createAdminClient();
   const { data: orders } = await admin.from('orders')
     .select('id').in('status', ['pago', 'entregue']).is('vendedor_alerta_em', null).limit(500);

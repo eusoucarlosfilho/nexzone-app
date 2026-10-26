@@ -389,7 +389,8 @@ async function whatsSuporte(evento: string, t: any, link: string, paraAdmin = fa
     evento,
     chave: `${evento}:${t.id}:${paraAdmin ? 'admin' : 'cliente'}:${Date.now() - (Date.now() % 60000)}`,
     userId: paraAdmin ? null : t.user_id ?? null,
-    telefone: paraAdmin ? null : t.requester_phone ?? null,
+    // Visitante sem login: o número foi só digitado (pode ser de qualquer pessoa), então não recebe WhatsApp
+    telefone: paraAdmin || !t.user_id ? null : t.requester_phone ?? null,
     paraAdmin,
     vars: { nome: primeiroNome(t.requester_name), protocolo: t.protocol, assunto: String(t.subject || '').slice(0, 80), link },
   });

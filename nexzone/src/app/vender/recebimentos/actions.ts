@@ -1,5 +1,5 @@
 'use server';
-import { createClient } from '@/lib/supabase/server';
+import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { calcBalance } from '@/lib/balance';
 import { revalidatePath } from 'next/cache';
 import { contaStatus } from '@/lib/account';
@@ -33,12 +33,19 @@ export async function solicitarSaque() {
   if (!store.pix_key) return { ok: false, error: 'Cadastre sua chave Pix primeiro.' };
   const bal = await calcBalance(supabase, store.id);
   if (bal.disponivel <= 0) return { ok: false, error: 'Você não tem saldo disponível para saque.' };
-  await supabase.from('payouts').insert({
-    store_id: store.id, valor: bal.disponivel, status: 'solicitado',
+  // Gravado pelo servidor: o lojista não cria saque direto pelo banco (SQL 13).
+  // O banco aceita só 1 saque em aberto por loja, então dois cliques ao mesmo tempo não sacam em dobro.
+  const valor = Math.floor(bal.disponivel * 100) / 100;
+  const { error: eSaque } = await createAdminClient().from('payouts').insert({
+    store_id: store.id, valor, status: 'solicitado',
     pix_key: store.pix_key, pix_tipo: store.pix_tipo,
   });
+  if (eSaque) {
+    if ((eSaque as any).code === '23505') return { ok: false, error: 'Você já tem um saque em análise. Aguarde a conclusão para pedir outro.' };
+    return { ok: false, error: 'Não foi possível solicitar o saque. Tente de novo.' };
+  }
   // WhatsApp de confirmação (se ligado). Só aviso: não muda valor nem regra do saque; nunca lança erro.
-  await avisarSaque(null, store.id, 'saque_solicitado', bal.disponivel);
+  await avisarSaque(null, store.id, 'saque_solicitado', valor);
   revalidatePath('/vender/recebimentos');
   return { ok: true };
 }

@@ -1,6 +1,7 @@
 'use server';
 import { createClient } from '@/lib/supabase/server';
 import { lerEstoque } from '@/lib/estoque';
+import { arquivoPermitido } from '@/lib/arquivoEntrega';
 import { mensagemPadraoDaLoja } from '@/lib/mensagemPadrao';
 import { revalidatePath } from 'next/cache';
 import { contaStatus } from '@/lib/account';
@@ -49,6 +50,7 @@ export async function criarProduto(formData: FormData) {
     if (!gal.ok) return { ok: false, error: gal.error };
     const est = lerEstoque(formData.get('estoque'));
     if (!est.ok) return { ok: false, error: est.erro };
+    if (!arquivoPermitido(String(formData.get('arquivo_path') || ''), user.id)) return { ok: false, error: 'Arquivo de entrega inválido. Envie o arquivo pelo botão de upload.' };
     const { data: criado, error } = await supabase.from('products').insert({
       store_id: storeId, titulo, slug: slugify(titulo),
       descricao: String(formData.get('descricao') || ''),

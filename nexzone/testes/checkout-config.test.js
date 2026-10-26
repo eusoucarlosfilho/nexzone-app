@@ -114,4 +114,12 @@ t('download do extra: posição certa, nunca fora da lista', () => {
   assert.strictEqual(e.arquivoDoExtra(o, -5), 'a'); assert.strictEqual(e.arquivoDoExtra({ bumps: [], bump_arquivo_path: 'v' }, 0), 'v');
   assert.strictEqual(e.arquivoDoExtra({ bumps: [], bump_arquivo_path: 'v' }, 1), null);
 });
+const ae = require('./.build/arquivoEntrega.js');
+t('arquivo de entrega: só da pasta do vendedor ou o que já era do produto', () => {
+  assert.strictEqual(ae.arquivoPermitido('', 'u1'), true);
+  assert.strictEqual(ae.arquivoPermitido('u1/abc-livro.pdf', 'u1'), true);
+  assert.strictEqual(ae.arquivoPermitido('u2/abc-livro.pdf', 'u1'), false);
+  assert.strictEqual(ae.arquivoPermitido('u1/../u2/x.pdf', 'u1'), false);
+  assert.strictEqual(ae.arquivoPermitido('antigo/x.pdf', 'u1', 'antigo/x.pdf'), true);
+});
 console.log(`\n${ok} passaram, ${fail} falharam`); process.exit(fail ? 1 : 0);
