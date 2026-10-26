@@ -1,5 +1,6 @@
 {
   "crons": [
-    { "path": "/api/cron/suporte", "schedule": "0 12 * * *" }
+    { "path": "/api/cron/suporte", "schedule": "0 12 * * *" },
+    { "path": "/api/cron/escalonamento", "schedule": "30 13 * * *" }
   ]
 }
