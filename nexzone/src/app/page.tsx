@@ -82,7 +82,8 @@ export default async function Home() {
       const preco = p.preco_promo ?? p.preco;
       return {
         key: 'p-' + p.id, href: `/produto/${p.id}`, titulo: p.titulo,
-        meta: [vendedorPublico(p.stores).nome, cat?.nome || p.categoria].filter(Boolean).join(' · '),
+        // loja não verificada chega sem dados (RLS) e vira "Loja": nesse caso mostra só a categoria
+        meta: [p.stores ? vendedorPublico(p.stores).nome : null, cat?.nome || p.categoria].filter((x) => x && x !== 'Loja').join(' · '),
         preco: real(preco), precoDe: p.preco_promo ? real(p.preco) : null,
         desconto: p.preco_promo && p.preco > 0 ? Math.round((1 - p.preco_promo / p.preco) * 100) : 0,
         img: p.capa_url || null, categoria: cat?.slug || p.categoria || null, externo: false,
