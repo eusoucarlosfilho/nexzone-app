@@ -74,6 +74,9 @@ export default async function AdminPage() {
       const { data: fotosRows } = await admin.from('products').select('*').in('id', filaIds);
       const fotosPor: Record<string, string[]> = Object.fromEntries(((fotosRows ?? []) as any[]).map((r) => [r.id, galeriaDe(r)]));
       products.forEach((p) => { if (fotosPor[p.id]) p.imagens = fotosPor[p.id]; });
+      // Correção pedida pela equipe (SQL 14): a fila mostra o checklist para conferir item por item
+      const modPor: Record<string, any> = Object.fromEntries(((fotosRows ?? []) as any[]).filter((r) => r.moderacao).map((r) => [r.id, { estado: r.moderacao, itens: r.moderacao_itens ?? [], texto: r.moderacao_texto ?? '', em: r.moderacao_em }]));
+      products.forEach((p) => { if (modPor[p.id]) p.moderacaoPendente = modPor[p.id]; });
     }
   } catch { /* sem fotos: a fila continua funcionando */ }
   // O que mudou em cada anúncio da fila (SQL 09). Sem a tabela: alteracoes = null e a fila segue igual.

@@ -18,6 +18,8 @@ import { ehJogos } from '@/lib/categorias';
 import Icon from '@/components/Icon';
 import ProductThumb from '@/components/ProductThumb';
 import ProdutoGerenciar from './ProdutoGerenciar';
+import { FormMotivo } from './ModeracaoAnuncio';
+import { rotuloItem } from '@/lib/moderacao';
 import AlteracoesAnuncio from './AlteracoesAnuncio';
 
 const money = (v: number) => 'R$ ' + Number(v).toFixed(2).replace('.', ',');
@@ -184,6 +186,29 @@ export default function AdminDashboard({ adminEmail, users, metrics, daily, orde
         setAllProducts((ps: any[]) => ps.map((p) => p.id === id ? { ...p, status: d.status } : p));
       }
     } finally { setBusy(null); }
+  }
+
+  // Fila: "Pedir correção" com checklist (SQL 14). Sem o SQL 14, cai no "Reprovar" antigo.
+  const [corrigindo, setCorrigindo] = useState<string | null>(null);
+  async function pedirCorrecao(id: string, itens: string[], texto: string) {
+    setBusy(id);
+    try {
+      const r = await fetch('/api/admin/moderacao', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+        body: JSON.stringify({ id, acao: 'correcao', itens, texto }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (r.ok) {
+        setQueue((q: any[]) => q.filter((p) => p.id !== id));
+        setAllProducts((ps: any[]) => ps.map((p) => p.id === id ? { ...p, status: d.status } : p));
+        setCorrigindo(null);
+        toast('Correção pedida. O vendedor foi avisado.', 'success');
+      } else if (/SQL 14/.test(String(d.error || ''))) {
+        setBusy(null); await moderar(id, 'reprovar'); setCorrigindo(null);
+        toast('Reprovado. Rode o SQL 14 para enviar a lista do que corrigir.', 'error');
+      } else toast(d.error || 'Falha ao pedir correção.', 'error');
+    } catch { toast('Falha de conexão.', 'error'); }
+    finally { setBusy(null); }
   }
 
   async function moderarSaque(id: string, action: 'pagar' | 'recusar') {
@@ -407,10 +432,20 @@ export default function AdminDashboard({ adminEmail, users, metrics, daily, orde
                         ))}
                       </div>
                     ) : <span style={{ display: 'block', marginTop: 6, fontSize: 11, color: 'var(--sub)' }}>Sem fotos</span>}
+                    {p.moderacaoPendente?.estado === 'correcao' && (
+                      <div style={{ marginTop: 10, border: '1px solid #FFB020', borderRadius: 12, padding: '10px 12px', fontSize: 13 }}>
+                        <b style={{ color: '#FFB020' }}>Correção que você pediu</b> — confira se o vendedor resolveu:
+                        <ul style={{ margin: '6px 0 0', paddingLeft: 18 }}>{(p.moderacaoPendente.itens || []).map((i: string) => <li key={i}>{rotuloItem(i)}</li>)}</ul>
+                        {p.moderacaoPendente.texto && <div style={{ marginTop: 4, color: 'var(--sub)', whiteSpace: 'pre-wrap' }}>“{p.moderacaoPendente.texto}”</div>}
+                      </div>
+                    )}
                     <AlteracoesAnuncio r={p.alteracoes} />
+                    {corrigindo === p.id && (
+                      <FormMotivo acao="correcao" busy={busy === p.id} onCancelar={() => setCorrigindo(null)} onEnviar={(itens, texto) => pedirCorrecao(p.id, itens, texto)} />
+                    )}
                   </div>
                   <button className="adm-btn ap" disabled={busy === p.id} onClick={() => moderar(p.id, 'aprovar')}>Aprovar</button>
-                  <button className="adm-btn rp" disabled={busy === p.id} onClick={() => moderar(p.id, 'reprovar')}>Reprovar</button>
+                  <button className="adm-btn rp" disabled={busy === p.id} onClick={() => setCorrigindo(corrigindo === p.id ? null : p.id)}>Pedir correção</button>
                 </div>
               )) : <div className="adm-empty" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}><Icon name="checkCircle" size={18} /> Fila zerada. Nenhum produto aguardando.</div>}
             </div>
@@ -606,7 +641,9 @@ export default function AdminDashboard({ adminEmail, users, metrics, daily, orde
                       </tr>
                       {prodAberto === p.id && (
                         <tr><td colSpan={8} style={{ padding: '4px 8px 16px' }}>
-                          <ProdutoGerenciar id={p.id} onLoja={(storeId, oculto) => setUserList((l) => l.map((x) => x.seller?.id === storeId ? { ...x, seller: { ...x.seller, ocultarVendedor: oculto } } : x))} />
+                          <ProdutoGerenciar id={p.id}
+                            onStatus={(st) => { setAllProducts((ps: any[]) => ps.map((x) => x.id === p.id ? { ...x, status: st } : x)); if (st !== 'em_revisao') setQueue((q: any[]) => q.filter((x) => x.id !== p.id)); }}
+                            onLoja={(storeId, oculto) => setUserList((l) => l.map((x) => x.seller?.id === storeId ? { ...x, seller: { ...x.seller, ocultarVendedor: oculto } } : x))} />
                         </td></tr>
                       )}
                       </Fragment>

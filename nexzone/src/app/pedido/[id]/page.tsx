@@ -5,6 +5,8 @@ import OrderView from './OrderView';
 import ConviteWhatsApp from './ConviteWhatsApp';
 import { stripeAvailable } from '@/lib/payments/stripe';
 import { extrasDoPedido } from '@/lib/extrasPedido';
+import { normalizarCheckout } from '@/lib/checkoutConfig';
+import { temPixel } from '@/lib/rastreioVenda';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,6 +27,12 @@ export default async function PedidoPage({ params, searchParams }: { params: { i
   // (só o sim/não vai para a página; o botão de baixar só aparece depois do pagamento)
   const { data: arq } = await createAdminClient().from('products').select('arquivo_path').eq('id', (order as any).product_id).maybeSingle();
   const temArquivo = !!(arq as any)?.arquivo_path;
+  // Sprint 1: pixels e página de obrigado do vendedor (lidos do checkout do produto) e senha de quem comprou sem cadastro
+  const { data: cfgRow } = await createAdminClient().from('products').select('checkout_config').eq('id', (order as any).product_id).maybeSingle();
+  const rCfg = normalizarCheckout((cfgRow as any)?.checkout_config).rastreio;
+  const rastreio = temPixel(rCfg) || rCfg.obrigadoUrl ? rCfg : null;
+  const md: any = user.user_metadata || {};
+  const senhaPendente = md.criado_no_checkout === true && md.senha_definida !== true;
   const cartaoDisponivel = order.status === 'pendente' ? await stripeAvailable() : false;
   // Convite de WhatsApp: só se a coluna existir (SQL aplicado) e o comprador ainda não tiver número
   const { data: wp, error: wpErro } = await supabase.from('profiles').select('whatsapp').eq('id', user.id).maybeSingle();
@@ -50,6 +58,9 @@ export default async function PedidoPage({ params, searchParams }: { params: { i
           reclamacaoAberta={!!cmp}
           cartaoDisponivel={cartaoDisponivel}
           voltouDoCartao={searchParams?.cartao === 'ok'}
+          produtoId={(order as any).product_id}
+          rastreio={rastreio}
+          senhaPendente={senhaPendente}
         />
         {mostrarConvite && <ConviteWhatsApp orderId={order.id} aviso={searchParams?.whats} />}
         {searchParams?.whats === 'ok' && <p className="muted" role="status" style={{ marginTop: 12, fontSize: 14 }}>Pronto! Você vai receber os avisos no WhatsApp.</p>}

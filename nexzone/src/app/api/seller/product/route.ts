@@ -51,6 +51,15 @@ export async function PATCH(req: Request) {
 
   const action = body.action;
 
+  // Moderação (SQL 14): anúncio pausado/cancelado pela equipe fica travado para o vendedor
+  if (action !== 'estoque') {
+    const { data: mod, error: modErr } = await supabase.from('products').select('moderacao').eq('id', id).maybeSingle();
+    const m = !modErr ? (mod as any)?.moderacao : null;
+    if (m === 'pausado_admin' || m === 'cancelado') {
+      return NextResponse.json({ error: m === 'cancelado' ? 'Este anúncio foi cancelado pela equipe do Comprei Barato. Fale com o suporte.' : 'Este anúncio foi pausado pela equipe do Comprei Barato e só a equipe pode reativá-lo. Fale com o suporte.' }, { status: 403 });
+    }
+  }
+
   // Estoque: atualização direta, SEM voltar para revisão (só muda a quantidade).
   // Produto que estava "esgotado" (pausado pelo estoque) volta ao ar sozinho ao receber estoque (gatilho do SQL 07).
   if (action === 'estoque') {
@@ -123,6 +132,11 @@ export async function DELETE(req: Request) {
   const { id } = await req.json();
   if (!id || !(await ownsProduct(supabase, user.id, id))) {
     return NextResponse.json({ error: 'sem permissão' }, { status: 403 });
+  }
+  {
+    const { data: mod, error: modErr } = await supabase.from('products').select('moderacao').eq('id', id).maybeSingle();
+    const m = !modErr ? (mod as any)?.moderacao : null;
+    if (m === 'pausado_admin' || m === 'cancelado') return NextResponse.json({ error: 'Este anúncio está travado pela equipe do Comprei Barato e não pode ser excluído. Fale com o suporte.' }, { status: 403 });
   }
   // .select('id') devolve as linhas realmente apagadas: sem linha, a exclusão não aconteceu
   // (ex.: o banco não permite apagar este produto, ou ele tem pedidos vinculados).

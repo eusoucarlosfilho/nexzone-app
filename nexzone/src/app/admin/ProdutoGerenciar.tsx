@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { toast } from '@/lib/toast';
 import { avisoEstoque, lerEstoque, lerContador, lerNota } from '@/lib/estoque';
 import DestaqueProduto from './DestaqueProduto';
+import ModeracaoAnuncio from './ModeracaoAnuncio';
 
 type Dados = {
   id: string; titulo: string; status: string; vendas: number; pedidosPagos: number | null;
@@ -15,7 +16,7 @@ type Dados = {
 // Admin → Produtos → Gerenciar (um produto de qualquer vendedor).
 // Vendas, avaliações e estrelas: automáticas OU digitadas pelo admin (modo manual, SQL 08),
 // com os números automáticos ao lado como referência. Também: exibição, estoque e nome do vendedor.
-export default function ProdutoGerenciar({ id, onLoja }: { id: string; onLoja?: (storeId: string, oculto: boolean) => void }) {
+export default function ProdutoGerenciar({ id, onLoja, onStatus }: { id: string; onLoja?: (storeId: string, oculto: boolean) => void; onStatus?: (status: string) => void }) {
   const [d, setD] = useState<Dados | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -117,6 +118,8 @@ export default function ProdutoGerenciar({ id, onLoja }: { id: string; onLoja?: 
         .pg-auto{font-size:13px;color:var(--sub);border-left:2px dashed var(--bd2);padding-left:10px;}
         @media(max-width:560px){.pg-man-h,.pg-man-r{grid-template-columns:80px 1fr;}.pg-man-h span:last-child{display:none}.pg-auto{grid-column:2}}
       ` }} />
+
+      <ModeracaoAnuncio id={id} onStatus={onStatus} />
 
       <DestaqueProduto id={id} />
 

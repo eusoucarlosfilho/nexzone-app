@@ -4,13 +4,17 @@ import { awardPoints } from '@/lib/points';
 import { getGateway } from '@/lib/payments/gateway';
 import { getSettings } from '@/lib/settings';
 import { listaDeBumps } from '@/lib/checkoutConfig';
+import { limparOrigem, limparCliques } from '@/lib/rastreioVenda';
 
 export async function POST(req: Request) {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'não autenticado' }, { status: 401 });
 
-  const { productId, cupom, bump, bumps: bumpsPedidos, cpf, usarPontos } = await req.json();
+  const { productId, cupom, bump, bumps: bumpsPedidos, cpf, usarPontos, origem: origemBruta, cliques: cliquesBrutos } = await req.json();
+  // Sprint 1: de onde veio a venda (UTM) e identificadores de clique dos anúncios. Só leitura/registro.
+  const origem = limparOrigem(origemBruta);
+  const cliques = limparCliques(cliquesBrutos);
   const { data: product } = await supabase
     .from('products')
     // Colunas explícitas: conteúdo de entrega e arquivo nunca são lidos com a chave do usuário (SQL 12)
@@ -99,11 +103,24 @@ export async function POST(req: Request) {
 
   // O pedido é gravado pelo servidor (service_role): pedidos criados direto pela API do banco
   // nascem travados como "pendente" e sem entrega (SQL 11).
-  const { data: order, error } = await createAdminClient().from('orders').insert({
+  const linhaPedido: any = {
     comprador: user.id, comprador_email: user.email ?? null, product_id: product.id, store_id: product.store_id,
     total, taxa, valor_vendedor: valorVendedor, status: 'pendente', cupom: cupomCodigo, desconto, ...bumpFields,
-  }).select().single();
+  };
+  const adminIns = createAdminClient();
+  let { data: order, error } = await adminIns.from('orders').insert(origem ? { ...linhaPedido, origem } : linhaPedido).select().single();
+  // Sem o SQL 15 (coluna origem): grava o pedido igual a antes, sem a origem
+  if (error && origem && /origem/i.test(error.message || '')) {
+    ({ data: order, error } = await adminIns.from('orders').insert(linhaPedido).select().single());
+  }
   if (error || !order) return NextResponse.json({ error: 'falha ao criar pedido' }, { status: 500 });
+
+  // Rastreio privado para a API de Conversões (Sprint 2). Nunca trava a compra.
+  try {
+    const ip = (req.headers.get('x-forwarded-for') || '').split(',')[0].trim().slice(0, 64) || null;
+    const ua = (req.headers.get('user-agent') || '').slice(0, 400) || null;
+    await adminIns.from('order_rastreio').insert({ order_id: order.id, cliques, ip, user_agent: ua });
+  } catch { /* sem SQL 15 */ }
 
   const { data: me } = await supabase.from('profiles').select('nome').eq('id', user.id).maybeSingle();
   const gw = await getGateway();

@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import VendasClient from './VendasClient';
+import VendasPorOrigem from './VendasPorOrigem';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,5 +21,16 @@ export default async function VendasPage() {
     .in('status', ['pago', 'entregue', 'reembolsado'])
     .order('created_at', { ascending: false });
 
-  return <VendasClient vendas={vendas ?? []} />;
+  // Origem das vendas (SQL 15). Sem o SQL 15: o relatório mostra tudo como "Direto / sem rastreio".
+  const { data: origens, error: oErr } = await supabase.from('orders')
+    .select('id, origem').eq('store_id', store.id).in('status', ['pago', 'entregue']).limit(5000);
+  const mapa: Record<string, any> = oErr ? {} : Object.fromEntries(((origens ?? []) as any[]).map((o) => [o.id, o.origem]));
+  const comOrigem = ((vendas ?? []) as any[]).map((v) => ({ total: Number(v.total), status: v.status, origem: mapa[v.id] ?? null }));
+
+  return (
+    <>
+      <VendasClient vendas={vendas ?? []} />
+      <VendasPorOrigem vendas={comOrigem} />
+    </>
+  );
 }

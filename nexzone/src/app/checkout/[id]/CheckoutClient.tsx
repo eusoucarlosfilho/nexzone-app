@@ -1,5 +1,8 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import IdentificacaoComprador, { type DadosComprador } from './IdentificacaoComprador';
+import { usePixels, dispararPixel, coletarOrigem, coletarCliques } from '@/components/PixelsVenda';
+import type { RastreioProduto } from '@/lib/rastreioVenda';
 import BumpOferta from '@/components/BumpOferta';
 import { useRouter } from 'next/navigation';
 import { toast } from '@/lib/toast';
@@ -56,7 +59,23 @@ function Step({ n, label, active, done }: { n: number; label: string; active?: b
   );
 }
 
-export default function CheckoutClient({ productId, titulo, emoji, categoria, capa_url, loja, preco, cor, bumps = [], aceitaCupom, meusPontos = 0, perBrl = 100, cartaoDisponivel = false }: any) {
+export default function CheckoutClient({ productId, titulo, emoji, categoria, capa_url, loja, preco, cor, bumps = [], aceitaCupom, meusPontos = 0, perBrl = 100, cartaoDisponivel = false, convidado: convidadoInicial = false, emailLogado = null, rastreio = null }: any) {
+  // Checkout sem login (Sprint 1): quem não está logado preenche nome, e-mail e WhatsApp aqui mesmo
+  const [convidado, setConvidado] = useState<boolean>(!!convidadoInicial);
+  const [modoId, setModoId] = useState<'form' | 'existe'>('form');
+  const [dados, setDados] = useState<DadosComprador>({ nome: '', email: '', whatsapp: '', avisosWhatsapp: true, site: '' });
+  const [errosId, setErrosId] = useState<Partial<Record<'nome' | 'email' | 'whatsapp', string>>>({});
+  // Pixels do vendedor (Meta/TikTok/Google): carrega e marca o início do checkout
+  usePixels(rastreio as RastreioProduto | null);
+  useEffect(() => {
+    if (!rastreio) return;
+    const t = setTimeout(() => dispararPixel(rastreio, 'InitiateCheckout', { valor: Number(preco), produtoId: productId, titulo }), 400);
+    return () => clearTimeout(t);
+  }, [rastreio, preco, productId, titulo]);
+  useEffect(() => {
+    // pré-preenche o e-mail se veio no link (?email=)
+    try { const e = new URLSearchParams(window.location.search).get('email'); if (e && convidadoInicial) setDados((d) => ({ ...d, email: e.slice(0, 160) })); } catch {}
+  }, [convidadoInicial]);
   const router = useRouter();
   const [cupom, setCupom] = useState('');
   const [aplicado, setAplicado] = useState<{ codigo: string; desconto: number; final: number } | null>(null);
@@ -97,12 +116,37 @@ export default function CheckoutClient({ productId, titulo, emoji, categoria, ca
     else { setAplicado(null); toast(d.error || 'Cupom inválido', 'error'); }
   }
 
+  // Identifica o comprador sem login. Devolve true quando pode seguir para o pagamento.
+  async function identificar(): Promise<boolean> {
+    const e: typeof errosId = {};
+    if (!/\S+\s+\S+/.test(dados.nome.trim())) e.nome = 'Informe nome e sobrenome.';
+    if (!/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(dados.email.trim())) e.email = 'Informe um e-mail válido.';
+    if (dados.whatsapp.replace(/\D/g, '').length < 10) e.whatsapp = 'Informe o WhatsApp com DDD.';
+    setErrosId(e);
+    if (Object.keys(e).length) { setErro('Preencha seus dados para continuar.'); return false; }
+    const r = await fetch('/api/checkout/identificar', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify(dados),
+    });
+    const d = await r.json().catch(() => ({}));
+    if (r.ok && d.ok) { setConvidado(false); return true; }
+    if (r.ok && d.existe) { setModoId('existe'); setErro(''); return false; }
+    if (d.campo) setErrosId({ [d.campo]: d.error });
+    setErro(d.error || 'Não foi possível continuar. Tente de novo.');
+    return false;
+  }
+
   async function pagar() {
     setErro('');
     setGerando(true);
+    if (convidado) {
+      if (modoId === 'existe') { setGerando(false); setErro('Entre na sua conta (acima) para continuar.'); return; }
+      const ok = await identificar().catch(() => false);
+      if (!ok) { setGerando(false); return; }
+    }
+    dispararPixel(rastreio, 'AddPaymentInfo', { valor: total, produtoId: productId, titulo });
     const res = await fetch('/api/checkout', {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
-      body: JSON.stringify({ productId, cupom: aplicado?.codigo || null, bumps: bumpsMarcados.map((b) => b.id), usarPontos }),
+      body: JSON.stringify({ productId, cupom: aplicado?.codigo || null, bumps: bumpsMarcados.map((b) => b.id), usarPontos, origem: coletarOrigem(), cliques: coletarCliques() }),
     });
     if (res.status === 401) { router.push('/login?next=' + encodeURIComponent(window.location.pathname)); return; }
     const data = await res.json();
@@ -160,6 +204,15 @@ export default function CheckoutClient({ productId, titulo, emoji, categoria, ca
         </div>
         <strong style={{ fontFamily: 'Outfit' }}>{money(preco)}</strong>
       </div>
+
+      {convidado ? (
+        <IdentificacaoComprador dados={dados} onDados={setDados} modo={modoId} productId={productId} erros={errosId} accent={accent} onTrocarEmail={() => { setModoId('form'); setErro(''); }}
+          onLogado={() => { setConvidado(false); setErro(''); toast('Pronto! Agora é só pagar.', 'success'); }} />
+      ) : emailLogado ? (
+        <div className="muted" style={{ fontSize: 12.5, padding: '10px 0', borderBottom: '1px solid var(--border)' }}>
+          Comprando como <b style={{ color: 'var(--text)' }}>{emailLogado}</b>
+        </div>
+      ) : null}
 
       {aceitaCupom && (
         <div style={{ padding: '16px 0', borderBottom: '1px solid var(--border)' }}>

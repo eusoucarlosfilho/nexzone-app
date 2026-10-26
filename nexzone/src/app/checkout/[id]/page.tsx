@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
-import { redirect, notFound } from 'next/navigation';
+import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import CheckoutClient from './CheckoutClient';
 import CheckoutBlocos from '@/components/CheckoutBlocos';
@@ -9,13 +9,14 @@ import { getSettings } from '@/lib/settings';
 import Icon from '@/components/Icon';
 import { stripeAvailable } from '@/lib/payments/stripe';
 import { vendedorPublico } from '@/lib/vendedorPublico';
+import { temPixel } from '@/lib/rastreioVenda';
 
 export const dynamic = 'force-dynamic';
 
 export default async function CheckoutPage({ params }: { params: { id: string } }) {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect(`/login?next=/checkout/${params.id}`);
+  // Checkout SEM LOGIN (Sprint 1): quem não está logado preenche nome, e-mail e WhatsApp na própria tela.
 
   const { data } = await supabase.from('products')
     // Colunas explícitas: conteúdo de entrega e arquivo nunca são lidos com a chave do usuário (SQL 12)
@@ -50,8 +51,8 @@ export default async function CheckoutPage({ params }: { params: { id: string } 
   // CB Points desligado no admin: a opção "Usar meus CB Points" não aparece (meusPontos = 0)
   const { cb_points_per_brl: perBrl, cb_points_ativo: cbAtivo } = await getSettings();
   let meusPontos = 0;
-  if (cbAtivo) {
-    const { data: prof } = await supabase.from('profiles').select('cb_points').eq('id', user.id).maybeSingle();
+  if (cbAtivo && user) {
+    const { data: prof } = await supabase.from('profiles').select('cb_points').eq('id', user!.id).maybeSingle();
     meusPontos = Number((prof as any)?.cb_points ?? 0);
   }
   const cartaoDisponivel = await stripeAvailable();
@@ -88,6 +89,9 @@ export default async function CheckoutPage({ params }: { params: { id: string } 
               meusPontos={meusPontos}
               perBrl={perBrl}
               cartaoDisponivel={cartaoDisponivel}
+              convidado={!user}
+              emailLogado={user?.email ?? null}
+              rastreio={temPixel(cfg.rastreio) ? cfg.rastreio : null}
             />
           }
         />

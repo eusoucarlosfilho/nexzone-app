@@ -9,6 +9,7 @@
 // headline, subtitle, banner_url, badge_text, countdown_until) são convertidas automaticamente.
 // ============================================================
 import { MSG_MAX } from './textoFormatado';
+import { normalizarRastreio, validarRastreio, RASTREIO_VAZIO, type RastreioProduto } from './rastreioVenda';
 
 export type TipoBloco = 'imagem' | 'titulo' | 'texto' | 'contador' | 'pagamento' | 'recebe' | 'garantia' | 'selos' | 'depoimentos';
 
@@ -32,6 +33,7 @@ export type CheckoutConfig = {
   blocos: Bloco[];
   bumps: BumpVisual[];
   depoimentosConfirmados: boolean;
+  rastreio: RastreioProduto; // pixels e página de obrigado (Sprint 1)
 };
 
 export const LIMITES = { blocos: 20, textos: 5, imagens: 3, depoimentos: 6, titulo: 120, subtitulo: 300, selo: 40, nome: 60, depoimento: 600, chamada: 120, bumpTexto: 400, bumps: 4 };
@@ -70,7 +72,7 @@ export function blocoPadrao(tipo: TipoBloco): Bloco {
 export function configPadrao(): CheckoutConfig {
   return {
     versao: 2, cor: null, depoimentosConfirmados: false,
-    bumps: [],
+    bumps: [], rastreio: { ...RASTREIO_VAZIO },
     blocos: [blocoPadrao('titulo'), blocoPadrao('pagamento'), blocoPadrao('recebe'), blocoPadrao('garantia'), blocoPadrao('selos')]
       .map((b, i) => ({ ...b, id: `${b.tipo}-${i}` })),
   };
@@ -93,7 +95,7 @@ export function normalizarCheckout(raw: any, urlOk: (u: string) => boolean = url
     blocos.push({ id: 'titulo-0', tipo: 'titulo', ativo: true, titulo: linha(raw.headline, LIMITES.titulo) || 'Finalizar compra', subtitulo: txt(raw.subtitle, LIMITES.subtitulo), selo: linha(raw.badge_text, LIMITES.selo) });
     if (dataValida(raw.countdown_until)) blocos.push({ id: 'contador-0', tipo: 'contador', ativo: true, ate: new Date(raw.countdown_until).toISOString() });
     blocos.push({ id: 'pagamento-0', tipo: 'pagamento', ativo: true }, { id: 'recebe-0', tipo: 'recebe', ativo: true }, { id: 'garantia-0', tipo: 'garantia', ativo: true }, { id: 'selos-0', tipo: 'selos', ativo: true });
-    return { ...base, cor: COR.test(raw.cor || '') ? raw.cor : null, blocos };
+    return { ...base, cor: COR.test(raw.cor || '') ? raw.cor : null, blocos, rastreio: normalizarRastreio(raw.rastreio) };
   }
 
   const vistos = new Set<string>();
@@ -143,6 +145,7 @@ export function normalizarCheckout(raw: any, urlOk: (u: string) => boolean = url
     blocos,
     depoimentosConfirmados: raw.depoimentosConfirmados === true,
     bumps: visuaisDosBumps(raw, img),
+    rastreio: normalizarRastreio(raw.rastreio),
   };
 }
 
@@ -172,6 +175,8 @@ export function validarCheckout(raw: any, urlOk: (u: string) => boolean): { ok: 
     if (v?.imagem && !urlOk(String(v.imagem))) return { ok: false, erro: 'Envie a imagem do order bump pelo botão "Escolher imagem".' };
   }
   if (raw.cor && !COR.test(String(raw.cor))) return { ok: false, erro: 'Cor inválida.' };
+  const erroRastreio = validarRastreio(raw.rastreio);
+  if (erroRastreio) return { ok: false, erro: erroRastreio };
   return { ok: true, config: normalizarCheckout(raw, urlOk) };
 }
 

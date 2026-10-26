@@ -11,6 +11,7 @@ import StatusBadge from '@/components/ui/StatusBadge';
 import EmptyState from '@/components/ui/EmptyState';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import EstoqueCampo from './EstoqueCampo';
+import { rotuloItem, orientacaoItem } from '@/lib/moderacao';
 
 const money = (v: number) => 'R$ ' + Number(v).toFixed(2).replace('.', ',');
 const data = (s?: string | null) => (s ? new Date(s).toLocaleDateString('pt-BR') : '—');
@@ -195,6 +196,7 @@ export default function ProductManager({ products, total, pagina, porPagina, sta
                 const emDestaque = destaqueAtivo(p);
                 const ativo = p.status === 'ativo';
                 const aberto = !!editar && editar.id === p.id && !!editar.produto;
+                const travado = p.moderacao === 'pausado_admin' || p.moderacao === 'cancelado';
                 return (
                   <li key={p.id} className={`pm-item ${aberto ? 'open' : ''}`}>
                     <div className="pm-row">
@@ -212,8 +214,8 @@ export default function ProductManager({ products, total, pagina, porPagina, sta
                             : <span className="ui-badge neutral">Sem destaque</span>}
                         </div>
                         {p.status === 'em_revisao' && <div className="ui-help">Aguardando a aprovação da equipe.</div>}
-                        {p.status === 'reprovado' && <div className="ui-help">Não aprovado. Edite o anúncio e salve para enviar de novo à revisão.</div>}
-                        {p.status === 'pausado' && (p.pausado_sem_estoque
+                        {p.status === 'reprovado' && !p.moderacao && <div className="ui-help">Não aprovado. Edite o anúncio e salve para enviar de novo à revisão.</div>}
+                        {p.status === 'pausado' && !travado && (p.pausado_sem_estoque
                           ? <div className="ui-help" style={{ color: 'var(--red)', fontWeight: 700 }}>Esgotado: saiu de venda quando o estoque zerou. Informe a nova quantidade abaixo e ele volta ao ar sozinho, sem revisão.</div>
                           : <div className="ui-help">Pausado: não aparece no site. Reative para enviar de novo à revisão.</div>)}
                       </div>
@@ -228,6 +230,24 @@ export default function ProductManager({ products, total, pagina, porPagina, sta
                       </div>
                     </div>
 
+                    {p.moderacao && (
+                      <div className={`pm-mod ${p.moderacao}`} role="status">
+                        <strong>
+                          {p.moderacao === 'correcao' ? (p.status === 'em_revisao' ? 'Correção enviada: aguardando a equipe conferir' : 'O que corrigir')
+                            : p.moderacao === 'pausado_admin' ? 'Pausado pela equipe do Comprei Barato' : 'Anúncio cancelado pela equipe do Comprei Barato'}
+                        </strong>
+                        {Array.isArray(p.moderacao_itens) && p.moderacao_itens.length > 0 && (
+                          <ul>{p.moderacao_itens.map((i: string) => <li key={i}><b>{rotuloItem(i)}</b>{p.moderacao === 'correcao' && orientacaoItem(i) ? ` — ${orientacaoItem(i)}` : ''}</li>)}</ul>
+                        )}
+                        {p.moderacao_texto && <p>“{p.moderacao_texto}”</p>}
+                        <small>
+                          {p.moderacao === 'correcao'
+                            ? (p.status === 'em_revisao' ? 'Você já reenviou. Se precisar, ainda pode ajustar e salvar de novo.' : 'Clique em Editar, faça os ajustes e salve: o anúncio volta para a revisão da equipe.')
+                            : 'Este anúncio está travado e não pode ser editado nem reativado. Fale com o suporte se tiver dúvidas.'}
+                        </small>
+                      </div>
+                    )}
+
                     {estoqueAtivo && (
                       <EstoqueCampo id={p.id} estoque={p.estoque ?? null}
                         onSalvo={(r) => setList((l) => l.map((x) => x.id === p.id ? { ...x, estoque: r.estoque, ...(r.status ? { status: r.status } : {}), pausado_sem_estoque: r.pausado_sem_estoque === true } : x))} />
@@ -237,11 +257,12 @@ export default function ProductManager({ products, total, pagina, porPagina, sta
                       {ativo
                         ? <Link href={`/produto/${p.id}`} className="btn btn-ghost btn-sm" target="_blank" rel="noopener"><Icon name="eye" size={16} /> Ver anúncio</Link>
                         : <span className="btn btn-ghost btn-sm pm-off" title="O anúncio só fica visível depois de aprovado">Ver anúncio</span>}
-                      <button type="button" className="btn btn-ghost btn-sm" disabled={busy === p.id || carregandoEdicao === p.id} aria-expanded={aberto}
+                      <button type="button" className="btn btn-ghost btn-sm" disabled={travado || busy === p.id || carregandoEdicao === p.id} aria-expanded={aberto}
+                        title={travado ? 'Anúncio travado pela equipe' : undefined}
                         onClick={() => aberto ? setEditar(null) : abrirEdicao(p.id, null)}>
                         <Icon name="edit" size={16} /> {carregandoEdicao === p.id ? 'Abrindo…' : aberto ? 'Fechar edição' : 'Editar'}
                       </button>
-                      <button type="button" className="btn btn-ghost btn-sm" disabled={busy === p.id || carregandoEdicao === p.id}
+                      <button type="button" className="btn btn-ghost btn-sm" disabled={travado || busy === p.id || carregandoEdicao === p.id}
                         onClick={() => abrirEdicao(p.id, 'imagens')}><Icon name="image" size={16} /> Imagens</button>
                       <Link href={`/vender/checkout/${p.id}`} className="btn btn-ghost btn-sm"><Icon name="cart" size={16} /> Checkout e order bump</Link>
                       {ativo && !emDestaque && <BoostButton productId={p.id} destaqueAte={p.destaque_ate} planos={planos} />}
@@ -255,7 +276,7 @@ export default function ProductManager({ products, total, pagina, porPagina, sta
                             <button role="menuitem" type="button" onClick={() => { setMenu(null); router.push(`/vender/checkout/${p.id}`); }}><Icon name="palette" size={15} /> Checkout e order bump</button>
                             <button role="menuitem" type="button" disabled={!ativo} onClick={() => copiar(`${window.location.origin}/produto/${p.id}`, 'Link do produto copiado!')}><Icon name="link" size={15} /> Copiar link do anúncio</button>
                             <button role="menuitem" type="button" disabled={!ativo} onClick={() => copiar(`${window.location.origin}/checkout/${p.id}`, 'Link de checkout copiado! Use em páginas de venda externas.')}><Icon name="cart" size={15} /> Copiar link de checkout</button>
-                            {p.status === 'pausado'
+                            {travado ? null : p.status === 'pausado'
                               ? <button role="menuitem" type="button" onClick={() => { setMenu(null); patch(p.id, 'reativar'); }}><Icon name="send" size={15} /> Reativar (envia para revisão)</button>
                               : <button role="menuitem" type="button" onClick={() => { setMenu(null); setConfirmar({ tipo: 'pausar', p }); }}><Icon name="sleep" size={15} /> Pausar anúncio</button>}
                             <button role="menuitem" type="button" className="pm-danger" onClick={() => { setMenu(null); setConfirmar({ tipo: 'excluir', p }); }}><Icon name="trash" size={15} /> Excluir</button>

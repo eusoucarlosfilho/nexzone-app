@@ -44,6 +44,8 @@
     "../src/lib/textoFormatado.ts",
     "../src/lib/checkoutConfig.ts",
     "../src/lib/extrasPedido.ts",
-    "../src/lib/arquivoEntrega.ts"
+    "../src/lib/arquivoEntrega.ts",
+    "../src/lib/moderacao.ts",
+    "../src/lib/rastreioVenda.ts"
   ]
 }

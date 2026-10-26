@@ -3,8 +3,8 @@ import { createClient, createAdminClient } from '@/lib/supabase/server';
 
 export async function POST(req: Request) {
   const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: 'não autenticado' }, { status: 401 });
+  // Checkout sem login (Sprint 1): validar cupom não exige conta (é só consulta; o desconto real é recalculado em /api/checkout)
+  await supabase.auth.getUser();
 
   const { codigo, productId } = await req.json();
   const code = String(codigo || '').trim().toUpperCase();

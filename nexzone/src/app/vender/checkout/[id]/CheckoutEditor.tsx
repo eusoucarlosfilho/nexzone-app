@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { salvarCheckoutConfig } from './actions';
 import { toast } from '@/lib/toast';
 import CoverUpload from '../../produtos/CoverUpload';
+import SecaoRastreio from './SecaoRastreio';
 import Icon from '@/components/Icon';
 import CheckoutBlocos from '@/components/CheckoutBlocos';
 import BumpOferta from '@/components/BumpOferta';
@@ -440,6 +441,8 @@ export default function CheckoutEditor({ productId, userId, produto, loja, inici
             ? <button type="button" className="btn btn-ghost btn-sm" disabled={!outrosProdutos.length || bumps.length >= outrosProdutos.length} onClick={adicionarBump}><Icon name="plus" size={14} /> Adicionar order bump {bumps.length ? `(${bumps.length}/${LIMITES.bumps})` : ''}</button>
             : <p className="muted" style={{ fontSize: 13 }}>Você já usa os {LIMITES.bumps} order bumps permitidos.</p>}
         </section>
+
+        <SecaoRastreio productId={productId} valor={cfg.rastreio} onValor={(r) => mudar((c) => ({ ...c, rastreio: r }))} />
 
         <section className="ce-sec">
           <h3><Icon name="palette" size={18} /> Cor e cupom</h3>

@@ -95,6 +95,15 @@ export default async function ProdutosPage({ searchParams }: { searchParams: SP 
     const extras = await extrasDe(supabase, produtos.map((p) => p.id));
     estoqueAtivo = Object.keys(extras).length > 0;
     produtos = produtos.map((p) => ({ ...p, ...(extras[p.id] ?? EXTRAS_VAZIO) }));
+    // Moderação da equipe (SQL 14): "O que corrigir" / pausado ou cancelado pela equipe. Sem o SQL 14: nada muda.
+    if (produtos.length) {
+      const { data: mods, error: modErr } = await supabase.from('products')
+        .select('id, moderacao, moderacao_itens, moderacao_texto, moderacao_em').in('id', produtos.map((p) => p.id));
+      if (!modErr && mods) {
+        const mp: Record<string, any> = Object.fromEntries((mods as any[]).map((m) => [m.id, m]));
+        produtos = produtos.map((p) => (mp[p.id]?.moderacao ? { ...p, moderacao: mp[p.id].moderacao, moderacao_itens: mp[p.id].moderacao_itens ?? [], moderacao_texto: mp[p.id].moderacao_texto ?? '', moderacao_em: mp[p.id].moderacao_em } : p));
+      }
+    }
   }
 
   return (

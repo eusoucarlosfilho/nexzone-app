@@ -8,6 +8,8 @@ import ComplaintBox from './ComplaintBox';
 import ProductThumb from '@/components/ProductThumb';
 import Icon from '@/components/Icon';
 import type { ExtraPedido } from '@/lib/extrasPedido';
+import PosCompra from './PosCompra';
+import type { RastreioProduto } from '@/lib/rastreioVenda';
 
 const money = (v: number) => 'R$ ' + Number(v).toFixed(2).replace('.', ',');
 
@@ -28,6 +30,9 @@ type Props = {
   reclamacaoAberta?: boolean;
   cartaoDisponivel?: boolean;
   voltouDoCartao?: boolean;
+  produtoId?: string;
+  rastreio?: RastreioProduto | null;   // pixels e página de obrigado do vendedor (Sprint 1)
+  senhaPendente?: boolean;             // conta criada no checkout sem senha
 };
 
 export default function OrderView(props: Props) {
@@ -91,6 +96,7 @@ export default function OrderView(props: Props) {
   }
 
   return (
+    <>
     <div className="card">
       <div className="li" style={{ padding: '0 0 16px', borderBottom: '1px solid var(--border)' }}>
         <ProductThumb className="em" capa_url={props.capa_url} categoria={props.categoria} titulo={props.titulo} tamanho={46} raio={14} icone={22} />
@@ -211,5 +217,8 @@ export default function OrderView(props: Props) {
         </div>
       )}
     </div>
+    <PosCompra pago={pago} orderId={props.orderId} produtoId={props.produtoId || ''} titulo={props.titulo} valor={props.total}
+      rastreio={props.rastreio ?? null} senhaPendente={!!props.senhaPendente} />
+    </>
   );
 }
