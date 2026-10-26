@@ -120,3 +120,10 @@ export function nomeValido(n: string): boolean {
   const t = String(n || '').trim();
   return t.length >= 3 && t.length <= 80 && /\S+\s+\S+/.test(t) && !/[<>{}]/.test(t);
 }
+
+// ---------- Postback (Sprint 2): eventos que o vendedor pode receber ----------
+export const EVENTOS_POSTBACK = [
+  { id: 'venda_aprovada', rotulo: 'Venda aprovada' },
+  { id: 'pix_gerado', rotulo: 'Pix gerado (aguardando pagamento)' },
+  { id: 'reembolso', rotulo: 'Reembolso' },
+] as const;

@@ -15,6 +15,10 @@ export type DefEvento = {
 export const EVENTOS: DefEvento[] = [
   { chave: 'compra_aprovada', rotulo: 'Compra aprovada (acesso liberado)', para: 'comprador', grupo: 'Compras e vendas', variaveis: ['nome', 'produto', 'valor', 'pedido', 'link'],
     padrao: 'Olá, {nome}! Pagamento confirmado ✅\n{produto} — {valor}\nSeu acesso já está liberado: {link}' },
+  { chave: 'pix_lembrete', rotulo: 'Lembrete de Pix não pago (15 min)', para: 'comprador', grupo: 'Compras e vendas', variaveis: ['nome', 'produto', 'valor', 'pedido', 'link'],
+    padrao: 'Oi, {nome}! Seu pedido de {produto} ({valor}) está reservado, só falta o Pix. ⏳\nO código continua aqui: {link}' },
+  { chave: 'pix_lembrete_24h', rotulo: 'Lembrete de compra não concluída (24 h)', para: 'comprador', grupo: 'Compras e vendas', variaveis: ['nome', 'produto', 'valor', 'pedido', 'link'],
+    padrao: 'Oi, {nome}! Você ainda quer {produto}? Gere um novo Pix em menos de 1 minuto e receba o acesso na hora: {link}' },
   { chave: 'nova_venda', rotulo: 'Nova venda (vendedor)', para: 'vendedor', grupo: 'Compras e vendas', variaveis: ['nome', 'produto', 'valor', 'pedido', 'link'],
     padrao: 'Nova venda na sua loja! 🎉\n{produto} — {valor}\nVeja os detalhes: {link}' },
   { chave: 'nova_mensagem', rotulo: 'Nova mensagem no chat do pedido', para: 'usuario', grupo: 'Mensagens', variaveis: ['nome', 'produto', 'pedido', 'link'],

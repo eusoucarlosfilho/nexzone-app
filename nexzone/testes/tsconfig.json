@@ -46,6 +46,7 @@
     "../src/lib/extrasPedido.ts",
     "../src/lib/arquivoEntrega.ts",
     "../src/lib/moderacao.ts",
-    "../src/lib/rastreioVenda.ts"
+    "../src/lib/rastreioVenda.ts",
+    "../src/lib/integracoes.ts"
   ]
 }

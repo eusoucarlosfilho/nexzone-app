@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createClient, createAdminClient } from '@/lib/supabase/server';
+import { processarEventos } from '@/lib/eventosVenda-servidor';
 import { extrasDoPedido } from '@/lib/extrasPedido';
 
 export async function GET(req: Request) {
@@ -17,6 +18,10 @@ export async function GET(req: Request) {
     const { data: ex } = await supabase.from('orders')
       .select('status, bumps, bump_product_id, bump_titulo, bump_conteudo, bump_arquivo_path').eq('id', id).eq('comprador', user.id).maybeSingle();
     extras = extrasDoPedido(ex);
+    // Sprint 2: assim que o pagamento aparece, já envia a compra para Meta/TikTok/postback (no máx. 4 s; o resto fica para a rotina)
+    try {
+      await Promise.race([processarEventos(createAdminClient(), { orderId: id, limite: 3 }), new Promise((ok) => setTimeout(ok, 4000))]);
+    } catch { /* a rotina de 1 em 1 minuto tenta de novo */ }
   }
   return NextResponse.json({ status: data.status, conteudo: data.conteudo_liberado, extras });
 }
