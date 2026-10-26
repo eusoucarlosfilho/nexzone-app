@@ -5,6 +5,7 @@ import Icon from '@/components/Icon';
 import { EVENTOS_POSTBACK } from '@/lib/rastreioVenda';
 
 // Construtor do checkout → "API de Conversões e postback" (Sprint 2).
+// Campos de token são type="text" mascarados: com type="password" o Chrome colava a senha salva do site no token.
 // Tem botão de salvar próprio: tokens e segredo vão criptografados para o servidor, nunca para a página.
 const EXEMPLO = `{
   "evento": "venda_aprovada",
@@ -75,14 +76,14 @@ export default function SecaoIntegracoes({ productId, temPixelMeta, temPixelTikt
       <p className="muted" style={{ fontSize: 13 }}>A venda aprovada também é enviada pelo nosso servidor: o Meta e o TikTok recebem a compra mesmo com bloqueador de anúncios ou iPhone. O evento tem o mesmo ID do pixel, então não conta em dobro.</p>
 
       <div className="fg"><label>Token da API de Conversões do Meta {d.metaToken && <span className="muted" style={{ fontWeight: 500 }}>· salvo {d.metaToken}</span>}</label>
-        <input type="password" autoComplete="off" value={metaToken} onChange={(e) => setMetaToken(e.target.value.trim())} placeholder={d.metaToken ? 'Deixe em branco para manter' : 'EAA…'} />
+        <input type="text" name="cb-meta-capi" autoComplete="off" spellCheck={false} data-1p-ignore data-lpignore="true" style={{ WebkitTextSecurity: 'disc' } as any} value={metaToken} onChange={(e) => setMetaToken(e.target.value.trim())} placeholder={d.metaToken ? 'Deixe em branco para manter' : 'EAA…'} />
         <small className="muted" style={{ fontSize: 12 }}>Gerenciador de Eventos → seu pixel → Configurações → API de Conversões → Gerar token.{!temPixelMeta && ' Preencha também o ID do pixel na seção Tráfego pago.'}</small></div>
       <div className="fg2">
         <div className="fg"><label>Código de teste do Meta (opcional)</label>
           <input value={metaTeste} maxLength={20} onChange={(e) => setMetaTeste(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))} placeholder="TEST12345" />
           <small className="muted" style={{ fontSize: 12 }}>Só para conferir em “Testar eventos”. Apague depois.</small></div>
         <div className="fg"><label>Access Token da Events API do TikTok {d.tiktokToken && <span className="muted" style={{ fontWeight: 500 }}>· salvo {d.tiktokToken}</span>}</label>
-          <input type="password" autoComplete="off" value={tiktokToken} onChange={(e) => setTiktokToken(e.target.value.trim())} placeholder={d.tiktokToken ? 'Deixe em branco para manter' : 'Cole o token'} />
+          <input type="text" name="cb-tiktok-events" autoComplete="off" spellCheck={false} data-1p-ignore data-lpignore="true" style={{ WebkitTextSecurity: 'disc' } as any} value={tiktokToken} onChange={(e) => setTiktokToken(e.target.value.trim())} placeholder={d.tiktokToken ? 'Deixe em branco para manter' : 'Cole o token'} />
           {!temPixelTiktok && <small className="muted" style={{ fontSize: 12 }}>Preencha também o pixel do TikTok em Tráfego pago.</small>}</div>
       </div>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
