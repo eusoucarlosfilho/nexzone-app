@@ -47,6 +47,16 @@ export async function GET(req: Request) {
       order_id: orderId, remetente: null, papel: 'sistema',
       texto: `Pagamento confirmado para "${prod?.titulo ?? 'o produto'}". O vendedor já foi avisado da sua compra e é notificado a cada mensagem que você envia aqui. A partir de agora vocês podem conversar por aqui — o vendedor entrega o produto e tira as dúvidas nesta conversa.`,
     });
+    // Mensagem pós-compra do vendedor (padrão da loja ou personalizada do anúncio), enviada em nome dele
+    const pos = String((order as any).conteudo_liberado ?? '').trim();
+    if (pos) {
+      try {
+        const { data: loja } = await admin.from('stores').select('owner').eq('id', (order as any).store_id).maybeSingle();
+        await admin.from('order_messages').insert({
+          order_id: orderId, remetente: (loja as any)?.owner ?? null, papel: 'vendedor', texto: pos.slice(0, 2000),
+        });
+      } catch { /* a conversa segue mesmo se falhar */ }
+    }
   }
 
   const { data: msgs } = await admin.from('order_messages')

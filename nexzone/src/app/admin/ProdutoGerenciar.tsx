@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { toast } from '@/lib/toast';
 import { avisoEstoque, lerEstoque, lerContador, lerNota } from '@/lib/estoque';
+import DestaqueProduto from './DestaqueProduto';
 
 type Dados = {
   id: string; titulo: string; status: string; vendas: number; pedidosPagos: number | null;
@@ -116,6 +117,8 @@ export default function ProdutoGerenciar({ id, onLoja }: { id: string; onLoja?: 
         .pg-auto{font-size:13px;color:var(--sub);border-left:2px dashed var(--bd2);padding-left:10px;}
         @media(max-width:560px){.pg-man-h,.pg-man-r{grid-template-columns:80px 1fr;}.pg-man-h span:last-child{display:none}.pg-auto{grid-column:2}}
       `}</style>
+
+      <DestaqueProduto id={id} />
 
       <div className="pg-sec">
         <h4>Vendas, avaliações e estrelas</h4>

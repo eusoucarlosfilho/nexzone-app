@@ -239,7 +239,24 @@ section.nz{padding:56px 0 0}
 .car-dots button{width:24px;height:24px;display:inline-flex;align-items:center;justify-content:center;background:none;padding:0}
 .car-dots button i{display:block;width:8px;height:8px;border-radius:50px;background:rgba(255,255,255,.4);transition:width .2s,background .2s}
 .car-dots button[aria-current="true"] i{width:22px;background:var(--orange)}
+/* faixa de destaque no topo da página inicial (antes da apresentação) */
+section.nz.car-topo{padding-top:20px}
+.car-topo+.v3-hero{margin-top:8px}
+.car h2{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.car-ext{display:inline-flex;align-items:center;gap:6px;color:#C9C9DA;font-size:13px;font-weight:700;margin:-8px 0 14px}
+.car-buy b small{display:block;font-family:'Nunito',sans-serif;font-size:13px;font-weight:700;color:#9A9AB0;text-decoration:line-through;margin-top:2px}
+.car-off{position:absolute;top:10px;right:10px;background:var(--green-bg,#E6F7EE);color:var(--green,#0A7A3E);font-family:'Outfit';font-weight:900;font-size:13px;padding:4px 10px;border-radius:50px}
+.car-img img{background:#fff}
+.car-seta{position:absolute;top:50%;transform:translateY(-50%);width:44px;height:44px;border-radius:50%;border:0;background:rgba(255,255,255,.14);color:#fff;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;transition:background .2s;z-index:2}
+.car-seta:hover,.car-seta:focus-visible{background:rgba(255,255,255,.28)}
+.car-ant{left:8px}
+.car-prox{right:8px}
+.car-link{padding-left:56px;padding-right:56px}
 @media(max-width:640px){
+  section.nz.car-topo{padding-top:12px}
+  .car-seta{top:96px;width:40px;height:40px;background:rgba(22,22,42,.55)}
+  .car-ant{left:22px}
+  .car-prox{right:22px}
   .car-link{flex-direction:column-reverse;align-items:stretch;padding:16px 16px 40px;gap:16px}
   .car-img{width:100%;height:170px}
   .car h2{font-size:22px}
