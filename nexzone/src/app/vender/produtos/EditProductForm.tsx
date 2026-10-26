@@ -138,6 +138,11 @@ export default function EditProductForm({ product, userId, foco, onSaved, onCanc
         </div>
       </div>
 
+      <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', background: 'var(--soft)', border: '1px solid var(--border)', borderRadius: 14, padding: '12px 14px', margin: '4px 0 14px' }}>
+        <Icon name="cart" size={20} color="var(--orange-ink)" />
+        <span style={{ flex: '1 1 240px', fontSize: 13.5 }}><strong style={{ fontFamily: 'Outfit', display: 'block' }}>Checkout e order bump</strong>Imagem no topo, textos, depoimentos, contador e um produto seu como oferta extra na hora da compra.</span>
+        <a className="btn btn-ghost btn-sm" href={`/vender/checkout/${p.id}`}>Personalizar checkout ›</a>
+      </div>
       <p className="muted" style={{ fontSize: 12.5, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}><Icon name="alert" size={13} /> Ao salvar, o produto volta para revisão antes de ficar ativo de novo.</p>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         <button type="button" className="btn btn-pri btn-sm" disabled={busy} onClick={salvar}>{busy ? 'Salvando…' : 'Salvar e enviar para revisão'}</button>

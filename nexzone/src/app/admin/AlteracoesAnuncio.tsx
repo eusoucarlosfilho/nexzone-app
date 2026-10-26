@@ -9,7 +9,7 @@ export default function AlteracoesAnuncio({ r }: { r: ResumoAlteracoes | null | 
   if (!r) return null;
 
   const css = (
-    <style>{`
+    <style dangerouslySetInnerHTML={{ __html: `
       .alt{margin-top:10px;border:1px solid var(--bd2);border-radius:12px;background:var(--panel2);overflow:hidden;}
       .alt.alt .alt-h{display:flex;align-items:center;gap:8px;width:100%;padding:9px 12px;background:none;border:none;color:var(--tx);font-family:'Outfit';font-weight:800;font-size:13px;cursor:pointer;text-align:left;}
       .alt.alt .alt-tag{font-size:11px;font-weight:900;padding:2px 9px;border-radius:50px;}
@@ -30,7 +30,7 @@ export default function AlteracoesAnuncio({ r }: { r: ResumoAlteracoes | null | 
       .alt.alt .alt-sens summary{cursor:pointer;color:#FFC94D;font-weight:700;}
       .alt.alt .alt-sens pre{white-space:pre-wrap;word-break:break-word;font-size:12px;margin:6px 0 0;padding:8px;border-radius:8px;border:1px solid var(--bd2);}
       @media(max-width:640px){.alt.alt .alt-i{grid-template-columns:1fr;gap:4px;}}
-    `}</style>
+    ` }} />
   );
 
   const semItens = r.itens.length === 0;

@@ -93,7 +93,7 @@ export default function EditorMensagem({ valor, onValor, usaPadrao, onUsaPadrao,
 
   return (
     <div className="em">
-      <style>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         .em{display:grid;gap:10px;}
         .em-modo{display:flex;gap:8px;flex-wrap:wrap;}
         .em-modo label{flex:1 1 220px;display:flex;gap:10px;align-items:flex-start;border:1.5px solid var(--border2);border-radius:14px;padding:12px 14px;cursor:pointer;font-size:14px;background:#fff;}
@@ -111,7 +111,7 @@ export default function EditorMensagem({ valor, onValor, usaPadrao, onUsaPadrao,
         .em-box textarea:read-only{background:var(--bg2);color:var(--sub);}
         .em-prev{padding:12px 14px;min-height:150px;font-size:14.5px;}
         .em-rod{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;padding:6px 10px;border-top:1px solid var(--border);font-size:12px;color:var(--sub);}
-      `}</style>
+      ` }} />
 
       {recurso && (
         <div className="em-modo" role="radiogroup" aria-label="Qual mensagem enviar">

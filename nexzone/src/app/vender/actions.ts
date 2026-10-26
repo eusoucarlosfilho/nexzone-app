@@ -75,7 +75,7 @@ export async function criarProduto(formData: FormData) {
       await supabase.from('products').update(padrao ? { usa_mensagem_padrao: true, conteudo_entrega: padrao } : { usa_mensagem_padrao: true }).eq('id', (criado as any).id);
     }
     revalidatePath('/vender');
-    return { ok: true };
+    return { ok: true, id: (criado as any)?.id ?? null };
   } catch (e: any) {
     return { ok: false, error: e?.message || 'Erro inesperado ao cadastrar o produto.' };
   }

@@ -24,6 +24,7 @@ export default function CreateProduct({ userId }: { userId: string }) {
   const [estoque, setEstoque] = useState('');
   const [conteudoEntrega, setConteudoEntrega] = useState('');
   const [usaPadrao, setUsaPadrao] = useState(false);
+  const [irParaCheckout, setIrParaCheckout] = useState(true);
 
   const [tipo, setTipo] = useState('arquivo');
   const [arquivoPath, setArquivoPath] = useState('');
@@ -118,7 +119,8 @@ export default function CreateProduct({ userId }: { userId: string }) {
       setTitulo(''); setDescricao(''); setPreco(''); setPrecoPromo(''); setCategoria(CATS[0]); setGarantia('7'); setConteudoEntrega('');
       setImagens([]); setArquivoPath(''); setArquivoNome(''); setTipo('arquivo');
       setImpUrl(''); setImpTexto(''); setImagemSugerida(''); setBloqueado(false);
-      router.push('/vender/produtos');
+      if (irParaCheckout && r.id) { toast('Agora monte o checkout e o order bump deste produto.', 'success'); router.push(`/vender/checkout/${r.id}`); }
+      else router.push('/vender/produtos');
       router.refresh();
     } else {
       toast(r?.error || 'Não foi possível cadastrar o produto.', 'error');
@@ -249,6 +251,10 @@ export default function CreateProduct({ userId }: { userId: string }) {
         onApplyDescription={(d) => { setDescricao(d); toast('Descrição atualizada.', 'success'); }}
       />
 
+      <label style={{ display: 'flex', gap: 10, alignItems: 'flex-start', background: 'var(--soft)', border: '1px solid var(--border)', borderRadius: 14, padding: '12px 14px', cursor: 'pointer', fontSize: 14 }}>
+        <input type="checkbox" checked={irParaCheckout} onChange={(e) => setIrParaCheckout(e.target.checked)} style={{ marginTop: 3 }} />
+        <span><strong style={{ fontFamily: 'Outfit' }}>Montar o checkout e o order bump depois de salvar</strong><br /><span className="muted" style={{ fontSize: 13 }}>Imagem no topo, textos, depoimentos e um produto seu como oferta extra na hora da compra. Dá para fazer depois em Meus produtos.</span></span>
+      </label>
       <button className="btn btn-pri btn-lg" disabled={busy} style={{ width: '100%', marginTop: 8 }}>{busy ? 'Enviando…' : 'Enviar para revisão'}</button>
       <p className="ui-help" style={{ textAlign: 'center' }}>Depois de enviado, o produto aparece em Meus produtos como “Em revisão”.</p>
     </form>

@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import BumpOferta from '@/components/BumpOferta';
 import { useRouter } from 'next/navigation';
 import { toast } from '@/lib/toast';
 import ProductThumb from '@/components/ProductThumb';
@@ -171,15 +172,7 @@ export default function CheckoutClient({ productId, titulo, emoji, categoria, ca
         </div>
       )}
 
-      {bump && (
-        <label style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '14px', margin: '14px 0', border: `2px dashed ${accent}`, borderRadius: 12, cursor: 'pointer', background: 'var(--soft)' }}>
-          <input type="checkbox" checked={bumpAceito} onChange={(e) => setBumpAceito(e.target.checked)} style={{ marginTop: 3 }} />
-          <span style={{ flex: 1 }}>
-            <strong style={{ fontFamily: 'Outfit', display: 'flex', alignItems: 'center', gap: 6 }}><Icon name="plusCircle" size={16} /> Sim! Adicione {bump.titulo}</strong>
-            <span className="muted" style={{ fontSize: 13 }}>{bump.descricao || 'Oferta especial só nesta compra.'} Por apenas <strong style={{ color: accent }}>+{money(Number(bump.valor))}</strong></span>
-          </span>
-        </label>
-      )}
+      {bump && <BumpOferta bump={bump} marcado={bumpAceito} onToggle={setBumpAceito} cor={accent} />}
 
       {/* Resumo */}
       <div style={{ padding: '16px 0', borderBottom: '1px solid var(--border)' }}>

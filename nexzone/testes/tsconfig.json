@@ -41,6 +41,7 @@
     "../src/lib/admin/tempo.ts",
     "../src/lib/admin/usuarios.ts",
     "../src/lib/admin/audiencia-v3.ts",
-    "../src/lib/textoFormatado.ts"
+    "../src/lib/textoFormatado.ts",
+    "../src/lib/checkoutConfig.ts"
   ]
 }
