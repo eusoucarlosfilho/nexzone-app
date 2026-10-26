@@ -1,0 +1,79 @@
+import Nav from '@/components/Nav';
+import ProductCard from '@/components/ProductCard';
+import { createClient, createAdminClient } from '@/lib/supabase/server';
+import { notFound } from 'next/navigation';
+import type { Product } from '@/lib/types';
+import Icon from '@/components/Icon';
+import JourneyBadge from '@/components/JourneyBadge';
+import { computeJourney, getStoreRevenue } from '@/lib/journey';
+import { PRODUTO_CARD } from '@/lib/consultas';
+
+export const dynamic = 'force-dynamic';
+
+export async function generateMetadata({ params }: { params: { slug: string } }) {
+  const admin = createAdminClient();
+  const { data: store } = await admin.from('stores').select('nome, descricao, banner_url, ocultar_vendedor').eq('slug', params.slug).maybeSingle();
+  if (!store || (store as any).ocultar_vendedor === true) return { title: 'Loja — Comprei Barato' };
+  const desc = store.descricao ? String(store.descricao).slice(0, 150) : `Confira os produtos de ${store.nome} no Comprei Barato.`;
+  const images = store.banner_url ? [{ url: store.banner_url as string }] : [];
+  return { title: `${store.nome} — Comprei Barato`, description: desc, openGraph: { title: String(store.nome), description: desc, images, type: 'website' } };
+}
+
+export default async function LojaPage({ params }: { params: { slug: string } }) {
+  const admin = createAdminClient();
+  const { data: store } = await admin.from('stores')
+    .select('id, nome, descricao, categoria, nivel, status, logo_url, banner_url, cor, ocultar_vendedor')
+    .eq('slug', params.slug).neq('status', 'suspenso').maybeSingle();
+  // Loja que vende como Comprei Barato não tem página pública
+  if (!store || (store as any).ocultar_vendedor === true) notFound();
+
+  const supabase = createClient();
+  const { data: prods } = await supabase.from('products')
+    .select(PRODUTO_CARD).eq('store_id', store.id).eq('status', 'ativo')
+    .order('vendas', { ascending: false }).limit(120);
+  const produtos = (prods ?? []) as unknown as Product[];
+  const verificada = store.status === 'verificado';
+  const cor = store.cor || '#FF6B00';
+  const rev = await getStoreRevenue(admin, store.id);
+  const selo = computeJourney(rev.faturamento, rev.vendas).atual;
+
+  return (
+    <>
+      <Nav />
+
+      <div style={{ height: 200, background: store.banner_url ? `url(${store.banner_url}) center/cover` : `linear-gradient(135deg, ${cor}, #FF9A3C)` }} />
+
+      <div className="page" style={{ marginTop: -46 }}>
+        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 16, marginBottom: 14 }}>
+          <div style={{ width: 92, height: 92, borderRadius: 20, border: '4px solid #fff', background: store.logo_url ? `url(${store.logo_url}) center/cover` : `linear-gradient(135deg, ${cor}, #FF9A3C)`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontFamily: 'Outfit', fontWeight: 900, fontSize: 38, flexShrink: 0, boxShadow: '0 6px 20px rgba(0,0,0,.12)' }}>
+            {!store.logo_url && store.nome.charAt(0).toUpperCase()}
+          </div>
+          <div style={{ paddingBottom: 6 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+              <h1 style={{ fontFamily: 'Outfit', fontSize: 26, fontWeight: 900, display: 'flex', alignItems: 'center', gap: 6 }}>
+                {store.nome}
+                {verificada && <Icon name="checkCircle" size={20} style={{ color: "var(--green)" }} title="Vendedor verificado" />}
+              </h1>
+              {selo && (
+                <span title={`Selo ${selo.nome} da jornada de faturamento`}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '3px 10px 3px 4px', borderRadius: 50, background: '#fff', border: '1px solid var(--border)', fontSize: 12, fontWeight: 900, color: selo.cores.edge }}>
+                  <JourneyBadge tierId={selo.id} size={22} />
+                  {selo.nome}
+                </span>
+              )}
+            </div>
+            <div className="muted" style={{ textTransform: 'capitalize' }}>
+              {verificada ? 'Vendedor verificado · ' : ''}Nível {store.nivel}{store.categoria ? ` · ${store.categoria}` : ''}
+            </div>
+          </div>
+        </div>
+        {store.descricao && <p style={{ color: 'var(--sub)', maxWidth: 640, marginBottom: 20 }}>{store.descricao}</p>}
+
+        <h2 style={{ fontFamily: 'Outfit', fontSize: 18, margin: '22px 0 14px' }}>Produtos</h2>
+        {produtos.length
+          ? <div className="pg">{produtos.map((p) => <ProductCard key={p.id} p={p} />)}</div>
+          : <p className="muted">Esta loja ainda não tem produtos publicados.</p>}
+      </div>
+    </>
+  );
+}
