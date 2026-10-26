@@ -36,7 +36,7 @@ export default function SejaVendedorPage() {
   return (
     <>
       <Nav />
-      <style>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         .sv-hero{background:var(--text);color:#fff;padding:64px 22px 72px;text-align:center}
         .sv-hero .eye{display:inline-block;background:#FF6B00;color:#16162A;animation:cb-pop .5s both;border-radius:50px;padding:6px 16px;font-size:13px;font-weight:800;font-family:'Outfit';margin-bottom:18px}
         .sv-hero h1{animation:cb-up .6s var(--ease) .08s both;font-family:'Outfit';font-size:42px;font-weight:900;letter-spacing:-1.2px;line-height:1.08;max-width:740px;margin:0 auto 16px}
@@ -62,7 +62,7 @@ export default function SejaVendedorPage() {
         .sv-band{background:var(--text);color:#fff;border-radius:28px;padding:48px;text-align:center;max-width:1080px;margin:0 auto 60px}
         .sv-band h2{font-family:'Outfit';font-size:30px;font-weight:900;letter-spacing:-.8px;margin-bottom:8px}
         @media(max-width:640px){.sv-hero h1{animation:cb-up .6s var(--ease) .08s both;font-size:32px}}
-      `}</style>
+      ` }} />
 
       <section className="sv-hero">
         <div className="eye">Para criadores e infoprodutores</div>

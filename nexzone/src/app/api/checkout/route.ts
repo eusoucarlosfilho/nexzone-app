@@ -13,7 +13,8 @@ export async function POST(req: Request) {
   const { productId, cupom, bump, bumps: bumpsPedidos, cpf, usarPontos } = await req.json();
   const { data: product } = await supabase
     .from('products')
-    .select('*, stores(recipient_id, owner)')
+    // Colunas explícitas: conteúdo de entrega e arquivo nunca são lidos com a chave do usuário (SQL 12)
+    .select('id, titulo, preco, preco_promo, store_id, status, aceita_cupom, bumps, bump_product_id, bump_valor, stores(recipient_id, owner)')
     .eq('id', productId).eq('status', 'ativo').single();
   if (!product) return NextResponse.json({ error: 'produto indisponível' }, { status: 404 });
 

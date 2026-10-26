@@ -40,7 +40,7 @@ export default function UltimasVendas({ vendas }: { vendas: Venda[] }) {
 
   return (
     <div role="status" aria-live="polite" className="uv-toast">
-      <style>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         .uv-toast{position:fixed;left:16px;bottom:16px;z-index:60;max-width:min(340px,calc(100vw - 32px));display:flex;gap:10px;align-items:center;
           background:#fff;color:var(--text,#16161F);border:1px solid #EFE7DF;border-radius:14px;padding:10px 12px;
           box-shadow:0 10px 28px rgba(22,22,42,.12);font-size:13px;line-height:1.35;animation:uv-in .35s ease both}
@@ -50,7 +50,7 @@ export default function UltimasVendas({ vendas }: { vendas: Venda[] }) {
         .uv-toast button{background:none;border:none;color:#8A8A9A;font-size:18px;line-height:1;cursor:pointer;padding:0 0 0 4px;align-self:flex-start}
         @keyframes uv-in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
         @media (prefers-reduced-motion: reduce){.uv-toast{animation:none}}
-      `}</style>
+      ` }} />
       <span className="ok" aria-hidden="true">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1FA463" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
       </span>

@@ -88,7 +88,7 @@ export default async function OfertaPage({ params }: { params: { slug: string } 
   return (
     <>
       <Nav />
-      <style>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         .pdp{display:flex;gap:36px;max-width:1240px;margin:0 auto;padding:20px 24px 60px;animation:cb-up .5s var(--ease) both;}
         .pdp-externo a{color:var(--orange-ink);font-weight:800}
         .pdp-main{flex:1;min-width:0;}
@@ -126,7 +126,7 @@ export default async function OfertaPage({ params }: { params: { slug: string } 
           .pdp-mbar .pdp-comprar{width:auto;min-height:48px;padding:0 26px;}
           .pdp-mbar .pdp-externo{margin-top:4px;font-size:11px;}
         }
-      `}</style>
+      ` }} />
 
       <div className="pdp">
         <div className="pdp-main">

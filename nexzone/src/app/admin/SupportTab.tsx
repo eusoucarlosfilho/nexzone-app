@@ -406,7 +406,7 @@ function PainelCliente({ c, detalhado, onAbrir }: { c: any; detalhado: boolean; 
 
 function EstiloSuporte() {
   return (
-    <style>{`
+    <style dangerouslySetInnerHTML={{ __html: `
       .sp-filtros{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;align-items:center}
       .sp-filtros input,.sp-filtros select,.sp-controles select{height:40px;border-radius:10px;border:1px solid var(--bd2);background:var(--panel2);color:var(--tx);padding:0 10px;font-size:13px;font-family:inherit}
       .sp-filtros input[type=text],.sp-filtros input:not([type]){flex:1 1 220px}
@@ -437,6 +437,6 @@ function EstiloSuporte() {
       .sp-linha b{text-align:right;overflow-wrap:anywhere}
       .sp-sec{font-family:'Outfit';font-weight:800;font-size:14px;margin:14px 0 4px}
       .sp-aviso{background:#B7791F22;color:#E0A63A;border-radius:10px;padding:8px 10px;font-size:12.5px;font-weight:800;margin-bottom:10px}
-    `}</style>
+    ` }} />
   );
 }

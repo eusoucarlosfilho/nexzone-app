@@ -24,7 +24,7 @@ export default function Toaster() {
           <span style={{ color: color(t.type), fontWeight: 800, display: 'flex' }}>{icon(t.type)}</span>{t.message}
         </div>
       ))}
-      <style>{`@keyframes nztoast{from{opacity:0;transform:translateX(24px)}to{opacity:1;transform:none}}`}</style>
+      <style dangerouslySetInnerHTML={{ __html: `@keyframes nztoast{from{opacity:0;transform:translateX(24px)}to{opacity:1;transform:none}}` }} />
     </div>
   );
 }

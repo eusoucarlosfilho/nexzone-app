@@ -72,7 +72,7 @@ export default async function JornadaPage() {
 
   return (
     <div>
-      <style>{CSS}</style>
+      <style dangerouslySetInnerHTML={{ __html: CSS }} />
       <div style={{ marginBottom: 18 }}>
         <h1 style={{ fontFamily: 'Outfit', fontSize: 26, fontWeight: 900, letterSpacing: '-.6px' }}>Jornada de faturamento</h1>
         <p className="muted">Rumo às estrelas: cada selo marca uma nova fase da sua loja.</p>

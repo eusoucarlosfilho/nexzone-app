@@ -15,7 +15,7 @@ export const viewport: Viewport = { themeColor: '#FF6B00' };
 export default function VenderLayout({ children }: { children: React.ReactNode }) {
   return (
     <>
-      <style>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         body{background:var(--bg2);}
         .sd-shell{display:flex;min-height:calc(100vh - 160px);max-width:1360px;margin:0 auto;gap:0;}
         .sd-side{width:250px;flex-shrink:0;padding:22px 14px;position:sticky;top:150px;align-self:flex-start;display:flex;flex-direction:column;gap:3px;}
@@ -43,7 +43,7 @@ export default function VenderLayout({ children }: { children: React.ReactNode }
         .sd-meta{height:14px;border-radius:50px;background:var(--surface);overflow:hidden;border:1px solid var(--border);}
         .sd-meta .fill{height:100%;background:var(--orange);border-radius:50px;transform-origin:left;animation:cb-growx 1s var(--ease) both;}
         @media(max-width:860px){.sd-shell{flex-direction:column;}.sd-side{width:100%;position:static;flex-direction:row;overflow-x:auto;padding:10px 12px;gap:6px;}.sd-shead,.sd-cta{display:none;}.sd-nav{white-space:nowrap;}.sd-main{padding:20px 16px 50px;}}
-      `}</style>
+      ` }} />
       <Nav />
       <SellerNotifier />
       <div className="sd-shell">

@@ -86,7 +86,7 @@ export default function SeoPanel(props: Props) {
 
   return (
     <section className="seo" aria-labelledby="seo-h">
-      <style>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         .seo{border:1px solid var(--border);border-radius:18px;background:#fff;padding:18px;margin:6px 0 20px;box-shadow:var(--sh)}
         .seo-head{display:flex;gap:16px;align-items:center;flex-wrap:wrap}
         .seo-ring{position:relative;width:104px;height:104px;flex-shrink:0}
@@ -121,7 +121,7 @@ export default function SeoPanel(props: Props) {
         .seo-shim{border-radius:8px;height:14px;margin-top:10px;background:linear-gradient(90deg,var(--bg2) 0%,var(--soft) 40%,var(--bg2) 80%);background-size:300% 100%;animation:seo-sh 1.3s ease-in-out infinite}
         @keyframes seo-sh{0%{background-position:100% 0}100%{background-position:0 0}}
         .seo-done{display:inline-flex;align-items:center;gap:6px;color:var(--green);font-weight:800;font-size:13px}
-      `}</style>
+      ` }} />
 
       <div className="seo-head">
         <div className="seo-ring" role="img" aria-label={`Pontuação SEO ${seo.score} de 100, nível ${seo.nivel}`}>

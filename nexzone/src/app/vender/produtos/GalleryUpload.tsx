@@ -62,7 +62,7 @@ export default function GalleryUpload({ userId, value, onChange }: {
 
   return (
     <div className="gal-up">
-      <style>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         .gal-up .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:10px;margin-bottom:10px}
         .gal-up .it{position:relative;border:1.5px solid var(--border);border-radius:12px;overflow:hidden;background:#fff;cursor:grab}
         .gal-up .it.capa{border-color:var(--orange)}
@@ -76,7 +76,7 @@ export default function GalleryUpload({ userId, value, onChange }: {
         .gal-up .bar .cp{order:3;flex:1 1 100%;font-weight:700;font-size:11px;line-height:1.2;height:auto;min-height:28px;padding:4px 6px}
         .gal-up .add{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;aspect-ratio:4/3;border:1.5px dashed #FFCBA1;border-radius:12px;background:var(--soft);color:var(--orange-ink);font-weight:800;font-size:12.5px;cursor:pointer}
         .gal-up .add:disabled{opacity:.5;cursor:default}
-      `}</style>
+      ` }} />
 
       <div className="grid">
         {value.map((url, i) => (

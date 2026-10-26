@@ -51,7 +51,7 @@ export default function JourneyBadge({ tierId, size = 80, locked = false, animat
         </linearGradient>
         <clipPath id={`${k}-clip`}><path d={SHIELD} /></clipPath>
       </defs>
-      {animate && !locked && <style>{CSS}</style>}
+      {animate && !locked && <style dangerouslySetInnerHTML={{ __html: CSS }} />}
 
       {/* escudo */}
       <path d={SHIELD} fill={`url(#${k}-rim)`} />

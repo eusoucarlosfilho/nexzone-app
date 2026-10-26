@@ -45,7 +45,7 @@ export default function ConversaCliente({ protocolo, token, mensagens, nomeClien
 
   return (
     <div className="sp-conv">
-      <style>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         .sp-conv .lista{display:flex;flex-direction:column;gap:12px;margin:18px 0}
         .sp-conv .bal{max-width:85%;border-radius:16px;padding:12px 14px;border:1px solid var(--border);background:#fff}
         .sp-conv .bal.cliente{align-self:flex-end;background:#FFF1E6;border-color:#FFD9BD}
@@ -56,7 +56,7 @@ export default function ConversaCliente({ protocolo, token, mensagens, nomeClien
         .sp-conv .txt{white-space:pre-wrap;overflow-wrap:anywhere;font-size:15px;line-height:1.5}
         .sp-conv .anx{display:inline-flex;align-items:center;gap:6px;margin-top:8px;font-size:13px;font-weight:800;color:var(--orange-ink)}
         @media(max-width:600px){.sp-conv .bal{max-width:100%}}
-      `}</style>
+      ` }} />
 
       <div className="lista">
         {mensagens.map((m) => (

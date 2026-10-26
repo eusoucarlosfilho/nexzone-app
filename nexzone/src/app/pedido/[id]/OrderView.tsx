@@ -207,7 +207,7 @@ export default function OrderView(props: Props) {
               {cartaoErro && <p role="alert" style={{ color: 'var(--red)', fontSize: 13, marginTop: 6 }}>{cartaoErro}</p>}
             </div>
           )}
-          <style>{`@keyframes pulsePix{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.8)}}@keyframes spinCartao{to{transform:rotate(360deg)}}`}</style>
+          <style dangerouslySetInnerHTML={{ __html: `@keyframes pulsePix{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.8)}}@keyframes spinCartao{to{transform:rotate(360deg)}}` }} />
         </div>
       )}
     </div>

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { validarImagens, galeriaDe } from '@/lib/galeria';
 import { lerEstoque } from '@/lib/estoque';
 import { mensagemPadraoDaLoja } from '@/lib/mensagemPadrao';
@@ -26,10 +26,12 @@ export async function GET(req: Request) {
   const id = new URL(req.url).searchParams.get('id') || '';
   if (!UUID.test(id)) return NextResponse.json({ error: 'produto inválido' }, { status: 400 });
   if (!(await ownsProduct(supabase, user.id, id))) return NextResponse.json({ error: 'sem permissão' }, { status: 403 });
-  const { data, error } = await supabase.from('products').select(COLUNAS_EDICAO).eq('id', id).maybeSingle();
+  // Conteúdo de entrega e arquivo só são lidos pelo servidor, depois de confirmar o dono (SQL 12)
+  const admin = createAdminClient();
+  const { data, error } = await admin.from('products').select(COLUNAS_EDICAO).eq('id', id).maybeSingle();
   if (error || !data) return NextResponse.json({ error: 'produto não encontrado' }, { status: 404 });
   // Mensagem padrão (SQL 10): lida à parte para não quebrar a edição se a coluna ainda não existir
-  const { data: mp, error: mpErr } = await supabase.from('products').select('usa_mensagem_padrao').eq('id', id).maybeSingle();
+  const { data: mp, error: mpErr } = await admin.from('products').select('usa_mensagem_padrao').eq('id', id).maybeSingle();
   (data as any).usa_mensagem_padrao = !mpErr && (mp as any)?.usa_mensagem_padrao === true;
   return NextResponse.json({ produto: data }, { headers: { 'Cache-Control': 'no-store' } });
 }
@@ -70,7 +72,7 @@ export async function PATCH(req: Request) {
     const preco = Number(body.preco);
     if (!body.titulo || !preco || preco <= 0) return NextResponse.json({ error: 'título e preço válidos são obrigatórios' }, { status: 400 });
     // Galeria: até 8 fotos do nosso bucket. Fotos que o produto já tinha (ex.: capa antiga) continuam aceitas.
-    const { data: atual } = await supabase.from('products').select('*').eq('id', id).maybeSingle();
+    const { data: atual } = await supabase.from('products').select('id, imagens, capa_url').eq('id', id).maybeSingle();
     const gal = validarImagens(body.imagens, user.id, galeriaDe(atual as any));
     if (!gal.ok) return NextResponse.json({ error: gal.error }, { status: 400 });
     patch = {

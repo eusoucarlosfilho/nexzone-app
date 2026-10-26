@@ -46,7 +46,7 @@ export default function ProductGallery({ fotos, titulo }: { fotos: string[]; tit
 
   return (
     <div className="pg-gal">
-      <style>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         .pg-gal{margin-bottom:22px}
         .pg-main{position:relative;aspect-ratio:16/10;border-radius:28px;overflow:hidden;background:var(--soft)}
         .pg-track{display:flex;width:100%;height:100%;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;-webkit-overflow-scrolling:touch}
@@ -69,7 +69,7 @@ export default function ProductGallery({ fotos, titulo }: { fotos: string[]; tit
         .pg-full .pg-arrow{background:rgba(255,255,255,.14);color:#fff;box-shadow:none;width:48px;height:48px}
         .pg-full .cnt{position:absolute;bottom:16px;left:0;right:0;text-align:center;color:#ddd;font-size:13px}
         @media(max-width:700px){.pg-main{border-radius:20px}.pg-arrow{display:none}.pg-dots{display:flex}.pg-count{display:none}.pg-thumbs{display:none}.pg-full .pg-arrow{display:block}}
-      `}</style>
+      ` }} />
 
       <div className="pg-main">
         <div className="pg-track" ref={trilho} onScroll={aoRolar}>

@@ -18,9 +18,11 @@ export default async function CheckoutPage({ params }: { params: { id: string } 
   if (!user) redirect(`/login?next=/checkout/${params.id}`);
 
   const { data } = await supabase.from('products')
-    .select('*, stores(nome, logo_url, cor, ocultar_vendedor)').eq('id', params.id).eq('status', 'ativo').single();
+    // Colunas explícitas: conteúdo de entrega e arquivo nunca são lidos com a chave do usuário (SQL 12)
+    .select('id, titulo, emoji, categoria, capa_url, preco, preco_promo, status, store_id, tipo_entrega, garantia_dias, checkout_config, aceita_cupom, bumps, bump_product_id, bump_valor, stores(nome, logo_url, cor, ocultar_vendedor)')
+    .eq('id', params.id).eq('status', 'ativo').single();
   if (!data) notFound();
-  const p = data as Product;
+  const p = data as unknown as Product;
   // Nome, logo e cor públicos (Comprei Barato quando a loja vende oculta). O pagamento continua indo para a loja real.
   const loja = vendedorPublico((p as any).stores);
   // Construtor do checkout (Fase 1): blocos na ordem do vendedor. Configurações antigas são convertidas.
