@@ -52,7 +52,7 @@ t('CSV com ponto e vírgula', () => { const p = csv.validarCsv('nome;categoria;p
 t('CSV: erro por linha', () => { const p = csv.validarCsv(cab + 'A,Design,hotmart,http://pay.hotmart.com/a\nB,Design,hotmart,https://pay.hotmart.com/b\n'); assert.strictEqual(p.validas, 1); assert.strictEqual(p.comErro, 1); assert.strictEqual(p.linhas[0].linha, 2); });
 t('CSV: duplicada no arquivo', () => { const p = csv.validarCsv(cab + 'A,Design,hotmart,https://pay.hotmart.com/a\nA2,Design,hotmart,https://pay.hotmart.com/a?x=1\n'); assert.strictEqual(p.duplicadas, 1); });
 t('CSV: duplicada no cadastro', () => { const p = csv.validarCsv(cab + 'A,Design,hotmart,https://pay.hotmart.com/a\n', { slugs: ['a'] }); assert.strictEqual(p.duplicadas, 1); assert.strictEqual(p.linhas[0].duplicada, 'ja_cadastrada'); });
-t('CSV: coluna obrigatória ausente', () => assert.ok(/url_produto/.test(csv.validarCsv('nome,categoria,plataforma\nA,Design,hotmart\n').erroGeral)));
+t('CSV: coluna obrigatória ausente', () => assert.ok(/url_compra/.test(csv.validarCsv('nome,categoria,plataforma\nA,Design,hotmart\n').erroGeral)));
 t('CSV: limite de linhas', () => { const linhas = Array.from({ length: 501 }, (_, i) => `P${i},Design,hotmart,https://pay.hotmart.com/p${i}`).join('\n'); assert.ok(/500/.test(csv.validarCsv(cab.split(',').slice(0, 4).join(',') + '\n' + linhas).erroGeral)); });
 t('CSV: limite de 1 MB', () => assert.ok(/1 MB/.test(csv.validarCsv('x'.repeat(1024 * 1024 + 10)).erroGeral)));
 t('CSV: sempre rascunho mesmo com status no arquivo', () => { const p = csv.validarCsv('nome,categoria,plataforma,url_produto,status\nA,Design,hotmart,https://pay.hotmart.com/a,ativo\n'); assert.strictEqual(p.linhas[0].dados.status, 'rascunho'); });
@@ -70,5 +70,54 @@ t('desligado: só nativos', () => assert.strictEqual(mix.intercalar(N(3), P(3), 
 t('normalizarMix limita valores', () => { const m = mix.normalizarMix({ maxPct: 500, maxSeguidos: 0, homeQtd: -3, ativo: 'x' }); assert.strictEqual(m.maxPct, 100); assert.strictEqual(m.maxSeguidos, 1); assert.strictEqual(m.homeQtd, 0); assert.strictEqual(m.ativo, false); });
 t('precisaVerificar após 30 dias', () => { assert.ok(tipos.precisaVerificar(null)); assert.ok(tipos.precisaVerificar(new Date(Date.now() - 31 * 864e5).toISOString())); assert.ok(!tipos.precisaVerificar(new Date().toISOString())); });
 
+
+// ---- produtos externos (marketplaces) ----
+const pux = require('./.build/ofertas/puxarDados.js');
+t('aceita Mercado Livre, Shopee, Amazon, Magalu, AliExpress', () => {
+  assert.ok(v('https://produto.mercadolivre.com.br/MLB-123-x', 'mercadolivre').ok);
+  assert.ok(v('https://shopee.com.br/produto-i.1.2', 'shopee').ok);
+  assert.ok(v('https://www.amazon.com.br/dp/B0X', 'amazon').ok);
+  assert.ok(v('https://amzn.to/3abc', 'amazon').ok);
+  assert.ok(v('https://www.magazineluiza.com.br/p/123', 'magalu').ok);
+  assert.ok(v('https://pt.aliexpress.com/item/1.html', 'aliexpress').ok);
+});
+t('recusa domínio de outro marketplace na plataforma errada', () => assert.ok(!v('https://shopee.com.br/x', 'mercadolivre').ok));
+t('"Outro site" aceita qualquer https público', () => assert.ok(v('https://lojaqualquer.com.br/p/1', 'outra').ok));
+t('recusa encurtadores genéricos (bit.ly, tinyurl…) em qualquer plataforma', () => {
+  assert.ok(!v('https://bit.ly/abc', 'outra').ok); assert.ok(!v('https://tinyurl.com/x', 'direto').ok); assert.ok(!v('https://t.co/x', 'outra').ok);
+});
+t('nomes de plataforma escritos à mão', () => {
+  assert.strictEqual(tipos.normalizarPlataforma('Mercado Livre'), 'mercadolivre'); assert.strictEqual(tipos.normalizarPlataforma('Outro site'), 'outra');
+  assert.strictEqual(tipos.normalizarPlataforma('MAGAZINE LUIZA'), 'magalu'); assert.strictEqual(tipos.normalizarPlataforma('xyz'), null);
+});
+t('preço "de" válido mostra desconto', () => { const r = val.validarOferta({ ...base, price_reference: '79,90', price_from: '129,90' }); assert.ok(r.ok); assert.strictEqual(r.dados.price_from, 129.9); assert.strictEqual(tipos.descontoPct(79.9, 129.9), 38); });
+t('preço "de" menor ou igual é recusado', () => assert.ok(!val.validarOferta({ ...base, price_reference: '100', price_from: '90' }).ok));
+t('preço "de" sem preço atual é recusado', () => assert.ok(!val.validarOferta({ ...base, price_from: '90' }).ok));
+t('CSV novo: url_compra, preco, preco_de e plataforma por extenso', () => {
+  const p = csv.validarCsv('nome,categoria,plataforma,url_compra,preco,preco_de\nFone,Música & Áudio,Mercado Livre,https://produto.mercadolivre.com.br/MLB-1,"79,90","129,90"\n');
+  assert.strictEqual(p.validas, 1); assert.strictEqual(p.linhas[0].dados.external_platform, 'mercadolivre'); assert.strictEqual(p.linhas[0].dados.price_from, 129.9);
+});
+t('CSV antigo (url_produto) continua aceito', () => assert.strictEqual(csv.validarCsv(cab + 'A,Design,hotmart,https://pay.hotmart.com/a\n').validas, 1));
+t('SQL gerado inclui price_from', () => { const p = csv.validarCsv('nome,categoria,plataforma,url_compra,preco,preco_de\nA,Design,shopee,https://shopee.com.br/a,"10","20"\n'); assert.ok(csv.gerarSqlImportacao([p.linhas[0].dados], false).includes('20.00')); });
+t('chaves por plataforma e origem', () => {
+  const m = mix.normalizarMix({ plataformasDesligadas: ['shopee', 'Shopee!', 7], mostrarOrigem: true });
+  assert.deepStrictEqual(m.plataformasDesligadas, ['shopee']); assert.ok(m.mostrarOrigem);
+  assert.ok(!mix.plataformaVisivel('shopee', m)); assert.ok(mix.plataformaVisivel('amazon', m));
+  assert.ok(!mix.plataformaVisivel('amazon', { ...m, ativo: false }));
+  assert.strictEqual(mix.MIX_PADRAO.mostrarOrigem, false);
+});
+t('puxar dados: Open Graph', () => {
+  const d = pux.extrairDados('<html><head><meta property="og:title" content="Fone Bluetooth &amp; Case"><meta property="og:image" content="https://http2.mlstatic.com/a.jpg"><meta property="product:price:amount" content="79.9"><meta property="product:price:currency" content="BRL"></head></html>');
+  assert.strictEqual(d.title, 'Fone Bluetooth & Case'); assert.strictEqual(d.image_url, 'https://http2.mlstatic.com/a.jpg'); assert.strictEqual(d.price_reference, '79,90'); assert.strictEqual(d.currency, 'BRL');
+});
+t('puxar dados: JSON-LD Product', () => {
+  const d = pux.extrairDados('<title>x</title><script type="application/ld+json">{"@type":"Product","name":"Mouse","image":["https://img.exemplo.com/m.png"],"offers":{"price":"59.00","priceCurrency":"BRL"}}</script>');
+  assert.strictEqual(d.image_url, 'https://img.exemplo.com/m.png'); assert.strictEqual(d.price_reference, '59,00');
+});
+t('puxar dados: ignora imagem não https', () => assert.strictEqual(pux.extrairDados('<meta property="og:image" content="http://x.com/a.jpg">').image_url, null));
+t('puxar dados: bloqueia IP interno', () => {
+  for (const ip of ['127.0.0.1', '10.1.2.3', '172.16.0.1', '192.168.1.1', '169.254.169.254', '100.64.0.1', '::1', 'fd00::1', '::ffff:127.0.0.1']) assert.ok(pux.ipPrivado(ip), ip);
+  assert.ok(!pux.ipPrivado('8.8.8.8'));
+});
 console.log(`\n${ok} passaram, ${fail} falharam`);
 process.exit(fail ? 1 : 0);

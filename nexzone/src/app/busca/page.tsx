@@ -1,6 +1,6 @@
 import Nav from '@/components/Nav';
 import GradeMista from '@/components/GradeMista';
-import { configMix, ofertasAtivas } from '@/lib/ofertas/servidor';
+import { configMix, ofertasAtivas, visiveis } from '@/lib/ofertas/servidor';
 import { intercalar, type ItemMix } from '@/lib/ofertas/mix';
 import type { OfertaVitrine } from '@/lib/ofertas/tipos';
 import { createClient } from '@/lib/supabase/server';
@@ -22,9 +22,11 @@ export default async function BuscaPage({ searchParams }: { searchParams: { q?: 
   }
   // Ofertas de parceiros completam os resultados (nativos primeiro, com teto de participação)
   let grade: ItemMix<Product, OfertaVitrine>[] = produtos.map((item) => ({ tipo: 'nativo' as const, item }));
+  let mostrarOrigem = false;
   if (q) {
     const [mix, parceiros] = await Promise.all([configMix(), ofertasAtivas({ termo: termoBusca(q), limite: 24 })]);
-    if (mix.ativo) grade = intercalar(produtos, parceiros, mix);
+    grade = intercalar(produtos, visiveis(parceiros, mix), mix);
+    mostrarOrigem = mix.mostrarOrigem;
   }
 
   return (
@@ -37,7 +39,7 @@ export default async function BuscaPage({ searchParams }: { searchParams: { q?: 
         </div>
         {q
           ? (grade.length
-              ? <GradeMista itens={grade} />
+              ? <GradeMista itens={grade} mostrarOrigem={mostrarOrigem} />
               : <p className="muted">Nenhum produto encontrado para “{q}”. Tente outra palavra.</p>)
           : <p className="muted">Digite algo na busca da página inicial.</p>}
       </div></section>
