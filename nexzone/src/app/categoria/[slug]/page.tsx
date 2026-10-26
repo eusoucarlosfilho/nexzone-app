@@ -1,18 +1,10 @@
 import Nav from '@/components/Nav';
+import Footer from '@/components/Footer';
 import type { Metadata } from 'next';
-import Link from 'next/link';
-import GradeMista from '@/components/GradeMista';
-import { configMix, ofertasAtivas, visiveis } from '@/lib/ofertas/servidor';
-import { intercalar, type ItemMix } from '@/lib/ofertas/mix';
-import type { OfertaVitrine } from '@/lib/ofertas/tipos';
+import { notFound } from 'next/navigation';
 import { acharCategoria } from '@/lib/categorias';
 import { SITE_URL_FALLBACK } from '@/lib/seo';
-import { createClient } from '@/lib/supabase/server';
-import { notFound } from 'next/navigation';
-import type { Product } from '@/lib/types';
-import { produtosPublicos } from '@/lib/vendedorPublico';
-import { PRODUTO_CARD } from '@/lib/consultas';
-import CategoryIcon from '@/components/CategoryIcon';
+import Catalogo, { type ParamsCatalogo } from '@/app/produtos/Catalogo';
 
 export const dynamic = 'force-dynamic';
 const SITE = (process.env.NEXT_PUBLIC_SITE_URL || SITE_URL_FALLBACK).replace(/\/+$/, '');
@@ -26,36 +18,19 @@ export async function generateMetadata({ params }: { params: { slug: string } })
   return { title: titulo, description: desc, alternates: { canonical: `${SITE}/categoria/${cat.slug}` }, openGraph: { title: titulo, description: desc, url: `${SITE}/categoria/${cat.slug}` } };
 }
 
-export default async function CategoriaPage({ params }: { params: { slug: string } }) {
-  const supabase = createClient();
-  const { data: cat } = await supabase.from('categories').select('nome, emoji').eq('slug', params.slug).maybeSingle();
-  if (!cat) notFound();
-
-  const { data } = await supabase.from('products')
-    .select(PRODUTO_CARD).eq('status', 'ativo').eq('categoria', cat.nome)
-    .order('vendas', { ascending: false });
-  const produtos = produtosPublicos(data as Product[] | null);
-
-  // Ofertas de parceiros completam a categoria (nativos primeiro, com teto de participação)
-  const [mix, parceiros] = await Promise.all([configMix(), ofertasAtivas({ categoria: cat.nome, limite: 24 })]);
-  const grade: ItemMix<Product, OfertaVitrine>[] = mix.ativo
-    ? intercalar(produtos, visiveis(parceiros, mix), mix)
-    : produtos.map((item) => ({ tipo: 'nativo' as const, item }));
-  const temParceiros = grade.some((g) => g.tipo === 'parceiro');
+// Categoria = o mesmo catálogo de /produtos, com a categoria fixa (busca, preço e ordenação continuam disponíveis).
+// A lista de categorias vem da fonte única (src/lib/categorias.ts), a mesma usada nos produtos.
+export default async function CategoriaPage({ params, searchParams }: { params: { slug: string }; searchParams: ParamsCatalogo }) {
+  const cat = acharCategoria(params.slug);
+  if (!cat || cat.slug !== params.slug) notFound();
 
   return (
     <>
       <Nav />
-      <section className="nz"><div className="c">
-        <div className="st">
-          <div className="slabel">Categoria</div>
-          <h2 style={{ display: 'flex', alignItems: 'center', gap: 10 }}><CategoryIcon cat={params.slug} size={28} /> {cat.nome}</h2>
-        </div>
-        {grade.length
-          ? <GradeMista itens={grade} mostrarOrigem={mix.mostrarOrigem} />
-          : <p className="muted">Ainda não há produtos nesta categoria. <Link href="/produtos" style={{ color: 'var(--orange-ink)', fontWeight: 800 }}>Ver todos os produtos</Link></p>}
-        {temParceiros && mix.mostrarOrigem && <p className="muted" style={{ fontSize: 12.5, marginTop: 12 }}>Itens com o selo &quot;Oferta de parceiro&quot; são vendidos em sites parceiros, fora do Comprei Barato.</p>}
-      </div></section>
+      <main>
+        <Catalogo searchParams={searchParams} catFixa={cat} />
+      </main>
+      <Footer />
     </>
   );
 }

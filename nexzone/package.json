@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test": "tsc -p testes/tsconfig.json && node testes/ofertas.test.js && node testes/audiencia.test.js && node testes/whatsapp.test.js && node testes/whatsapp-provedor.test.js && node testes/whatsapp-chave.test.js && node testes/estoque.test.js && node testes/edicoes.test.js"
+    "test": "tsc -p testes/tsconfig.json && node testes/ofertas.test.js && node testes/audiencia.test.js && node testes/whatsapp.test.js && node testes/whatsapp-provedor.test.js && node testes/whatsapp-chave.test.js && node testes/estoque.test.js && node testes/edicoes.test.js && node testes/v3.test.js"
   },
   "dependencies": {
     "@supabase/ssr": "^0.5.2",

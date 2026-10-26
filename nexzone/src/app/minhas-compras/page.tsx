@@ -27,7 +27,7 @@ function acao(status: string) {
 export default async function MinhasComprasPage({ searchParams }: { searchParams: { aba?: string } }) {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect('/login');
+  if (!user) redirect('/login?next=/minhas-compras');
 
   const { data: orders } = await supabase
     .from('orders')

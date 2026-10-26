@@ -1,11 +1,24 @@
 import { Suspense } from 'react';
 import Link from 'next/link';
-import { createClient } from '@/lib/supabase/server';
+import { createAdminClient, createClient } from '@/lib/supabase/server';
 import NavSearch, { NavCats, CatChips, type NavCat } from './NavSearch';
 import MobileMenu from './MobileMenu';
 import Icon from './Icon';
 import { CATEGORIAS } from '@/lib/categorias';
-import { cbPointsAtivo } from '@/lib/settings';
+import LinkRastreado from './v3/LinkRastreado';
+
+// Leitura leve de duas chaves públicas da tabela settings (service_role, só no servidor):
+// CB Points ligado? e a comissão real (a faixa do topo não pode prometer um número diferente do cobrado).
+async function configNav(): Promise<{ cbAtivo: boolean; comissao: number }> {
+  try {
+    const { data } = await createAdminClient().from('settings').select('key, value').in('key', ['cb_points_ativo', 'commission_percent']);
+    const m: Record<string, any> = Object.fromEntries(((data ?? []) as any[]).map((r) => [r.key, r.value]));
+    const c = Number(m.commission_percent);
+    return { cbAtivo: m.cb_points_ativo === true, comissao: Number.isFinite(c) && c >= 0 ? c : 3 };
+  } catch {
+    return { cbAtivo: false, comissao: 3 };
+  }
+}
 
 const NL = ({ href, icon, label }: { href: string; icon: string; label: string }) => (
   <Link href={href} className="nav-link" title={label}><Icon name={icon} size={18} strokeWidth={2.2} /><span className="nl-t">{label}</span></Link>
@@ -15,10 +28,11 @@ export default async function Nav() {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
   // Faixa "Crie sua loja": só para quem ainda não tem loja. CB Points: só com o programa ativo.
-  const [lojaRes, cbAtivo] = await Promise.all([
+  const [lojaRes, { cbAtivo, comissao }] = await Promise.all([
     user ? supabase.from('stores').select('id').eq('owner', user.id).maybeSingle() : Promise.resolve({ data: null }),
-    cbPointsAtivo(),
+    configNav(),
   ]);
+  const taxa = `${String(comissao).replace('.', ',')}% por venda`;
   const temLoja = !!(lojaRes as any)?.data;
   // Categorias da fonte única (src/lib/categorias.ts), na ordem definida
   const cats: NavCat[] = CATEGORIAS.map((c) => ({ nome: c.nome, slug: c.slug }));
@@ -27,9 +41,9 @@ export default async function Nav() {
     <>
       {!temLoja && (
         <div className="topbar">
-          <span className="tb-long">Crie sua loja grátis e pague só <span className="g">3% por venda</span>. Sem mensalidade.</span>
-          <span className="tb-short">Loja grátis · só <span className="g">3% por venda</span></span>
-          <Link href="/seja-vendedor">Quero vender →</Link>
+          <span className="tb-long">Crie sua loja grátis e pague só <span className="g">{taxa}</span>. Sem mensalidade.</span>
+          <span className="tb-short">Loja grátis · só <span className="g">{taxa}</span></span>
+          <LinkRastreado href="/seja-vendedor" evento="vendedor_cta" dados={{ origem: 'nav' }}>Quero vender →</LinkRastreado>
         </div>
       )}
       <nav className="nz" aria-label="Principal">
@@ -51,7 +65,7 @@ export default async function Nav() {
               ) : (
                 <>
                   <NL href="/login" icon="user" label="Entrar" />
-                  <Link href="/vender" className="btn btn-dark btn-sm">Vender</Link>
+                  <LinkRastreado href="/vender" className="btn btn-dark btn-sm" evento="vendedor_cta" dados={{ origem: 'nav' }}>Vender</LinkRastreado>
                 </>
               )}
             </div>

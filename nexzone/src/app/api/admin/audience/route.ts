@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { createAdminClient, createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/server';
+import { adminSeguro } from '@/lib/ofertas/adminSeguro';
 
 export const dynamic = 'force-dynamic';
 
@@ -71,14 +72,8 @@ function refHost(ref: string | null, ownHost: string) {
 }
 
 async function isAdmin() {
-  // Mesma checagem de src/app/admin/page.tsx: usuário logado + profiles.role === 'admin'
-  try {
-    const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return false;
-    const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
-    return (profile as any)?.role === 'admin';
-  } catch { return false; }
+  // V3: exige a autorização reforçada (C1): perfil admin + id em ADMIN_USER_IDS.
+  try { return (await adminSeguro()).ok; } catch { return false; }
 }
 
 export async function GET(req: NextRequest) {
@@ -97,10 +92,11 @@ export async function GET(req: NextRequest) {
   let onlineList: any[] = [];
   try {
     const { data, count } = await admin.from('site_sessions')
-      .select('id, city, region, country, lat, lon, current_path, device, last_seen, started_at', { count: 'exact' })
-      .gt('last_seen', onlineSince).order('last_seen', { ascending: false }).limit(200);
-    onlineList = (data as any[]) || [];
-    onlineCount = count ?? onlineList.length;
+      .select('id', { count: 'exact', head: true })
+      .gt('last_seen', onlineSince);
+    onlineCount = count ?? 0;
+    onlineList = []; // V3: sem lista individual (sem trajetória nem localização de ninguém)
+    void data;
   } catch { /* tabela pode não existir ainda */ }
 
   const online = { count: onlineCount, sessions: onlineList };
@@ -221,7 +217,7 @@ export async function GET(req: NextRequest) {
     topPages: top(pages, 15),
     devices: top(devices, 3),
     topReferrers: top(refs, 12),
-    points: Array.from(points.values()).sort((a, b) => b.count - a.count).slice(0, 1500),
+    points: [], // V3: sem pontos individuais no mapa (coordenadas não são mais gravadas)
     capped: { sessions: sessions.length >= MAX_SESSIONS, pageviews: pageviews.length >= MAX_PAGEVIEWS },
   }, { headers: { 'Cache-Control': 'no-store' } });
 }

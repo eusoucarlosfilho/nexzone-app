@@ -1,32 +1,36 @@
 'use client';
+// Barra do catálogo: total de resultados, ordenação e (no celular) o botão que abre os filtros.
+// A busca por texto fica no campo do topo do site (NavSearch), para não haver dois campos de busca na tela.
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
-import { useState } from 'react';
+import Icon from '@/components/Icon';
+import { ORDENS, type Ordem } from './busca';
+import { EVENTO_ABRIR_FILTROS } from './Filters';
 
-export default function Toolbar({ total, sort }: { total: number; sort: string }) {
+export default function Toolbar({ total, ordem, nFiltros = 0 }: { total: number; ordem: Ordem; nFiltros?: number }) {
   const router = useRouter(); const sp = useSearchParams(); const pathname = usePathname();
-  const [q, setQ] = useState(sp.get('q') || '');
 
-  function setParam(updates: Record<string, string>) {
+  function ordenar(v: string) {
     const p = new URLSearchParams(sp.toString());
-    Object.entries(updates).forEach(([k, v]) => { if (v) p.set(k, v); else p.delete(k); });
-    p.delete('page'); // filtro/ordem nova recomeça da primeira página
-    router.push(`${pathname}?${p.toString()}`);
+    if (v && v !== 'relevancia') p.set('sort', v); else p.delete('sort');
+    p.delete('page'); // ordem nova recomeça da primeira página
+    const s = p.toString();
+    router.push(s ? `${pathname}?${s}` : pathname);
   }
 
   return (
-    <div style={{ marginBottom: 18 }}>
-      <form onSubmit={(e) => { e.preventDefault(); setParam({ q }); }} style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar produtos…" style={{ flex: 1, height: 44, borderRadius: 11, border: '1.5px solid var(--border)', padding: '0 14px', fontSize: 14 }} />
-        <button className="btn btn-pri" style={{ height: 44 }}>Buscar</button>
-      </form>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
-        <span className="muted" style={{ fontSize: 13 }}>{total} produto{total === 1 ? '' : 's'}</span>
-        <select value={sort} onChange={(e) => setParam({ sort: e.target.value })} style={{ height: 40, borderRadius: 10, border: '1px solid var(--border)', padding: '0 12px', fontSize: 14, fontWeight: 600 }}>
-          <option value="vendas">Mais vendidos</option>
-          <option value="novos">Mais novos</option>
-          <option value="menor">Menor preço</option>
-          <option value="maior">Maior preço</option>
-        </select>
+    <div className="v3-bar">
+      <span className="v3-bar-n" role="status">{total.toLocaleString('pt-BR')} {total === 1 ? 'resultado' : 'resultados'}</span>
+      <div className="v3-bar-acoes">
+        <button type="button" className="btn btn-ghost btn-sm v3-bar-flt" aria-controls="flt-painel"
+          onClick={() => window.dispatchEvent(new Event(EVENTO_ABRIR_FILTROS))}>
+          <Icon name="settings" size={16} />Filtros{nFiltros > 0 && <span className="v3-bar-badge" aria-label={`${nFiltros} ativo${nFiltros === 1 ? '' : 's'}`}>{nFiltros}</span>}
+        </button>
+        <label className="v3-ordem">
+          <span className="sr-only">Ordenar por</span>
+          <select value={ordem} onChange={(e) => ordenar(e.target.value)} aria-label="Ordenar por">
+            {ORDENS.map((o) => <option key={o.id} value={o.id}>{o.rotulo}</option>)}
+          </select>
+        </label>
       </div>
     </div>
   );

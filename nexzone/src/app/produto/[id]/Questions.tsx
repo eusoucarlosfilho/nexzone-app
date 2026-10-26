@@ -51,7 +51,8 @@ export default function Questions({ productId, initial, userId, loggedIn }: { pr
           onKeyDown={(e) => { if (e.key === 'Enter') enviar(); }}
           maxLength={500}
           placeholder={loggedIn ? 'Tem uma dúvida? Pergunte ao vendedor…' : 'Entre para perguntar ao vendedor…'}
-          style={{ flex: 1, height: 44, borderRadius: 12, border: '1px solid var(--border)', padding: '0 14px', fontSize: 14, background: '#fff' }}
+          aria-label="Sua pergunta ao vendedor"
+          style={{ flex: 1, minWidth: 0, height: 44, borderRadius: 12, border: '1px solid var(--border)', padding: '0 14px', fontSize: 14, background: '#fff' }}
         />
         <button className="btn btn-dark" disabled={busy} onClick={enviar} style={{ flexShrink: 0 }}>
           {busy ? 'Enviando…' : 'Perguntar'}

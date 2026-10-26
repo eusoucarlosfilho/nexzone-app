@@ -1,5 +1,6 @@
 'use client';
 import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as RMouseEvent } from 'react';
+import AudienciaV3, { AoVivoV3 } from './v3/AudienciaV3';
 import { geoArea, geoEqualEarth, geoMercator, geoPath, geoGraticule10 } from 'd3-geo';
 import { feature } from 'topojson-client';
 import Icon from '@/components/Icon';
@@ -450,7 +451,7 @@ export default function AudienceTab() {
 
   useEffect(() => { loadFull(range); }, [range, loadFull]);
   useEffect(() => {
-    const a = window.setInterval(loadOnline, 15000);
+    const a = window.setInterval(loadOnline, 45000);
     const b = window.setInterval(() => { if (document.visibilityState === 'visible') loadFull(rangeRef.current, true); }, 120000);
     return () => { window.clearInterval(a); window.clearInterval(b); };
   }, [loadOnline, loadFull]);
@@ -471,7 +472,7 @@ export default function AudienceTab() {
 
   return (
     <div className="aud">
-      <style>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         .aud{--live:#22C55E;}
         .aud-top{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px;}
         .aud-livebadge{display:inline-flex;align-items:center;gap:8px;font-family:'Outfit';font-weight:800;font-size:12px;letter-spacing:.6px;text-transform:uppercase;color:var(--live);background:color-mix(in srgb,var(--live) 14%,transparent);border-radius:50px;padding:5px 12px 5px 10px;}
@@ -536,13 +537,13 @@ export default function AudienceTab() {
         @media(max-width:1100px){.aud-grid3{grid-template-columns:repeat(2,minmax(0,1fr));}}
         @media(max-width:900px){.aud-grid2{grid-template-columns:minmax(0,1fr);}}
         @media(max-width:640px){.aud-grid3{grid-template-columns:minmax(0,1fr);}.aud-hide-sm{display:none;}.aud-scale{margin-left:0;}}
-      `}</style>
+      ` }} />
 
       <div className="aud-top">
         <div>
           <span className="aud-livebadge"><span className="aud-pdot" /> Ao vivo</span>
           <div className="aud-big"><b><AnimatedNumber value={online.count} /></b> {online.count === 1 ? 'pessoa online agora' : 'pessoas online agora'}</div>
-          <p className="adm-sub" style={{ margin: 0 }}>Atualiza a cada 15 segundos. Online = ativo nos últimos 2 minutos.</p>
+          <p className="adm-sub" style={{ margin: 0 }}>Estimativa por navegador. Atualiza a cada 45 segundos com a aba visível. Online = sinal nos últimos 2 minutos.</p>
         </div>
         <div className="aud-chips">
           {RANGES.map(([k, l]) => (
@@ -575,8 +576,8 @@ export default function AudienceTab() {
       </div>
 
       <div className="aud-grid2">
-        <MapCard online={online.sessions} points={data?.points || []} states={data?.topStates || []} mode={mode} setMode={setMode} />
-        <OnlineList sessions={online.sessions} skew={skew} />
+        <MapCard online={[]} points={[]} states={data?.topStates || []} mode={mode} setMode={setMode} />
+        <AoVivoV3 />
       </div>
 
       <div className="aud-grid3">
@@ -588,7 +589,9 @@ export default function AudienceTab() {
         <RankList title="Dispositivos" icon="monitor" rows={devRows} />
       </div>
 
-      <div className="aud-note"><Icon name="lock" size={14} /> Dados anônimos, sem IP — localização aproximada pela rede (Vercel).</div>
+      <div className="aud-note"><Icon name="lock" size={14} /> Dados anônimos, sem IP — localização aproximada pela rede (Vercel), só por estado e em agregados. Sem pontos individuais no mapa.</div>
+
+      <AudienciaV3 />
     </div>
   );
 }

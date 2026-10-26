@@ -101,7 +101,7 @@ export default function CheckoutClient({ productId, titulo, emoji, categoria, ca
       method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
       body: JSON.stringify({ productId, cupom: aplicado?.codigo || null, bump: bumpAceito, usarPontos }),
     });
-    if (res.status === 401) { router.push('/login'); return; }
+    if (res.status === 401) { router.push('/login?next=' + encodeURIComponent(window.location.pathname)); return; }
     const data = await res.json();
     if (!res.ok) { setGerando(false); setErro(data.error || 'Falha ao gerar o pedido.'); return; }
 
