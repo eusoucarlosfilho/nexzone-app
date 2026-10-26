@@ -3,13 +3,14 @@ import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { awardPoints } from '@/lib/points';
 import { getGateway } from '@/lib/payments/gateway';
 import { getSettings } from '@/lib/settings';
+import { listaDeBumps } from '@/lib/checkoutConfig';
 
 export async function POST(req: Request) {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'não autenticado' }, { status: 401 });
 
-  const { productId, cupom, bump, cpf, usarPontos } = await req.json();
+  const { productId, cupom, bump, bumps: bumpsPedidos, cpf, usarPontos } = await req.json();
   const { data: product } = await supabase
     .from('products')
     .select('*, stores(recipient_id, owner)')
@@ -39,23 +40,31 @@ export async function POST(req: Request) {
     }
   }
 
-  // Order bump (item extra)
-  let bumpFields: any = {};
-  let bumpValor = 0;
-  if (bump && (product as any).bump_product_id && (product as any).bump_valor) {
+  // Order bumps (até 4). O comprador só diz QUAIS marcou; produto e preço vêm do que o vendedor salvou.
+  // Cada bump precisa estar ativo e ser da MESMA loja do produto principal.
+  // O conteúdo de entrega dos bumps NÃO vai para o pedido agora: só depois do pagamento (fulfill.ts).
+  const configurados = listaDeBumps(product as any);
+  const pedidos = new Set<string>(
+    Array.isArray(bumpsPedidos) ? bumpsPedidos.map((x: any) => String(x).toLowerCase())
+      : bump && configurados[0] ? [configurados[0].product_id] : [], // checkout antigo (bump: true) = 1º bump
+  );
+  const escolhidos = configurados.filter((b) => pedidos.has(b.product_id));
+  let itensBump: { product_id: string; titulo: string; valor: number }[] = [];
+  if (escolhidos.length) {
     const admin2 = createAdminClient();
-    const { data: bp } = await admin2.from('products')
-      .select('id, titulo, conteudo_entrega, arquivo_path, arquivo_nome, tipo_entrega, status')
-      .eq('id', (product as any).bump_product_id).maybeSingle();
-    if (bp && bp.status === 'ativo') {
-      bumpValor = Number((product as any).bump_valor);
-      bumpFields = {
-        bump_product_id: bp.id, bump_titulo: bp.titulo, bump_valor: bumpValor,
-        bump_conteudo: bp.conteudo_entrega ?? null, bump_arquivo_path: bp.arquivo_path ?? null,
-        bump_arquivo_nome: bp.arquivo_nome ?? null, bump_tipo_entrega: bp.tipo_entrega ?? null,
-      };
-    }
+    const { data: bps } = await admin2.from('products')
+      .select('id, titulo, status, store_id').in('id', escolhidos.map((b) => b.product_id));
+    itensBump = escolhidos.flatMap((b) => {
+      const bp: any = (bps ?? []).find((x: any) => String(x.id).toLowerCase() === b.product_id);
+      return bp && bp.status === 'ativo' && bp.store_id === product.store_id ? [{ product_id: bp.id, titulo: bp.titulo, valor: b.valor }] : [];
+    });
   }
+  const bumpValor = +itensBump.reduce((s, b) => s + b.valor, 0).toFixed(2);
+  const bumpFields: any = itensBump.length ? {
+    bumps: itensBump,
+    // campos antigos = 1º bump (telas e relatórios antigos continuam funcionando)
+    bump_product_id: itensBump[0].product_id, bump_titulo: itensBump[0].titulo, bump_valor: itensBump[0].valor,
+  } : {};
 
   const totalBruto = Math.max(0, +(precoBase - desconto + bumpValor).toFixed(2));
 
@@ -78,15 +87,18 @@ export async function POST(req: Request) {
   const valorVendedor = +(total - taxa).toFixed(2);
 
   // Sem cupom: reaproveita pedido pendente; com cupom: cria novo (evita inconsistência de valor)
-  if (!cupomCodigo && !bump && !descontoPontos) {
+  if (!cupomCodigo && !itensBump.length && !descontoPontos) {
     const { data: existing } = await supabase.from('orders')
       .select('id, pix_code')
       .eq('comprador', user.id).eq('product_id', product.id).eq('status', 'pendente')
+      .is('bump_product_id', null).eq('total', total) // nunca reaproveita um pedido com bump ou outro valor
       .order('created_at', { ascending: false }).limit(1).maybeSingle();
     if (existing && (existing as any).pix_code) return NextResponse.json({ orderId: existing.id });
   }
 
-  const { data: order, error } = await supabase.from('orders').insert({
+  // O pedido é gravado pelo servidor (service_role): pedidos criados direto pela API do banco
+  // nascem travados como "pendente" e sem entrega (SQL 11).
+  const { data: order, error } = await createAdminClient().from('orders').insert({
     comprador: user.id, comprador_email: user.email ?? null, product_id: product.id, store_id: product.store_id,
     total, taxa, valor_vendedor: valorVendedor, status: 'pendente', cupom: cupomCodigo, desconto, ...bumpFields,
   }).select().single();

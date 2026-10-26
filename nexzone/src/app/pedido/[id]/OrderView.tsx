@@ -7,6 +7,7 @@ import OrderChat from '@/components/OrderChat';
 import ComplaintBox from './ComplaintBox';
 import ProductThumb from '@/components/ProductThumb';
 import Icon from '@/components/Icon';
+import type { ExtraPedido } from '@/lib/extrasPedido';
 
 const money = (v: number) => 'R$ ' + Number(v).toFixed(2).replace('.', ',');
 
@@ -23,9 +24,7 @@ type Props = {
   categoria?: string | null;
   capa_url?: string | null;
   total: number;
-  bumpTitulo?: string | null;
-  bumpConteudo?: string | null;
-  bumpTemArquivo?: boolean;
+  extras?: ExtraPedido[];
   reclamacaoAberta?: boolean;
   cartaoDisponivel?: boolean;
   voltouDoCartao?: boolean;
@@ -34,6 +33,7 @@ type Props = {
 export default function OrderView(props: Props) {
   const [status, setStatus] = useState(props.initialStatus);
   const [conteudo, setConteudo] = useState(props.conteudo);
+  const [extras, setExtras] = useState<ExtraPedido[]>(props.extras || []);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const pago = status === 'pago' || status === 'entregue';
 
@@ -73,6 +73,7 @@ export default function OrderView(props: Props) {
           if (pollRef.current) clearInterval(pollRef.current);
           setStatus(d.status);
           setConteudo(d.conteudo ?? null);
+          if (Array.isArray(d.extras)) setExtras(d.extras);
         }
       } catch {}
     }, 4000);
@@ -129,17 +130,21 @@ export default function OrderView(props: Props) {
             <ComplaintBox orderId={props.orderId} aberta={!!props.reclamacaoAberta} />
           </div>
 
-          {props.bumpTitulo && (
+          {extras.length > 0 && (
             <div style={{ borderTop: '1px solid var(--border)', marginTop: 22, paddingTop: 18, textAlign: 'center' }}>
-              <div className="slabel" style={{ color: 'var(--green)' }}>Item extra incluído</div>
-              <strong style={{ fontFamily: 'Outfit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, margin: '4px 0 10px' }}><Icon name="plusCircle" size={16} /> {props.bumpTitulo}</strong>
-              {props.bumpTemArquivo
-                ? <a className="btn btn-pri btn-sm" href={`/api/download?order=${props.orderId}&which=bump`}><Icon name="download" size={16} /> Baixar item extra</a>
-                : props.bumpConteudo && String(props.bumpConteudo).startsWith('http')
-                  ? <a className="btn btn-pri btn-sm" href={props.bumpConteudo} target="_blank" rel="noreferrer">Acessar item extra</a>
-                  : props.bumpConteudo
-                    ? <div className="muted" style={{ fontSize: 13, wordBreak: 'break-word' }}>{props.bumpConteudo}</div>
-                    : <p className="muted" style={{ fontSize: 13 }}>Conteúdo do item extra será disponibilizado pelo vendedor.</p>}
+              <div className="slabel" style={{ color: 'var(--green)' }}>{extras.length === 1 ? 'Item extra incluído' : `${extras.length} itens extras incluídos`}</div>
+              {extras.map((x) => (
+                <div key={x.i} style={{ padding: '10px 0', borderBottom: x.i < extras.length - 1 ? '1px dashed var(--border)' : 'none' }}>
+                  <strong style={{ fontFamily: 'Outfit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, margin: '4px 0 10px' }}><Icon name="plusCircle" size={16} /> {x.titulo}</strong>
+                  {x.temArquivo
+                    ? <a className="btn btn-pri btn-sm" href={`/api/download?order=${props.orderId}&which=bump&i=${x.i}`}><Icon name="download" size={16} /> Baixar item extra</a>
+                    : x.conteudo && ehSoLink(x.conteudo)
+                      ? <a className="btn btn-pri btn-sm" href={String(x.conteudo).trim()} target="_blank" rel="noopener noreferrer">Acessar item extra</a>
+                      : x.conteudo
+                        ? <div style={{ textAlign: 'left', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: '10px 12px', fontSize: 14 }}><TextoFormatado texto={x.conteudo} corLink="#B84A00" /></div>
+                        : <p className="muted" style={{ fontSize: 13 }}>Conteúdo do item extra será disponibilizado pelo vendedor.</p>}
+                </div>
+              ))}
             </div>
           )}
 

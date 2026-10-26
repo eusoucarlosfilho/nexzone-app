@@ -8,7 +8,7 @@ import Icon from '@/components/Icon';
 import CheckoutBlocos from '@/components/CheckoutBlocos';
 import BumpOferta from '@/components/BumpOferta';
 import {
-  type CheckoutConfig, type Bloco, type TipoBloco, type Depoimento,
+  type CheckoutConfig, type Bloco, type TipoBloco, type Depoimento, type BumpItem, type BumpVisual,
   ROTULO_BLOCO, UNICOS, LIMITES, blocoPadrao, configPadrao,
 } from '@/lib/checkoutConfig';
 import { MSG_MAX } from '@/lib/textoFormatado';
@@ -62,15 +62,21 @@ function CampoFormatado({ valor, onValor, max, placeholder }: { valor: string; o
   );
 }
 
-export default function CheckoutEditor({ productId, userId, produto, loja, inicial, personalizado, outrosProdutos, bumpInicial, aceitaCupomInicial }: {
+type LinhaBump = { chave: string; product_id: string; valor: string };
+let seqBump = 0;
+const novaChave = () => `b${Date.now().toString(36)}${(seqBump++).toString(36)}`;
+const VISUAL_VAZIO = { chamada: '', texto: '', imagem: null as string | null };
+
+export default function CheckoutEditor({ productId, userId, produto, loja, inicial, personalizado, outrosProdutos, bumpsIniciais, aceitaCupomInicial }: {
   productId: string; userId: string; produto: Produto; loja: { nome: string; cor: string | null };
   inicial: CheckoutConfig; personalizado: boolean; outrosProdutos: Outro[];
-  bumpInicial: { bump_product_id: string | null; bump_valor: number | null }; aceitaCupomInicial: boolean;
+  bumpsIniciais: BumpItem[]; aceitaCupomInicial: boolean;
 }) {
   const router = useRouter();
   const [cfg, setCfg] = useState<CheckoutConfig>(inicial);
-  const [bumpId, setBumpId] = useState(bumpInicial?.bump_product_id || '');
-  const [bumpValor, setBumpValor] = useState(bumpInicial?.bump_valor ? String(bumpInicial.bump_valor) : '');
+  // Até 4 order bumps, na ordem em que aparecem no checkout
+  const [bumps, setBumps] = useState<LinhaBump[]>(() => (bumpsIniciais || []).map((b, i) => ({ chave: `ini${i}`, product_id: b.product_id, valor: String(b.valor) })));
+  const [previaMarcados, setPreviaMarcados] = useState<string[]>([]);
   const [aceitaCupom, setAceitaCupom] = useState(!!aceitaCupomInicial);
   const [aberto, setAberto] = useState<string | null>(null);
   const [menuAdd, setMenuAdd] = useState(false);
@@ -78,7 +84,6 @@ export default function CheckoutEditor({ productId, userId, produto, loja, inici
   const [busy, setBusy] = useState(false);
   const [sujo, setSujo] = useState(false);
   const [arrastando, setArrastando] = useState<number | null>(null);
-  const [bumpPrevia, setBumpPrevia] = useState(false);
 
   useEffect(() => {
     const aviso = (e: BeforeUnloadEvent) => { if (sujo) { e.preventDefault(); e.returnValue = ''; } };
@@ -108,26 +113,60 @@ export default function CheckoutEditor({ productId, userId, produto, loja, inici
   }
 
   const cor = cfg.cor || loja.cor || '#FF6B00';
-  const bumpProd = outrosProdutos.find((o) => o.id === bumpId) || null;
-  const bumpNum = Number(String(bumpValor).replace(',', '.'));
-  const bumpPreview = bumpProd && bumpNum > 0 ? {
-    titulo: bumpProd.titulo, valor: bumpNum, precoDe: bumpProd.preco, chamada: cfg.bump.chamada || null,
-    texto: cfg.bump.texto || null, imagem: cfg.bump.imagem || bumpProd.capa_url, descricao: bumpProd.descricao,
-  } : null;
+  // ---- Order bumps ----
+  const num = (v: string) => Number(String(v).replace(',', '.'));
+  const prodDe = (pid: string) => outrosProdutos.find((o) => o.id === pid) || null;
+  const visual = (pid: string) => cfg.bumps.find((v) => v.product_id === pid) || { product_id: pid, ...VISUAL_VAZIO };
+  const setVisual = (pid: string, patch: Partial<BumpVisual>) => mudar((c) => (
+    c.bumps.some((v) => v.product_id === pid)
+      ? { ...c, bumps: c.bumps.map((v) => (v.product_id === pid ? { ...v, ...patch } : v)) }
+      : { ...c, bumps: [...c.bumps, { product_id: pid, ...VISUAL_VAZIO, ...patch }] }
+  ));
+  const setLinha = (chave: string, patch: Partial<LinhaBump>) => { setBumps((l) => l.map((b) => (b.chave === chave ? { ...b, ...patch } : b))); setSujo(true); };
+  function trocarProduto(linha: LinhaBump, novo: string) {
+    const o = prodDe(novo);
+    setLinha(linha.chave, { product_id: novo, valor: linha.valor || (o ? String(Math.max(1, Math.round(o.preco * 0.5 * 100) / 100)) : '') });
+    // os textos acompanham a linha quando o produto muda
+    if (linha.product_id) mudar((c) => ({ ...c, bumps: c.bumps.filter((v) => v.product_id !== novo).map((v) => (v.product_id === linha.product_id ? { ...v, product_id: novo } : v)) }));
+  }
+  function adicionarBump() {
+    if (bumps.length >= LIMITES.bumps) return;
+    setBumps((l) => [...l, { chave: novaChave(), product_id: '', valor: '' }]); setSujo(true);
+  }
+  function removerBump(linha: LinhaBump) {
+    setBumps((l) => l.filter((b) => b.chave !== linha.chave)); setSujo(true);
+    if (linha.product_id) mudar((c) => ({ ...c, bumps: c.bumps.filter((v) => v.product_id !== linha.product_id) }));
+  }
+  function moverBump(de: number, para: number) {
+    if (para < 0 || para >= bumps.length) return;
+    setBumps((l) => { const n = [...l]; const [x] = n.splice(de, 1); n.splice(para, 0, x); return n; }); setSujo(true);
+  }
+  const bumpsPrevia = bumps
+    .map((b) => ({ b, o: prodDe(b.product_id), v: num(b.valor) }))
+    .filter((x) => x.o && x.v > 0)
+    .map(({ b, o, v }) => {
+      const vis = visual(b.product_id);
+      return { id: b.product_id, titulo: o!.titulo, valor: v, precoDe: o!.preco, chamada: vis.chamada || null, texto: vis.texto || null, imagem: vis.imagem || o!.capa_url, descricao: o!.descricao };
+    });
+  const totalPrevia = produto.preco + bumpsPrevia.filter((x) => previaMarcados.includes(x.id)).reduce((s, x) => s + x.valor, 0);
 
   async function salvar(padrao = false) {
-    if (bumpId && !(bumpNum >= 1)) { toast('Informe o preço do order bump (a partir de R$ 1,00).', 'error'); return; }
+    if (!padrao) {
+      if (bumps.some((b) => !b.product_id)) { toast('Escolha o produto de cada order bump (ou remova o que estiver vazio).', 'error'); return; }
+      if (bumps.some((b) => !(num(b.valor) >= 1))) { toast('Informe o preço de cada order bump (a partir de R$ 1,00).', 'error'); return; }
+    }
     setBusy(true);
     try {
+      const lista = padrao ? [] : bumps.map((b) => ({ product_id: b.product_id, valor: num(b.valor) }));
       const r: any = await salvarCheckoutConfig(
         productId,
-        padrao ? null : cfg,
-        padrao ? { bump_product_id: null, bump_valor: null } : { bump_product_id: bumpId || null, bump_valor: bumpId ? bumpNum : null },
+        padrao ? null : { ...cfg, bumps: cfg.bumps.filter((v) => lista.some((b) => b.product_id === v.product_id)) },
+        lista,
         padrao ? false : aceitaCupom,
       );
       if (r?.ok) {
         setSujo(false);
-        if (padrao) { setCfg(configPadrao()); setBumpId(''); setBumpValor(''); setAceitaCupom(false); }
+        if (padrao) { setCfg(configPadrao()); setBumps([]); setPreviaMarcados([]); setAceitaCupom(false); }
         toast(padrao ? 'Checkout voltou ao padrão.' : 'Checkout salvo! Já está valendo para os compradores.', 'success');
         router.refresh();
       } else toast(r?.error || 'Erro ao salvar', 'error');
@@ -142,7 +181,7 @@ export default function CheckoutEditor({ productId, userId, produto, loja, inici
       case 'texto': return b.texto.trim() ? b.texto.replace(/[*_~#\[\]()]/g, '').slice(0, 60) : 'Vazio';
       case 'contador': return b.ate ? `Até ${new Date(b.ate).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}` : 'Sem data';
       case 'depoimentos': return `${b.itens.length} depoimento${b.itens.length === 1 ? '' : 's'}`;
-      case 'pagamento': return 'Fixo: produto, order bump, cupom e formas de pagamento';
+      case 'pagamento': return 'Fixo: produto, order bumps, cupom e formas de pagamento';
       case 'recebe': return 'Automático, a partir do produto';
       case 'garantia': return `Garantia de ${produto.garantia_dias} dias`;
       case 'selos': return 'Pagamento seguro · Dados protegidos · Entrega automática';
@@ -214,7 +253,7 @@ export default function CheckoutEditor({ productId, userId, produto, loja, inici
         );
       }
       case 'pagamento':
-        return <p className="muted" style={{ fontSize: 13 }}>O formulário de pagamento é fixo e sempre aparece. Você escolhe <b>onde</b> ele fica (arraste) e configura o order bump e o cupom mais abaixo.</p>;
+        return <p className="muted" style={{ fontSize: 13 }}>O formulário de pagamento é fixo e sempre aparece. Você escolhe <b>onde</b> ele fica (arraste) e configura os order bumps e o cupom mais abaixo.</p>;
       default:
         return <p className="muted" style={{ fontSize: 13 }}>Este bloco é montado automaticamente com os dados do produto. Você só escolhe se ele aparece e em que posição.</p>;
     }
@@ -227,16 +266,19 @@ export default function CheckoutEditor({ productId, userId, produto, loja, inici
         <span style={{ flex: 1, minWidth: 0 }}><strong style={{ fontFamily: 'Outfit', display: 'block' }}>{produto.titulo}</strong><span className="muted" style={{ fontSize: 13 }}>{loja.nome}</span></span>
         <strong style={{ fontFamily: 'Outfit' }}>{money(produto.preco)}</strong>
       </div>
-      {bumpPreview && <BumpOferta bump={bumpPreview} marcado={bumpPrevia} onToggle={setBumpPrevia} cor={cor} />}
+      {bumpsPrevia.map((x) => (
+        <BumpOferta key={x.id} bump={x} marcado={previaMarcados.includes(x.id)} cor={cor}
+          onToggle={(on) => setPreviaMarcados((l) => (on ? [...l.filter((i) => i !== x.id), x.id] : l.filter((i) => i !== x.id)))} />
+      ))}
       {aceitaCupom && <div className="muted" style={{ fontSize: 13, padding: '12px 0', borderBottom: '1px solid var(--border)' }}>Tem um cupom? [ CUPOM ] Aplicar</div>}
       <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0', fontFamily: 'Outfit', fontWeight: 900, fontSize: 18 }}>
-        <span>Total</span><span>{money(produto.preco + (bumpPrevia && bumpPreview ? bumpPreview.valor : 0))}</span>
+        <span>Total</span><span>{money(totalPrevia)}</span>
       </div>
       <div style={{ border: `2px solid ${cor}`, borderRadius: 12, padding: '10px 12px', fontSize: 14, fontWeight: 700, marginBottom: 12 }}>◉ Pix — aprovação na hora</div>
       <div style={{ background: cor, color: '#fff', borderRadius: 12, padding: '13px', textAlign: 'center', fontFamily: 'Outfit', fontWeight: 900 }}>Pagar com Pix</div>
       <div className="muted" style={{ fontSize: 11.5, textAlign: 'center', marginTop: 8 }}>Prévia — o formulário real aparece no checkout</div>
     </div>
-  ), [produto, loja.nome, bumpPreview, bumpPrevia, aceitaCupom, cor]);
+  ), [produto, loja.nome, bumpsPrevia, previaMarcados, totalPrevia, aceitaCupom, cor]);
 
   return (
     <div className="ce">
@@ -293,6 +335,8 @@ export default function CheckoutEditor({ productId, userId, produto, loja, inici
         .ce-fhead{background:#fff;border-bottom:1px solid var(--border);padding:10px 14px;display:flex;justify-content:space-between;align-items:center;font-size:13px;}
         .ce-fbody{max-height:calc(100vh - 220px);overflow-y:auto;padding:16px;}
         .ce-save{position:fixed;left:0;right:0;bottom:0;z-index:40;background:rgba(255,255,255,.96);backdrop-filter:blur(8px);border-top:1px solid var(--border);padding:12px 20px;display:flex;gap:10px;justify-content:flex-end;align-items:center;flex-wrap:wrap;}
+        .ce-bump{border:1.5px solid var(--border2);border-radius:14px;padding:12px 14px;margin-bottom:12px;background:var(--surface);}
+        .ce-bump-h{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px;}
         .ce-bumpinfo{display:flex;gap:10px;align-items:center;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:10px 12px;font-size:13px;margin:4px 0 12px;}
         @media(max-width:1180px){.ce{grid-template-columns:minmax(0,1fr);}.ce-prev{position:static;}}
         @media(max-width:600px){.ce-row{flex-wrap:wrap;}.ce-tit{flex:1 0 calc(100% - 60px);}.ce-row>.ce-ic:first-of-type{margin-left:38px;}.ce-sec{padding:14px;}.ce-save{padding:10px 12px;}}
@@ -346,34 +390,55 @@ export default function CheckoutEditor({ productId, userId, produto, loja, inici
         </section>
 
         <section className="ce-sec">
-          <h3><Icon name="magnet" size={18} /> Order bump (oferta extra)</h3>
-          <p className="muted" style={{ fontSize: 13 }}>Um produto seu oferecido dentro do checkout, com um clique, por um preço especial. É o que mais aumenta o ticket médio.</p>
-          <div className="fg"><label>Produto oferecido</label>
-            <select value={bumpId} onChange={(e) => { setBumpId(e.target.value); setSujo(true); const o = outrosProdutos.find((x) => x.id === e.target.value); if (o && !bumpValor) setBumpValor(String(Math.max(1, Math.round(o.preco * 0.5 * 100) / 100))); }}>
-              <option value="">Nenhum (sem order bump)</option>
-              {outrosProdutos.map((o) => <option key={o.id} value={o.id}>{o.titulo} — {money(o.preco)}{o.status !== 'ativo' ? ' (em revisão)' : ''}</option>)}
-            </select>
-            {!outrosProdutos.length && <small className="muted" style={{ fontSize: 12 }}>Cadastre outro produto na sua loja para usar como order bump.</small>}
-          </div>
-          {bumpProd && (
-            <>
-              {bumpProd.status !== 'ativo' && <div className="ce-conf" style={{ marginTop: 0, marginBottom: 12, cursor: 'default' }}><Icon name="alert" size={16} /> <span>Este produto ainda está em revisão. O order bump só aparece no checkout depois que ele for aprovado.</span></div>}
-              <div className="fg2">
-                <div className="fg"><label>Preço no order bump (R$)</label>
-                  <input type="number" step="0.01" min={1} inputMode="decimal" value={bumpValor} onChange={(e) => { setBumpValor(e.target.value); setSujo(true); }} placeholder="9.90" /></div>
-                <div className="fg"><label>Preço normal</label><input value={money(bumpProd.preco)} readOnly /></div>
+          <h3><Icon name="magnet" size={18} /> Order bumps (ofertas extras)</h3>
+          <p className="muted" style={{ fontSize: 13 }}>Produtos seus oferecidos dentro do checkout, com um clique, por um preço especial. Até {LIMITES.bumps}, na ordem em que aparecem para o comprador. É o que mais aumenta o ticket médio.</p>
+          {!outrosProdutos.length && <p className="muted" style={{ fontSize: 13 }}>Cadastre outro produto na sua loja para usar como order bump.</p>}
+          {bumps.map((linha, i) => {
+            const o = prodDe(linha.product_id);
+            const v = num(linha.valor);
+            const vis = visual(linha.product_id);
+            const usados = bumps.filter((x) => x.chave !== linha.chave).map((x) => x.product_id);
+            return (
+              <div key={linha.chave} className="ce-bump">
+                <div className="ce-bump-h">
+                  <strong style={{ fontFamily: 'Outfit' }}>Order bump {i + 1}</strong>
+                  <span style={{ display: 'inline-flex', gap: 6 }}>
+                    <button type="button" className="ce-ic" title="Subir" aria-label={`Subir order bump ${i + 1}`} disabled={i === 0} onClick={() => moverBump(i, i - 1)}>▲</button>
+                    <button type="button" className="ce-ic" title="Descer" aria-label={`Descer order bump ${i + 1}`} disabled={i === bumps.length - 1} onClick={() => moverBump(i, i + 1)}>▼</button>
+                    <button type="button" className="ce-ic ce-del" title="Remover" aria-label={`Remover order bump ${i + 1}`} onClick={() => { if (!linha.product_id || confirm(`Remover o order bump ${i + 1}?`)) removerBump(linha); }}><Icon name="trash" size={14} /></button>
+                  </span>
+                </div>
+                <div className="fg"><label>Produto oferecido</label>
+                  <select value={linha.product_id} aria-label={`Produto do order bump ${i + 1}`} onChange={(e) => trocarProduto(linha, e.target.value)}>
+                    <option value="">Escolha um produto</option>
+                    {outrosProdutos.filter((x) => !usados.includes(x.id)).map((x) => <option key={x.id} value={x.id}>{x.titulo} — {money(x.preco)}{x.status !== 'ativo' ? ' (em revisão)' : ''}</option>)}
+                  </select>
+                </div>
+                {o && (
+                  <>
+                    {o.status !== 'ativo' && <div className="ce-conf" style={{ marginTop: 0, marginBottom: 12, cursor: 'default' }}><Icon name="alert" size={16} /> <span>Este produto ainda está em revisão. Este order bump só aparece no checkout depois que ele for aprovado.</span></div>}
+                    <div className="fg2">
+                      <div className="fg"><label>Preço no order bump (R$)</label>
+                        <input type="number" step="0.01" min={1} inputMode="decimal" aria-label={`Preço do order bump ${i + 1}`} value={linha.valor} onChange={(e) => setLinha(linha.chave, { valor: e.target.value })} placeholder="9.90" /></div>
+                      <div className="fg"><label>Preço normal</label><input value={money(o.preco)} readOnly /></div>
+                    </div>
+                    {v > 0 && v < o.preco && <div className="ce-bumpinfo"><Icon name="fire" size={16} color={cor} /> O comprador vê <s>{money(o.preco)}</s> → <b>{money(v)}</b> ({Math.round((1 - v / o.preco) * 100)}% de desconto).</div>}
+                    <div className="fg"><label>Chamada (texto da faixa)</label>
+                      <input value={vis.chamada} maxLength={LIMITES.chamada} onChange={(e) => setVisual(linha.product_id, { chamada: e.target.value })} placeholder={`Sim! Quero adicionar ${o.titulo}`} /></div>
+                    <div className="fg"><label>Texto de venda</label>
+                      <textarea rows={3} value={vis.texto} maxLength={LIMITES.bumpTexto} onChange={(e) => setVisual(linha.product_id, { texto: e.target.value })} placeholder={o.descricao || 'Ex.: Leve também o pack de planilhas prontas com 50% de desconto. Só nesta página.'} /></div>
+                    <div className="fg"><label>Imagem do order bump</label>
+                      <CoverUpload key={`${linha.chave}-${vis.imagem || 'sem'}`} userId={userId} value={vis.imagem || ''} onUploaded={(url) => setVisual(linha.product_id, { imagem: url })} hint="Quadrada, 400×400 px. Sem imagem, usa a capa do produto." />
+                      {vis.imagem && <button type="button" className="btn btn-ghost btn-sm" style={{ marginTop: 6 }} onClick={() => setVisual(linha.product_id, { imagem: null })}>Usar a capa do produto</button>}
+                    </div>
+                  </>
+                )}
               </div>
-              {bumpNum > 0 && bumpNum < bumpProd.preco && <div className="ce-bumpinfo"><Icon name="fire" size={16} color={cor} /> O comprador vê <s>{money(bumpProd.preco)}</s> → <b>{money(bumpNum)}</b> ({Math.round((1 - bumpNum / bumpProd.preco) * 100)}% de desconto).</div>}
-              <div className="fg"><label>Chamada (texto da faixa)</label>
-                <input value={cfg.bump.chamada} maxLength={LIMITES.chamada} onChange={(e) => mudar((c) => ({ ...c, bump: { ...c.bump, chamada: e.target.value } }))} placeholder={`Sim! Quero adicionar ${bumpProd.titulo}`} /></div>
-              <div className="fg"><label>Texto de venda</label>
-                <textarea rows={3} value={cfg.bump.texto} maxLength={LIMITES.bumpTexto} onChange={(e) => mudar((c) => ({ ...c, bump: { ...c.bump, texto: e.target.value } }))} placeholder={bumpProd.descricao || 'Ex.: Leve também o pack de planilhas prontas com 50% de desconto. Só nesta página.'} /></div>
-              <div className="fg"><label>Imagem do order bump</label>
-                <CoverUpload key={cfg.bump.imagem || 'sem'} userId={userId} value={cfg.bump.imagem || ''} onUploaded={(url) => mudar((c) => ({ ...c, bump: { ...c.bump, imagem: url } }))} hint="Quadrada, 400×400 px. Sem imagem, usa a capa do produto." />
-                {cfg.bump.imagem && <button type="button" className="btn btn-ghost btn-sm" style={{ marginTop: 6 }} onClick={() => mudar((c) => ({ ...c, bump: { ...c.bump, imagem: null } }))}>Usar a capa do produto</button>}
-              </div>
-            </>
-          )}
+            );
+          })}
+          {bumps.length < LIMITES.bumps
+            ? <button type="button" className="btn btn-ghost btn-sm" disabled={!outrosProdutos.length || bumps.length >= outrosProdutos.length} onClick={adicionarBump}><Icon name="plus" size={14} /> Adicionar order bump {bumps.length ? `(${bumps.length}/${LIMITES.bumps})` : ''}</button>
+            : <p className="muted" style={{ fontSize: 13 }}>Você já usa os {LIMITES.bumps} order bumps permitidos.</p>}
         </section>
 
         <section className="ce-sec">
@@ -412,7 +477,7 @@ export default function CheckoutEditor({ productId, userId, produto, loja, inici
 
       <div className="ce-save">
         {sujo && <span className="muted" style={{ fontSize: 13, marginRight: 'auto' }}>● Alterações não salvas</span>}
-        {personalizado && <button type="button" className="btn btn-ghost btn-sm" disabled={busy} style={{ color: 'var(--red)' }} onClick={() => { if (confirm('Voltar ao checkout padrão? Blocos, textos, depoimentos e o order bump deste produto serão removidos.')) salvar(true); }}>Restaurar padrão</button>}
+        {personalizado && <button type="button" className="btn btn-ghost btn-sm" disabled={busy} style={{ color: 'var(--red)' }} onClick={() => { if (confirm('Voltar ao checkout padrão? Blocos, textos, depoimentos e os order bumps deste produto serão removidos.')) salvar(true); }}>Restaurar padrão</button>}
         {produto.status === 'ativo'
           ? <a className="btn btn-ghost btn-sm" href={`/checkout/${productId}`} target="_blank" rel="noreferrer"><Icon name="eye" size={14} /> Ver checkout real</a>
           : <span className="muted" style={{ fontSize: 12.5 }}>O checkout real abre quando o produto for aprovado.</span>}

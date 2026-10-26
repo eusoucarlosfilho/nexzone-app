@@ -3,7 +3,7 @@ import { redirect, notFound } from 'next/navigation';
 import Link from 'next/link';
 import CheckoutClient from './CheckoutClient';
 import CheckoutBlocos from '@/components/CheckoutBlocos';
-import { normalizarCheckout, urlDoArmazenamento } from '@/lib/checkoutConfig';
+import { normalizarCheckout, urlDoArmazenamento, listaDeBumps, visualDoBump } from '@/lib/checkoutConfig';
 import type { Product } from '@/lib/types';
 import { getSettings } from '@/lib/settings';
 import Icon from '@/components/Icon';
@@ -26,17 +26,22 @@ export default async function CheckoutPage({ params }: { params: { id: string } 
   // Construtor do checkout (Fase 1): blocos na ordem do vendedor. Configurações antigas são convertidas.
   const cfg = normalizarCheckout((p as any).checkout_config, urlDoArmazenamento(process.env.NEXT_PUBLIC_SUPABASE_URL));
 
-  let bump: any = null;
-  if ((p as any).bump_product_id && (p as any).bump_valor) {
-    const { data: bp } = await supabase.from('products')
-      .select('titulo, descricao, status, capa_url, preco, preco_promo').eq('id', (p as any).bump_product_id).maybeSingle();
-    if (bp && bp.status === 'ativo') {
-      const precoDe = Number((bp as any).preco_promo ?? (bp as any).preco) || null;
-      bump = {
-        titulo: bp.titulo, descricao: bp.descricao ? String(bp.descricao).slice(0, 140) : '', valor: Number((p as any).bump_valor),
-        precoDe, chamada: cfg.bump.chamada || null, texto: cfg.bump.texto || null, imagem: cfg.bump.imagem || (bp as any).capa_url || null,
-      };
-    }
+  // Order bumps (até 4), na ordem do vendedor. Só aparecem os produtos ativos da MESMA loja.
+  const listaBumps = listaDeBumps(p as any);
+  let bumps: any[] = [];
+  if (listaBumps.length) {
+    const { data: bps } = await supabase.from('products')
+      .select('id, titulo, descricao, status, capa_url, preco, preco_promo, store_id')
+      .in('id', listaBumps.map((b) => b.product_id));
+    bumps = listaBumps.flatMap((b, i) => {
+      const bp: any = (bps ?? []).find((x: any) => String(x.id).toLowerCase() === b.product_id);
+      if (!bp || bp.status !== 'ativo' || bp.store_id !== (p as any).store_id) return [];
+      const vis = visualDoBump(cfg, b.product_id, i);
+      return [{
+        id: b.product_id, titulo: bp.titulo, descricao: bp.descricao ? String(bp.descricao).slice(0, 140) : '', valor: b.valor,
+        precoDe: Number(bp.preco_promo ?? bp.preco) || null, chamada: vis.chamada || null, texto: vis.texto || null, imagem: vis.imagem || bp.capa_url || null,
+      }];
+    });
   }
   const cor = cfg.cor || loja.cor || 'var(--orange)';
 
@@ -76,7 +81,7 @@ export default async function CheckoutPage({ params }: { params: { id: string } 
               loja={loja.nome ?? 'Loja'}
               preco={Number(p.preco_promo ?? p.preco)}
               cor={cfg.cor || loja.cor || null}
-              bump={bump}
+              bumps={bumps}
               aceitaCupom={!!(p as any).aceita_cupom}
               meusPontos={meusPontos}
               perBrl={perBrl}

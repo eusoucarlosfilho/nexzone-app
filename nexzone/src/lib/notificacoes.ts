@@ -14,7 +14,7 @@ import { avisarWhatsApp, janela10min, link as linkSite } from '@/lib/whatsapp/en
 export async function notificarCompraAprovada(admin: any, orderId: string) {
   try {
     const { data: o } = await admin.from('orders')
-      .select('id, comprador, store_id, total, valor_vendedor, bump_titulo, products(titulo), stores(nome, owner, ocultar_vendedor)')
+      .select('id, comprador, store_id, total, valor_vendedor, bump_titulo, bumps, products(titulo), stores(nome, owner, ocultar_vendedor)')
       .eq('id', orderId).maybeSingle();
     if (!o) return;
 
@@ -22,7 +22,10 @@ export async function notificarCompraAprovada(admin: any, orderId: string) {
     // Para o COMPRADOR: "Comprei Barato" quando a loja vende oculta. O e-mail do vendedor não usa este nome.
     const loja: string = vendedorPublico((o as any).stores).nome || 'a loja';
     const owner: string | null = (o as any).stores?.owner ?? null;
-    const bump: string | null = (o as any).bump_titulo || null;
+    const titulosExtras: string[] = Array.isArray((o as any).bumps) && (o as any).bumps.length
+      ? (o as any).bumps.map((b: any) => String(b?.titulo || '')).filter(Boolean)
+      : (o as any).bump_titulo ? [String((o as any).bump_titulo)] : [];
+    const bump: string | null = titulosExtras.length ? titulosExtras.join(', ') : null;
     const total = Number((o as any).total) || 0;
 
     const [emailComprador, emailVendedor] = await Promise.all([

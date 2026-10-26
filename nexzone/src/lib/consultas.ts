@@ -2,7 +2,7 @@
 // Colunas usadas nas consultas PÚBLICAS de produtos.
 // Regra: páginas públicas pedem só o que a vitrine mostra.
 // NUNCA incluir conteudo_entrega, arquivo_path, arquivo_nome, checkout_config,
-// bump_* ou qualquer dado interno — eles não podem chegar ao navegador.
+// bump_*, bumps ou qualquer dado interno — eles não podem chegar ao navegador.
 //
 // Isso reduz a exposição na interface, mas NÃO substitui a correção de
 // permissões no banco (achado K1: a política de leitura de products ainda

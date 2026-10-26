@@ -56,18 +56,20 @@ function Step({ n, label, active, done }: { n: number; label: string; active?: b
   );
 }
 
-export default function CheckoutClient({ productId, titulo, emoji, categoria, capa_url, loja, preco, cor, bump, aceitaCupom, meusPontos = 0, perBrl = 100, cartaoDisponivel = false }: any) {
+export default function CheckoutClient({ productId, titulo, emoji, categoria, capa_url, loja, preco, cor, bumps = [], aceitaCupom, meusPontos = 0, perBrl = 100, cartaoDisponivel = false }: any) {
   const router = useRouter();
   const [cupom, setCupom] = useState('');
   const [aplicado, setAplicado] = useState<{ codigo: string; desconto: number; final: number } | null>(null);
   const [checando, setChecando] = useState(false);
   const [gerando, setGerando] = useState(false);
-  const [bumpAceito, setBumpAceito] = useState(false);
+  // Order bumps marcados (ids dos produtos). O servidor confere e cobra pelo preço salvo pelo vendedor.
+  const [marcados, setMarcados] = useState<string[]>([]);
+  const bumpsMarcados: any[] = (bumps as any[]).filter((b) => marcados.includes(b.id));
   const [erro, setErro] = useState('');
   const [metodo, setMetodo] = useState<'pix' | 'cartao'>('pix');
 
   const subtotalProduto = aplicado ? aplicado.final : preco;
-  const totalBruto = subtotalProduto + (bumpAceito && bump ? Number(bump.valor) : 0);
+  const totalBruto = +(subtotalProduto + bumpsMarcados.reduce((s, b) => s + Number(b.valor), 0)).toFixed(2);
 
   const [usarPontos, setUsarPontos] = useState(false);
   // valor máximo dos pontos, deixando ao menos R$1,00 para pagar via Pix
@@ -100,7 +102,7 @@ export default function CheckoutClient({ productId, titulo, emoji, categoria, ca
     setGerando(true);
     const res = await fetch('/api/checkout', {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
-      body: JSON.stringify({ productId, cupom: aplicado?.codigo || null, bump: bumpAceito, usarPontos }),
+      body: JSON.stringify({ productId, cupom: aplicado?.codigo || null, bumps: bumpsMarcados.map((b) => b.id), usarPontos }),
     });
     if (res.status === 401) { router.push('/login?next=' + encodeURIComponent(window.location.pathname)); return; }
     const data = await res.json();
@@ -172,18 +174,21 @@ export default function CheckoutClient({ productId, titulo, emoji, categoria, ca
         </div>
       )}
 
-      {bump && <BumpOferta bump={bump} marcado={bumpAceito} onToggle={setBumpAceito} cor={accent} />}
+      {(bumps as any[]).map((b) => (
+        <BumpOferta key={b.id} bump={b} marcado={marcados.includes(b.id)} cor={accent}
+          onToggle={(on) => setMarcados((l) => (on ? [...l.filter((i) => i !== b.id), b.id] : l.filter((i) => i !== b.id)))} />
+      ))}
 
       {/* Resumo */}
       <div style={{ padding: '16px 0', borderBottom: '1px solid var(--border)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, marginBottom: 6 }}>
           <span className="muted">Subtotal</span><span>{money(preco)}</span>
         </div>
-        {bumpAceito && bump && (
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, marginBottom: 6 }}>
-            <span className="muted">+ {bump.titulo}</span><span>{money(Number(bump.valor))}</span>
+        {bumpsMarcados.map((b) => (
+          <div key={b.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 10, fontSize: 14, marginBottom: 6 }}>
+            <span className="muted">+ {b.titulo}</span><span style={{ whiteSpace: 'nowrap' }}>{money(Number(b.valor))}</span>
           </div>
-        )}
+        ))}
         {aplicado && (
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, marginBottom: 6, color: 'var(--green)' }}>
             <span>Cupom {aplicado.codigo}</span><span>- {money(aplicado.desconto)}</span>

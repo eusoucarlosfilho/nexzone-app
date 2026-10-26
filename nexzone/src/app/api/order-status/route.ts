@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { extrasDoPedido } from '@/lib/extrasPedido';
 
 export async function GET(req: Request) {
   const supabase = createClient();
@@ -10,5 +11,12 @@ export async function GET(req: Request) {
   const { data } = await supabase.from('orders')
     .select('status, conteudo_liberado').eq('id', id).eq('comprador', user.id).single();
   if (!data) return NextResponse.json({ error: 'pedido não encontrado' }, { status: 404 });
-  return NextResponse.json({ status: data.status, conteudo: data.conteudo_liberado });
+  // Itens extras (order bumps): só quando pago, para a página mostrar sem precisar recarregar
+  let extras: any[] = [];
+  if (data.status === 'pago' || data.status === 'entregue') {
+    const { data: ex } = await supabase.from('orders')
+      .select('status, bumps, bump_product_id, bump_titulo, bump_conteudo, bump_arquivo_path').eq('id', id).eq('comprador', user.id).maybeSingle();
+    extras = extrasDoPedido(ex);
+  }
+  return NextResponse.json({ status: data.status, conteudo: data.conteudo_liberado, extras });
 }

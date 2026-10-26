@@ -21,6 +21,7 @@ export interface Product {
   checkout_config?: any;
   bump_product_id?: string | null;
   bump_valor?: number | null;
+  bumps?: { product_id: string; valor: number }[] | null; // até 4 order bumps (SQL 11)
   vendas: number;
   nota: number;
   created_at: string;

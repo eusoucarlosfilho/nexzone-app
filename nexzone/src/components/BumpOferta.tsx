@@ -2,9 +2,9 @@
 import Icon from '@/components/Icon';
 
 // Caixa do order bump no checkout (e na prévia do construtor).
-// Só apresentação: o valor cobrado continua vindo do servidor (products.bump_valor).
+// Só apresentação: o valor cobrado continua vindo do servidor (products.bumps).
 export type BumpExibicao = {
-  titulo: string; valor: number; precoDe?: number | null;
+  id?: string; titulo: string; valor: number; precoDe?: number | null;
   chamada?: string | null; texto?: string | null; imagem?: string | null; descricao?: string | null;
 };
 const money = (v: number) => 'R$ ' + Number(v).toFixed(2).replace('.', ',');

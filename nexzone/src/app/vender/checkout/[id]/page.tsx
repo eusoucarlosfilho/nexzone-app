@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { redirect, notFound } from 'next/navigation';
 import Link from 'next/link';
 import CheckoutEditor from './CheckoutEditor';
-import { normalizarCheckout, urlDoArmazenamento } from '@/lib/checkoutConfig';
+import { normalizarCheckout, urlDoArmazenamento, listaDeBumps, visualDoBump } from '@/lib/checkoutConfig';
 import { vendedorPublico } from '@/lib/vendedorPublico';
 
 export const dynamic = 'force-dynamic';
@@ -13,7 +13,7 @@ export default async function CheckoutEditorPage({ params }: { params: { id: str
   if (!user) redirect(`/login?next=/vender/checkout/${params.id}`);
   const { data: store } = await supabase.from('stores').select('id, nome, logo_url, cor, ocultar_vendedor').eq('owner', user.id).maybeSingle();
   const { data: product } = await supabase.from('products')
-    .select('id, titulo, status, preco, preco_promo, capa_url, tipo_entrega, garantia_dias, checkout_config, store_id, bump_product_id, bump_valor, aceita_cupom')
+    .select('id, titulo, status, preco, preco_promo, capa_url, tipo_entrega, garantia_dias, checkout_config, store_id, bump_product_id, bump_valor, bumps, aceita_cupom')
     .eq('id', params.id).maybeSingle();
   if (!product || !store || product.store_id !== store.id) notFound();
 
@@ -24,6 +24,9 @@ export default async function CheckoutEditorPage({ params }: { params: { id: str
 
   const loja = vendedorPublico(store);
   const config = normalizarCheckout((product as any).checkout_config, urlDoArmazenamento(process.env.NEXT_PUBLIC_SUPABASE_URL));
+  // Até 4 bumps; cada um com seus textos (a config antiga, de um bump só, vira o 1º)
+  const bumpsIniciais = listaDeBumps(product as any);
+  config.bumps = bumpsIniciais.map((b, i) => visualDoBump(config, b.product_id, i));
 
   return (
     <div>
@@ -44,7 +47,7 @@ export default async function CheckoutEditorPage({ params }: { params: { id: str
           id: o.id, titulo: o.titulo, status: o.status, preco: Number(o.preco_promo ?? o.preco), capa_url: o.capa_url,
           descricao: o.descricao ? String(o.descricao).slice(0, 140) : '',
         }))}
-        bumpInicial={{ bump_product_id: product.bump_product_id, bump_valor: product.bump_valor }}
+        bumpsIniciais={bumpsIniciais}
         aceitaCupomInicial={product.aceita_cupom}
       />
     </div>

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient, createAdminClient } from '@/lib/supabase/server';
+import { arquivoDoExtra } from '@/lib/extrasPedido';
 
 export async function GET(req: Request) {
   const supabase = createClient();
@@ -13,14 +14,15 @@ export async function GET(req: Request) {
 
   const admin = createAdminClient();
   const { data: order } = await admin.from('orders')
-    .select('status, comprador, bump_arquivo_path, products(arquivo_path)')
+    .select('status, comprador, bump_arquivo_path, bumps, products(arquivo_path)')
     .eq('id', orderId).single();
 
   const paid = order && (order.status === 'pago' || order.status === 'entregue');
   if (!order || order.comprador !== user.id || !paid) {
     return NextResponse.json({ error: 'sem acesso a este download' }, { status: 403 });
   }
-  const path = which === 'bump' ? (order as any).bump_arquivo_path : (order as any).products?.arquivo_path;
+  // which=bump&i=<posição do item extra> (0 a 3). Sem i = 1º extra (links antigos).
+  const path = which === 'bump' ? arquivoDoExtra(order, Number(url.searchParams.get('i') ?? 0)) : (order as any).products?.arquivo_path;
   if (!path) return NextResponse.json({ error: 'produto sem arquivo' }, { status: 404 });
 
   const { data, error } = await admin.storage.from('entregaveis').createSignedUrl(path, 3600, { download: true });

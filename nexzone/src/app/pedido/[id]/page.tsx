@@ -4,6 +4,7 @@ import { redirect, notFound } from 'next/navigation';
 import OrderView from './OrderView';
 import ConviteWhatsApp from './ConviteWhatsApp';
 import { stripeAvailable } from '@/lib/payments/stripe';
+import { extrasDoPedido } from '@/lib/extrasPedido';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,7 +14,7 @@ export default async function PedidoPage({ params, searchParams }: { params: { i
   if (!user) redirect(`/login?next=${encodeURIComponent(`/pedido/${params.id}`)}`);
 
   const { data: order } = await supabase.from('orders')
-    .select('id, status, total, pix_code, pix_qr, conteudo_liberado, bump_product_id, bump_titulo, bump_conteudo, bump_arquivo_path, products(titulo, emoji, categoria, capa_url, tipo_entrega, arquivo_path)')
+    .select('id, status, total, pix_code, pix_qr, conteudo_liberado, bump_product_id, bump_titulo, bump_conteudo, bump_arquivo_path, bumps, products(titulo, emoji, categoria, capa_url, tipo_entrega, arquivo_path)')
     .eq('id', params.id).eq('comprador', user.id).single();
   if (!order) notFound();
 
@@ -41,9 +42,7 @@ export default async function PedidoPage({ params, searchParams }: { params: { i
           categoria={p?.categoria}
           capa_url={p?.capa_url}
           total={Number(order.total)}
-          bumpTitulo={(order as any).bump_titulo}
-          bumpConteudo={(order as any).bump_conteudo}
-          bumpTemArquivo={!!(order as any).bump_arquivo_path}
+          extras={extrasDoPedido(order)}
           reclamacaoAberta={!!cmp}
           cartaoDisponivel={cartaoDisponivel}
           voltouDoCartao={searchParams?.cartao === 'ok'}

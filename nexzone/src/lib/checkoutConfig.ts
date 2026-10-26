@@ -1,6 +1,8 @@
 // ============================================================
-// Construtor do checkout (Fase 1) — formato do products.checkout_config.
+// Construtor do checkout — formato do products.checkout_config.
 // Só APARÊNCIA e CONTEÚDO da página: valor, pagamento, pedido e entrega não passam por aqui.
+// Fase 2: até 4 order bumps. QUAIS produtos e POR QUANTO ficam em products.bumps (validado no
+// servidor); aqui ficam só os textos/imagem de cada bump, ligados pelo product_id.
 //
 // Versão 2: lista ordenada de blocos. O bloco "pagamento" (formulário de compra) é fixo e
 // sempre existe; o vendedor arruma os outros em volta dele. Configurações antigas (versão 1:
@@ -20,17 +22,19 @@ export type Bloco =
   | { id: string; tipo: 'depoimentos'; ativo: boolean; titulo: string; itens: Depoimento[] }
   | { id: string; tipo: 'pagamento' | 'recebe' | 'garantia' | 'selos'; ativo: boolean };
 
-export type BumpVisual = { chamada: string; texto: string; imagem: string | null };
+export type BumpVisual = { product_id: string; chamada: string; texto: string; imagem: string | null };
+/** Um order bump do produto: qual produto e o preço no bump (products.bumps). */
+export type BumpItem = { product_id: string; valor: number };
 
 export type CheckoutConfig = {
   versao: 2;
   cor: string | null;
   blocos: Bloco[];
-  bump: BumpVisual;
+  bumps: BumpVisual[];
   depoimentosConfirmados: boolean;
 };
 
-export const LIMITES = { blocos: 20, textos: 5, imagens: 3, depoimentos: 6, titulo: 120, subtitulo: 300, selo: 40, nome: 60, depoimento: 600, chamada: 120, bumpTexto: 400 };
+export const LIMITES = { blocos: 20, textos: 5, imagens: 3, depoimentos: 6, titulo: 120, subtitulo: 300, selo: 40, nome: 60, depoimento: 600, chamada: 120, bumpTexto: 400, bumps: 4 };
 
 export const ROTULO_BLOCO: Record<TipoBloco, string> = {
   imagem: 'Imagem', titulo: 'Título e selo', texto: 'Texto', contador: 'Contador regressivo', pagamento: 'Formulário de pagamento',
@@ -66,7 +70,7 @@ export function blocoPadrao(tipo: TipoBloco): Bloco {
 export function configPadrao(): CheckoutConfig {
   return {
     versao: 2, cor: null, depoimentosConfirmados: false,
-    bump: { chamada: '', texto: '', imagem: null },
+    bumps: [],
     blocos: [blocoPadrao('titulo'), blocoPadrao('pagamento'), blocoPadrao('recebe'), blocoPadrao('garantia'), blocoPadrao('selos')]
       .map((b, i) => ({ ...b, id: `${b.tipo}-${i}` })),
   };
@@ -133,13 +137,12 @@ export function normalizarCheckout(raw: any, urlOk: (u: string) => boolean = url
   }
   if (!vistos.has('pagamento')) blocos.push({ id: 'pagamento-0', tipo: 'pagamento', ativo: true });
 
-  const bump = raw.bump && typeof raw.bump === 'object' ? raw.bump : {};
   return {
     versao: 2,
     cor: COR.test(raw.cor || '') ? raw.cor : null,
     blocos,
     depoimentosConfirmados: raw.depoimentosConfirmados === true,
-    bump: { chamada: linha(bump.chamada, LIMITES.chamada), texto: txt(bump.texto, LIMITES.bumpTexto), imagem: img(bump.imagem) || null },
+    bumps: visuaisDosBumps(raw, img),
   };
 }
 
@@ -163,9 +166,81 @@ export function validarCheckout(raw: any, urlOk: (u: string) => boolean): { ok: 
       }
     }
   }
-  if (raw.bump?.imagem && !urlOk(String(raw.bump.imagem))) return { ok: false, erro: 'Envie a imagem do order bump pelo botão "Escolher imagem".' };
+  const visuais = Array.isArray(raw.bumps) ? raw.bumps : raw.bump ? [raw.bump] : [];
+  if (visuais.length > LIMITES.bumps) return { ok: false, erro: `Use no máximo ${LIMITES.bumps} order bumps.` };
+  for (const v of visuais) {
+    if (v?.imagem && !urlOk(String(v.imagem))) return { ok: false, erro: 'Envie a imagem do order bump pelo botão "Escolher imagem".' };
+  }
   if (raw.cor && !COR.test(String(raw.cor))) return { ok: false, erro: 'Cor inválida.' };
   return { ok: true, config: normalizarCheckout(raw, urlOk) };
+}
+
+// Textos/imagem de cada bump. Config antiga (um só "bump", sem product_id) vira o 1º da lista,
+// com product_id '' (= "o primeiro bump", seja qual for o produto).
+function visuaisDosBumps(raw: any, img: (u: any) => string): BumpVisual[] {
+  const lista: any[] = Array.isArray(raw.bumps) ? raw.bumps : raw.bump && typeof raw.bump === 'object' ? [{ ...raw.bump, product_id: '' }] : [];
+  const vistos = new Set<string>();
+  const out: BumpVisual[] = [];
+  for (const v of lista) {
+    if (!v || typeof v !== 'object' || out.length >= LIMITES.bumps) continue;
+    const pid = typeof v.product_id === 'string' && UUID.test(v.product_id) ? v.product_id.toLowerCase() : '';
+    if (vistos.has(pid)) continue;
+    vistos.add(pid);
+    out.push({ product_id: pid, chamada: linha(v.chamada, LIMITES.chamada), texto: txt(v.texto, LIMITES.bumpTexto), imagem: img(v.imagem) || null });
+  }
+  return out;
+}
+
+/** Textos do bump de um produto (posição `i` na lista). Sem textos próprios, usa os da config antiga no 1º. */
+export function visualDoBump(cfg: CheckoutConfig, productId: string, i: number): BumpVisual {
+  const pid = String(productId || '').toLowerCase();
+  const v = cfg.bumps.find((b) => b.product_id && b.product_id === pid) || (i === 0 ? cfg.bumps.find((b) => b.product_id === '') : undefined);
+  return v ? { ...v, product_id: pid } : { product_id: pid, chamada: '', texto: '', imagem: null };
+}
+
+export const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const valorBump = (v: any) => Math.round(Number(v) * 100) / 100;
+
+/**
+ * Lista de bumps salva no produto (products.bumps), já limpa: até 4, sem repetir, preço >= R$ 1,00.
+ * Produto que ainda não tem a lista usa o bump antigo (bump_product_id / bump_valor).
+ * Quem chama ainda precisa conferir se cada produto é da mesma loja e está ativo.
+ */
+export function listaDeBumps(produto: { id?: string; bumps?: any; bump_product_id?: any; bump_valor?: any } | null | undefined): BumpItem[] {
+  if (!produto) return [];
+  const bruta: any[] = Array.isArray(produto.bumps) && produto.bumps.length
+    ? produto.bumps
+    : produto.bump_product_id && produto.bump_valor ? [{ product_id: produto.bump_product_id, valor: produto.bump_valor }] : [];
+  const vistos = new Set<string>();
+  const out: BumpItem[] = [];
+  for (const b of bruta) {
+    if (out.length >= LIMITES.bumps) break;
+    const pid = typeof b?.product_id === 'string' ? b.product_id.toLowerCase() : '';
+    const valor = valorBump(b?.valor);
+    if (!UUID.test(pid) || vistos.has(pid) || pid === String(produto.id || '').toLowerCase()) continue;
+    if (!Number.isFinite(valor) || valor < 1 || valor > 100000) continue;
+    vistos.add(pid);
+    out.push({ product_id: pid, valor });
+  }
+  return out;
+}
+
+/** Validação de quem SALVA a lista de bumps (mensagens claras). Não confere a loja: isso é no servidor. */
+export function validarListaBumps(raw: any, principalId: string): { ok: true; lista: BumpItem[] } | { ok: false; erro: string } {
+  const lista: any[] = Array.isArray(raw) ? raw : [];
+  if (lista.length > LIMITES.bumps) return { ok: false, erro: `Use no máximo ${LIMITES.bumps} order bumps.` };
+  const vistos = new Set<string>();
+  const out: BumpItem[] = [];
+  for (const b of lista) {
+    const pid = typeof b?.product_id === 'string' ? b.product_id.toLowerCase() : '';
+    if (!UUID.test(pid) || pid === String(principalId).toLowerCase()) return { ok: false, erro: 'Produto do order bump inválido.' };
+    if (vistos.has(pid)) return { ok: false, erro: 'O mesmo produto aparece em dois order bumps. Escolha produtos diferentes.' };
+    const valor = valorBump(b?.valor);
+    if (!Number.isFinite(valor) || valor < 1 || valor > 100000) return { ok: false, erro: 'Preço do order bump: use um valor a partir de R$ 1,00.' };
+    vistos.add(pid);
+    out.push({ product_id: pid, valor });
+  }
+  return { ok: true, lista: out };
 }
 
 export function dataValida(v: any): boolean {

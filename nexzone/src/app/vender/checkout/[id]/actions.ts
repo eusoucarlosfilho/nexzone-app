@@ -1,13 +1,12 @@
 'use server';
 import { createClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
-import { validarCheckout, urlDoArmazenamento } from '@/lib/checkoutConfig';
+import { validarCheckout, validarListaBumps, urlDoArmazenamento, UUID, type BumpItem } from '@/lib/checkoutConfig';
 
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-// Salva o construtor do checkout (Fase 1). Só aparência/conteúdo + qual produto é o order bump e seu preço.
+// Salva o construtor do checkout. Aparência/conteúdo + quais produtos são order bumps (até 4) e seus preços.
 // config = null → volta ao checkout padrão.
-export async function salvarCheckoutConfig(productId: string, config: any, bump?: { bump_product_id: string | null; bump_valor: number | null }, aceitaCupom?: boolean) {
+// bumps: lista na ordem do checkout. undefined = não mexe nos bumps; [] = sem order bump.
+export async function salvarCheckoutConfig(productId: string, config: any, bumps?: BumpItem[] | null, aceitaCupom?: boolean) {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: 'não autenticado' };
@@ -23,21 +22,23 @@ export async function salvarCheckoutConfig(productId: string, config: any, bump?
   }
   const upd: any = { checkout_config: limpo, aceita_cupom: !!aceitaCupom };
 
-  if (bump) {
-    const bid = bump.bump_product_id || null;
-    if (bid) {
-      // O produto do bump precisa ser DESTA loja e diferente do principal
-      if (!UUID.test(bid) || bid === productId) return { ok: false, error: 'Produto do order bump inválido.' };
-      const { data: bp } = await supabase.from('products').select('id, store_id').eq('id', bid).maybeSingle();
-      if (!bp || (bp as any).store_id !== store.id) return { ok: false, error: 'O order bump precisa ser um produto da sua loja.' };
-      const valor = Math.round(Number(bump.bump_valor) * 100) / 100;
-      if (!Number.isFinite(valor) || valor < 1 || valor > 100000) return { ok: false, error: 'Preço do order bump: use um valor a partir de R$ 1,00.' };
-      upd.bump_product_id = bid;
-      upd.bump_valor = valor;
-    } else {
-      upd.bump_product_id = null;
-      upd.bump_valor = null;
+  if (bumps !== undefined) {
+    const vb = validarListaBumps(bumps ?? [], productId);
+    if (!vb.ok) return { ok: false, error: vb.erro };
+    const lista = vb.lista;
+    if (lista.length) {
+      // Todos os produtos dos bumps precisam ser DESTA loja (nunca de outra loja)
+      const { data: daLoja } = await supabase.from('products').select('id')
+        .in('id', lista.map((b) => b.product_id)).eq('store_id', store.id);
+      const ids = new Set(((daLoja ?? []) as { id: string }[]).map((p) => String(p.id).toLowerCase()));
+      if (lista.some((b) => !ids.has(b.product_id))) return { ok: false, error: 'O order bump precisa ser um produto da sua loja.' };
     }
+    upd.bumps = lista;
+    // Campos antigos espelham o 1º bump (compatibilidade com pedidos e telas antigas)
+    upd.bump_product_id = lista[0]?.product_id ?? null;
+    upd.bump_valor = lista[0]?.valor ?? null;
+    // Textos só dos bumps que continuam na lista
+    if (limpo) limpo.bumps = (limpo.bumps as any[]).filter((v) => lista.some((b) => b.product_id === v.product_id));
   }
 
   const { error } = await supabase.from('products').update(upd)
