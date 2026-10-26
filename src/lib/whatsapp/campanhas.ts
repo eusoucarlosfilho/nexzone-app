@@ -7,7 +7,7 @@
 // Só recebe quem tem WhatsApp no perfil e está com "ofertas e novidades" ligado.
 // Toda promoção sai com o link para parar de receber.
 import { createAdminClient } from '@/lib/supabase/server';
-import { sendText } from '@/lib/whatsapp';
+import { conectado, sendText } from '@/lib/whatsapp';
 import { lerConfig } from './config';
 import { RODAPE_PROMO, montarTexto, textoLimpo } from './eventos';
 import { normalizarTelefone } from './telefone';
@@ -96,6 +96,7 @@ export async function proximo(campanhaId: number): Promise<PassoFila> {
   const admin = createAdminClient();
   const cfg = await lerConfig();
   if (!cfg.ativo) return { estado: 'parado', motivo: 'O WhatsApp está desligado.' };
+  if (!(await conectado())) return { estado: 'parado', motivo: 'O WhatsApp não está conectado. Conecte pelo QR Code e retome.' };
   const { data: camp } = await admin.from('whatsapp_campanhas').select('id, mensagem, status').eq('id', campanhaId).maybeSingle();
   if (!camp) return { estado: 'parado', motivo: 'Campanha não encontrada.' };
   if ((camp as any).status !== 'enviando') return { estado: 'parado', motivo: 'Campanha pausada.' };

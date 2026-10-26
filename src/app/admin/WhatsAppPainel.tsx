@@ -12,7 +12,8 @@ type Config = {
   eventos: Record<string, { ativo: boolean; modelo: string | null }>;
   promo: { tetoDiario: number; intervaloMin: number; intervaloMax: number };
 };
-type Status = { estado: 'desconectado' | 'aguardando_qr' | 'conectado' | 'nao_configurado' | 'erro'; numero: string | null; detalhe?: string };
+type Estado = 'conectado' | 'aguardando_qr' | 'desconectado' | 'sem_endereco' | 'sem_chave' | 'inacessivel' | 'chave_recusada' | 'erro';
+type Status = { estado: Estado; numero: string | null; detalhe?: string };
 type Campanha = { id: number; titulo: string; publico: string; status: string; total: number; created_at: string; resumo: { pendentes: number; enviados: number; falhas: number; pulados: number } };
 
 async function api(url: string, init?: RequestInit) {
@@ -21,12 +22,16 @@ async function api(url: string, init?: RequestInit) {
   return { ok: r.ok, status: r.status, d };
 }
 
-const ROTULO_ESTADO: Record<Status['estado'], string> = {
-  conectado: 'Conectado', aguardando_qr: 'Aguardando QR Code', desconectado: 'Desconectado', nao_configurado: 'Provedor não configurado', erro: 'Erro ao consultar',
+const ROTULO_ESTADO: Record<Estado, string> = {
+  conectado: 'Conectado', aguardando_qr: 'Aguardando leitura do QR Code', desconectado: 'Servidor no ar · WhatsApp desconectado',
+  sem_endereco: 'Falta o endereço do servidor', sem_chave: 'Falta a chave (API_KEY)', inacessivel: 'Servidor inacessível',
+  chave_recusada: 'Chave recusada pelo servidor', erro: 'Erro no servidor',
 };
-const COR_ESTADO: Record<Status['estado'], string> = {
-  conectado: 'var(--green)', aguardando_qr: '#C98A00', desconectado: 'var(--sub)', nao_configurado: 'var(--sub)', erro: '#E23B3B',
+const COR_ESTADO: Record<Estado, string> = {
+  conectado: 'var(--green)', aguardando_qr: '#C98A00', desconectado: '#C98A00', sem_endereco: 'var(--sub)', sem_chave: 'var(--sub)',
+  inacessivel: '#E23B3B', chave_recusada: '#E23B3B', erro: '#E23B3B',
 };
+const URL_OK = (u: string) => /^https:\/\/[a-z0-9.-]+\.[a-z]{2,}(:\d+)?(\/[^\s]*)?$/i.test(u);
 const ROTULO_PUBLICO: Record<string, string> = { compradores: 'Compradores', vendedores: 'Vendedores', todos: 'Todos', lista: 'Lista' };
 
 const box: React.CSSProperties = { marginBottom: 16 };
@@ -39,7 +44,11 @@ export default function WhatsAppPainel() {
   const [cfg, setCfg] = useState<Config | null>(null);
   const [eventos, setEventos] = useState<DefEvento[]>([]);
   const [chaveMascarada, setChaveMascarada] = useState('');
-  const [novaChave, setNovaChave] = useState('');
+  const [chaveDefinida, setChaveDefinida] = useState(false);
+  const [urlSalva, setUrlSalva] = useState('');           // endereço que está gravado no servidor
+  const [novaChave, setNovaChave] = useState('');         // só o que o admin DIGITAR agora (nunca vem do servidor)
+  const [chaveEditavel, setChaveEditavel] = useState(false); // evita o preenchimento automático do navegador
+  const [msgServidor, setMsgServidor] = useState<{ tipo: 'ok' | 'erro'; texto: string } | null>(null);
   const [salvando, setSalvando] = useState(false);
   const [status, setStatus] = useState<Status | null>(null);
   const [qr, setQr] = useState<string | null>(null);
@@ -52,6 +61,7 @@ export default function WhatsAppPainel() {
     const r = await api('/api/admin/whatsapp/config');
     if (!r.ok) { setBloqueio(r.d.error || 'Indisponível.'); return; }
     setCfg(r.d.config); setEventos(r.d.eventos || []); setChaveMascarada(r.d.chaveMascarada || '');
+    setChaveDefinida(!!r.d.chaveDefinida); setUrlSalva(r.d.config?.apiUrl || '');
   }, []);
   useEffect(() => { carregar(); }, [carregar]);
 
@@ -71,20 +81,45 @@ export default function WhatsAppPainel() {
     return () => clearInterval(t);
   }, [bloqueio, cfg, conectando, consultar]);
 
+  // Salva interruptor, eventos e limites. NÃO envia chave (a chave só sai em "Salvar servidor").
   async function salvar(parcial?: Partial<Config>) {
     if (!cfg) return;
-    const config = { ...cfg, ...parcial };
+    const config = { ...cfg, ...parcial, apiUrl: urlSalva };
     setSalvando(true);
-    const r = await api('/api/admin/whatsapp/config', { method: 'POST', body: JSON.stringify({ config, apiKey: novaChave }) });
+    const r = await api('/api/admin/whatsapp/config', { method: 'POST', body: JSON.stringify({ config }) });
     setSalvando(false);
-    if (r.ok) { setCfg(r.d.config); setChaveMascarada(r.d.chaveMascarada || ''); setNovaChave(''); toast('WhatsApp: configurações salvas.', 'success'); }
+    if (r.ok) { setCfg({ ...r.d.config }); toast('WhatsApp: configurações salvas.', 'success'); }
     else toast(r.d.error || 'Não foi possível salvar.', 'error');
+  }
+
+  // Endereço + chave do servidor (Square Cloud), com validação e status logo em seguida
+  async function salvarServidor() {
+    if (!cfg) return;
+    const url = cfg.apiUrl.trim().replace(/\/+$/, '');
+    const chave = novaChave.trim();
+    setMsgServidor(null);
+    if (!url) { setMsgServidor({ tipo: 'erro', texto: 'Informe o endereço do servidor.' }); return; }
+    if (!URL_OK(url)) { setMsgServidor({ tipo: 'erro', texto: 'Endereço inválido: use https:// (ex.: https://seu-app.squareweb.app).' }); return; }
+    if (!chave && !chaveDefinida) { setMsgServidor({ tipo: 'erro', texto: 'Informe a chave (API_KEY) da Square Cloud.' }); return; }
+    if (chave && (chave.length < 24 || /\s/.test(chave))) { setMsgServidor({ tipo: 'erro', texto: 'Chave inválida: o servidor exige 24 caracteres ou mais, sem espaços. Aumente a API_KEY na Square Cloud e use a mesma aqui.' }); return; }
+    setSalvando(true);
+    const r = await api('/api/admin/whatsapp/config', { method: 'POST', body: JSON.stringify({ config: { ...cfg, apiUrl: url }, apiKey: chave || undefined, servidor: true }) });
+    setSalvando(false);
+    if (!r.ok) { setMsgServidor({ tipo: 'erro', texto: r.d.error || 'Não foi possível salvar.' }); return; }
+    setCfg(r.d.config); setUrlSalva(r.d.config.apiUrl); setChaveMascarada(r.d.chaveMascarada || ''); setChaveDefinida(!!r.d.chaveDefinida);
+    setNovaChave(''); setChaveEditavel(false);
+    if (r.d.status) setStatus(r.d.status);
+    const est: Estado | undefined = r.d.status?.estado;
+    const ok = est === 'conectado' || est === 'desconectado' || est === 'aguardando_qr';
+    setMsgServidor(ok
+      ? { tipo: 'ok', texto: est === 'conectado' ? 'Servidor salvo. WhatsApp já conectado.' : 'Servidor salvo e respondendo. Agora clique em Conectar WhatsApp.' }
+      : { tipo: 'erro', texto: `Servidor salvo, mas: ${r.d.status?.detalhe || 'não foi possível falar com ele.'}` });
   }
 
   async function conexao(acao: 'conectar' | 'desconectar' | 'reconectar') {
     if (acao === 'desconectar' && !confirm('Desconectar o WhatsApp? Nenhum aviso será enviado até conectar de novo.')) return;
     const r = await api('/api/admin/whatsapp/conexao', { method: 'POST', body: JSON.stringify({ acao }) });
-    if (!r.ok) { toast(r.d.error || 'Falha ao falar com o provedor.', 'error'); return; }
+    if (!r.ok) { toast(r.d.error || 'Falha ao falar com o servidor do WhatsApp.', 'error'); setMsgServidor({ tipo: 'erro', texto: r.d.error || 'Falha ao falar com o servidor do WhatsApp.' }); consultar(false); return; }
     if (acao === 'desconectar') { setConectando(false); setQr(null); toast('WhatsApp desconectado.', 'success'); consultar(false); return; }
     setConectando(true); setQr(r.d.qr || null); setCodigo(r.d.codigoPareamento || null);
   }
@@ -105,7 +140,8 @@ export default function WhatsAppPainel() {
   }
   if (!cfg) return <div className="adm-card" style={box}>Carregando WhatsApp…</div>;
 
-  const st = status?.estado ?? 'desconectado';
+  const st: Estado = status?.estado ?? (urlSalva ? (chaveDefinida ? 'desconectado' : 'sem_chave') : 'sem_endereco');
+  const servidorSalvo = !!urlSalva && chaveDefinida; // libera Conectar mesmo antes de uma consulta dar certo
 
   return (
     <div className="adm-card" style={box}>
@@ -137,9 +173,9 @@ export default function WhatsAppPainel() {
             {status?.detalhe && <span style={{ color: 'var(--sub)', fontSize: 12 }}>· {status.detalhe}</span>}
           </div>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}>
-            {st !== 'conectado' && <button className="adm-btn" onClick={() => conexao('conectar')} disabled={st === 'nao_configurado'}>Conectar WhatsApp</button>}
+            {st !== 'conectado' && <button className="adm-btn" onClick={() => conexao('conectar')} disabled={!servidorSalvo}>Conectar WhatsApp</button>}
             {st === 'conectado' && <button className="adm-btn" onClick={() => conexao('desconectar')}>Desconectar</button>}
-            <button className="adm-btn" onClick={() => conexao('reconectar')} disabled={st === 'nao_configurado'}>Reconectar</button>
+            <button className="adm-btn" onClick={() => conexao('reconectar')} disabled={!servidorSalvo}>Reconectar</button>
           </div>
           {conectando && st !== 'conectado' && (
             <div style={{ textAlign: 'center', padding: 14, border: '1px dashed var(--border)', borderRadius: 14, marginBottom: 14 }}>
@@ -155,16 +191,22 @@ export default function WhatsAppPainel() {
 
           <h3 style={{ fontFamily: 'Outfit', fontWeight: 800, fontSize: 15, margin: '6px 0 8px' }}>Servidor do WhatsApp (Square Cloud)</h3>
           <label style={lbl}>Endereço do servidor</label>
-          <input style={inp} value={cfg.apiUrl} onChange={(e) => setCfg({ ...cfg, apiUrl: e.target.value })} placeholder="https://compreibarato-whatsapp.squareweb.app" />
+          <input style={inp} value={cfg.apiUrl} onChange={(e) => setCfg({ ...cfg, apiUrl: e.target.value })} placeholder="Ex.: https://seu-app.squareweb.app" spellCheck={false} autoComplete="off" />
+          <small style={hint}>{urlSalva ? <>Endereço salvo: <strong>{urlSalva}</strong></> : 'Nenhum endereço salvo.'} Copie o endereço do botão “Visitar” da aplicação na Square Cloud.</small>
           <label style={lbl}>Chave (API_KEY)</label>
-          <input style={inp} type="password" autoComplete="new-password" value={novaChave} onChange={(e) => setNovaChave(e.target.value)} placeholder={chaveMascarada || 'cole a API_KEY definida na Square Cloud'} />
-          <small style={hint}>{chaveMascarada ? `Chave salva: ${chaveMascarada}. Deixe em branco para manter.` : 'Nenhuma chave salva.'} A chave nunca é mostrada inteira.</small>
+          <input style={inp} type="password" name="wa-chave-servidor-nova" id="wa-chave-servidor-nova" autoComplete="new-password"
+            data-lpignore="true" data-1p-ignore="true" data-form-type="other" spellCheck={false}
+            readOnly={!chaveEditavel} onFocus={() => setChaveEditavel(true)}
+            value={novaChave} onChange={(e) => setNovaChave(e.target.value)}
+            placeholder={chaveDefinida ? 'Digite só se quiser trocar a chave' : 'Cole aqui a API_KEY definida na Square Cloud'} />
+          <small style={hint}>{chaveDefinida ? <>Chave salva <strong>({chaveMascarada})</strong>. Deixe o campo vazio para manter.</> : 'Nenhuma chave salva.'} A chave nunca é mostrada inteira.</small>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 10 }}>
             <div><label style={lbl}>Nome da instância</label><input style={inp} value={cfg.instancia} onChange={(e) => setCfg({ ...cfg, instancia: e.target.value })} /></div>
             <div><label style={lbl}>Limite por minuto</label><input style={inp} type="number" min={1} max={60} value={cfg.limitePorMinuto} onChange={(e) => setCfg({ ...cfg, limitePorMinuto: Number(e.target.value) })} /></div>
             <div><label style={lbl}>WhatsApp do admin (avisos de suporte)</label><input style={inp} type="tel" value={cfg.adminNumero ? formatarTelefone(cfg.adminNumero) : ''} onChange={(e) => setCfg({ ...cfg, adminNumero: e.target.value })} placeholder="(63) 99999-9999" /></div>
           </div>
-          <button className="adm-btn" onClick={() => salvar()} disabled={salvando}>{salvando ? 'Salvando…' : 'Salvar servidor'}</button>
+          <button className="adm-btn" onClick={salvarServidor} disabled={salvando}>{salvando ? 'Salvando…' : 'Salvar servidor'}</button>
+          {msgServidor && <p role="status" style={{ marginTop: 8, fontSize: 13, fontWeight: 700, color: msgServidor.tipo === 'ok' ? 'var(--green)' : '#E23B3B' }}>{msgServidor.texto}</p>}
 
           <h3 style={{ fontFamily: 'Outfit', fontWeight: 800, fontSize: 15, margin: '18px 0 8px' }}>Mensagem de teste</h3>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>

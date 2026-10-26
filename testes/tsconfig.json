@@ -32,6 +32,7 @@
     "../src/lib/audiencia.ts",
     "../src/lib/whatsapp/telefone.ts",
     "../src/lib/whatsapp/eventos.ts",
-    "../src/lib/whatsapp.ts"
+    "../src/lib/whatsapp.ts",
+    "../src/lib/whatsapp/config.ts"
   ]
 }

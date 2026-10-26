@@ -1,0 +1,20 @@
+// Criptografia da chave do servidor do WhatsApp (src/lib/whatsapp/config.ts)
+const Module = require('module'); const assert = require('assert');
+const orig = Module._load;
+Module._load = function (r, ...a) { if (r === '@/lib/supabase/server') return { createAdminClient: () => { throw new Error('sem banco no teste'); } }; return orig.call(this, r, ...a); };
+process.env.SUPABASE_SERVICE_ROLE_KEY = 'segredo-de-teste-do-servidor';
+const c = require('./.build/whatsapp/config.js');
+let ok = 0, fail = 0; const t = (n, f) => { try { f(); ok++; console.log('OK  ', n); } catch (e) { fail++; console.log('FAIL', n, '-', e.message); } };
+const chave = 'MinhaChaveSuperSecreta123456';
+const enc = c.cifrar(chave);
+t('guardada criptografada (não aparece em texto)', () => { assert.ok(enc.startsWith('enc:v1:')); assert.ok(!enc.includes(chave)); });
+t('volta igual ao ler', () => assert.strictEqual(c.decifrar(enc), chave));
+t('cada gravação gera um texto diferente', () => assert.notStrictEqual(c.cifrar(chave), enc));
+t('valor adulterado não abre (devolve vazio)', () => assert.strictEqual(c.decifrar(enc.slice(0, -4) + 'AAAA'), ''));
+t('valor antigo sem criptografia continua funcionando', () => assert.strictEqual(c.decifrar('chave-antiga-sem-cripto'), 'chave-antiga-sem-cripto'));
+process.env.SUPABASE_SERVICE_ROLE_KEY = 'outro-segredo';
+t('com outro segredo do servidor não abre', () => assert.strictEqual(c.decifrar(enc), ''));
+t('máscara mostra só os 4 últimos', () => assert.strictEqual(c.mascararChave(chave), '••••••••3456'));
+t('config: endereço sem https é descartado', () => { assert.strictEqual(c.normalizarConfig({ apiUrl: 'http://x.squareweb.app' }).apiUrl, ''); assert.strictEqual(c.normalizarConfig({ apiUrl: 'https://x.squareweb.app/' }).apiUrl, 'https://x.squareweb.app'); });
+t('config: interruptor vem DESLIGADO por padrão', () => assert.strictEqual(c.normalizarConfig({}).ativo, false));
+console.log(`\n${ok} passaram, ${fail} falharam`); process.exit(fail ? 1 : 0);
