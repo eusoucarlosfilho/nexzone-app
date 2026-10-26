@@ -2,7 +2,8 @@ import { createClient } from '@/lib/supabase/server';
 import { redirect, notFound } from 'next/navigation';
 import Link from 'next/link';
 import CheckoutClient from './CheckoutClient';
-import Countdown from '@/components/Countdown';
+import CheckoutBlocos from '@/components/CheckoutBlocos';
+import { normalizarCheckout, urlDoArmazenamento } from '@/lib/checkoutConfig';
 import type { Product } from '@/lib/types';
 import { getSettings } from '@/lib/settings';
 import Icon from '@/components/Icon';
@@ -22,14 +23,19 @@ export default async function CheckoutPage({ params }: { params: { id: string } 
   const p = data as Product;
   // Nome, logo e cor públicos (Comprei Barato quando a loja vende oculta). O pagamento continua indo para a loja real.
   const loja = vendedorPublico((p as any).stores);
-  const cfg: any = (p as any).checkout_config || {};
+  // Construtor do checkout (Fase 1): blocos na ordem do vendedor. Configurações antigas são convertidas.
+  const cfg = normalizarCheckout((p as any).checkout_config, urlDoArmazenamento(process.env.NEXT_PUBLIC_SUPABASE_URL));
 
   let bump: any = null;
   if ((p as any).bump_product_id && (p as any).bump_valor) {
     const { data: bp } = await supabase.from('products')
-      .select('titulo, descricao, status').eq('id', (p as any).bump_product_id).maybeSingle();
+      .select('titulo, descricao, status, capa_url, preco, preco_promo').eq('id', (p as any).bump_product_id).maybeSingle();
     if (bp && bp.status === 'ativo') {
-      bump = { titulo: bp.titulo, descricao: bp.descricao ? String(bp.descricao).slice(0, 90) : '', valor: Number((p as any).bump_valor) };
+      const precoDe = Number((bp as any).preco_promo ?? (bp as any).preco) || null;
+      bump = {
+        titulo: bp.titulo, descricao: bp.descricao ? String(bp.descricao).slice(0, 140) : '', valor: Number((p as any).bump_valor),
+        precoDe, chamada: cfg.bump.chamada || null, texto: cfg.bump.texto || null, imagem: cfg.bump.imagem || (bp as any).capa_url || null,
+      };
     }
   }
   const cor = cfg.cor || loja.cor || 'var(--orange)';
@@ -55,35 +61,28 @@ export default async function CheckoutPage({ params }: { params: { id: string } 
         <span className="muted" style={{ fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}><Icon name="lock" size={14} /> Pagamento seguro</span>
       </header>
 
-      {cfg.banner_url && (
-        <div style={{ maxWidth: 560, margin: '20px auto 0', padding: '0 20px' }}>
-          <img src={cfg.banner_url} alt="" style={{ width: '100%', borderRadius: 16, display: 'block' }} />
-        </div>
-      )}
-
-      <div className="page" style={{ maxWidth: 480 }}>
-        {cfg.badge_text && (
-          <span style={{ display: 'inline-block', background: cor, color: '#fff', borderRadius: 50, padding: '5px 14px', fontSize: 12, fontWeight: 800, fontFamily: 'Outfit', marginBottom: 12 }}>{cfg.badge_text}</span>
-        )}
-        <h1 style={{ fontFamily: 'Outfit', fontSize: 24, fontWeight: 900, marginBottom: cfg.subtitle ? 6 : 16 }}>{cfg.headline || 'Finalizar compra'}</h1>
-        {cfg.subtitle && <p style={{ color: 'var(--sub)', marginBottom: 16 }}>{cfg.subtitle}</p>}
-
-        {cfg.countdown_until && <Countdown until={cfg.countdown_until} cor={cor} />}
-
-        <CheckoutClient
-          productId={p.id}
-          titulo={p.titulo}
-          emoji={p.emoji}
-          categoria={(p as any).categoria}
-          capa_url={(p as any).capa_url}
-          loja={loja.nome ?? 'Loja'}
-          preco={Number(p.preco_promo ?? p.preco)}
-          cor={cfg.cor || loja.cor || null}
-          bump={bump}
-          aceitaCupom={!!(p as any).aceita_cupom}
-          meusPontos={meusPontos}
-          perBrl={perBrl}
-          cartaoDisponivel={cartaoDisponivel}
+      <div className="page" style={{ maxWidth: 520 }}>
+        <CheckoutBlocos
+          config={cfg}
+          cor={cor}
+          produto={{ titulo: p.titulo, tipo_entrega: (p as any).tipo_entrega, garantia_dias: (p as any).garantia_dias }}
+          pagamento={
+            <CheckoutClient
+              productId={p.id}
+              titulo={p.titulo}
+              emoji={p.emoji}
+              categoria={(p as any).categoria}
+              capa_url={(p as any).capa_url}
+              loja={loja.nome ?? 'Loja'}
+              preco={Number(p.preco_promo ?? p.preco)}
+              cor={cfg.cor || loja.cor || null}
+              bump={bump}
+              aceitaCupom={!!(p as any).aceita_cupom}
+              meusPontos={meusPontos}
+              perBrl={perBrl}
+              cartaoDisponivel={cartaoDisponivel}
+            />
+          }
         />
         <div style={{ textAlign: 'center', marginTop: 22 }}>
           <span className="muted" style={{ fontSize: 12 }}>

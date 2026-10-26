@@ -25,7 +25,7 @@ export default function ProdutoGerenciar({ id, onLoja }: { id: string; onLoja?: 
   const [mNota, setMNota] = useState('');
   const txt = (v: number | null | undefined, nota = false) => (v === null || v === undefined ? '' : nota ? Number(v).toFixed(1).replace('.', ',') : String(v));
   function aplicar(j: Dados) {
-    setD(j); setEstoque(j.estoque === null || j.estoque === undefined ? '' : String(j.estoque));
+    aplicar(j);
     const m = j.manual ?? { ativo: false, vendas: null, avaliacoes: null, nota: null };
     setMAtivo(m.ativo);
     // Ao abrir sem manual, o rascunho começa com os números automáticos atuais
@@ -95,7 +95,7 @@ export default function ProdutoGerenciar({ id, onLoja }: { id: string; onLoja?: 
 
   return (
     <div className="pg-box">
-      <style>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         .pg-box{background:var(--panel2);border:1px solid var(--bd2);border-radius:14px;padding:16px;display:grid;gap:16px;}
         .pg-sec h4{font-family:'Outfit';font-size:14px;font-weight:800;margin:0 0 8px;}
         .pg-nums{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;}
@@ -115,7 +115,7 @@ export default function ProdutoGerenciar({ id, onLoja }: { id: string; onLoja?: 
         .pg-man-r input:disabled{opacity:.55;}
         .pg-auto{font-size:13px;color:var(--sub);border-left:2px dashed var(--bd2);padding-left:10px;}
         @media(max-width:560px){.pg-man-h,.pg-man-r{grid-template-columns:80px 1fr;}.pg-man-h span:last-child{display:none}.pg-auto{grid-column:2}}
-      `}</style>
+      ` }} />
 
       <div className="pg-sec">
         <h4>Vendas, avaliações e estrelas</h4>

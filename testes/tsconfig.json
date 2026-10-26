@@ -35,6 +35,8 @@
     "../src/lib/whatsapp.ts",
     "../src/lib/whatsapp/config.ts",
     "../src/lib/estoque.ts",
-    "../src/lib/edicoes.ts"
+    "../src/lib/edicoes.ts",
+    "../src/lib/textoFormatado.ts",
+    "../src/lib/checkoutConfig.ts"
   ]
 }

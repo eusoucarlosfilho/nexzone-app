@@ -6,6 +6,7 @@ import GalleryUpload from './GalleryUpload';
 import { galeriaDe, MAX_FOTOS } from '@/lib/galeria';
 import { NOMES_CATEGORIAS, AVISO_JOGOS, ehJogos } from '@/lib/categorias';
 import Icon from '@/components/Icon';
+import EditorMensagem from './EditorMensagem';
 
 const CATS = NOMES_CATEGORIAS;
 
@@ -25,6 +26,7 @@ export default function EditProductForm({ product, userId, foco, onSaved, onCanc
     preco: p.preco, preco_promo: p.preco_promo || '', tipo_entrega: p.tipo_entrega || 'arquivo',
     garantia_dias: p.garantia_dias || 7, conteudo_entrega: p.conteudo_entrega || '', emoji: p.emoji || '📦',
     arquivo_path: p.arquivo_path || '', arquivo_nome: p.arquivo_nome || '', imagens: galeriaDe(p),
+    usa_mensagem_padrao: p.usa_mensagem_padrao === true,
   });
   const [busy, setBusy] = useState(false);
   const [erros, setErros] = useState<Record<string, string>>({});
@@ -127,14 +129,20 @@ export default function EditProductForm({ product, userId, foco, onSaved, onCanc
             <FileUpload userId={userId} current={form.arquivo_nome} onUploaded={(path, nome) => setForm({ ...form, arquivo_path: path, arquivo_nome: nome })} />
             <div className="ui-help">Entregue ao comprador somente depois do pagamento confirmado.</div>
           </div>
-        ) : (
-          <div className="fg"><label htmlFor={`ce-${p.id}`}>Conteúdo liberado pós-pagamento</label>
-            <input id={`ce-${p.id}`} value={form.conteudo_entrega} onChange={(e) => setForm({ ...form, conteudo_entrega: e.target.value })} placeholder="https://… ou a chave/instrução" />
-            <div className="ui-help">Link, chave ou instrução que o comprador recebe após o pagamento.</div>
-          </div>
-        )}
+        ) : null}
+        <div className="fg"><label htmlFor={`ce-${p.id}`}>{form.tipo_entrega === 'arquivo' ? 'Mensagem pós-compra (opcional, vai junto com o arquivo)' : 'Mensagem pós-compra (link, chave ou instruções)'}</label>
+          <EditorMensagem id={`ce-${p.id}`} valor={form.conteudo_entrega}
+            onValor={(v) => setForm((f: any) => ({ ...f, conteudo_entrega: v }))}
+            usaPadrao={!!form.usa_mensagem_padrao} onUsaPadrao={(v) => setForm((f: any) => ({ ...f, usa_mensagem_padrao: v }))} />
+          <div className="ui-help">Aparece no pedido e é enviada automaticamente no chat com o cliente assim que o pagamento é confirmado.</div>
+        </div>
       </div>
 
+      <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', background: 'var(--soft)', border: '1px solid var(--border)', borderRadius: 14, padding: '12px 14px', margin: '4px 0 14px' }}>
+        <Icon name="cart" size={20} color="var(--orange-ink)" />
+        <span style={{ flex: '1 1 240px', fontSize: 13.5 }}><strong style={{ fontFamily: 'Outfit', display: 'block' }}>Checkout e order bump</strong>Imagem no topo, textos, depoimentos, contador e um produto seu como oferta extra na hora da compra.</span>
+        <a className="btn btn-ghost btn-sm" href={`/vender/checkout/${p.id}`}>Personalizar checkout ›</a>
+      </div>
       <p className="muted" style={{ fontSize: 12.5, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}><Icon name="alert" size={13} /> Ao salvar, o produto volta para revisão antes de ficar ativo de novo.</p>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         <button type="button" className="btn btn-pri btn-sm" disabled={busy} onClick={salvar}>{busy ? 'Salvando…' : 'Salvar e enviar para revisão'}</button>
