@@ -1,6 +1,7 @@
 import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import AdminDashboard from './AdminDashboard';
+import { resumirAlteracoes } from '@/lib/edicoes';
 import { getSettings } from '@/lib/settings';
 import { stripeEnabledSetting, stripeEnvStatus } from '@/lib/payments/stripe';
 import { getPaymentConfigPublic } from '@/lib/payments/config';
@@ -71,6 +72,20 @@ export default async function AdminPage() {
       products.forEach((p) => { if (fotosPor[p.id]) p.imagens = fotosPor[p.id]; });
     }
   } catch { /* sem fotos: a fila continua funcionando */ }
+  // O que mudou em cada anúncio da fila (SQL 09). Sem a tabela: alteracoes = null e a fila segue igual.
+  try {
+    const filaIds = products.filter((p) => p.status === 'em_revisao').map((p) => p.id);
+    if (filaIds.length) {
+      const { data: eds, error: edErr } = await admin.from('product_edicoes')
+        .select('product_id, tipo, alteracoes, created_at').in('product_id', filaIds).is('revisado_em', null)
+        .order('created_at', { ascending: true }).limit(2000);
+      if (!edErr) {
+        const por: Record<string, any[]> = {};
+        ((eds ?? []) as any[]).forEach((e) => { (por[e.product_id] ||= []).push(e); });
+        products.forEach((p) => { if (p.status === 'em_revisao') p.alteracoes = resumirAlteracoes(por[p.id] ?? []); });
+      }
+    }
+  } catch { /* sem SQL 09 */ }
   const stores = (storesRes.data ?? []) as any[];
   const payouts = (payoutsRes.data ?? []) as any[];
   const boosts = (boostsRes.data ?? []) as any[];

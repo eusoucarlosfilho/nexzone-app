@@ -16,6 +16,7 @@ import { ehJogos } from '@/lib/categorias';
 import Icon from '@/components/Icon';
 import ProductThumb from '@/components/ProductThumb';
 import ProdutoGerenciar from './ProdutoGerenciar';
+import AlteracoesAnuncio from './AlteracoesAnuncio';
 
 const money = (v: number) => 'R$ ' + Number(v).toFixed(2).replace('.', ',');
 const fmt = (v: number) => Number(v).toLocaleString('pt-BR');
@@ -403,6 +404,7 @@ export default function AdminDashboard({ adminEmail, users, metrics, daily, orde
                         ))}
                       </div>
                     ) : <span style={{ display: 'block', marginTop: 6, fontSize: 11, color: 'var(--sub)' }}>Sem fotos</span>}
+                    <AlteracoesAnuncio r={p.alteracoes} />
                   </div>
                   <button className="adm-btn ap" disabled={busy === p.id} onClick={() => moderar(p.id, 'aprovar')}>Aprovar</button>
                   <button className="adm-btn rp" disabled={busy === p.id} onClick={() => moderar(p.id, 'reprovar')}>Reprovar</button>

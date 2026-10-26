@@ -34,6 +34,7 @@
     "../src/lib/whatsapp/eventos.ts",
     "../src/lib/whatsapp.ts",
     "../src/lib/whatsapp/config.ts",
-    "../src/lib/estoque.ts"
+    "../src/lib/estoque.ts",
+    "../src/lib/edicoes.ts"
   ]
 }
