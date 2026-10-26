@@ -3,6 +3,8 @@ import { createClient } from '@/lib/supabase/server';
 import { getSettings } from '@/lib/settings';
 import { redirect } from 'next/navigation';
 import ProductManager from './ProductManager';
+import OcultarMinhaLoja from './OcultarMinhaLoja';
+import { idsAdminConfigurados } from '@/lib/ofertas/adminSeguro';
 import { termoBusca } from '@/lib/consultas';
 import { extrasDe, EXTRAS_VAZIO } from '@/lib/estoque';
 
@@ -32,6 +34,16 @@ export default async function ProdutosPage({ searchParams }: { searchParams: SP 
   if (!user) redirect('/login?next=/vender/produtos');
 
   const { data: store } = await supabase.from('stores').select('id').eq('owner', user.id).maybeSingle();
+
+  // Admin que também é lojista: pode ocultar o nome da própria loja (mesma regra do Admin: papel admin + ADMIN_USER_IDS)
+  let lojaAdmin: { id: string; nome: string; oculto: boolean } | null = null;
+  if (store) {
+    const { data: perfil } = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle();
+    if ((perfil as any)?.role === 'admin' && idsAdminConfigurados().includes(user.id.toLowerCase())) {
+      const { data: vis } = await supabase.from('stores').select('nome, ocultar_vendedor').eq('id', store.id).maybeSingle();
+      if (vis) lojaAdmin = { id: store.id, nome: (vis as any).nome || 'Minha loja', oculto: (vis as any).ocultar_vendedor === true };
+    }
+  }
   const { boost_plans } = await getSettings();
 
   const filtro = (FILTROS as readonly string[]).includes(searchParams.status || '') ? (searchParams.status as string) : 'todos';
@@ -94,6 +106,7 @@ export default async function ProdutosPage({ searchParams }: { searchParams: SP 
         </div>
         <Link href="/vender/produtos/novo" className="btn btn-pri">+ Cadastrar novo produto</Link>
       </div>
+      {lojaAdmin && <OcultarMinhaLoja storeId={lojaAdmin.id} nomeLoja={lojaAdmin.nome} ocultoInicial={lojaAdmin.oculto} />}
       <ProductManager
         products={produtos}
         total={total}
