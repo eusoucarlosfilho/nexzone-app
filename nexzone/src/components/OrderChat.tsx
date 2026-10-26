@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect, useRef, useCallback } from 'react';
+import TextoFormatado from '@/components/TextoFormatado';
 
 type Msg = { id: string; papel: string; texto: string; created_at: string; mine: boolean };
 
@@ -84,7 +85,7 @@ export default function OrderChat({ orderId, theme = 'light', readOnly = false, 
           return (
             <div key={m.id} style={{ display: 'flex', flexDirection: 'column', alignItems: own ? 'flex-end' : 'flex-start' }}>
               <div style={{ fontSize: 10, color: C.sub, margin: '0 6px 3px', fontWeight: 700 }}>{label}</div>
-              <div style={{ background: bg, color: col, padding: '9px 13px', borderRadius: own ? '14px 14px 4px 14px' : '14px 14px 14px 4px', maxWidth: '78%', fontSize: 14, lineHeight: 1.4, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{m.texto}</div>
+              <div style={{ background: bg, color: col, padding: '9px 13px', borderRadius: own ? '14px 14px 4px 14px' : '14px 14px 14px 4px', maxWidth: '78%', fontSize: 14, lineHeight: 1.4, wordBreak: 'break-word' }}><TextoFormatado texto={m.texto} corLink={own ? '#fff' : '#B84A00'} /></div>
               <div style={{ fontSize: 10, color: C.sub, margin: '3px 6px 0' }}>{hora(m.created_at)}</div>
             </div>
           );

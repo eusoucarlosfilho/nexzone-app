@@ -1,0 +1,20 @@
+// Mensagem pós-compra formatada (src/lib/textoFormatado.ts)
+const assert = require('assert');
+const f = require('./.build/textoFormatado.js');
+let ok = 0, fail = 0; const t = (n, fn) => { try { fn(); ok++; console.log('OK  ', n); } catch (x) { fail++; console.log('FAIL', n, '-', x.message); } };
+const inl = (s) => f.parseInline(s);
+t('negrito', () => assert.deepStrictEqual(inl('a **b** c'), [{ t: 'txt', v: 'a ' }, { t: 'b', c: [{ t: 'txt', v: 'b' }] }, { t: 'txt', v: ' c' }]));
+t('itálico com _ e *', () => { assert.strictEqual(inl('_x_')[0].t, 'i'); assert.strictEqual(inl('*x*')[0].t, 'i'); });
+t('palavra_com_sublinhado não vira itálico', () => assert.deepStrictEqual(inl('arquivo_final_v2'), [{ t: 'txt', v: 'arquivo_final_v2' }]));
+t('riscado', () => assert.strictEqual(inl('~~x~~')[0].t, 's'));
+t('negrito com itálico dentro', () => assert.strictEqual(inl('**a _b_**')[0].c[1].t, 'i'));
+t('link com texto', () => assert.deepStrictEqual(inl('[Acesse](https://x.com/a)'), [{ t: 'a', href: 'https://x.com/a', c: [{ t: 'txt', v: 'Acesse' }] }]));
+t('link solto vira clicável e o ponto final fica fora', () => { const r = inl('veja https://x.com/a.'); assert.strictEqual(r[1].href, 'https://x.com/a'); assert.deepStrictEqual(r[2], { t: 'txt', v: '.' }); });
+t('javascript: não vira link', () => { const r = inl('[x](javascript:alert(1))'); assert.ok(r.every((x) => x.t !== 'a')); });
+t('HTML fica como texto', () => assert.deepStrictEqual(inl('<b>oi</b><script>x</script>'), [{ t: 'txt', v: '<b>oi</b><script>x</script>' }]));
+t('lista com marcadores', () => { const b = f.parseTexto('- um\n- dois'); assert.strictEqual(b.length, 1); assert.strictEqual(b[0].t, 'ul'); assert.strictEqual(b[0].itens.length, 2); });
+t('lista numerada', () => { const b = f.parseTexto('1. a\n2) b'); assert.strictEqual(b[0].t, 'ol'); assert.strictEqual(b[0].itens.length, 2); });
+t('linhas vazias do começo/fim somem; do meio ficam', () => assert.deepStrictEqual(f.parseTexto('\n\na\n\nb\n\n').map((b) => b.t), ['p', 'vazio', 'p']));
+t('texto puro (sem marcações)', () => assert.strictEqual(f.textoPuro('**Oi** _você_\n- [link](https://x.com)'), 'Oi você\n• link (https://x.com/)'));
+t('só link → botão "Acessar produto"', () => { assert.strictEqual(f.ehSoLink(' https://x.com/a '), true); assert.strictEqual(f.ehSoLink('acesse https://x.com'), false); assert.strictEqual(f.ehSoLink('javascript:x'), false); });
+console.log(`\n${ok} passaram, ${fail} falharam`); process.exit(fail ? 1 : 0);

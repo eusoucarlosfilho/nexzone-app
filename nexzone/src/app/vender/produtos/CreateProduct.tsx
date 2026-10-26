@@ -8,6 +8,7 @@ import GalleryUpload from './GalleryUpload';
 import { MAX_FOTOS } from '@/lib/galeria';
 import { NOMES_CATEGORIAS, AVISO_JOGOS, ehJogos } from '@/lib/categorias';
 import SeoPanel from './SeoPanel';
+import EditorMensagem from './EditorMensagem';
 import Icon from '@/components/Icon';
 
 const CATS = NOMES_CATEGORIAS;
@@ -22,6 +23,7 @@ export default function CreateProduct({ userId }: { userId: string }) {
   const [garantia, setGarantia] = useState('7');
   const [estoque, setEstoque] = useState('');
   const [conteudoEntrega, setConteudoEntrega] = useState('');
+  const [usaPadrao, setUsaPadrao] = useState(false);
 
   const [tipo, setTipo] = useState('arquivo');
   const [arquivoPath, setArquivoPath] = useState('');
@@ -231,10 +233,10 @@ export default function CreateProduct({ userId }: { userId: string }) {
           <input type="hidden" name="arquivo_path" value={arquivoPath} />
           <input type="hidden" name="arquivo_nome" value={arquivoNome} />
         </div>
-      ) : (
-        <div className="fg"><label htmlFor="np-cont">Conteúdo liberado pós-pagamento (link ou texto)</label><input id="np-cont" name="conteudo_entrega" value={conteudoEntrega} onChange={(e) => setConteudoEntrega(e.target.value)} placeholder="https://… ou a chave/instrução" />
-          <div className="ui-help">Só aparece para o comprador depois do pagamento confirmado. Se a entrega for manual, você também pode entregar pela conversa do pedido.</div></div>
-      )}
+      ) : null}
+      <div className="fg"><label htmlFor="np-cont">{tipo === 'arquivo' ? 'Mensagem pós-compra (opcional, vai junto com o arquivo)' : 'Mensagem pós-compra (link, chave ou instruções)'}</label>
+        <EditorMensagem id="np-cont" name="conteudo_entrega" novo valor={conteudoEntrega} onValor={setConteudoEntrega} usaPadrao={usaPadrao} onUsaPadrao={setUsaPadrao} />
+        <div className="ui-help">Aparece no pedido e é enviada automaticamente no chat com o cliente assim que o pagamento é confirmado.</div></div>
       </section>
 
       {/* emoji legado: o servidor ainda lê o campo; vazio = padrão do servidor */}

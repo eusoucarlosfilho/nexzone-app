@@ -3,7 +3,9 @@ import Footer from '@/components/Footer';
 import ProductCard from '@/components/ProductCard';
 import PartnerOfferCard from '@/components/PartnerOfferCard';
 import { configMix, ofertasAtivas, visiveis } from '@/lib/ofertas/servidor';
-import Carousel from '@/components/Carousel';
+import Carousel, { type ItemDestaque } from '@/components/Carousel';
+import { descontoPct, formatarPreco } from '@/lib/ofertas/tipos';
+import { vendedorPublico } from '@/lib/vendedorPublico';
 import Link from 'next/link';
 import CategoryIcon, { categoryColors } from '@/components/CategoryIcon';
 import Icon from '@/components/Icon';
@@ -16,7 +18,7 @@ import { stripeAvailable } from '@/lib/payments/stripe';
 import type { Product } from '@/lib/types';
 import { produtosPublicos } from '@/lib/vendedorPublico';
 import { PRODUTO_CARD } from '@/lib/consultas';
-import { CATEGORIAS, contarPorCategoria } from '@/lib/categorias';
+import { CATEGORIAS, contarPorCategoria, acharCategoria } from '@/lib/categorias';
 
 export const dynamic = 'force-dynamic';
 
@@ -53,7 +55,7 @@ export default async function Home() {
     supabase.from('products').select(PRODUTO_CARD).eq('status', 'ativo').order('created_at', { ascending: false }).limit(8),
     supabase.from('products').select('categoria').eq('status', 'ativo'),
     configMix(),
-    ofertasAtivas({ limite: 24 }),
+    ofertasAtivas({ limite: 36 }),
   ]);
   const destaques = produtosPublicos(destRes.data as Product[] | null);
   const maisVendidos = produtosPublicos(altaRes.data as Product[] | null);
@@ -68,12 +70,46 @@ export default async function Home() {
   const taxa = commission_percent ?? 3;
 
   // Produtos externos: seção própria depois das vitrines nativas (respeita as chaves do admin)
-  const parceiras = visiveis(todasParceiras, mix).slice(0, mix.homeQtd);
+  const parceirasVisiveis = visiveis(todasParceiras, mix);
+  const parceiras = parceirasVisiveis.slice(0, mix.homeQtd);
+
+  // Faixa de destaque do topo: nativos em destaque (destaque_ate) primeiro, depois as ofertas
+  // externas marcadas como destaque no Admin › Ofertas parceiras. Até 10 itens.
+  const real = (v: number) => 'R$ ' + Number(v).toFixed(2).replace('.', ',');
+  const itensDestaque: ItemDestaque[] = [
+    ...destaques.map((p): ItemDestaque => {
+      const cat = acharCategoria(p.categoria);
+      const preco = p.preco_promo ?? p.preco;
+      return {
+        key: 'p-' + p.id, href: `/produto/${p.id}`, titulo: p.titulo,
+        meta: [vendedorPublico(p.stores).nome, cat?.nome || p.categoria].filter(Boolean).join(' · '),
+        preco: real(preco), precoDe: p.preco_promo ? real(p.preco) : null,
+        desconto: p.preco_promo && p.preco > 0 ? Math.round((1 - p.preco_promo / p.preco) * 100) : 0,
+        img: p.capa_url || null, categoria: cat?.slug || p.categoria || null, externo: false,
+      };
+    }),
+    ...(mix.ativo ? parceirasVisiveis.filter((o) => o.featured) : []).map((o): ItemDestaque => {
+      const cat = acharCategoria(o.category);
+      return {
+        key: 'o-' + o.id, href: `/oferta/${o.slug}`, titulo: o.title,
+        meta: cat?.nome || o.category || 'Oferta',
+        preco: formatarPreco(o.price_reference, o.currency), precoDe: formatarPreco(o.price_from, o.currency),
+        desconto: descontoPct(o.price_reference, o.price_from),
+        img: o.image_url || null, categoria: cat?.slug || o.category || null, externo: true,
+      };
+    }),
+  ].slice(0, 10);
 
   return (
     <>
       <Nav />
       <main>
+        {itensDestaque.length > 0 && (
+          <section className="nz car-topo" aria-label="Produtos em destaque"><div className="c">
+            <Carousel items={itensDestaque} />
+          </div></section>
+        )}
+
         <section className="v3-hero" aria-labelledby="v3-hero-t">
           <div className="v3-hero-in">
             <div className="v3-hero-tx">
@@ -118,12 +154,6 @@ export default async function Home() {
             )}
           </div>
         </section>
-
-        {destaques.length > 0 && (
-          <section className="nz" aria-label="Produtos em destaque"><div className="c">
-            <Carousel items={destaques} />
-          </div></section>
-        )}
 
         {vazio ? (
           <section className="nz"><div className="c">

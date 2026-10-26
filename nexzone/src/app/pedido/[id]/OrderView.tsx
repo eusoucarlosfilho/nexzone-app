@@ -1,5 +1,7 @@
 'use client';
 import { useState, useEffect, useRef, useTransition } from 'react';
+import TextoFormatado from '@/components/TextoFormatado';
+import { ehSoLink } from '@/lib/textoFormatado';
 import { enviarAvaliacao } from './actions';
 import OrderChat from '@/components/OrderChat';
 import ComplaintBox from './ComplaintBox';
@@ -104,11 +106,16 @@ export default function OrderView(props: Props) {
             <p className="muted" style={{ margin: '6px 0 14px' }}>Seu produto está liberado.</p>
             {props.temArquivo
               ? <a className="btn btn-pri" href={`/api/download?order=${props.orderId}`}><Icon name="download" size={18} /> Baixar produto</a>
-              : conteudo && String(conteudo).startsWith('http')
-                ? <a className="btn btn-pri" href={conteudo} target="_blank" rel="noreferrer">Acessar produto</a>
-                : conteudo
-                  ? <div className="muted" style={{ fontSize: 13, wordBreak: 'break-word' }}>{conteudo}</div>
-                  : <p className="muted" style={{ fontSize: 13 }}>O vendedor ainda não cadastrou o conteúdo de entrega deste produto.</p>}
+              : conteudo && ehSoLink(conteudo)
+                ? <a className="btn btn-pri" href={String(conteudo).trim()} target="_blank" rel="noopener noreferrer">Acessar produto</a>
+                : !conteudo && <p className="muted" style={{ fontSize: 13 }}>O vendedor ainda não cadastrou o conteúdo de entrega deste produto.</p>}
+            {/* Mensagem pós-compra do vendedor, com a formatação (negrito, listas, links) */}
+            {conteudo && !ehSoLink(conteudo) && (
+              <div style={{ textAlign: 'left', marginTop: props.temArquivo ? 16 : 0, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 14, padding: '14px 16px', fontSize: 14.5 }}>
+                <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--orange-ink)', marginBottom: 6 }}>Mensagem do vendedor</div>
+                <TextoFormatado texto={String(conteudo)} corLink="#B84A00" />
+              </div>
+            )}
           </div>
 
           <div style={{ borderTop: '1px solid var(--border)', marginTop: 22, paddingTop: 18 }}>

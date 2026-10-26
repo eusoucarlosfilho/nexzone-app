@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { validarImagens, galeriaDe } from '@/lib/galeria';
 import { lerEstoque } from '@/lib/estoque';
+import { mensagemPadraoDaLoja } from '@/lib/mensagemPadrao';
 
 async function ownsProduct(supabase: any, userId: string, productId: string) {
   const { data } = await supabase
@@ -27,6 +28,9 @@ export async function GET(req: Request) {
   if (!(await ownsProduct(supabase, user.id, id))) return NextResponse.json({ error: 'sem permissão' }, { status: 403 });
   const { data, error } = await supabase.from('products').select(COLUNAS_EDICAO).eq('id', id).maybeSingle();
   if (error || !data) return NextResponse.json({ error: 'produto não encontrado' }, { status: 404 });
+  // Mensagem padrão (SQL 10): lida à parte para não quebrar a edição se a coluna ainda não existir
+  const { data: mp, error: mpErr } = await supabase.from('products').select('usa_mensagem_padrao').eq('id', id).maybeSingle();
+  (data as any).usa_mensagem_padrao = !mpErr && (mp as any)?.usa_mensagem_padrao === true;
   return NextResponse.json({ produto: data }, { headers: { 'Cache-Control': 'no-store' } });
 }
 
@@ -87,8 +91,19 @@ export async function PATCH(req: Request) {
     };
   }
 
+  // Mensagem pós-compra: "usar a padrão" grava o texto padrão da loja no anúncio (SQL 10)
+  const querPadrao = action !== 'pausar' && action !== 'reativar' && 'usa_mensagem_padrao' in body;
+  if (querPadrao && body.usa_mensagem_padrao === true) {
+    const padrao = await mensagemPadraoDaLoja(supabase, user.id);
+    if (padrao) patch.conteudo_entrega = padrao;
+  }
+
   const { error } = await supabase.from('products').update(patch).eq('id', id);
   if (error) return NextResponse.json({ error: 'falha ao salvar' }, { status: 500 });
+  if (querPadrao) {
+    const { error: eFlag } = await supabase.from('products').update({ usa_mensagem_padrao: body.usa_mensagem_padrao === true }).eq('id', id);
+    if (eFlag && !/usa_mensagem_padrao/.test(eFlag.message || '')) console.error('[seller/product] mensagem padrão', eFlag.message);
+  }
   return NextResponse.json({ ok: true, status: patch.status });
 }
 

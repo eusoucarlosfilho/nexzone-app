@@ -1,6 +1,7 @@
 'use server';
 import { createClient } from '@/lib/supabase/server';
 import { lerEstoque } from '@/lib/estoque';
+import { mensagemPadraoDaLoja } from '@/lib/mensagemPadrao';
 import { revalidatePath } from 'next/cache';
 import { contaStatus } from '@/lib/account';
 import { validarImagens } from '@/lib/galeria';
@@ -67,6 +68,11 @@ export async function criarProduto(formData: FormData) {
     // Estoque em gravação separada: se o SQL 07 ainda não rodou, o produto é criado mesmo assim.
     if (est.valor !== null && (criado as any)?.id) {
       await supabase.from('products').update({ estoque: est.valor }).eq('id', (criado as any).id);
+    }
+    // Mensagem pós-compra padrão da loja (SQL 10): marca o anúncio e garante o texto padrão atual
+    if (formData.get('usa_mensagem_padrao') === '1' && (criado as any)?.id) {
+      const padrao = await mensagemPadraoDaLoja(supabase, user.id);
+      await supabase.from('products').update(padrao ? { usa_mensagem_padrao: true, conteudo_entrega: padrao } : { usa_mensagem_padrao: true }).eq('id', (criado as any).id);
     }
     revalidatePath('/vender');
     return { ok: true };
