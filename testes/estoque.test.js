@@ -12,6 +12,13 @@ t('0 = Esgotado', () => assert.deepStrictEqual(e.avisoEstoque(0), { texto: 'Esgo
 t('1 = última unidade', () => assert.strictEqual(e.avisoEstoque(1).texto, 'Última unidade disponível'));
 t('até 10 = "Restam só N"', () => { assert.strictEqual(e.avisoEstoque(7).texto, 'Restam só 7 unidades'); assert.strictEqual(e.avisoEstoque(10).nivel, 'pouco'); });
 t('acima de 10 = disponíveis', () => { const a = e.avisoEstoque(1500); assert.strictEqual(a.nivel, 'ok'); assert.ok(a.texto.startsWith('1.500')); });
+t('manual: vendas aceita "1.500" e vazio', () => { assert.deepStrictEqual(e.lerContador('1.500'), { ok: true, valor: 1500 }); assert.deepStrictEqual(e.lerContador(''), { ok: true, valor: null }); });
+t('manual: vendas recusa negativo e texto', () => { assert.strictEqual(e.lerContador('-3').ok, false); assert.strictEqual(e.lerContador('dez').ok, false); });
+t('manual: estrelas com vírgula', () => assert.deepStrictEqual(e.lerNota('4,8'), { ok: true, valor: 4.8 }));
+t('manual: estrelas fora de 1–5 recusadas', () => { for (const v of ['0', '5,5', '6', 'abc']) assert.strictEqual(e.lerNota(v).ok, false, v); });
+t('manual desligado: mostra automático', () => assert.deepStrictEqual(e.contadoresExibidos({ vendas: 3, avaliacoes: 1, media: 5 }, { ativo: false, vendas: 900, avaliacoes: 50, nota: 4.7 }), { vendas: 3, avaliacoes: 1, media: 5 }));
+t('manual ligado: mostra o digitado', () => assert.deepStrictEqual(e.contadoresExibidos({ vendas: 3, avaliacoes: 1, media: 5 }, { ativo: true, vendas: 900, avaliacoes: 50, nota: 4.7 }), { vendas: 900, avaliacoes: 50, media: 4.7 }));
+t('manual ligado com campo vazio: usa o automático naquele campo', () => assert.deepStrictEqual(e.contadoresExibidos({ vendas: 3, avaliacoes: 1, media: 5 }, { ativo: true, vendas: 120, avaliacoes: null, nota: null }), { vendas: 120, avaliacoes: 1, media: 5 }));
 (async () => {
   const semColuna = { from: () => ({ select: () => ({ in: async () => ({ data: null, error: { message: 'column products.estoque does not exist' } }) }) }) };
   const r = await e.extrasDe(semColuna, ['a']);

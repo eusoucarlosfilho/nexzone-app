@@ -7,7 +7,7 @@ import ShareButton from '@/components/ShareButton';
 import FavButton from '@/components/FavButton';
 import Questions from './Questions';
 import { createClient, createAdminClient } from '@/lib/supabase/server';
-import { avisoEstoque, extrasDe, EXTRAS_VAZIO } from '@/lib/estoque';
+import { avisoEstoque, extrasDe, EXTRAS_VAZIO, manuaisDe, contadoresExibidos } from '@/lib/estoque';
 import { notFound } from 'next/navigation';
 import type { Product } from '@/lib/types';
 import type { Metadata } from 'next';
@@ -94,9 +94,14 @@ export default async function ProductPage({ params }: { params: { id: string } }
   // agregado real de avaliações (contagem, média e JSON-LD), sem o limite de 10 da lista exibida
   const { data: notasData } = await supabase.from('reviews').select('nota').eq('product_id', p.id).limit(5000);
   const notas = ((notasData ?? []) as { nota: number }[]).map((r) => Number(r.nota)).filter((v) => v >= 1 && v <= 5);
-  const qtdAvaliacoes = notas.length;
-  const media = qtdAvaliacoes ? notas.reduce((s, v) => s + v, 0) / qtdAvaliacoes : 0;
-  const vendas = Number(p.vendas) || 0;
+  const autoAvaliacoes = notas.length;
+  const autoMedia = autoAvaliacoes ? notas.reduce((s, v) => s + v, 0) / autoAvaliacoes : 0;
+  // Modo manual do admin (SQL 08): mostra os números digitados no lugar dos automáticos
+  const manuais = await manuaisDe(supabase, p.id);
+  const exib = contadoresExibidos({ vendas: Number(p.vendas) || 0, avaliacoes: autoAvaliacoes, media: autoMedia }, manuais);
+  const qtdAvaliacoes = exib.avaliacoes;
+  const media = qtdAvaliacoes > 0 && exib.media > 0 ? exib.media : 0;
+  const vendas = exib.vendas;
 
   // Estoque e exibição dos contadores (SQL 07). Sem o SQL 07: nada muda.
   const extras = (await extrasDe(supabase, [p.id]))[p.id] ?? EXTRAS_VAZIO;
@@ -236,7 +241,7 @@ export default async function ProductPage({ params }: { params: { id: string } }
             : <div className="pdp-hero"><CategoryCover cat={p.categoria} size={96} /></div>}
           <span className="pdp-chip">{p.categoria}</span>
           <h1 className="pdp-title">{p.titulo}</h1>
-          {/* Números REAIS. O que for zero não aparece; o admin pode ocultar a linha inteira. */}
+          {/* Automáticos ou manuais (admin). O que for zero não aparece; o admin pode ocultar a linha inteira. */}
           {mostrarContadores && (qtdAvaliacoes > 0 || vendas > 0) ? (
             <div className="pdp-meta">
               {qtdAvaliacoes > 0 && <>

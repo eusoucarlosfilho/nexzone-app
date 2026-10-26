@@ -5,8 +5,8 @@
 // products.ocultar_contadores. Tudo aqui é TOLERANTE: se o SQL 07 ainda não foi rodado,
 // as consultas falham em silêncio e o site se comporta como antes.
 //
-// Contadores: os números exibidos são SEMPRE os reais (pedidos pagos e avaliações de compradores).
-// Não existe campo para digitar número de vendas, avaliações ou estrelas.
+// Contadores: automáticos (pedidos pagos e avaliações de compradores) ou, com o modo manual
+// ligado pelo admin (SQL 08), os números digitados no Admin → Produtos → Gerenciar.
 // ============================================================
 
 export const ESTOQUE_MAX = 1_000_000;
@@ -58,4 +58,52 @@ export async function extrasDe(client: any, ids: string[]): Promise<Record<strin
 /** Linha "★ 4,8 · 12 avaliações · 30 vendas" sem zeros: o que for 0 não aparece. */
 export function contadoresVisiveis(qtdAvaliacoes: number, vendas: number) {
   return { avaliacoes: qtdAvaliacoes > 0, vendas: vendas > 0, novo: qtdAvaliacoes <= 0 && vendas <= 0 };
+}
+
+// ---------- Contadores manuais (SQL 08) ----------
+export const CONTADOR_MAX = 10_000_000;
+export type ContadoresManuais = { ativo: boolean; vendas: number | null; avaliacoes: number | null; nota: number | null };
+export const MANUAIS_VAZIO: ContadoresManuais = { ativo: false, vendas: null, avaliacoes: null, nota: null };
+
+/** Inteiro de 0 a 10 milhões, ou vazio (null). */
+export function lerContador(v: unknown): { ok: true; valor: number | null } | { ok: false; erro: string } {
+  const s = v === null || v === undefined ? '' : String(v).trim().replace(/\./g, '');
+  if (s === '') return { ok: true, valor: null };
+  if (!/^\d+$/.test(s)) return { ok: false, erro: 'Use só números inteiros.' };
+  const n = Number(s);
+  if (!Number.isSafeInteger(n) || n > CONTADOR_MAX) return { ok: false, erro: 'Número grande demais.' };
+  return { ok: true, valor: n };
+}
+
+/** Estrelas de 1,0 a 5,0 (aceita vírgula), uma casa decimal; vazio = null. */
+export function lerNota(v: unknown): { ok: true; valor: number | null } | { ok: false; erro: string } {
+  const s = v === null || v === undefined ? '' : String(v).trim().replace(',', '.');
+  if (s === '') return { ok: true, valor: null };
+  if (!/^\d(\.\d+)?$/.test(s)) return { ok: false, erro: 'Estrelas: use um número de 1 a 5 (ex.: 4,8).' };
+  const n = Math.round(Number(s) * 10) / 10;
+  if (n < 1 || n > 5) return { ok: false, erro: 'Estrelas: use um número de 1 a 5 (ex.: 4,8).' };
+  return { ok: true, valor: n };
+}
+
+/** Lê o modo manual de um produto. Sem o SQL 08: desligado (comportamento automático). */
+export async function manuaisDe(client: any, id: string): Promise<ContadoresManuais> {
+  try {
+    const { data, error } = await client.from('products')
+      .select('contadores_manuais, vendas_manual, avaliacoes_manual, nota_manual').eq('id', id).maybeSingle();
+    if (error || !data) return { ...MANUAIS_VAZIO };
+    const num = (x: any) => (x === null || x === undefined ? null : Number(x));
+    return { ativo: data.contadores_manuais === true, vendas: num(data.vendas_manual), avaliacoes: num(data.avaliacoes_manual), nota: num(data.nota_manual) };
+  } catch {
+    return { ...MANUAIS_VAZIO };
+  }
+}
+
+/** Números que a página mostra: manuais (quando ligado e preenchido) ou automáticos. */
+export function contadoresExibidos(auto: { vendas: number; avaliacoes: number; media: number }, m: ContadoresManuais) {
+  if (!m.ativo) return { ...auto };
+  return {
+    vendas: m.vendas ?? auto.vendas,
+    avaliacoes: m.avaliacoes ?? auto.avaliacoes,
+    media: m.nota ?? auto.media,
+  };
 }
