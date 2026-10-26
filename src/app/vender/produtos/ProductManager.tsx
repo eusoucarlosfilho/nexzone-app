@@ -10,6 +10,7 @@ import Icon from '@/components/Icon';
 import StatusBadge from '@/components/ui/StatusBadge';
 import EmptyState from '@/components/ui/EmptyState';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import EstoqueCampo from './EstoqueCampo';
 
 const money = (v: number) => 'R$ ' + Number(v).toFixed(2).replace('.', ',');
 const data = (s?: string | null) => (s ? new Date(s).toLocaleDateString('pt-BR') : '—');
@@ -24,9 +25,9 @@ function destaqueAtivo(p: any) {
 
 // Meus produtos — a lista, os filtros e a paginação vêm do SERVIDOR (page.tsx).
 // Este componente só recebe a página atual e troca os parâmetros da URL.
-export default function ProductManager({ products, total, pagina, porPagina, stats, categorias, filtros, userId, planos }: {
+export default function ProductManager({ products, total, pagina, porPagina, stats, categorias, filtros, userId, planos, estoqueAtivo = false }: {
   products: any[]; total: number; pagina: number; porPagina: number; stats: Stats; categorias: string[];
-  filtros: Filtros; userId: string; planos: Plano[];
+  filtros: Filtros; userId: string; planos: Plano[]; estoqueAtivo?: boolean;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -212,7 +213,9 @@ export default function ProductManager({ products, total, pagina, porPagina, sta
                         </div>
                         {p.status === 'em_revisao' && <div className="ui-help">Aguardando a aprovação da equipe.</div>}
                         {p.status === 'reprovado' && <div className="ui-help">Não aprovado. Edite o anúncio e salve para enviar de novo à revisão.</div>}
-                        {p.status === 'pausado' && <div className="ui-help">Pausado: não aparece no site. Reative para enviar de novo à revisão.</div>}
+                        {p.status === 'pausado' && (p.pausado_sem_estoque
+                          ? <div className="ui-help" style={{ color: 'var(--red)', fontWeight: 700 }}>Esgotado: saiu de venda quando o estoque zerou. Informe a nova quantidade abaixo e ele volta ao ar sozinho, sem revisão.</div>
+                          : <div className="ui-help">Pausado: não aparece no site. Reative para enviar de novo à revisão.</div>)}
                       </div>
                       <div className="pm-nums">
                         <div className="pm-price">
@@ -224,6 +227,11 @@ export default function ProductManager({ products, total, pagina, porPagina, sta
                         </div>
                       </div>
                     </div>
+
+                    {estoqueAtivo && (
+                      <EstoqueCampo id={p.id} estoque={p.estoque ?? null}
+                        onSalvo={(r) => setList((l) => l.map((x) => x.id === p.id ? { ...x, estoque: r.estoque, ...(r.status ? { status: r.status } : {}), pausado_sem_estoque: r.pausado_sem_estoque === true } : x))} />
+                    )}
 
                     <div className="pm-actions">
                       {ativo

@@ -4,6 +4,7 @@ import { getSettings } from '@/lib/settings';
 import { redirect } from 'next/navigation';
 import ProductManager from './ProductManager';
 import { termoBusca } from '@/lib/consultas';
+import { extrasDe, EXTRAS_VAZIO } from '@/lib/estoque';
 
 export const dynamic = 'force-dynamic';
 
@@ -43,6 +44,7 @@ export default async function ProdutosPage({ searchParams }: { searchParams: SP 
 
   let produtos: any[] = [];
   let total = 0;
+  let estoqueAtivo = false;
   let stats = { total: 0, ativo: 0, em_revisao: 0, parados: 0, destaque: 0 };
   let categorias: string[] = [];
 
@@ -77,6 +79,10 @@ export default async function ProdutosPage({ searchParams }: { searchParams: SP 
     const { data, count } = await q.range(de, de + POR_PAGINA - 1);
     produtos = (data ?? []) as any[];
     total = count ?? produtos.length;
+    // Estoque (SQL 07). Sem o SQL 07: estoqueAtivo = false e o campo não aparece.
+    const extras = await extrasDe(supabase, produtos.map((p) => p.id));
+    estoqueAtivo = Object.keys(extras).length > 0;
+    produtos = produtos.map((p) => ({ ...p, ...(extras[p.id] ?? EXTRAS_VAZIO) }));
   }
 
   return (
@@ -98,6 +104,7 @@ export default async function ProdutosPage({ searchParams }: { searchParams: SP 
         filtros={{ q: searchParams.q || '', status: filtro, cat, ordem: ordemKey }}
         userId={user.id}
         planos={boost_plans}
+        estoqueAtivo={estoqueAtivo}
       />
     </div>
   );

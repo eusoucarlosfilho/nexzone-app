@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Fragment } from 'react';
 import { toast } from '@/lib/toast';
 import SettingsForm from './SettingsForm';
 import TorpedosForm from './TorpedosForm';
@@ -15,6 +15,7 @@ import SuporteConfig from './SuporteConfig';
 import { ehJogos } from '@/lib/categorias';
 import Icon from '@/components/Icon';
 import ProductThumb from '@/components/ProductThumb';
+import ProdutoGerenciar from './ProdutoGerenciar';
 
 const money = (v: number) => 'R$ ' + Number(v).toFixed(2).replace('.', ',');
 const fmt = (v: number) => Number(v).toLocaleString('pt-BR');
@@ -157,6 +158,7 @@ export default function AdminDashboard({ adminEmail, users, metrics, daily, orde
   const [prodStatus, setProdStatus] = useState('todos');
   const [prodCat, setProdCat] = useState('');
   const [prodPage, setProdPage] = useState(1);
+  const [prodAberto, setProdAberto] = useState<string | null>(null);
   const [orderFilter, setOrderFilter] = useState('todos');
   const [orderList, setOrderList] = useState(orders || []);
   const [expSeller, setExpSeller] = useState<string | null>(null);
@@ -570,10 +572,11 @@ export default function AdminDashboard({ adminEmail, users, metrics, daily, orde
             <div className="adm-card" style={{ overflowX: 'auto' }}>
               {vis.length ? (
                 <table className="adm-table">
-                  <thead><tr><th>Produto</th><th>Vendedor</th><th>Categoria</th><th>Preço</th><th>Vendas</th><th>Cadastro</th><th>Status</th></tr></thead>
+                  <thead><tr><th>Produto</th><th>Vendedor</th><th>Categoria</th><th>Preço</th><th>Vendas</th><th>Cadastro</th><th>Status</th><th></th></tr></thead>
                   <tbody>
                     {vis.map((p: any) => (
-                      <tr key={p.id}>
+                      <Fragment key={p.id}>
+                      <tr>
                         <td><ProductThumb capa_url={p?.capa_url} categoria={p?.categoria} titulo={p?.titulo} tamanho={28} raio={7} icone={18} style={{ marginRight: 6 }} /> {p.titulo}</td>
                         <td style={{ color: 'var(--sub)' }}>{p.stores?.nome ?? '—'}</td>
                         <td style={{ color: 'var(--sub)' }}>{p.categoria ?? '—'}</td>
@@ -581,7 +584,15 @@ export default function AdminDashboard({ adminEmail, users, metrics, daily, orde
                         <td>{fmt(p.vendas)}</td>
                         <td style={{ color: 'var(--sub)', whiteSpace: 'nowrap' }}>{p.created_at ? new Date(p.created_at).toLocaleDateString('pt-BR') : '—'}</td>
                         <td><Pill s={p.status} /></td>
+                        <td><button type="button" className="adm-btn rp" style={{ whiteSpace: 'nowrap' }} aria-expanded={prodAberto === p.id}
+                          onClick={() => setProdAberto(prodAberto === p.id ? null : p.id)}>{prodAberto === p.id ? 'Fechar' : 'Gerenciar'}</button></td>
                       </tr>
+                      {prodAberto === p.id && (
+                        <tr><td colSpan={8} style={{ padding: '4px 8px 16px' }}>
+                          <ProdutoGerenciar id={p.id} onLoja={(storeId, oculto) => setUserList((l) => l.map((x) => x.seller?.id === storeId ? { ...x, seller: { ...x.seller, ocultarVendedor: oculto } } : x))} />
+                        </td></tr>
+                      )}
+                      </Fragment>
                     ))}
                   </tbody>
                 </table>

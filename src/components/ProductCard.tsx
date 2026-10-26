@@ -30,10 +30,14 @@ export default function ProductCard({ p }: { p: Product }) {
           )}
         </div>
         <div className="tit">{p.titulo}</div>
-        <div className="rt">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="#FF9A3C" aria-hidden="true"><path d="M12 2l3.1 6.3 6.9 1-5 4.9 1.2 6.8L12 17.8 5.8 21l1.2-6.8-5-4.9 6.9-1z" /></svg>
-          {p.nota || '—'} · {p.vendas.toLocaleString('pt-BR')} vendas
-        </div>
+        {/* Números reais; o que for zero não aparece ("0 vendas" afasta o comprador) */}
+        {Number(p.nota) > 0 || Number(p.vendas) > 0 ? (
+          <div className="rt">
+            {Number(p.nota) > 0 && <><svg width="14" height="14" viewBox="0 0 24 24" fill="#FF9A3C" aria-hidden="true"><path d="M12 2l3.1 6.3 6.9 1-5 4.9 1.2 6.8L12 17.8 5.8 21l1.2-6.8-5-4.9 6.9-1z" /></svg>{Number(p.nota).toFixed(1).replace('.', ',')}</>}
+            {Number(p.nota) > 0 && Number(p.vendas) > 0 && ' · '}
+            {Number(p.vendas) > 0 && `${Number(p.vendas).toLocaleString('pt-BR')} venda${Number(p.vendas) === 1 ? '' : 's'}`}
+          </div>
+        ) : <div className="rt" style={{ color: 'var(--green)', fontWeight: 800 }}>Novo</div>}
         <div className="ft">
           <div className="price">{money(preco)}{p.preco_promo && <small>{money(p.preco)}</small>}</div>
         </div>
