@@ -12,6 +12,7 @@ import PosCompra from './PosCompra';
 import type { RastreioProduto } from '@/lib/rastreioVenda';
 import Link from 'next/link';
 import GarantiaReembolso, { type GarantiaInfo } from './GarantiaReembolso';
+import OfertaPosCompra from './OfertaPosCompra';
 
 const money = (v: number) => 'R$ ' + Number(v).toFixed(2).replace('.', ',');
 
@@ -45,6 +46,7 @@ export default function OrderView(props: Props) {
   const [extras, setExtras] = useState<ExtraPedido[]>(props.extras || []);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const pago = status === 'pago' || status === 'entregue';
+  const [temOferta, setTemOferta] = useState<boolean | null>(null); // oferta pós-compra (SQL 19)
 
   const [avaliado, setAvaliado] = useState(!!props.jaAvaliou);
   const [nota, setNota] = useState(0);
@@ -101,6 +103,7 @@ export default function OrderView(props: Props) {
 
   return (
     <>
+    <OfertaPosCompra orderId={props.orderId} pago={pago} onTemOferta={setTemOferta} />
     <div className="card">
       <div className="li" style={{ padding: '0 0 16px', borderBottom: '1px solid var(--border)' }}>
         <ProductThumb className="em" capa_url={props.capa_url} categoria={props.categoria} titulo={props.titulo} tamanho={46} raio={14} icone={22} />
@@ -249,7 +252,7 @@ export default function OrderView(props: Props) {
       )}
     </div>
     <PosCompra pago={pago} orderId={props.orderId} produtoId={props.produtoId || ''} titulo={props.titulo} valor={props.total}
-      rastreio={props.rastreio ?? null} senhaPendente={!!props.senhaPendente} />
+      rastreio={props.rastreio ?? null} senhaPendente={!!props.senhaPendente} segurar={temOferta !== false} />
     </>
   );
 }

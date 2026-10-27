@@ -6,6 +6,7 @@ import { toast } from '@/lib/toast';
 import CoverUpload from '../../produtos/CoverUpload';
 import SecaoRastreio from './SecaoRastreio';
 import SecaoIntegracoes from './SecaoIntegracoes';
+import SecaoPosVenda from './SecaoPosVenda';
 import Icon from '@/components/Icon';
 import CheckoutBlocos from '@/components/CheckoutBlocos';
 import BumpOferta from '@/components/BumpOferta';
@@ -445,6 +446,7 @@ export default function CheckoutEditor({ productId, userId, produto, loja, inici
 
         <SecaoRastreio productId={productId} valor={cfg.rastreio} onValor={(r) => mudar((c) => ({ ...c, rastreio: r }))} />
 
+        <SecaoPosVenda productId={productId} outrosProdutos={outrosProdutos} />
         <SecaoIntegracoes productId={productId} temPixelMeta={!!cfg.rastreio.meta} temPixelTiktok={!!cfg.rastreio.tiktok} />
 
         <section className="ce-sec">

@@ -1,39 +1,61 @@
 /*
- * Comprei Barato — service worker PREPARATÓRIO (V2).
+ * Comprei Barato — service worker do app instalável (Fase B).
  *
- * SITUAÇÃO: este arquivo NÃO é registrado por nenhuma página nesta versão.
- * Ele só será registrado quando o Web Push for aprovado, junto com:
- *   - armazenamento seguro das inscrições (tabela push_inscricoes, ver SQL_PARA_REVISAO);
- *   - chaves VAPID em variável de ambiente do servidor;
- *   - envio no servidor disparado por eventos confiáveis (nunca por status de pedido falsificável — K2).
+ * O que faz:
+ *  - deixa o site instalável no celular e no computador ("Instalar app");
+ *  - mostra uma página "sem internet" quando a conexão cai (em vez da tela de erro do navegador).
  *
- * Não faz cache de páginas nem de respostas da API: dados de pedidos, saldo e conteúdo
- * pago nunca ficam guardados no aparelho.
+ * O que NÃO faz (de propósito):
+ *  - não guarda páginas, respostas da API, pedidos, saldo nem conteúdo pago no aparelho;
+ *  - notificação push continua desligada até existir chave VAPID e aprovação (o código abaixo só exibe).
  */
+const VERSAO = 'cb-app-v1';
+const OFFLINE = '/offline.html';
+const ESTATICOS = [OFFLINE, '/pwa/icon-192.png', '/logo.png'];
 
-self.addEventListener('install', () => { self.skipWaiting(); });
-self.addEventListener('activate', (event) => { event.waitUntil(self.clients.claim()); });
+self.addEventListener('install', (event) => {
+  event.waitUntil(caches.open(VERSAO).then((c) => c.addAll(ESTATICOS)).catch(() => {}));
+  self.skipWaiting();
+});
 
-// Exibe uma notificação recebida. O conteúdo vem do servidor; aqui só há valores padrão seguros.
+self.addEventListener('activate', (event) => {
+  event.waitUntil((async () => {
+    const nomes = await caches.keys();
+    await Promise.all(nomes.filter((n) => n !== VERSAO).map((n) => caches.delete(n)));
+    await self.clients.claim();
+  })());
+});
+
+// Só navegação de página: tenta a rede; se não houver conexão, mostra a página offline.
+self.addEventListener('fetch', (event) => {
+  const req = event.request;
+  if (req.method !== 'GET' || req.mode !== 'navigate') return;
+  event.respondWith((async () => {
+    try {
+      return await fetch(req);
+    } catch (e) {
+      const c = await caches.open(VERSAO);
+      return (await c.match(OFFLINE)) || new Response('Sem conexão', { status: 503, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
+    }
+  })());
+});
+
+// Exibe uma notificação recebida (quando o push for ligado). Só links internos.
 self.addEventListener('push', (event) => {
   let d = {};
   try { d = event.data ? event.data.json() : {}; } catch (e) { d = {}; }
   const titulo = typeof d.titulo === 'string' ? d.titulo.slice(0, 80) : 'Comprei Barato';
-  const corpo = typeof d.texto === 'string' ? d.texto.slice(0, 180) : 'Você tem uma novidade no painel.';
-  // Só links internos do painel do vendedor
-  const url = typeof d.url === 'string' && d.url.startsWith('/vender') ? d.url : '/vender';
+  const corpo = typeof d.texto === 'string' ? d.texto.slice(0, 180) : 'Você tem uma novidade.';
+  const url = typeof d.url === 'string' && /^\/(?!\/)/.test(d.url) ? d.url : '/notificacoes';
   event.waitUntil(self.registration.showNotification(titulo, {
-    body: corpo,
-    icon: '/pwa/icon-192.png',
-    badge: '/pwa/icon-192.png',
-    tag: typeof d.tag === 'string' ? d.tag.slice(0, 64) : undefined,
-    data: { url },
+    body: corpo, icon: '/pwa/icon-192.png', badge: '/pwa/icon-192.png',
+    tag: typeof d.tag === 'string' ? d.tag.slice(0, 64) : undefined, data: { url },
   }));
 });
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const url = (event.notification.data && event.notification.data.url) || '/vender';
+  const url = (event.notification.data && event.notification.data.url) || '/notificacoes';
   event.waitUntil((async () => {
     const abertas = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
     for (const c of abertas) {

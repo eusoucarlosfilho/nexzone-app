@@ -10,6 +10,8 @@ import Icon from '@/components/Icon';
 import { stripeAvailable } from '@/lib/payments/stripe';
 import { vendedorPublico } from '@/lib/vendedorPublico';
 import { temPixel } from '@/lib/rastreioVenda';
+import { createAdminClient } from '@/lib/supabase/server';
+import { registrarCarrinho } from '@/lib/posVenda-servidor';
 
 export const dynamic = 'force-dynamic';
 
@@ -56,6 +58,11 @@ export default async function CheckoutPage({ params }: { params: { id: string } 
     meusPontos = Number((prof as any)?.cb_points ?? 0);
   }
   const cartaoDisponivel = await stripeAvailable();
+  // Carrinho abandonado (SQL 19): quem já está logado e abriu o checkout entra na recuperação (o dono não)
+  if (user?.email && (p as any).stores && user.id) {
+    const { data: dono } = await supabase.from('stores').select('owner').eq('id', (p as any).store_id).maybeSingle();
+    if ((dono as any)?.owner !== user.id) await registrarCarrinho(createAdminClient(), { productId: p.id, email: user.email, userId: user.id, nome: (user.user_metadata as any)?.nome ?? null });
+  }
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--surface)' }}>

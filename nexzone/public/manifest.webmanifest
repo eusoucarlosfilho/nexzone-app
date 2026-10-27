@@ -1,16 +1,24 @@
 {
-  "name": "Comprei Barato — Painel do Vendedor",
+  "id": "/",
+  "name": "Comprei Barato",
   "short_name": "Comprei Barato",
-  "description": "Acompanhe sua loja, pedidos, perguntas e audiência no Comprei Barato.",
+  "description": "Compre e venda produtos digitais: cursos, e-books, planilhas, templates e mais. Acesse suas compras e sua loja em um toque.",
   "lang": "pt-BR",
-  "start_url": "/vender?origem=app",
+  "start_url": "/?origem=app",
   "scope": "/",
   "display": "standalone",
+  "orientation": "portrait",
   "background_color": "#F7F4F0",
   "theme_color": "#FF6B00",
+  "categories": ["shopping", "education", "business"],
   "icons": [
     { "src": "/pwa/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
     { "src": "/pwa/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
     { "src": "/pwa/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Minhas compras", "url": "/minhas-compras?origem=app", "icons": [{ "src": "/pwa/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Notificações", "url": "/notificacoes?origem=app", "icons": [{ "src": "/pwa/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Minha loja", "url": "/vender?origem=app", "icons": [{ "src": "/pwa/icon-192.png", "sizes": "192x192" }] }
   ]
 }

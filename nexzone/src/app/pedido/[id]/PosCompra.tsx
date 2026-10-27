@@ -9,9 +9,10 @@ import Icon from '@/components/Icon';
 //  • dispara a COMPRA nos pixels do vendedor (uma vez por pedido)
 //  • leva para a página de obrigado do vendedor, se ele configurou (uma vez, com opção de ficar)
 //  • quem comprou sem cadastro cria uma senha para acessar depois
-export default function PosCompra({ pago, orderId, produtoId, titulo, valor, rastreio, senhaPendente }: {
+export default function PosCompra({ pago, orderId, produtoId, titulo, valor, rastreio, senhaPendente, segurar = false }: {
   pago: boolean; orderId: string; produtoId: string; titulo: string; valor: number;
   rastreio: RastreioProduto | null; senhaPendente: boolean;
+  segurar?: boolean; // há oferta pós-compra na tela (SQL 19): não leva para a página de obrigado ainda
 }) {
   usePixels(rastreio);
   const obrigado = rastreio?.obrigadoUrl || '';
@@ -35,11 +36,11 @@ export default function PosCompra({ pago, orderId, produtoId, titulo, valor, ras
 
   // Página de obrigado: só na primeira vez que o pagamento aparece aqui, e só se não houver senha a criar
   useEffect(() => {
-    if (!pago || !destino || !senhaOk) return;
+    if (!pago || !destino || !senhaOk || segurar) return;
     const chave = `cb_obrigado_${orderId}`;
     try { if (localStorage.getItem(chave)) return; localStorage.setItem(chave, '1'); } catch {}
     setContagem(6);
-  }, [pago, destino, senhaOk, orderId]);
+  }, [pago, destino, senhaOk, orderId, segurar]);
   useEffect(() => {
     if (contagem === null) return;
     if (contagem <= 0) { window.location.href = destino; return; }

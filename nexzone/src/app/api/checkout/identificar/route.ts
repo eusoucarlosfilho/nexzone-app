@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { emailValido, nomeValido } from '@/lib/rastreioVenda';
 import { normalizarTelefone } from '@/lib/whatsapp/telefone';
+import { registrarCarrinho } from '@/lib/posVenda-servidor';
 
 // Checkout SEM LOGIN (Sprint 1) — identifica o comprador antes de gerar o pagamento.
 //
@@ -30,7 +31,8 @@ export async function POST(req: Request) {
   if (!whatsapp) return NextResponse.json({ error: 'Informe um WhatsApp válido com DDD.', campo: 'whatsapp' }, { status: 400, headers: SEM_CACHE });
 
   const admin = createAdminClient();
-  const { error: criarErr } = await admin.auth.admin.createUser({
+  const productId = String(body.productId || '');
+  const { data: criado, error: criarErr } = await admin.auth.admin.createUser({
     email,
     email_confirm: true,
     user_metadata: {
@@ -43,10 +45,15 @@ export async function POST(req: Request) {
   });
   if (criarErr) {
     const jaExiste = (criarErr as any).code === 'email_exists' || /already|registered|exists/i.test(criarErr.message || '');
-    if (jaExiste) return NextResponse.json({ existe: true }, { headers: SEM_CACHE });
+    if (jaExiste) {
+      await registrarCarrinho(admin, { productId, email, nome }); // carrinho abandonado (SQL 19)
+      return NextResponse.json({ existe: true }, { headers: SEM_CACHE });
+    }
     console.error('[checkout/identificar] criar conta:', criarErr.message);
     return NextResponse.json({ error: 'Não foi possível continuar agora. Tente de novo em instantes.' }, { status: 502, headers: SEM_CACHE });
   }
+
+  await registrarCarrinho(admin, { productId, email, nome, userId: (criado as any)?.user?.id ?? null }); // carrinho abandonado (SQL 19)
 
   // Conta acabou de nascer: abre a sessão neste navegador (link mágico gerado e confirmado no servidor)
   const { data: link, error: linkErr } = await admin.auth.admin.generateLink({ type: 'magiclink', email });

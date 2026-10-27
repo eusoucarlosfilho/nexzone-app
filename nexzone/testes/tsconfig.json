@@ -51,6 +51,8 @@
     "../src/lib/dashboardVendas.ts",
     "../src/lib/notificacoesCentral.ts",
     "../src/lib/curso.ts",
-    "../src/lib/garantia.ts"
+    "../src/lib/garantia.ts",
+    "../src/lib/posVenda.ts",
+    "../src/lib/documento.ts"
   ]
 }

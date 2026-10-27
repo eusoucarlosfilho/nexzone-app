@@ -136,7 +136,7 @@ export default function CheckoutClient({ productId, titulo, emoji, categoria, ca
     setErrosId(e);
     if (Object.keys(e).length) { setErro('Preencha seus dados para continuar.'); return false; }
     const r = await fetch('/api/checkout/identificar', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify(dados),
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ ...dados, productId }),
     });
     const d = await r.json().catch(() => ({}));
     if (r.ok && d.ok) { setConvidado(false); return true; }

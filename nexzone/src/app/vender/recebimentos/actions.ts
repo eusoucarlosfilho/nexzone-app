@@ -4,6 +4,7 @@ import { calcBalance } from '@/lib/balance';
 import { revalidatePath } from 'next/cache';
 import { contaStatus } from '@/lib/account';
 import { avisarSaque } from '@/lib/whatsapp/avisos';
+import { podeSacar } from '@/lib/verificacao-servidor';
 
 async function getStore() {
   const supabase = createClient();
@@ -31,6 +32,11 @@ export async function solicitarSaque() {
     if (st === 'restrito') return { ok: false, error: 'Sua conta está restrita e não pode sacar no momento. Fale com o suporte.' };
   }
   if (!store.pix_key) return { ok: false, error: 'Cadastre sua chave Pix primeiro.' };
+  // Verificação de identidade (SQL 19): vender é livre; sacar exige identidade aprovada.
+  if (user) {
+    const v = await podeSacar(createAdminClient(), user.id);
+    if (!v.ok) return { ok: false, error: v.erro };
+  }
   const bal = await calcBalance(supabase, store.id);
   if (bal.disponivel <= 0) return { ok: false, error: 'Você não tem saldo disponível para saque.' };
   // Gravado pelo servidor: o lojista não cria saque direto pelo banco (SQL 13).
@@ -42,6 +48,7 @@ export async function solicitarSaque() {
   });
   if (eSaque) {
     if ((eSaque as any).code === '23505') return { ok: false, error: 'Você já tem um saque em análise. Aguarde a conclusão para pedir outro.' };
+    if (/verificacao_pendente/.test((eSaque as any).message || '')) return { ok: false, error: 'Para sacar, verifique sua identidade primeiro: menu Verificação.' };
     return { ok: false, error: 'Não foi possível solicitar o saque. Tente de novo.' };
   }
   // WhatsApp de confirmação (se ligado). Só aviso: não muda valor nem regra do saque; nunca lança erro.

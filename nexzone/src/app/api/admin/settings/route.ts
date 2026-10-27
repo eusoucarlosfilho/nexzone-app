@@ -23,6 +23,9 @@ export async function POST(req: Request) {
   }
   if (body.support_email != null) rows.push({ key: 'support_email', value: String(body.support_email) });
 
+  // Verificação de identidade para sacar (SQL 19)
+  if (typeof body.verificacao_saque === 'boolean') rows.push({ key: 'verificacao_saque', value: body.verificacao_saque });
+
   // CB Points: liga/desliga do programa
   if (typeof body.cb_points_ativo === 'boolean') rows.push({ key: 'cb_points_ativo', value: body.cb_points_ativo });
 

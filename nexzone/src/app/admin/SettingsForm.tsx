@@ -14,6 +14,7 @@ export default function SettingsForm({ settings }: any) {
   const [ptBonus, setPtBonus] = useState(String(settings.cb_points_review_bonus ?? 3));
   const [janela, setJanela] = useState(String(settings.review_window_days ?? 5));
   const [rapido, setRapido] = useState(String(settings.fast_release_days ?? 1));
+  const [exigeVerif, setExigeVerif] = useState<boolean>(settings.verificacao_saque !== false);
 
   const pay = settings.payment || { gateway: 'mercadopago', misticpay_ci: '', misticpay_cs_set: false };
   const [gateway, setGateway] = useState<string>(pay.gateway || 'mercadopago');
@@ -76,6 +77,7 @@ export default function SettingsForm({ settings }: any) {
         cb_points_review_bonus: Number(ptBonus),
         review_window_days: Number(janela),
         fast_release_days: Number(rapido),
+        verificacao_saque: exigeVerif,
         payment_gateway: gateway,
         misticpay_ci: ci,
         misticpay_cs: cs, // em branco = mantém o atual
@@ -156,6 +158,11 @@ export default function SettingsForm({ settings }: any) {
           </div>
         </div>
         <small style={hint}>O cliente tem {janela} dias para reclamar. Com avaliação positiva (4-5 estrelas), o saldo libera em {rapido} dia(s). Reclamação aberta segura o saldo até ser resolvida.</small>
+        {Number(janela) < 7 && <small style={{ ...hint, color: '#E23B3B', display: 'block', marginTop: 6 }}>Atenção: a garantia mínima para o comprador é de 7 dias (CDC). Com {janela} dias, o vendedor pode sacar antes de o cliente pedir o reembolso. Recomendado: 7 ou mais.</small>}
+        <label style={{ display: 'flex', gap: 10, alignItems: 'flex-start', marginTop: 14, cursor: 'pointer' }}>
+          <input type="checkbox" checked={exigeVerif} onChange={(e) => setExigeVerif(e.target.checked)} style={{ marginTop: 3 }} />
+          <span><strong>Exigir verificação de identidade para sacar</strong><br /><small style={hint}>O produtor vende normalmente, mas só saca depois que você aprovar o documento dele em Verificações. Recomendado: ligado.</small></span>
+        </label>
       </div>
 
       {/* ===== Gateway de pagamento ===== */}

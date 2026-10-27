@@ -251,6 +251,11 @@ export default async function AdminPage() {
 
   const settings: any = await getSettings();
   settings.payment = await getPaymentConfigPublic();
+  // Verificação de identidade para sacar (SQL 19): ligada se não houver a chave
+  try {
+    const { data: vs } = await admin.from('settings').select('value').eq('key', 'verificacao_saque').maybeSingle();
+    settings.verificacao_saque = !((vs as any)?.value === false || (vs as any)?.value === 'false');
+  } catch { settings.verificacao_saque = true; }
 
   // DeepSeek (importação por IA): expõe só se está configurada ou não, nunca a chave.
   try {
@@ -316,6 +321,13 @@ export default async function AdminPage() {
     if (!error) reembolsosAbertos = count ?? 0;
   } catch { reembolsosAbertos = 0; }
 
+  // Verificações de produtores para analisar (SQL 19). Sem a tabela: 0.
+  let verificacoesPendentes = 0;
+  try {
+    const { count, error } = await admin.from('verificacoes_vendedor').select('user_id', { count: 'exact', head: true }).eq('status', 'pendente');
+    if (!error) verificacoesPendentes = count ?? 0;
+  } catch { verificacoesPendentes = 0; }
+
   const vendMap: Record<string, number> = {};
   paid.forEach((o) => { const n = o.stores?.nome || '—'; vendMap[n] = (vendMap[n] || 0) + Number(o.total); });
   const topVendedores = Object.entries(vendMap).map(([nome, total]) => ({ nome, total })).sort((a, b) => b.total - a.total).slice(0, 8);
@@ -338,6 +350,7 @@ export default async function AdminPage() {
     buyersCount,
     suporteAbertos,
     reembolsosAbertos,
+    verificacoesPendentes,
   };
 
   return <AdminDashboard painel={painel} adminEmail={user.email} users={users} metrics={metrics} daily={daily} orders={orders} products={products} stores={stores} payouts={payouts} boosts={boosts} settings={settings} growth={growth} sellers={sellers} complaints={complaints} alerts={alerts} />;

@@ -24,6 +24,7 @@ import AlteracoesAnuncio from './AlteracoesAnuncio';
 import AvisosSino from './AvisosSino';
 import PainelVendas from './PainelVendas';
 import Reembolsos from './Reembolsos';
+import Verificacoes from './Verificacoes';
 
 const money = (v: number) => 'R$ ' + Number(v).toFixed(2).replace('.', ',');
 const fmt = (v: number) => Number(v).toLocaleString('pt-BR');
@@ -243,6 +244,7 @@ export default function AdminDashboard({ painel, adminEmail, users, metrics, dai
   }
 
   const [reembolsosAbertos, setReembolsosAbertos] = useState<number>(Number(metrics.reembolsosAbertos) || 0);
+  const [verificacoesPendentes, setVerificacoesPendentes] = useState<number>(Number(metrics.verificacoesPendentes) || 0);
   const NAV = [
     ['cockpit', 'cockpit', 'Dashboard', 0],
     ['audiencia', 'activity', 'Audiência', 0],
@@ -255,6 +257,7 @@ export default function AdminDashboard({ painel, adminEmail, users, metrics, dai
     ['crescimento', 'growth', 'Crescimento', 0],
     ['reclamacoes', 'shield', 'Reclamações', recPendentes.length],
     ['reembolsos', 'undo', 'Reembolsos', reembolsosAbertos],
+    ['verificacoes', 'key', 'Verificações', verificacoesPendentes],
     ['suporte', 'help', 'Suporte', metrics.suporteAbertos || 0],
     ['observacoes', 'chat', 'Observações', 0],
     ['torpedos', 'bell', 'Torpedos enviados', 0],
@@ -855,6 +858,14 @@ export default function AdminDashboard({ painel, adminEmail, users, metrics, dai
             <h1 className="adm-h">Reembolsos</h1>
             <p className="adm-sub">Pedidos de reembolso feitos pelos compradores dentro da garantia. Enquanto estão em análise, o saldo da venda fica retido.</p>
             <Reembolsos onContagem={setReembolsosAbertos} />
+          </>
+        )}
+
+        {tab === 'verificacoes' && (
+          <>
+            <h1 className="adm-h">Verificações de produtores</h1>
+            <p className="adm-sub">Confira se o nome e o documento batem com a selfie. Só depois de aprovado o produtor consegue sacar; as vendas continuam normais.</p>
+            <Verificacoes onContagem={setVerificacoesPendentes} />
           </>
         )}
 

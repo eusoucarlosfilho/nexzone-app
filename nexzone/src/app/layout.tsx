@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import Toaster from '@/components/Toaster';
 import BuyerNotifier from '@/components/BuyerNotifier';
@@ -6,11 +6,16 @@ import SiteTracker from '@/components/SiteTracker';
 import OrigemCadastro from '@/components/OrigemCadastro';
 import NoticeBanner from '@/components/NoticeBanner';
 import { FavoritesProvider } from '@/lib/favorites';
+import { RegistrarApp } from '@/components/AppInstalavel';
 
 export const metadata: Metadata = {
   title: 'Comprei Barato — Marketplace de Produtos Digitais',
   description: 'Compre e venda produtos digitais com entrega imediata e segurança.',
+  manifest: '/manifest.webmanifest',
+  appleWebApp: { capable: true, title: 'Comprei Barato', statusBarStyle: 'default' },
+  icons: { apple: '/pwa/apple-touch-icon.png' },
 };
+export const viewport: Viewport = { themeColor: '#FF6B00' };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -19,7 +24,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800;900&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet" />
       </head>
-      <body><FavoritesProvider><NoticeBanner />{children}</FavoritesProvider><Toaster /><BuyerNotifier /><SiteTracker /><OrigemCadastro /></body>
+      <body><FavoritesProvider><NoticeBanner />{children}</FavoritesProvider><Toaster /><BuyerNotifier /><SiteTracker /><OrigemCadastro /><RegistrarApp /></body>
     </html>
   );
 }

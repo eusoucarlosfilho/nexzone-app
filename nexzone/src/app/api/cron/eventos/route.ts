@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/server';
 import { processarEventos, lembrarPix } from '@/lib/eventosVenda-servidor';
+import { lembrarCarrinhos } from '@/lib/posVenda-servidor';
 
 // Sprint 2 — rotina de 1 em 1 minuto: envia compras para Meta/TikTok, postbacks e lembretes de Pix.
 // Chamada por um agendador externo (Supabase Cron ou cron-job.org) com ?key=<CRON_SECRET>
@@ -19,5 +20,7 @@ export async function GET(req: Request) {
   const inicio = Date.now();
   const eventos = await processarEventos(admin, { limite: 40 }).catch((e) => ({ processados: 0, erro: String(e?.message || e) }));
   const lembretes = Date.now() - inicio < 18000 ? await lembrarPix(admin).catch(() => ({ enviados: 0 })) : { enviados: 0, adiado: true };
-  return NextResponse.json({ ok: true, eventos, lembretes, ms: Date.now() - inicio }, { headers: { 'Cache-Control': 'no-store' } });
+  // Fase B: carrinho abandonado (1 h e 24 h). Sem o SQL 19: não faz nada.
+  const carrinhos = Date.now() - inicio < 22000 ? await lembrarCarrinhos(admin).catch(() => ({ enviados: 0 })) : { enviados: 0, adiado: true };
+  return NextResponse.json({ ok: true, eventos, lembretes, carrinhos, ms: Date.now() - inicio }, { headers: { 'Cache-Control': 'no-store' } });
 }

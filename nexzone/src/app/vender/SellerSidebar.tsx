@@ -13,6 +13,7 @@ const ITEMS: [string, string, string][] = [
   ['/vender/perguntas', 'help', 'Perguntas'],
   ['/vender/cupons', 'ticket', 'Cupons'],
   ['/vender/recebimentos', 'money', 'Recebimentos'],
+  ['/vender/verificacao', 'shield', 'Verificação'],
   ['/vender/loja', 'store', 'Minha Loja'],
   ['/vender/jornada', 'trophy', 'Jornada'],
 ];

@@ -8,6 +8,7 @@ import CategoryIcon, { categoryColors } from './CategoryIcon';
 import type { NavCat } from './NavSearch';
 import { trackEvento } from '@/lib/rastreio-cliente';
 import { ContadorNotificacoes } from './NotificacoesSino';
+import { BotaoInstalarApp } from './AppInstalavel';
 
 const ID = 'menu-mobile';
 
@@ -114,6 +115,7 @@ export default function MobileMenu({ loggedIn, cats, cbPoints = false }: { logge
               {L({ href: '/como-funciona', icon: 'info', children: 'Como funciona a compra' })}
               {L({ href: '/ajuda', icon: 'help', children: 'Perguntas frequentes' })}
               {L({ href: '/suporte', icon: 'chat', children: 'Falar com o suporte' })}
+              <BotaoInstalarApp className="mm-link" rotulo="Instalar o app no celular" compacto />
             </div>
           </div>
         </>,

@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import LinkRastreado from './v3/LinkRastreado';
+import { BotaoInstalarApp } from './AppInstalavel';
 
 // supportEmail continua aceito por compatibilidade; o link "Suporte" abre a Central de Suporte (/suporte).
 export default function Footer(_props: { supportEmail?: string }) {
@@ -23,6 +24,7 @@ export default function Footer(_props: { supportEmail?: string }) {
             <Link href="/como-funciona">Como funciona</Link>
             <Link href="/ajuda">Perguntas frequentes</Link>
             <Link href="/suporte">Suporte</Link>
+            <BotaoInstalarApp className="ftr-app" rotulo="Instalar o app" />
           </div>
           <div>
             <b>Comprei Barato</b>
