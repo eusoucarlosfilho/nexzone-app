@@ -6,6 +6,7 @@ import MobileMenu from './MobileMenu';
 import Icon from './Icon';
 import { CATEGORIAS } from '@/lib/categorias';
 import LinkRastreado from './v3/LinkRastreado';
+import NotificacoesSino from './NotificacoesSino';
 
 // Leitura leve de duas chaves públicas da tabela settings (service_role, só no servidor):
 // CB Points ligado? e a comissão real (a faixa do topo não pode prometer um número diferente do cobrado).
@@ -59,6 +60,7 @@ export default async function Nav() {
                   <NL href="/minhas-compras" icon="bag" label="Minhas compras" />
                   {cbAtivo && <NL href="/cb-points" icon="star" label="CB Points" />}
                   <NL href="/vender" icon="store" label="Minha loja" />
+                  <NotificacoesSino className="nsino-d" />
                   <NL href="/conta" icon="user" label="Minha conta" />
                   <form action="/auth/signout" method="post"><button type="submit" className="btn btn-dark btn-sm">Sair</button></form>
                 </>
@@ -69,6 +71,7 @@ export default async function Nav() {
                 </>
               )}
             </div>
+            {user && <NotificacoesSino className="nsino-m" />}
             <MobileMenu loggedIn={!!user} cats={cats} cbPoints={cbAtivo} />
           </div>
           {cats.length > 0 && (

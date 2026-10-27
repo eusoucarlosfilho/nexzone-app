@@ -7,6 +7,7 @@ import Icon from './Icon';
 import CategoryIcon, { categoryColors } from './CategoryIcon';
 import type { NavCat } from './NavSearch';
 import { trackEvento } from '@/lib/rastreio-cliente';
+import { ContadorNotificacoes } from './NotificacoesSino';
 
 const ID = 'menu-mobile';
 
@@ -81,6 +82,7 @@ export default function MobileMenu({ loggedIn, cats, cbPoints = false }: { logge
               {loggedIn ? (
                 <>
                   {L({ href: '/favoritos', icon: 'heart', children: 'Favoritos' })}
+                  {L({ href: '/notificacoes', icon: 'bell', children: <>Notificações<ContadorNotificacoes /></> })}
                   {L({ href: '/minhas-compras', icon: 'bag', children: 'Minhas compras' })}
                   {cbPoints && L({ href: '/cb-points', icon: 'star', children: 'CB Points' })}
                   {L({ href: '/vender', icon: 'store', children: 'Minha loja' })}

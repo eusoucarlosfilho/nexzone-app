@@ -26,5 +26,10 @@ export async function POST() {
 
   const admin = createAdminClient();
   await admin.from('user_notices').update({ lida: true }).eq('user_id', user.id).eq('lida', false);
+  // Os mesmos avisos também estão no sino (SQL 17): marca como lidos lá. Sem o SQL 17: ignora.
+  try {
+    await admin.from('notificacoes').update({ lida_em: new Date().toISOString() })
+      .eq('user_id', user.id).in('tipo', ['aviso', 'advertencia']).is('lida_em', null);
+  } catch { /* sem SQL 17 */ }
   return NextResponse.json({ ok: true });
 }

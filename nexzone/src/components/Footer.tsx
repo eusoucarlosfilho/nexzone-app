@@ -16,6 +16,7 @@ export default function Footer(_props: { supportEmail?: string }) {
             <Link href="/produtos">Explorar produtos</Link>
             <Link href="/minhas-compras">Minhas compras</Link>
             <Link href="/favoritos">Favoritos</Link>
+            <Link href="/notificacoes">Notificações</Link>
           </div>
           <div>
             <b>Ajuda</b>

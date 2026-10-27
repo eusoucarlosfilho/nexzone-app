@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getGateway } from '@/lib/payments/gateway';
 import { createAdminClient } from '@/lib/supabase/server';
 import { processarPedido, processarBoost, ORDER_FIELDS, BOOST_FIELDS } from '@/lib/payments/fulfill';
+import { gravarFormaPagamento } from '@/lib/payments/formaPagamento';
 
 // Aviso do gateway Pix (MisticPay / Mercado Pago).
 // A liberação (pedido e destaque) fica em src/lib/payments/fulfill.ts, compartilhada com o webhook da Stripe.
@@ -26,7 +27,11 @@ export async function POST(req: Request) {
   let oq = admin.from('orders').select(ORDER_FIELDS);
   oq = event.orderId ? oq.eq('id', event.orderId) : oq.eq('gateway_ref', event.gatewayRef);
   const { data: order } = await oq.maybeSingle();
-  if (order) { await processarPedido(admin, order, ev); return NextResponse.json({ ok: true }); }
+  if (order) {
+    const liberado = await processarPedido(admin, order, ev);
+    if (liberado && ev.status === 'pago') await gravarFormaPagamento(admin, (order as any).id, 'pix'); // Dashboard: entrou no Pix
+    return NextResponse.json({ ok: true });
+  }
 
   // Não achou pedido: pode ser um BOOST pago via MisticPay (casamos por gateway_ref)
   if (event.gatewayRef) {

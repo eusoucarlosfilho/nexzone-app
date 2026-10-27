@@ -21,6 +21,8 @@ import ProdutoGerenciar from './ProdutoGerenciar';
 import { FormMotivo } from './ModeracaoAnuncio';
 import { rotuloItem } from '@/lib/moderacao';
 import AlteracoesAnuncio from './AlteracoesAnuncio';
+import AvisosSino from './AvisosSino';
+import PainelVendas from './PainelVendas';
 
 const money = (v: number) => 'R$ ' + Number(v).toFixed(2).replace('.', ',');
 const fmt = (v: number) => Number(v).toLocaleString('pt-BR');
@@ -37,7 +39,7 @@ const STATUS: Record<string, [string, string]> = {
   pausado: ['#8A8AA0', 'Pausado'],
 };
 
-export default function AdminDashboard({ adminEmail, users, metrics, daily, orders, products, stores, payouts, boosts, settings, growth, sellers, complaints, alerts }: any) {
+export default function AdminDashboard({ painel, adminEmail, users, metrics, daily, orders, products, stores, payouts, boosts, settings, growth, sellers, complaints, alerts }: any) {
   const [tab, setTab] = useState('cockpit');
   // Link "Abrir no Admin" dos e-mails do suporte: /admin?suporte=CB-AAAA-000001
   const [suporteProtocolo, setSuporteProtocolo] = useState<string | null>(null);
@@ -251,12 +253,12 @@ export default function AdminDashboard({ adminEmail, users, metrics, daily, orde
     ['suporte', 'help', 'Suporte', metrics.suporteAbertos || 0],
     ['observacoes', 'chat', 'Observações', 0],
     ['torpedos', 'bell', 'Torpedos enviados', 0],
+    ['avisos', 'send', 'Avisos no sino', 0],
     ['promocoes', 'megaphone', 'Enviar promoção', 0],
     ['provasocial', 'shield', 'Prova social', 0],
     ['config', 'settings', 'Configurações', 0],
   ];
 
-  const maxDay = Math.max(1, ...daily.map((d: any) => d.total));
   const filteredOrders = orderFilter === 'todos' ? orderList : orderList.filter((o: any) => o.status === orderFilter);
 
   const Pill = ({ s }: { s: string }) => {
@@ -363,31 +365,21 @@ export default function AdminDashboard({ adminEmail, users, metrics, daily, orde
         {tab === 'cockpit' && (
           <>
             <h1 className="adm-h">Dashboard</h1>
-            <p className="adm-sub">Visão geral do Comprei Barato em tempo real.</p>
+            <p className="adm-sub">Vendas do Comprei Barato por período. Padrão: últimos 30 dias.</p>
+            {painel ? <PainelVendas {...painel} /> : (
+              <div className="adm-stats">
+                <div className="adm-stat"><div className="ic"><Icon name="money" size={20} /></div><b>{money(metrics.gmv)}</b><small>GMV (volume vendido)</small></div>
+                <div className="adm-stat"><div className="ic"><Icon name="growth" size={20} /></div><b>{money(metrics.receita)}</b><small>Sua receita</small></div>
+              </div>
+            )}
+            <h3 className="adm-ct" style={{ marginTop: 6 }}>Operação agora</h3>
             <div className="adm-stats">
-              <div className="adm-stat"><div className="ic"><Icon name="money" size={20} /></div><b>{money(metrics.gmv)}</b><small>GMV (volume vendido)</small></div>
-              <div className="adm-stat"><div className="ic"><Icon name="growth" size={20} /></div><b>{money(metrics.receita)}</b><small>Sua receita (3%)</small></div>
-              <div className="adm-stat"><div className="ic"><Icon name="receipt" size={20} /></div><b>{fmt(metrics.pedidosPagos)}</b><small>Vendas pagas</small></div>
-              <div className="adm-stat"><div className="ic"><Icon name="target" size={20} /></div><b>{money(metrics.ticket)}</b><small>Ticket médio</small></div>
-            </div>
-            <div className="adm-stats">
+              <div className="adm-stat"><div className="ic"><Icon name="money" size={20} /></div><b>{money(metrics.gmv)}</b><small>Faturamento desde o início</small></div>
               <div className="adm-stat"><div className="ic"><Icon name="store" size={20} /></div><b>{fmt(metrics.totalLojas)}</b><small>Vendedores</small></div>
               <div className="adm-stat"><div className="ic"><Icon name="package" size={20} /></div><b>{fmt(metrics.totalProdutosAtivos)}</b><small>Produtos ativos</small></div>
               <div className="adm-stat"><div className="ic"><Icon name="users" size={20} /></div><b>{fmt(metrics.buyersCount)}</b><small>Compradores</small></div>
-              <div className="adm-stat"><div className="ic"><Icon name="clock" size={20} /></div><b>{fmt(metrics.filaProdutos)}</b><small>Aguardando aprovação</small></div>
-              <div className="adm-stat"><div className="ic"><Icon name="star" size={20} /></div><b>{money(metrics.receitaDivulgacao)}</b><small>Receita de divulgação</small></div>
-            </div>
-            <div className="adm-card">
-              <h3 className="adm-ct">Receita dos últimos 7 dias</h3>
-              <div className="adm-bars">
-                {daily.map((d: any, i: number) => (
-                  <div className="adm-bar" key={i}>
-                    <span className="v">{d.total > 0 ? money(d.total).replace('R$ ', '') : ''}</span>
-                    <div className="b" style={{ height: `${(d.total / maxDay) * 100}%` }} />
-                    <span className="l">{d.label}</span>
-                  </div>
-                ))}
-              </div>
+              <div className="adm-stat" style={{ cursor: 'pointer' }} onClick={() => irPara('aprovacao', queue.length)}><div className="ic"><Icon name="clock" size={20} /></div><b>{fmt(metrics.filaProdutos)}</b><small>Aguardando aprovação</small></div>
+              <div className="adm-stat" style={{ cursor: 'pointer' }} onClick={() => irPara('saques', metrics.saquesPendentes)}><div className="ic"><Icon name="wallet" size={20} /></div><b>{money(metrics.aRepassar)}</b><small>Saques pedidos ({fmt(metrics.saquesPendentes)})</small></div>
             </div>
             <div className="adm-card">
               <h3 className="adm-ct">Pedidos recentes</h3>
@@ -852,6 +844,14 @@ export default function AdminDashboard({ adminEmail, users, metrics, daily, orde
         )}
 
         {tab === 'torpedos' && <WhatsAppLog />}
+
+        {tab === 'avisos' && (
+          <>
+            <h1 className="adm-h">Avisos no sino</h1>
+            <p className="adm-sub">Mande uma notificação que aparece no sino do site e na página Notificações de cada usuário.</p>
+            <AvisosSino />
+          </>
+        )}
 
         {tab === 'promocoes' && (
           <>

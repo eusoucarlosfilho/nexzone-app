@@ -8,6 +8,33 @@ import { getPaymentConfigPublic } from '@/lib/payments/config';
 import { galeriaDe } from '@/lib/galeria';
 import { numerosReais, vendasRecentes } from '@/lib/provaSocial';
 import { adminSeguro } from '@/lib/ofertas/adminSeguro';
+import type { VendaDash, ExtraDash } from '@/lib/dashboardVendas';
+
+// Dashboard: TODOS os pedidos (em páginas de 1000, o limite do Supabase), só com os campos dos cálculos.
+// Tenta ler a forma de pagamento (SQL 17); sem ela, segue sem.
+async function pedidosDoDashboard(admin: any): Promise<{ vendas: VendaDash[]; temForma: boolean }> {
+  const base = 'id, status, total, taxa, valor_vendedor, created_at, entregue_em, store_id, product_id, comprador';
+  let temForma = true;
+  const linhas: any[] = [];
+  for (let de = 0; de < 200000; de += 1000) {
+    let { data, error } = await admin.from('orders').select(temForma ? `${base}, forma_pagamento` : base).order('created_at', { ascending: true }).range(de, de + 999);
+    if (error && temForma && /forma_pagamento/i.test(error.message || '')) {
+      temForma = false;
+      ({ data, error } = await admin.from('orders').select(base).order('created_at', { ascending: true }).range(de, de + 999));
+    }
+    if (error || !data) break;
+    linhas.push(...data);
+    if (data.length < 1000) break;
+  }
+  const n = (x: any) => Math.round((Number(x) || 0) * 100) / 100;
+  return {
+    temForma,
+    vendas: linhas.map((o) => ({
+      i: o.id, s: o.status, v: n(o.total), t: n(o.taxa), r: n(o.valor_vendedor), c: o.created_at, p: o.entregue_em ?? null,
+      l: o.store_id, d: o.product_id, u: o.comprador, f: o.forma_pagamento === 'pix' || o.forma_pagamento === 'cartao' ? o.forma_pagamento : null,
+    })),
+  };
+}
 
 export const dynamic = 'force-dynamic';
 
@@ -261,6 +288,27 @@ export default async function AdminPage() {
     settings.suporte = { avisoMe: mapa[user.id] !== false, emailCliente: sm.suporte_email_cliente !== false };
   } catch { settings.suporte = { avisoMe: true, emailCliente: true }; }
 
+  // ===== Dashboard com filtros (PainelVendas) =====
+  const { vendas: vendasDash, temForma } = await pedidosDoDashboard(admin);
+  let destaquesDash: ExtraDash[] = [];
+  try {
+    const { data: bs } = await admin.from('boosts').select('valor, status, created_at, pago_em').limit(20000);
+    destaquesDash = ((bs ?? []) as any[]).map((b) => ({ valor: Number(b.valor) || 0, status: b.status, em: b.pago_em || b.created_at }));
+  } catch { destaquesDash = boosts.map((b: any) => ({ valor: Number(b.valor) || 0, status: b.status, em: b.created_at })); }
+  const painel = {
+    vendas: vendasDash,
+    temForma,
+    destaques: destaquesDash,
+    saques: payouts.map((p: any) => ({ valor: Number(p.valor) || 0, status: p.status, em: p.pago_em || p.created_at })),
+    cadastros: profilesAll.map((p: any) => p.created_at).filter(Boolean),
+    lojasCriadas: stores.map((s: any) => s.created_at).filter(Boolean),
+    nomes: {
+      lojas: Object.fromEntries(stores.map((s: any) => [s.id, s.nome || 'Loja'])),
+      produtos: Object.fromEntries(products.map((p: any) => [p.id, p.titulo || 'Produto'])),
+    },
+    comissao: Number(settings.commission_percent) || 3,
+  };
+
   const vendMap: Record<string, number> = {};
   paid.forEach((o) => { const n = o.stores?.nome || '—'; vendMap[n] = (vendMap[n] || 0) + Number(o.total); });
   const topVendedores = Object.entries(vendMap).map(([nome, total]) => ({ nome, total })).sort((a, b) => b.total - a.total).slice(0, 8);
@@ -284,5 +332,5 @@ export default async function AdminPage() {
     suporteAbertos,
   };
 
-  return <AdminDashboard adminEmail={user.email} users={users} metrics={metrics} daily={daily} orders={orders} products={products} stores={stores} payouts={payouts} boosts={boosts} settings={settings} growth={growth} sellers={sellers} complaints={complaints} alerts={alerts} />;
+  return <AdminDashboard painel={painel} adminEmail={user.email} users={users} metrics={metrics} daily={daily} orders={orders} products={products} stores={stores} payouts={payouts} boosts={boosts} settings={settings} growth={growth} sellers={sellers} complaints={complaints} alerts={alerts} />;
 }

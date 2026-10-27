@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/server';
 import { verifyStripeSignature } from '@/lib/payments/stripe';
 import { processarPedido, ORDER_FIELDS } from '@/lib/payments/fulfill';
+import { gravarFormaPagamento } from '@/lib/payments/formaPagamento';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -46,6 +47,7 @@ export async function POST(req: Request) {
     // Idempotente: se o pedido já não estiver 'pendente', processarPedido não faz nada.
     // valorConfere (dentro de processarPedido) bloqueia se amount_total não cobrir orders.total.
     const liberado = await processarPedido(admin, order, { status: 'pago', amount, gatewayRef: session.id });
+    if (liberado) await gravarFormaPagamento(admin, refId, 'cartao'); // Dashboard: entrou no cartão
     if (!liberado && (order as any).status !== 'pendente') {
       console.warn('Stripe webhook: pedido já não estava pendente (possível pagamento em dobro)', refId, session.id);
     }

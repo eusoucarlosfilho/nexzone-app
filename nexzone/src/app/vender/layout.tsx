@@ -3,6 +3,7 @@ import Nav from '@/components/Nav';
 import SellerSidebar from './SellerSidebar';
 import SellerNotifier from './SellerNotifier';
 import SellerBell from '@/components/SellerBell';
+import NotificacoesSino from '@/components/NotificacoesSino';
 
 // PWA (preparação): manifest e modo "app" só nas páginas do painel do vendedor.
 // Nenhum service worker é registrado nesta versão.
@@ -49,7 +50,7 @@ export default function VenderLayout({ children }: { children: React.ReactNode }
       <div className="sd-shell">
         <SellerSidebar />
         <div className="sd-main">
-          <div className="sd-toolbar"><SellerBell /></div>
+          <div className="sd-toolbar"><NotificacoesSino somenteFallback fallback={<SellerBell />} /></div>
           {children}
         </div>
       </div>
