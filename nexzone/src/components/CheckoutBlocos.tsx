@@ -1,4 +1,5 @@
 'use client';
+import { diasDeGarantia } from '@/lib/garantia';
 import type { ReactNode } from 'react';
 import Countdown from '@/components/Countdown';
 import TextoFormatado from '@/components/TextoFormatado';
@@ -69,7 +70,7 @@ export default function CheckoutBlocos({ config, produto, cor, pagamento, mostra
         return (
           <div style={{ display: 'flex', gap: 12, alignItems: 'center', background: 'var(--green-bg)', borderRadius: 16, padding: '12px 16px', margin: '16px 0', color: '#0B5D3F', fontSize: 14 }}>
             <Icon name="shield" size={26} color="var(--green)" />
-            <span><strong style={{ fontFamily: 'Outfit', display: 'block' }}>Garantia de {Number(produto.garantia_dias ?? 7)} dias</strong>Se tiver qualquer problema com o produto, você abre uma reclamação e é atendido.</span>
+            <span><strong style={{ fontFamily: 'Outfit', display: 'block' }}>Garantia de {diasDeGarantia(produto.garantia_dias)} dias</strong>Não gostou? Peça o reembolso pela página do pedido, sem burocracia.</span>
           </div>
         );
       case 'selos':

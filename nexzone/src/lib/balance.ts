@@ -27,6 +27,11 @@ export async function calcBalance(supabase: any, storeId: string) {
     for (const r of (revs ?? [])) reviewsByOrder[(r as any).order_id] = Number((r as any).nota);
     const { data: cmps } = await admin.from('complaints').select('order_id, status').in('order_id', ids).eq('status', 'aberta');
     for (const c of (cmps ?? [])) complaintOrders.add((c as any).order_id);
+    // Pedido de reembolso em análise (SQL 18): o saldo fica retido, igual reclamação. Sem a tabela: ignora.
+    try {
+      const { data: rbs, error: rbErr } = await admin.from('reembolso_pedidos').select('order_id').in('order_id', ids).eq('status', 'aberto');
+      if (!rbErr) for (const r of (rbs ?? [])) complaintOrders.add((r as any).order_id);
+    } catch { /* sem SQL 18 */ }
   }
 
   // Créditos de saldo (ex.: troca de pontos)

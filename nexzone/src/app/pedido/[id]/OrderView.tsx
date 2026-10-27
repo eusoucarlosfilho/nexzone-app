@@ -10,6 +10,8 @@ import Icon from '@/components/Icon';
 import type { ExtraPedido } from '@/lib/extrasPedido';
 import PosCompra from './PosCompra';
 import type { RastreioProduto } from '@/lib/rastreioVenda';
+import Link from 'next/link';
+import GarantiaReembolso, { type GarantiaInfo } from './GarantiaReembolso';
 
 const money = (v: number) => 'R$ ' + Number(v).toFixed(2).replace('.', ',');
 
@@ -33,6 +35,8 @@ type Props = {
   produtoId?: string;
   rastreio?: RastreioProduto | null;   // pixels e página de obrigado do vendedor (Sprint 1)
   senhaPendente?: boolean;             // conta criada no checkout sem senha
+  cursos?: { id: string; titulo: string }[]; // área de membros liberada por esta compra (SQL 18)
+  garantia?: GarantiaInfo | null;            // garantia e reembolso pelo site (SQL 18)
 };
 
 export default function OrderView(props: Props) {
@@ -104,6 +108,9 @@ export default function OrderView(props: Props) {
           <strong style={{ fontFamily: 'Outfit' }}>{props.titulo}</strong>
           <div className="muted">{money(props.total)}</div>
         </div>
+        {(pago || status === 'reembolsado') && (
+          <Link href={`/pedido/${props.orderId}/comprovante`} className="btn btn-ghost btn-sm" style={{ flex: 'none' }}><Icon name="receipt" size={15} /> Comprovante</Link>
+        )}
       </div>
 
       {pago ? (
@@ -111,6 +118,15 @@ export default function OrderView(props: Props) {
           <div style={{ textAlign: 'center' }}>
             <div style={{ fontFamily: 'Outfit', fontWeight: 800, color: 'var(--green)', fontSize: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}><Icon name="checkCircle" size={22} /> Pagamento confirmado!</div>
             <p className="muted" style={{ margin: '6px 0 14px' }}>Seu produto está liberado.</p>
+            {(props.cursos ?? []).length > 0 && (
+              <div style={{ display: 'grid', gap: 8, marginBottom: 14 }}>
+                {(props.cursos ?? []).map((c, i) => (
+                  <Link key={c.id} href={`/curso/${c.id}`} className={`btn ${i === 0 ? 'btn-pri' : 'btn-ghost'}`} style={{ width: '100%' }}>
+                    <Icon name="play" size={18} /> {(props.cursos ?? []).length > 1 ? `Acessar: ${c.titulo}` : 'Acessar a área de membros'}
+                  </Link>
+                ))}
+              </div>
+            )}
             {props.temArquivo
               ? <a className="btn btn-pri" href={`/api/download?order=${props.orderId}`}><Icon name="download" size={18} /> Baixar produto</a>
               : conteudo && ehSoLink(conteudo)
@@ -135,6 +151,8 @@ export default function OrderView(props: Props) {
             <OrderChat orderId={props.orderId} theme="light" />
             <ComplaintBox orderId={props.orderId} aberta={!!props.reclamacaoAberta} />
           </div>
+
+          {props.garantia && <GarantiaReembolso orderId={props.orderId} g={props.garantia} />}
 
           {extras.length > 0 && (
             <div style={{ borderTop: '1px solid var(--border)', marginTop: 22, paddingTop: 18, textAlign: 'center' }}>
@@ -175,6 +193,19 @@ export default function OrderView(props: Props) {
                 {msg && <p className="muted" style={{ color: 'var(--red)', fontSize: 12, marginTop: 8 }}>{msg}</p>}
               </div>
             )}
+          </div>
+        </div>
+      ) : status === 'reembolsado' || status === 'cancelado' ? (
+        <div style={{ textAlign: 'center', paddingTop: 18 }}>
+          <div style={{ fontFamily: 'Outfit', fontWeight: 800, fontSize: 19, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+            <Icon name={status === 'reembolsado' ? 'undo' : 'x'} size={20} /> {status === 'reembolsado' ? 'Pedido reembolsado' : 'Pedido cancelado'}
+          </div>
+          <p className="muted" style={{ margin: '6px auto 0', maxWidth: 380, fontSize: 14 }}>
+            {status === 'reembolsado' ? 'O valor volta pela mesma forma de pagamento (Pix: na conta de origem; cartão: em até 2 faturas). O acesso ao produto foi encerrado.' : 'Este pedido não foi pago. Se ainda quiser o produto, faça uma nova compra.'}
+          </p>
+          {props.garantia && props.garantia.pedidos.length > 0 && <GarantiaReembolso orderId={props.orderId} g={{ ...props.garantia, pode: false }} />}
+          <div style={{ borderTop: '1px solid var(--border)', marginTop: 18, paddingTop: 16, textAlign: 'left' }}>
+            <OrderChat orderId={props.orderId} theme="light" />
           </div>
         </div>
       ) : (

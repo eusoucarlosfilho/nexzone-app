@@ -49,6 +49,8 @@
     "../src/lib/rastreioVenda.ts",
     "../src/lib/integracoes.ts",
     "../src/lib/dashboardVendas.ts",
-    "../src/lib/notificacoesCentral.ts"
+    "../src/lib/notificacoesCentral.ts",
+    "../src/lib/curso.ts",
+    "../src/lib/garantia.ts"
   ]
 }

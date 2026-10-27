@@ -9,6 +9,8 @@ import ShareButton from '@/components/ShareButton';
 import FavButton from '@/components/FavButton';
 import Questions from './Questions';
 import { createClient, createAdminClient } from '@/lib/supabase/server';
+import ConteudoCurso from './ConteudoCurso';
+import { diasDeGarantia } from '@/lib/garantia';
 import { avisoEstoque, extrasDe, EXTRAS_VAZIO, manuaisDe, contadoresExibidos } from '@/lib/estoque';
 import { notFound } from 'next/navigation';
 import type { Product } from '@/lib/types';
@@ -96,7 +98,7 @@ export default async function ProductPage({ params }: { params: { id: string } }
   const desconto = p.preco_promo ? Math.round((1 - p.preco_promo / p.preco) * 100) : 0;
 
   const cat = acharCategoria(p.categoria);
-  const garantia = Math.max(0, Math.floor(Number(p.garantia_dias) || 0));
+  const garantia = diasDeGarantia(p.garantia_dias); // nunca menos que 7 dias (CDC, art. 49)
   const entrega = ENTREGA[p.tipo_entrega] || { titulo: 'Acesso ao produto', texto: 'O acesso fica na página do pedido, em Minhas compras.' };
 
   // Tudo em paralelo. Relacionados: só ativos, sem o próprio produto, poucos itens.
@@ -307,13 +309,15 @@ export default async function ProductPage({ params }: { params: { id: string } }
             <div className="pdp-desc">{p.descricao || 'O vendedor ainda não escreveu uma descrição. Use as perguntas abaixo para tirar dúvidas antes de comprar.'}</div>
           </div>
 
+          <ConteudoCurso productId={p.id} />
+
           <div className="pdp-sec">
             <h2>Como você recebe</h2>
             <ul className="pdp-recebe">
               <li><Icon name="package" color="var(--orange-ink)" /><div><b>{entrega.titulo}</b><span>{entrega.texto}</span></div></li>
               <li><Icon name="bolt" color="var(--orange-ink)" /><div><b>Liberação automática</b><span>Assim que o pagamento é confirmado, o pedido é liberado. Na página do pedido você também conversa com o vendedor.</span></div></li>
               {garantia > 0 && (
-                <li><Icon name="shield" color="var(--orange-ink)" /><div><b>Garantia de {garantia} {garantia === 1 ? 'dia' : 'dias'}</b><span>Dentro desse prazo você pode pedir reembolso, conforme os <Link href="/termos">Termos de uso</Link>.</span></div></li>
+                <li><Icon name="shield" color="var(--orange-ink)" /><div><b>Garantia de {garantia} {garantia === 1 ? 'dia' : 'dias'}</b><span>Dentro desse prazo você pede o reembolso pela própria página do pedido, em poucos cliques. Veja os <Link href="/termos">Termos de uso</Link>.</span></div></li>
               )}
             </ul>
           </div>

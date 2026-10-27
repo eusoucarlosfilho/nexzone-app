@@ -23,6 +23,7 @@ import { rotuloItem } from '@/lib/moderacao';
 import AlteracoesAnuncio from './AlteracoesAnuncio';
 import AvisosSino from './AvisosSino';
 import PainelVendas from './PainelVendas';
+import Reembolsos from './Reembolsos';
 
 const money = (v: number) => 'R$ ' + Number(v).toFixed(2).replace('.', ',');
 const fmt = (v: number) => Number(v).toLocaleString('pt-BR');
@@ -47,6 +48,8 @@ export default function AdminDashboard({ painel, adminEmail, users, metrics, dai
     try {
       const p = new URLSearchParams(window.location.search).get('suporte');
       if (p) { setSuporteProtocolo(p.trim().toUpperCase()); setTab('suporte'); }
+      const aba = new URLSearchParams(window.location.search).get('aba');
+      if (aba && /^[a-z]{3,20}$/.test(aba)) setTab(aba);
     } catch {}
   }, []);
 
@@ -239,6 +242,7 @@ export default function AdminDashboard({ painel, adminEmail, users, metrics, dai
     } finally { setBusy(null); }
   }
 
+  const [reembolsosAbertos, setReembolsosAbertos] = useState<number>(Number(metrics.reembolsosAbertos) || 0);
   const NAV = [
     ['cockpit', 'cockpit', 'Dashboard', 0],
     ['audiencia', 'activity', 'Audiência', 0],
@@ -250,6 +254,7 @@ export default function AdminDashboard({ painel, adminEmail, users, metrics, dai
     ['destaques', 'star', 'Destaques', metrics.destaquesAtivos],
     ['crescimento', 'growth', 'Crescimento', 0],
     ['reclamacoes', 'shield', 'Reclamações', recPendentes.length],
+    ['reembolsos', 'undo', 'Reembolsos', reembolsosAbertos],
     ['suporte', 'help', 'Suporte', metrics.suporteAbertos || 0],
     ['observacoes', 'chat', 'Observações', 0],
     ['torpedos', 'bell', 'Torpedos enviados', 0],
@@ -844,6 +849,14 @@ export default function AdminDashboard({ painel, adminEmail, users, metrics, dai
         )}
 
         {tab === 'torpedos' && <WhatsAppLog />}
+
+        {tab === 'reembolsos' && (
+          <>
+            <h1 className="adm-h">Reembolsos</h1>
+            <p className="adm-sub">Pedidos de reembolso feitos pelos compradores dentro da garantia. Enquanto estão em análise, o saldo da venda fica retido.</p>
+            <Reembolsos onContagem={setReembolsosAbertos} />
+          </>
+        )}
 
         {tab === 'avisos' && (
           <>

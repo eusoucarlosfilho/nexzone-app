@@ -75,7 +75,17 @@ export default function CheckoutClient({ productId, titulo, emoji, categoria, ca
   useEffect(() => {
     // pré-preenche o e-mail se veio no link (?email=)
     try { const e = new URLSearchParams(window.location.search).get('email'); if (e && convidadoInicial) setDados((d) => ({ ...d, email: e.slice(0, 160) })); } catch {}
+    try { const n = new URLSearchParams(window.location.search).get('nome'); if (n && convidadoInicial) setDados((d) => ({ ...d, nome: n.replace(/[<>]/g, '').slice(0, 80) })); } catch {}
   }, [convidadoInicial]);
+  // Link de oferta: ?cupom=CODIGO já aplica o cupom ao abrir o checkout
+  useEffect(() => {
+    if (!aceitaCupom) return;
+    try {
+      const c = (new URLSearchParams(window.location.search).get('cupom') || '').trim().toUpperCase().replace(/[^A-Z0-9_-]/g, '').slice(0, 40);
+      if (c) { setCupom(c); aplicarCupom(c); }
+    } catch {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aceitaCupom]);
   const router = useRouter();
   const [cupom, setCupom] = useState('');
   const [aplicado, setAplicado] = useState<{ codigo: string; desconto: number; final: number } | null>(null);
@@ -103,12 +113,13 @@ export default function CheckoutClient({ productId, titulo, emoji, categoria, ca
   // Se o cartão sumir (ex.: cupom/pontos baixaram o total), volta para Pix.
   const metodoEfetivo: 'pix' | 'cartao' = mostrarCartao ? metodo : 'pix';
 
-  async function aplicarCupom() {
-    if (!cupom.trim()) return;
+  async function aplicarCupom(codigoLink?: string) {
+    const codigo = (codigoLink ?? cupom).trim();
+    if (!codigo) return;
     setChecando(true);
     const r = await fetch('/api/coupon/validate', {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
-      body: JSON.stringify({ codigo: cupom, productId }),
+      body: JSON.stringify({ codigo, productId }),
     });
     const d = await r.json();
     setChecando(false);
@@ -222,7 +233,7 @@ export default function CheckoutClient({ productId, titulo, emoji, categoria, ca
               style={{ flex: 1, height: 42, borderRadius: 10, border: '1px solid var(--border)', padding: '0 12px', fontSize: 14, textTransform: 'uppercase' }} />
             {aplicado
               ? <button className="btn btn-ghost btn-sm" onClick={() => { setAplicado(null); setCupom(''); }}>Remover</button>
-              : <button className="btn btn-dark btn-sm" onClick={aplicarCupom} disabled={checando}>{checando ? '…' : 'Aplicar'}</button>}
+              : <button className="btn btn-dark btn-sm" onClick={() => aplicarCupom()} disabled={checando}>{checando ? '…' : 'Aplicar'}</button>}
           </div>
         </div>
       )}

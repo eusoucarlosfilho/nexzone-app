@@ -7,6 +7,8 @@ import { stripeAvailable } from '@/lib/payments/stripe';
 import { extrasDoPedido } from '@/lib/extrasPedido';
 import { normalizarCheckout } from '@/lib/checkoutConfig';
 import { temPixel } from '@/lib/rastreioVenda';
+import { produtosComCurso } from '@/lib/curso-servidor';
+import { situacaoGarantia } from '@/lib/reembolso-servidor';
 
 export const dynamic = 'force-dynamic';
 
@@ -34,6 +36,18 @@ export default async function PedidoPage({ params, searchParams }: { params: { i
   const md: any = user.user_metadata || {};
   const senhaPendente = md.criado_no_checkout === true && md.senha_definida !== true;
   const cartaoDisponivel = order.status === 'pendente' ? await stripeAvailable() : false;
+  // Área de membros (SQL 18): produto principal e itens extras com curso ligado
+  const adminP = createAdminClient();
+  const idsProdutos = [(order as any).product_id, (order as any).bump_product_id, ...(Array.isArray((order as any).bumps) ? (order as any).bumps.map((b: any) => b?.product_id) : [])].filter(Boolean);
+  const comCurso = await produtosComCurso(adminP, idsProdutos);
+  let cursos: { id: string; titulo: string }[] = [];
+  if (comCurso.size) {
+    const { data: ps } = await adminP.from('products').select('id, titulo').in('id', Array.from(comCurso));
+    cursos = ((ps ?? []) as any[]).sort((a, b) => (a.id === (order as any).product_id ? -1 : b.id === (order as any).product_id ? 1 : 0)).map((x) => ({ id: x.id, titulo: x.titulo }));
+  }
+  // Garantia (SQL 18): prazo e pedidos de reembolso
+  const g = await situacaoGarantia(adminP, order.id);
+  const garantia = g && g.sql18 ? { dias: g.dias, ate: g.elegivel.ate ? g.elegivel.ate.toISOString() : null, pode: g.elegivel.pode, motivo: g.elegivel.pode ? null : g.elegivel.motivo, pedidos: g.pedidos } : null;
   // Convite de WhatsApp: só se a coluna existir (SQL aplicado) e o comprador ainda não tiver número
   const { data: wp, error: wpErro } = await supabase.from('profiles').select('whatsapp').eq('id', user.id).maybeSingle();
   const mostrarConvite = !wpErro && !(wp as any)?.whatsapp;
@@ -61,6 +75,8 @@ export default async function PedidoPage({ params, searchParams }: { params: { i
           produtoId={(order as any).product_id}
           rastreio={rastreio}
           senhaPendente={senhaPendente}
+          cursos={cursos}
+          garantia={garantia}
         />
         {mostrarConvite && <ConviteWhatsApp orderId={order.id} aviso={searchParams?.whats} />}
         {searchParams?.whats === 'ok' && <p className="muted" role="status" style={{ marginTop: 12, fontSize: 14 }}>Pronto! Você vai receber os avisos no WhatsApp.</p>}

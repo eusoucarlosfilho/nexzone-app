@@ -265,6 +265,7 @@ export default function ProductManager({ products, total, pagina, porPagina, sta
                       <button type="button" className="btn btn-ghost btn-sm" disabled={travado || busy === p.id || carregandoEdicao === p.id}
                         onClick={() => abrirEdicao(p.id, 'imagens')}><Icon name="image" size={16} /> Imagens</button>
                       <Link href={`/vender/checkout/${p.id}`} className="btn btn-ghost btn-sm"><Icon name="cart" size={16} /> Checkout e order bump</Link>
+                      <Link href={`/vender/curso/${p.id}`} className="btn btn-ghost btn-sm"><Icon name="play" size={16} /> Área de membros</Link>
                       {ativo && !emDestaque && <BoostButton productId={p.id} destaqueAte={p.destaque_ate} planos={planos} />}
                       {!ativo && !emDestaque && <span className="btn btn-ghost btn-sm pm-off" title="O destaque fica disponível depois que o anúncio for aprovado"><Icon name="rocket" size={16} /> Destacar</span>}
 
@@ -274,6 +275,7 @@ export default function ProductManager({ products, total, pagina, porPagina, sta
                         {menu === p.id && (
                           <div className="pm-menu" role="menu">
                             <button role="menuitem" type="button" onClick={() => { setMenu(null); router.push(`/vender/checkout/${p.id}`); }}><Icon name="palette" size={15} /> Checkout e order bump</button>
+                            <button role="menuitem" type="button" onClick={() => { setMenu(null); router.push(`/vender/curso/${p.id}`); }}><Icon name="play" size={15} /> Área de membros (aulas)</button>
                             <button role="menuitem" type="button" disabled={!ativo} onClick={() => copiar(`${window.location.origin}/produto/${p.id}`, 'Link do produto copiado!')}><Icon name="link" size={15} /> Copiar link do anúncio</button>
                             <button role="menuitem" type="button" disabled={!ativo} onClick={() => copiar(`${window.location.origin}/checkout/${p.id}`, 'Link de checkout copiado! Use em páginas de venda externas.')}><Icon name="cart" size={15} /> Copiar link de checkout</button>
                             {travado ? null : p.status === 'pausado'

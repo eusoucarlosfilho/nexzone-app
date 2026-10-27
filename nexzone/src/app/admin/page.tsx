@@ -309,6 +309,13 @@ export default async function AdminPage() {
     comissao: Number(settings.commission_percent) || 3,
   };
 
+  // Reembolsos em análise (SQL 18): número no menu. Sem a tabela: 0.
+  let reembolsosAbertos = 0;
+  try {
+    const { count, error } = await admin.from('reembolso_pedidos').select('id', { count: 'exact', head: true }).eq('status', 'aberto');
+    if (!error) reembolsosAbertos = count ?? 0;
+  } catch { reembolsosAbertos = 0; }
+
   const vendMap: Record<string, number> = {};
   paid.forEach((o) => { const n = o.stores?.nome || '—'; vendMap[n] = (vendMap[n] || 0) + Number(o.total); });
   const topVendedores = Object.entries(vendMap).map(([nome, total]) => ({ nome, total })).sort((a, b) => b.total - a.total).slice(0, 8);
@@ -330,6 +337,7 @@ export default async function AdminPage() {
     destaquesAtivos: boosts.filter((b: any) => b.status === 'pago' && b.expira_em && new Date(b.expira_em) > new Date()).length,
     buyersCount,
     suporteAbertos,
+    reembolsosAbertos,
   };
 
   return <AdminDashboard painel={painel} adminEmail={user.email} users={users} metrics={metrics} daily={daily} orders={orders} products={products} stores={stores} payouts={payouts} boosts={boosts} settings={settings} growth={growth} sellers={sellers} complaints={complaints} alerts={alerts} />;

@@ -16,7 +16,7 @@ document.querySelectorAll('a[href*="compreibarato.com.br/checkout/"]').forEach(f
 </script>`;
 
 export default function SecaoRastreio({ productId, valor, onValor }: { productId: string; valor: RastreioProduto; onValor: (r: RastreioProduto) => void }) {
-  const [utm, setUtm] = useState({ source: 'facebook', medium: 'cpc', campaign: '', content: '' });
+  const [utm, setUtm] = useState({ source: 'facebook', medium: 'cpc', campaign: '', content: '', cupom: '' });
   const erro = validarRastreio(valor);
   const set = (p: Partial<RastreioProduto>) => onValor({ ...valor, ...p });
 
@@ -26,6 +26,7 @@ export default function SecaoRastreio({ productId, valor, onValor }: { productId
     if (utm.medium) sp.set('utm_medium', utm.medium);
     if (utm.campaign) sp.set('utm_campaign', utm.campaign);
     if (utm.content) sp.set('utm_content', utm.content);
+    if (utm.cupom) sp.set('cupom', utm.cupom);
     const q = sp.toString();
     return `${SITE}/checkout/${productId}${q ? `?${q}` : ''}`;
   })();
@@ -67,6 +68,9 @@ export default function SecaoRastreio({ productId, valor, onValor }: { productId
           <div className="fg"><label>Campanha (utm_campaign)</label><input value={utm.campaign} maxLength={80} placeholder="black-friday" onChange={(e) => setUtm({ ...utm, campaign: e.target.value })} /></div>
           <div className="fg"><label>Anúncio (utm_content)</label><input value={utm.content} maxLength={80} placeholder="video-01" onChange={(e) => setUtm({ ...utm, content: e.target.value })} /></div>
         </div>
+        <div className="fg"><label>Cupom já aplicado (opcional)</label>
+          <input value={utm.cupom} maxLength={40} placeholder="Ex.: BLACK30" onChange={(e) => setUtm({ ...utm, cupom: e.target.value.toUpperCase().replace(/[^A-Z0-9_-]/g, '') })} />
+          <small className="muted" style={{ fontSize: 12 }}>O comprador abre o checkout com o desconto já aplicado. Crie o cupom em <b>Cupons</b> e deixe "Aceitar cupom" ligado neste produto. Dá para somar <code>&amp;email=</code> e <code>&amp;nome=</code> para chegar com os dados preenchidos.</small></div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           <code style={{ flex: '1 1 260px', fontSize: 12, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '8px 10px', wordBreak: 'break-all' }}>{link}</code>
           <button type="button" className="btn btn-ghost btn-sm" onClick={() => copiar(link, 'Link copiado!')}><Icon name="copy" size={14} /> Copiar link</button>
