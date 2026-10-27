@@ -92,13 +92,14 @@ export default function EditorMensagem({ valor, onValor, usaPadrao, onUsaPadrao,
   );
 
   return (
-    <div className="em">
+    <div className="em-ed">
       <style dangerouslySetInnerHTML={{ __html: `
-        .em{display:grid;gap:10px;}
+        .em-ed{display:grid;gap:10px;width:auto;height:auto;}
         .em-modo{display:flex;gap:8px;flex-wrap:wrap;}
         .em-modo label{flex:1 1 220px;display:flex;gap:10px;align-items:flex-start;border:1.5px solid var(--border2);border-radius:14px;padding:12px 14px;cursor:pointer;font-size:14px;background:#fff;}
         .em-modo label.on{border-color:var(--orange);background:var(--soft);}
-        .em-modo input{margin-top:3px;accent-color:var(--orange);}
+        .em-ed .em-modo input{margin-top:3px;accent-color:var(--orange);width:18px;height:18px;min-height:0;padding:0;border:0;box-shadow:none;flex:none;}
+        .em-ed .em-box textarea{border:none;border-radius:0;box-shadow:none;min-height:150px;}
         .em-modo small{display:block;color:var(--sub);font-size:12.5px;margin-top:2px;font-weight:500;}
         .em-box{border:1.5px solid var(--border2);border-radius:14px;overflow:hidden;background:#fff;}
         .em-box:focus-within{border-color:var(--orange);box-shadow:0 0 0 3px rgba(255,107,0,.12);}
