@@ -328,6 +328,13 @@ export default async function AdminPage() {
     if (!error) verificacoesPendentes = count ?? 0;
   } catch { verificacoesPendentes = 0; }
 
+  // Produtores interessados esperando contato (SQL 20). Sem a tabela: 0.
+  let produtoresNovos = 0;
+  try {
+    const { count, error } = await admin.from('produtores_interessados').select('id', { count: 'exact', head: true }).eq('status', 'novo');
+    if (!error) produtoresNovos = count ?? 0;
+  } catch { produtoresNovos = 0; }
+
   const vendMap: Record<string, number> = {};
   paid.forEach((o) => { const n = o.stores?.nome || '—'; vendMap[n] = (vendMap[n] || 0) + Number(o.total); });
   const topVendedores = Object.entries(vendMap).map(([nome, total]) => ({ nome, total })).sort((a, b) => b.total - a.total).slice(0, 8);
@@ -351,6 +358,7 @@ export default async function AdminPage() {
     suporteAbertos,
     reembolsosAbertos,
     verificacoesPendentes,
+    produtoresNovos,
   };
 
   return <AdminDashboard painel={painel} adminEmail={user.email} users={users} metrics={metrics} daily={daily} orders={orders} products={products} stores={stores} payouts={payouts} boosts={boosts} settings={settings} growth={growth} sellers={sellers} complaints={complaints} alerts={alerts} />;
