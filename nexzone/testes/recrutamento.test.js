@@ -92,4 +92,15 @@ t('cookies do Meta: monta fbc a partir do fbclid quando não há cookie', () => 
   assert.match(c.fbc, /^fb\.1\.\d+\.IwAR0abcdefghij$/);
   assert.strictEqual(S.cliquesMeta(req, '<script>').fbc, null);
 });
+t('avisos: até 3 números válidos, sem repetição', () => {
+  assert.deepStrictEqual(S.numerosDeAviso('5563999998888, 5563999998888;5563988887777 5511912345678 5521900001111'), ['5563999998888', '5563988887777', '5511912345678']);
+  assert.deepStrictEqual(S.numerosDeAviso('63999998888, abc'), []);
+  assert.deepStrictEqual(S.numerosDeAviso(null), []);
+});
+t('avisos: config salva números e recusa número inválido', () => {
+  const r = S.linhasDeConfig({ avisar: '5563999998888, 5563988887777', avisarEmail: false });
+  assert.ok(r.ok); assert.deepStrictEqual(r.linhas, [{ key: 'recrut_avisar', value: '5563999998888,5563988887777' }, { key: 'recrut_avisar_email', value: 'false' }]);
+  assert.strictEqual(S.linhasDeConfig({ avisar: '63999' }).ok, false);
+  assert.ok(S.linhasDeConfig({ avisar: '' }).ok);
+});
 console.log(`recrutamento de produtores: ${ok} testes ok`);
