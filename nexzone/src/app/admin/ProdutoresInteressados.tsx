@@ -11,7 +11,7 @@ const ROT_TIPO: Record<string, string> = Object.fromEntries(TIPOS.map((t) => [t.
 const COR: Record<string, string> = Object.fromEntries(STATUS.map((s) => [s.id, s.cor]));
 const URL_PAGINA = 'https://compreibarato.com.br/produtores';
 
-type Config = { whatsapp: string; pixel: string; teste: string; tokenDefinido: boolean };
+type Config = { whatsapp: string; pixel: string; teste: string; tokenDefinido: boolean; avisar?: string[]; avisarEmail?: boolean };
 
 export default function ProdutoresInteressados({ onContagem }: { onContagem?: (n: number) => void }) {
   const [filtro, setFiltro] = useState('todos');
@@ -19,7 +19,7 @@ export default function ProdutoresInteressados({ onContagem }: { onContagem?: (n
   const [d, setD] = useState<{ sql20: boolean; itens: any[]; contagem: Record<string, number>; config: Config | null }>({ sql20: true, itens: [], contagem: {}, config: null });
   const [carregando, setCarregando] = useState(true);
   const [abrirCfg, setAbrirCfg] = useState(false);
-  const [cfg, setCfg] = useState({ whatsapp: '', pixel: '', teste: '', token: '' });
+  const [cfg, setCfg] = useState({ whatsapp: '', pixel: '', teste: '', token: '', avisar: '', avisarEmail: true });
   const [salvando, setSalvando] = useState(false);
   const [notas, setNotas] = useState<Record<string, string>>({});
 
@@ -29,7 +29,7 @@ export default function ProdutoresInteressados({ onContagem }: { onContagem?: (n
       const r = await fetch(`/api/admin/produtores?status=${filtro}`, { credentials: 'include', cache: 'no-store' });
       const j = await r.json();
       setD({ sql20: j.sql20 !== false, itens: j.itens ?? [], contagem: j.contagem ?? {}, config: j.config ?? null });
-      if (j.config) setCfg((c) => ({ ...c, whatsapp: j.config.whatsapp || '', pixel: j.config.pixel || '', teste: j.config.teste || '' }));
+      if (j.config) setCfg((c) => ({ ...c, whatsapp: j.config.whatsapp || '', pixel: j.config.pixel || '', teste: j.config.teste || '', avisar: (j.config.avisar || []).join(', '), avisarEmail: j.config.avisarEmail !== false }));
       onContagem?.(j.contagem?.novo ?? 0);
     } catch { toast('Falha ao carregar.', 'error'); }
     finally { setCarregando(false); }
@@ -55,7 +55,7 @@ export default function ProdutoresInteressados({ onContagem }: { onContagem?: (n
   async function salvarConfig(extra: any = {}) {
     setSalvando(true);
     try {
-      const j = await post({ acao: 'config', whatsapp: cfg.whatsapp, pixel: cfg.pixel, teste: cfg.teste, token: cfg.token, ...extra });
+      const j = await post({ acao: 'config', whatsapp: cfg.whatsapp, pixel: cfg.pixel, teste: cfg.teste, token: cfg.token, avisar: cfg.avisar, avisarEmail: cfg.avisarEmail, ...extra });
       if (j) { setD((x) => ({ ...x, config: j.config })); setCfg((c) => ({ ...c, token: '' })); toast('Configuração salva.', 'success'); }
     } finally { setSalvando(false); }
   }
@@ -79,7 +79,7 @@ export default function ProdutoresInteressados({ onContagem }: { onContagem?: (n
   const copiar = (t: string) => { try { navigator.clipboard.writeText(t); toast('Copiado.', 'success'); } catch { toast(t, 'info' as any); } };
   const c = d.contagem;
   const config = d.config;
-  const pendencias = [!config?.whatsapp && 'WhatsApp da equipe', !config?.pixel && 'ID do Pixel', !config?.tokenDefinido && 'token da API de Conversões'].filter(Boolean) as string[];
+  const pendencias = [!config?.whatsapp && 'WhatsApp da equipe', !config?.pixel && 'ID do Pixel', !config?.avisar?.length && 'número para avisos no WhatsApp', !config?.tokenDefinido && 'token da API de Conversões'].filter(Boolean) as string[];
 
   if (!d.sql20) return <div className="adm-card"><b>Rode o SQL 20</b> no Supabase para ativar o formulário de produtores.</div>;
 
@@ -98,6 +98,8 @@ export default function ProdutoresInteressados({ onContagem }: { onContagem?: (n
         {abrirCfg && (
           <div className="pi-cfg">
             <label><span>WhatsApp que recebe os produtores</span><input value={cfg.whatsapp} onChange={(e) => setCfg({ ...cfg, whatsapp: e.target.value })} placeholder="5563999998888" inputMode="numeric" /><em>55 + DDD + número. Aparece no botão da página de obrigado.</em></label>
+            <label><span>Avisar no WhatsApp a cada cadastro</span><input value={cfg.avisar} onChange={(e) => setCfg({ ...cfg, avisar: e.target.value })} placeholder="5563999998888, 5563988887777" inputMode="tel" /><em>Até 3 números (você e o César), separados por vírgula. Chega no celular na hora, pela conexão de WhatsApp do site. Use números diferentes do que está conectado.</em></label>
+            <label style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}><input type="checkbox" checked={cfg.avisarEmail} onChange={(e) => setCfg({ ...cfg, avisarEmail: e.target.checked })} style={{ width: 18, height: 18 }} /><span style={{ margin: 0 }}>Também avisar por e-mail (e-mail de suporte das Configurações)</span></label>
             <label><span>ID do Pixel do Meta</span><input value={cfg.pixel} onChange={(e) => setCfg({ ...cfg, pixel: e.target.value })} placeholder="123456789012345" inputMode="numeric" /><em>Gerenciador de Eventos → Fontes de dados → seu pixel.</em></label>
             <label><span>Token da API de Conversões {config?.tokenDefinido && <b className="pi-ok">✓ configurado</b>}</span><input type="password" value={cfg.token} onChange={(e) => setCfg({ ...cfg, token: e.target.value })} placeholder={config?.tokenDefinido ? 'Deixe em branco para manter o atual' : 'Cole o token gerado no Gerenciador de Eventos'} autoComplete="off" /><em>Fica guardado criptografado. Nunca aparece de novo na tela.</em></label>
             <label><span>Código de teste <small>(opcional)</small></span><input value={cfg.teste} onChange={(e) => setCfg({ ...cfg, teste: e.target.value })} placeholder="TEST12345" /><em>Só para conferir em "Testar eventos". Apague depois de testar.</em></label>
