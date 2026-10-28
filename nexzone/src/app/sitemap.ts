@@ -1,5 +1,7 @@
 import type { MetadataRoute } from 'next';
 import { createAdminClient } from '@/lib/supabase/server';
+import { PAGINAS_FIXAS } from '@/lib/seoSite';
+import { CATEGORIAS } from '@/lib/categorias';
 
 export const revalidate = 3600; // regenera a cada 1h
 
@@ -20,10 +22,10 @@ async function paginar<T>(fetchPage: (from: number, to: number) => PromiseLike<{
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const agora = new Date();
+  // Páginas fixas + todas as categorias (cada categoria é uma porta de entrada no Google)
   const fixas: MetadataRoute.Sitemap = [
-    { url: `${BASE}/`, lastModified: agora, changeFrequency: 'daily', priority: 1 },
-    { url: `${BASE}/produtos`, lastModified: agora, changeFrequency: 'daily', priority: 0.9 },
-    { url: `${BASE}/seja-vendedor`, lastModified: agora, changeFrequency: 'monthly', priority: 0.6 },
+    ...PAGINAS_FIXAS.map((f) => ({ url: `${BASE}${f.caminho === '/' ? '/' : f.caminho}`, lastModified: agora, changeFrequency: f.freq, priority: f.prioridade })),
+    ...CATEGORIAS.map((c) => ({ url: `${BASE}/categoria/${c.slug}`, lastModified: agora, changeFrequency: 'daily' as const, priority: 0.8 })),
   ];
 
   try {

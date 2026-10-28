@@ -19,6 +19,11 @@ import type { Product } from '@/lib/types';
 import { produtosPublicos } from '@/lib/vendedorPublico';
 import { PRODUTO_CARD } from '@/lib/consultas';
 import { CATEGORIAS, contarPorCategoria, acharCategoria } from '@/lib/categorias';
+import type { Metadata } from 'next';
+import { dadosWebSite, dadosOrganizacao, jsonLd } from '@/lib/seoSite';
+import { lerSeoConfig } from '@/lib/seo-servidor';
+
+export const metadata: Metadata = { alternates: { canonical: '/' } };
 
 export const dynamic = 'force-dynamic';
 
@@ -29,6 +34,7 @@ export default async function Home() {
   const supabase = createClient();
   const cfg = await getSettings();
   const { support_email, commission_percent } = cfg;
+  const seo = await lerSeoConfig().catch(() => null);
   const nowIso = new Date().toISOString();
 
   let reais: ProvaSocialNumeros = { lojas: 0, produtos: 0, vendas: 0 };
@@ -103,6 +109,8 @@ export default async function Home() {
 
   return (
     <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(dadosWebSite()) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(dadosOrganizacao(seo?.perfis ?? [], support_email || null)) }} />
       <Nav />
       <main>
         {itensDestaque.length > 0 && (
