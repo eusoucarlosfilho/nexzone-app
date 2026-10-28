@@ -24,6 +24,7 @@ import ProductGallery from './ProductGallery';
 import { PRODUTO_CARD, PRODUTO_PAGINA } from '@/lib/consultas';
 import { acharCategoria } from '@/lib/categorias';
 import { stripeAvailable } from '@/lib/payments/stripe';
+import { tituloDoProduto, descricaoDoProduto, dadosTrilha, OG_PADRAO, MARCA } from '@/lib/seoSite';
 
 const money = (v: number) => 'R$ ' + v.toFixed(2).replace('.', ',');
 // Forma de entrega: só o TIPO (products.tipo_entrega). O conteúdo pago nunca é lido nesta página.
@@ -53,18 +54,20 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
   const supabase = createClient();
   const { data: p } = await supabase.from('products')
     .select('titulo, descricao, capa_url, preco, preco_promo, categoria').eq('id', params.id).eq('status', 'ativo').maybeSingle();
-  if (!p) return { title: 'Produto | Comprei Barato' };
+  if (!p) return { title: 'Produto | Comprei Barato', robots: { index: false, follow: true } };
+  // SEO automático de cada anúncio: título limpo com categoria + marca, descrição do vendedor (ou completada), capa como imagem.
   const titulo = String(p.titulo);
-  const desc = metaDescription(p.descricao as string | null, titulo);
+  const precoAtual = Number(p.preco_promo && Number(p.preco_promo) > 0 && Number(p.preco_promo) < Number(p.preco) ? p.preco_promo : p.preco) || null;
+  const desc = descricaoDoProduto(p.descricao as string | null, titulo, precoAtual);
   const url = `${SITE}/produto/${params.id}`;
   const capa = (p.capa_url as string | null) || null;
-  const images = capa ? [{ url: capa, alt: titulo }] : [];
+  const images = capa ? [{ url: capa, alt: titulo }] : [{ url: OG_PADRAO, width: 1200, height: 630, alt: MARCA }];
   return {
-    title: `${titulo} | Comprei Barato`,
+    title: tituloDoProduto(titulo, p.categoria as string | null),
     description: desc,
     alternates: { canonical: url },
-    openGraph: { title: titulo, description: desc, url, siteName: 'Comprei Barato', locale: 'pt_BR', images, type: 'website' },
-    twitter: { card: capa ? 'summary_large_image' : 'summary', title: titulo, description: desc, images: capa ? [capa] : [] },
+    openGraph: { title: titulo, description: desc, url, siteName: MARCA, locale: 'pt_BR', images, type: 'website' },
+    twitter: { card: 'summary_large_image', title: titulo, description: desc, images: [capa || OG_PADRAO] },
   };
 }
 
@@ -160,6 +163,7 @@ export default async function ProductPage({ params }: { params: { id: string } }
       priceCurrency: 'BRL',
       price: Number(preco).toFixed(2),
       availability: esgotado ? 'https://schema.org/OutOfStock' : 'https://schema.org/InStock',
+      itemCondition: 'https://schema.org/NewCondition',
       seller: { '@type': 'Organization', name: vend.nome },
     },
   };
@@ -174,6 +178,11 @@ export default async function ProductPage({ params }: { params: { id: string } }
     };
   }
   const jsonLdHtml = JSON.stringify(jsonLd).replace(/</g, '\\u003c');
+  const trilhaHtml = JSON.stringify(dadosTrilha([
+    { nome: 'Início', url: '/' },
+    ...(cat ? [{ nome: cat.nome, url: `/categoria/${cat.slug}` }] : [{ nome: 'Produtos', url: '/produtos' }]),
+    { nome: String(p.titulo), url: `/produto/${p.id}` },
+  ])).replace(/</g, '\\u003c');
 
   const Confianca = (
     <ul className="pdp-trust">
@@ -205,6 +214,7 @@ export default async function ProductPage({ params }: { params: { id: string } }
     <>
       <Nav />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdHtml }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: trilhaHtml }} />
       <style dangerouslySetInnerHTML={{ __html: `
         .pdp{display:flex;gap:36px;max-width:1240px;margin:0 auto;padding:20px 24px 60px;animation:cb-up .5s var(--ease) both;}
         .pdp-main{flex:1;min-width:0;}
