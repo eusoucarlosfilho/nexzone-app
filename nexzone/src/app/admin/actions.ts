@@ -2,6 +2,8 @@
 import { createClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
 import { avisarProdutoModerado } from '@/lib/whatsapp/avisos';
+import { avisarBuscadores } from '@/lib/seo-servidor';
+import { SITE } from '@/lib/seoSite';
 
 async function assertAdmin() {
   const supabase = createClient();
@@ -16,6 +18,7 @@ export async function aprovarProduto(id: string) {
   const supabase = await assertAdmin();
   await supabase.from('products').update({ status: 'ativo' }).eq('id', id);
   await avisarProdutoModerado(id, true); // WhatsApp (se ligado); nunca lança erro
+  await avisarBuscadores([`${SITE}/produto/${id}`]); // SEO: avisa Bing & cia. na hora (IndexNow); nunca lança erro
   revalidatePath('/admin');
 }
 export async function reprovarProduto(id: string) {

@@ -26,6 +26,7 @@ import PainelVendas from './PainelVendas';
 import Reembolsos from './Reembolsos';
 import Verificacoes from './Verificacoes';
 import ProdutoresInteressados from './ProdutoresInteressados';
+import SeoGoogle from './SeoGoogle';
 
 const money = (v: number) => 'R$ ' + Number(v).toFixed(2).replace('.', ',');
 const fmt = (v: number) => Number(v).toLocaleString('pt-BR');
@@ -257,6 +258,7 @@ export default function AdminDashboard({ painel, adminEmail, users, metrics, dai
     ['saques', 'money', 'Saques', metrics.saquesPendentes],
     ['destaques', 'star', 'Destaques', metrics.destaquesAtivos],
     ['crescimento', 'growth', 'Crescimento', 0],
+    ['seo', 'search', 'SEO e Google', 0],
     ['produtores', 'magnet', 'Produtores interessados', produtoresNovos],
     ['reclamacoes', 'shield', 'Reclamações', recPendentes.length],
     ['reembolsos', 'undo', 'Reembolsos', reembolsosAbertos],
@@ -869,6 +871,14 @@ export default function AdminDashboard({ painel, adminEmail, users, metrics, dai
             <h1 className="adm-h">Verificações de produtores</h1>
             <p className="adm-sub">Confira se o nome e o documento batem com a selfie. Só depois de aprovado o produtor consegue sacar; as vendas continuam normais.</p>
             <Verificacoes onContagem={setVerificacoesPendentes} />
+          </>
+        )}
+
+        {tab === 'seo' && (
+          <>
+            <h1 className="adm-h">SEO e Google</h1>
+            <p className="adm-sub">Como o site e cada anúncio aparecem nas buscas. O que é automático já está rodando; o passo a passo abaixo é o que só vocês podem fazer (uma vez).</p>
+            <SeoGoogle />
           </>
         )}
 
