@@ -12,8 +12,12 @@ const sha = (s: string) => createHash('sha256').update(s, 'utf8').digest('hex');
 /** Pixel do Meta da campanha de recrutamento de lojistas (/produtores). O valor salvo no Admin tem prioridade. */
 export const PIXEL_RECRUTAMENTO_PADRAO = '1726318025023897';
 
-export type ConfigRecrutamento = { whatsapp: string; pixel: string; tokenDefinido: boolean; teste: string };
-const CHAVES = ['recrut_whatsapp', 'recrut_pixel', 'recrut_capi', 'recrut_teste'];
+export type ConfigRecrutamento = { whatsapp: string; pixel: string; tokenDefinido: boolean; teste: string; avisar: string[]; avisarEmail: boolean };
+const CHAVES = ['recrut_whatsapp', 'recrut_pixel', 'recrut_capi', 'recrut_teste', 'recrut_avisar', 'recrut_avisar_email'];
+
+/** Números que recebem aviso de cadastro novo: "5563...,5563..." → até 3 números válidos (55 + DDD + número). */
+export const numerosDeAviso = (v: unknown): string[] =>
+  Array.from(new Set(String(v ?? '').split(/[\s,;]+/).map((x) => x.replace(/\D/g, '')).filter((x) => /^55\d{10,11}$/.test(x)))).slice(0, 3);
 
 const texto = (v: any) => (typeof v === 'string' ? v : v == null ? '' : String(v));
 
@@ -30,9 +34,11 @@ export async function lerConfig(admin: any): Promise<ConfigRecrutamento & { toke
       teste: texto(m.recrut_teste).replace(/[^A-Za-z0-9]/g, ''),
       tokenDefinido: !!token,
       token,
+      avisar: numerosDeAviso(m.recrut_avisar),
+      avisarEmail: !(m.recrut_avisar_email === false || m.recrut_avisar_email === 'false'),
     };
   } catch {
-    return { whatsapp: '', pixel: PIXEL_RECRUTAMENTO_PADRAO, teste: '', tokenDefinido: false, token: '' };
+    return { whatsapp: '', pixel: PIXEL_RECRUTAMENTO_PADRAO, teste: '', tokenDefinido: false, token: '', avisar: [], avisarEmail: true };
   }
 }
 
@@ -49,6 +55,14 @@ export function linhasDeConfig(b: any): { ok: true; linhas: { key: string; value
     if (p && (p.length < 10 || p.length > 20)) return { ok: false, erro: 'ID do Pixel inválido (só números, 15 ou 16 dígitos).' };
     linhas.push({ key: 'recrut_pixel', value: p });
   }
+  if (b.avisar != null) {
+    const bruto = Array.isArray(b.avisar) ? b.avisar.join(',') : String(b.avisar);
+    const nums = numerosDeAviso(bruto);
+    const digitados = bruto.split(/[\s,;]+/).filter((x: string) => x.replace(/\D/g, '')).length;
+    if (digitados > nums.length && digitados <= 3) return { ok: false, erro: 'Números de aviso: use 55 + DDD + número, separados por vírgula (até 3).' };
+    linhas.push({ key: 'recrut_avisar', value: nums.join(',') });
+  }
+  if (typeof b.avisarEmail === 'boolean') linhas.push({ key: 'recrut_avisar_email', value: b.avisarEmail ? 'true' : 'false' });
   if (b.teste != null) linhas.push({ key: 'recrut_teste', value: String(b.teste).replace(/[^A-Za-z0-9]/g, '').slice(0, 40) });
   if (b.limparToken === true) linhas.push({ key: 'recrut_capi', value: '' });
   else if (typeof b.token === 'string' && b.token.trim()) {
