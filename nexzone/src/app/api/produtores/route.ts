@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/server';
 import { validarEtapa1, validarEtapa2, limparOrigem } from '@/lib/recrutamento';
-import { enviarEventoMeta, ipDaRequisicao, cliquesMeta } from '@/lib/recrutamento-servidor';
+import { enviarEventoMeta, ipDaRequisicao, cliquesMeta, lerConfig } from '@/lib/recrutamento-servidor';
+import { avisarEquipeLead } from '@/lib/recrutamento-avisos';
 
 export const dynamic = 'force-dynamic';
 
@@ -58,6 +59,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Não foi possível enviar. Tente de novo.' }, { status: 500 });
     }
     let tokenFinal = token;
+    let novo = false;
     if (existente && existente.length) {
       tokenFinal = existente[0].token;
       const { error } = await admin.from('produtores_interessados').update({ ...v.dados, atualizado_em: new Date().toISOString() }).eq('id', existente[0].id);
@@ -69,7 +71,10 @@ export async function POST(req: Request) {
         console.error('[produtores] insert', error.message);
         return NextResponse.json({ error: 'Não foi possível enviar. Tente de novo.' }, { status: 500 });
       }
+      novo = true;
     }
+    // aviso no WhatsApp/e-mail da equipe só no cadastro NOVO (reenvio do mesmo número não repete o aviso)
+    if (novo) await avisarEquipeLead(admin, await lerConfig(admin), { etapa: 1, ...(v.dados as any), origem });
     if (eventId) {
       const { fbp, fbc } = cliquesMeta(req, origem.fbclid);
       await enviarEventoMeta(admin, { nome: 'LeadParcial', eventId, url, ip, userAgent: ua, fbp, fbc, pessoa: { nome: v.dados.nome, whatsapp: v.dados.whatsapp, email: v.dados.email, id: tokenFinal } });
@@ -82,7 +87,7 @@ export async function POST(req: Request) {
     if (!v.ok) return NextResponse.json({ error: v.erro, campo: v.campo }, { status: 400 });
     const { data, error } = await admin.from('produtores_interessados')
       .update({ ...v.dados, etapa: 2, atualizado_em: new Date().toISOString() })
-      .eq('token', token).select('nome, whatsapp, email, origem');
+      .eq('token', token).select('nome, whatsapp, email, instagram, origem');
     if (error) {
       if (semTabela(error)) return NextResponse.json({ error: 'Cadastro indisponível no momento. Fale com a gente pelo WhatsApp.' }, { status: 503 });
       console.error('[produtores] etapa 2', error.message);
@@ -90,6 +95,7 @@ export async function POST(req: Request) {
     }
     if (!data?.length) return NextResponse.json({ error: 'Não encontramos a 1ª etapa. Recarregue a página e preencha de novo.' }, { status: 404 });
     const p = data[0] as any;
+    await avisarEquipeLead(admin, await lerConfig(admin), { etapa: 2, nome: p.nome, whatsapp: p.whatsapp, email: p.email, instagram: p.instagram, origem: p.origem, nicho: v.dados.nicho, ja_vende: v.dados.ja_vende, faturamento: v.dados.faturamento });
     if (eventId) {
       const { fbp, fbc } = cliquesMeta(req, p.origem?.fbclid);
       await enviarEventoMeta(admin, { nome: 'Lead', eventId, url, ip, userAgent: ua, fbp, fbc, pessoa: { nome: p.nome, whatsapp: p.whatsapp, email: p.email, id: token },
