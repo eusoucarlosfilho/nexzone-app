@@ -9,6 +9,9 @@ import { cifrar, decifrar } from './whatsapp/config';
 
 const sha = (s: string) => createHash('sha256').update(s, 'utf8').digest('hex');
 
+/** Pixel do Meta da campanha de recrutamento de lojistas (/produtores). O valor salvo no Admin tem prioridade. */
+export const PIXEL_RECRUTAMENTO_PADRAO = '1726318025023897';
+
 export type ConfigRecrutamento = { whatsapp: string; pixel: string; tokenDefinido: boolean; teste: string };
 const CHAVES = ['recrut_whatsapp', 'recrut_pixel', 'recrut_capi', 'recrut_teste'];
 
@@ -23,13 +26,13 @@ export async function lerConfig(admin: any): Promise<ConfigRecrutamento & { toke
     try { token = bruto ? decifrar(bruto) : ''; } catch { token = ''; }
     return {
       whatsapp: texto(m.recrut_whatsapp).replace(/\D/g, ''),
-      pixel: texto(m.recrut_pixel).replace(/\D/g, ''),
+      pixel: texto(m.recrut_pixel).replace(/\D/g, '') || PIXEL_RECRUTAMENTO_PADRAO,
       teste: texto(m.recrut_teste).replace(/[^A-Za-z0-9]/g, ''),
       tokenDefinido: !!token,
       token,
     };
   } catch {
-    return { whatsapp: '', pixel: '', teste: '', tokenDefinido: false, token: '' };
+    return { whatsapp: '', pixel: PIXEL_RECRUTAMENTO_PADRAO, teste: '', tokenDefinido: false, token: '' };
   }
 }
 
