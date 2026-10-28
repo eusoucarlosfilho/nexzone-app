@@ -24,6 +24,8 @@ import ProductGallery from './ProductGallery';
 import { PRODUTO_CARD, PRODUTO_PAGINA } from '@/lib/consultas';
 import { acharCategoria } from '@/lib/categorias';
 import { stripeAvailable } from '@/lib/payments/stripe';
+import { lerTaxas } from '@/lib/settings';
+import { TAXAS_PADRAO, TIPOS_ANUNCIO, planoEfetivo, brl as brlTaxa, pctTexto } from '@/lib/taxas';
 import { tituloDoProduto, descricaoDoProduto, dadosTrilha, OG_PADRAO, MARCA } from '@/lib/seoSite';
 
 const money = (v: number) => 'R$ ' + v.toFixed(2).replace('.', ',');
@@ -105,7 +107,7 @@ export default async function ProductPage({ params }: { params: { id: string } }
   const entrega = ENTREGA[p.tipo_entrega] || { titulo: 'Acesso ao produto', texto: 'O acesso fica na página do pedido, em Minhas compras.' };
 
   // Tudo em paralelo. Relacionados: só ativos, sem o próprio produto, poucos itens.
-  const [reviewsRes, notasRes, lojaRes, catRes, userRes, perguntasRes, cartao, manuais, extrasMapa] = await Promise.all([
+  const [reviewsRes, notasRes, lojaRes, catRes, userRes, perguntasRes, cartao, manuais, extrasMapa, taxas] = await Promise.all([
     supabase.from('reviews').select('nota, comentario, created_at').eq('product_id', p.id).order('created_at', { ascending: false }).limit(10),
     // agregado real de avaliações, sem o limite da lista exibida
     supabase.from('reviews').select('nota').eq('product_id', p.id).limit(5000),
@@ -124,7 +126,13 @@ export default async function ProductPage({ params }: { params: { id: string } }
     manuaisDe(supabase, p.id),
     // Estoque e exibição dos contadores (SQL 07). Sem o SQL 07: nada muda.
     extrasDe(supabase, [p.id]),
+    lerTaxas().catch(() => TAXAS_PADRAO),
   ]);
+  // Modelo gamer (SQL 21): tipo do anúncio, jogo e plano. Anúncios antigos não têm: nada aparece.
+  const tipoInfo = TIPOS_ANUNCIO.find((t) => t.id === (p as any).tipo_anuncio) ?? null;
+  const jogo = String((p as any).jogo || '').trim();
+  const ehTopo = planoEfetivo((p as any).plano, taxas) === 'topo';
+  const entregaManual = ['conta', 'item', 'moeda', 'servico'].includes(String((p as any).tipo_anuncio || ''));
   const reviews = (reviewsRes.data ?? []) as { nota: number; comentario: string | null; created_at: string }[];
   const notas = ((notasRes.data ?? []) as { nota: number }[]).map((r) => Number(r.nota)).filter((v) => v >= 1 && v <= 5);
   const autoAvaliacoes = notas.length;
@@ -186,7 +194,8 @@ export default async function ProductPage({ params }: { params: { id: string } }
 
   const Confianca = (
     <ul className="pdp-trust">
-      <li><Icon name="bolt" size={16} color="var(--orange-ink)" />Liberado após a confirmação do pagamento</li>
+      <li><Icon name="bolt" size={16} color="var(--orange-ink)" />{entregaManual ? 'Entrega pelo vendedor no chat do pedido' : 'Liberado após a confirmação do pagamento'}</li>
+      <li><Icon name="check" size={16} color="var(--orange-ink)" />Dinheiro protegido: o vendedor só recebe depois do prazo</li>
       <li><Icon name="lock" size={16} color="var(--orange-ink)" />{cartao ? 'Pagamento via Pix ou cartão' : 'Pagamento via Pix'}</li>
       {garantia > 0 && <li><Icon name="shield" size={16} color="var(--orange-ink)" />Garantia de {garantia} {garantia === 1 ? 'dia' : 'dias'}</li>}
     </ul>
@@ -200,6 +209,7 @@ export default async function ProductPage({ params }: { params: { id: string } }
       </div>
       {aviso && <div className={`pdp-stock ${aviso.nivel}`} role="status">{aviso.texto}</div>}
       <BuyButton productId={p.id} esgotado={esgotado} categoria={cat?.slug ?? null} />
+      <p className="pdp-taxa">+ taxa de serviço: {brlTaxa(taxas.compradorPix)} no Pix{cartao ? ` ou ${pctTexto(taxas.compradorCartaoPct)} + ${brlTaxa(taxas.compradorCartaoFixo)} no cartão` : ''}. Você vê o total antes de pagar.</p>
       {Confianca}
       <Link href="/como-funciona" className="pdp-como">Como funciona a compra<Icon name="chevronRight" size={14} /></Link>
       <ShareButton titulo={p.titulo} full />
@@ -224,6 +234,9 @@ export default async function ProductPage({ params }: { params: { id: string } }
         .pdp-hero img{width:100%;height:100%;object-fit:cover;transition:transform .6s var(--ease);}.pdp-hero:hover img{transform:scale(1.03);}
         .pdp-chip{display:inline-flex;align-items:center;min-height:32px;background:var(--soft);color:var(--orange-ink);font-weight:900;font-size:13px;padding:6px 13px;border-radius:50px;}
         a.pdp-chip:hover{background:#FFE3CC}
+        .pdp-chips{display:flex;flex-wrap:wrap;gap:8px}
+        .pdp-chip.pdp-topo{gap:5px;background:linear-gradient(135deg,#FF6B00,#FFB067);color:#16162A}
+        .pdp-taxa{font-size:12.5px;color:var(--sub);margin:8px 0 0;line-height:1.45}
         .pdp-title{font-family:Outfit;font-size:clamp(26px,3vw,36px);font-weight:900;letter-spacing:-1px;margin:12px 0 8px;line-height:1.12;overflow-wrap:anywhere;}
         .pdp-meta{color:var(--sub);font-size:14px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
         .pdp-meta a{color:var(--orange-ink);font-weight:800}
@@ -283,7 +296,12 @@ export default async function ProductPage({ params }: { params: { id: string } }
           {fotos.length
             ? <ProductGallery fotos={fotos} titulo={p.titulo} />
             : <div className="pdp-hero"><CategoryCover cat={p.categoria} size={96} /></div>}
-          {cat ? <Link href={`/categoria/${cat.slug}`} className="pdp-chip">{cat.nome}</Link> : p.categoria && <span className="pdp-chip">{p.categoria}</span>}
+          <div className="pdp-chips">
+            {cat ? <Link href={`/categoria/${cat.slug}`} className="pdp-chip">{cat.nome}</Link> : p.categoria && <span className="pdp-chip">{p.categoria}</span>}
+            {jogo && <Link href={`/produtos?q=${encodeURIComponent(jogo)}`} className="pdp-chip">{jogo}</Link>}
+            {tipoInfo && tipoInfo.id !== 'digital' && <span className="pdp-chip">{tipoInfo.nome}</span>}
+            {ehTopo && <span className="pdp-chip pdp-topo"><Icon name="trophy" size={13} /> Topo</span>}
+          </div>
           <h1 className="pdp-title">{p.titulo}</h1>
           {/* Automáticos ou manuais (admin). O que for zero não aparece; o admin pode ocultar os contadores. */}
           <div className="pdp-meta">

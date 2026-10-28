@@ -1,33 +1,35 @@
 import type { Metadata } from 'next';
 import { createAdminClient } from '@/lib/supabase/server';
-import { getSettings } from '@/lib/settings';
+import { lerTaxas } from '@/lib/settings';
+import { TAXAS_PADRAO, type ConfigTaxas } from '@/lib/taxas';
 import { lerConfig } from '@/lib/recrutamento-servidor';
-import { TAXA_FUNDADOR, MESES_FUNDADOR } from '@/lib/recrutamento';
+import { TAXA_BASE } from '@/lib/recrutamento';
 import LandingProdutores from './LandingProdutores';
 
 export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
-  title: `Produtor fundador — venda seus produtos digitais com ${TAXA_FUNDADOR}% de taxa | Comprei Barato`,
-  description: `Ebooks, cursos, planilhas, templates e ferramentas digitais. Os 100 primeiros produtores aprovados garantem ${TAXA_FUNDADOR}% por venda por ${MESES_FUNDADOR} meses. Sem mensalidade.`,
+  title: `Venda contas, itens e gift cards de jogos com taxa a partir de ${TAXA_BASE}% | Comprei Barato`,
+  description: `Anuncie grátis no Comprei Barato: contas, skins, moedas, gift cards, keys e serviços de jogos. Dinheiro do cliente protegido até a entrega, Pix e cartão, taxa a partir de ${TAXA_BASE}%.`,
+  alternates: { canonical: 'https://www.compreibarato.com.br/produtores' },
   openGraph: {
-    title: `Venda seus produtos digitais pagando só ${TAXA_FUNDADOR}% por venda`,
-    description: `Vagas de produtor fundador abertas no Comprei Barato: ${TAXA_FUNDADOR}% por ${MESES_FUNDADOR} meses para os 100 primeiros aprovados.`,
-    url: 'https://compreibarato.com.br/produtores',
+    title: `Venda contas, itens e gift cards com taxa a partir de ${TAXA_BASE}%`,
+    description: 'Cadastro de lojistas aberto no Comprei Barato, o novo marketplace gamer brasileiro. Anúncio grátis e dinheiro protegido até a entrega.',
+    url: 'https://www.compreibarato.com.br/produtores',
     siteName: 'Comprei Barato',
     locale: 'pt_BR',
     type: 'website',
-    images: [{ url: '/logo.png', width: 1774, height: 887, alt: 'Comprei Barato' }],
+    images: [{ url: '/og-padrao.png', width: 1200, height: 630, alt: 'Comprei Barato' }],
   },
 };
 
 export default async function ProdutoresPage() {
   let pixel = '';
-  let liberacao = 7;
+  let taxas: ConfigTaxas = TAXAS_PADRAO;
   try {
-    const [cfg, s] = await Promise.all([lerConfig(createAdminClient()), getSettings()]);
+    const [cfg, t] = await Promise.all([lerConfig(createAdminClient()), lerTaxas()]);
     pixel = cfg.pixel;
-    liberacao = Number(s.review_window_days) || 7;
+    taxas = t;
   } catch { /* página abre mesmo sem configuração */ }
-  return <LandingProdutores pixel={pixel} liberacaoDias={liberacao} />;
+  return <LandingProdutores pixel={pixel} taxas={taxas} />;
 }

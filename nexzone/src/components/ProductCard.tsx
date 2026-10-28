@@ -28,7 +28,7 @@ export default function ProductCard({ p, origem }: { p: Product; origem?: Origem
         {p.capa_url
           ? <span className="cov" style={{ backgroundImage: `url(${p.capa_url})` }} aria-hidden="true" />
           : <CategoryCover cat={p.categoria} />}
-        {destaque ? <span className="badge"><Icon name="star" size={12} strokeWidth={2.6} />Destaque</span> : vendas > 1000 && <span className="badge">Mais vendido</span>}
+        {(p as any).plano === 'topo' ? <span className="badge topo"><Icon name="trophy" size={12} strokeWidth={2.6} />Topo</span> : destaque || (p as any).plano === 'destaque' ? <span className="badge"><Icon name="star" size={12} strokeWidth={2.6} />Destaque</span> : vendas > 1000 && <span className="badge">Mais vendido</span>}
         {off > 0 && <span className="badge off">-{off}%</span>}
         <FavButton productId={p.id} overlay />
       </div>

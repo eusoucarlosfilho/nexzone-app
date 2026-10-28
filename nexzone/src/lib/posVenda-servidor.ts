@@ -1,6 +1,7 @@
 // Pós-venda (SQL 19) no SERVIDOR: oferta depois da compra e recuperação de carrinho.
 import { getGateway } from '@/lib/payments/gateway';
-import { getSettings } from '@/lib/settings';
+import { getSettings, lerTaxas } from '@/lib/settings';
+import { divisaoVendedor, taxaComprador, planoEfetivo } from './taxas';
 import { lerPosVenda, etapaAtual, ofertaNoPrazo, expiraEm, ETAPAS_CARRINHO, linkRecuperacao, type PosVenda } from './posVenda';
 import { sendEmail, layoutEmail, emailDoUsuario, esc, SITE_URL } from './email';
 import { avisarWhatsApp } from './whatsapp/enviar';
@@ -59,17 +60,19 @@ export async function responderOferta(admin: any, p: { orderId: string; userId: 
   const { error: trava } = await admin.from('ofertas_respostas').insert({ order_id: p.orderId, etapa: oferta.etapa, resposta: 'aceitou' });
   if (trava) return { ok: false, erro: 'Esta oferta já foi respondida.', status: 409 };
 
-  const { data: prod } = await admin.from('products').select('id, titulo, store_id, stores(owner, recipient_id)').eq('id', oferta.productId).maybeSingle();
+  const { data: prod } = await admin.from('products').select('id, titulo, store_id, plano, stores(owner, recipient_id)').eq('id', oferta.productId).maybeSingle();
   if (!prod || (prod as any).stores?.owner === p.userId) {
     await admin.from('ofertas_respostas').delete().eq('order_id', p.orderId).eq('etapa', oferta.etapa);
     return { ok: false, erro: 'Esta oferta não está mais disponível.', status: 410 };
   }
   const total = Math.round(oferta.preco * 100) / 100;
-  const feePercent = (await getSettings()).commission_percent;
-  const taxa = +(total * (feePercent / 100)).toFixed(2);
+  const cfgTaxas = await lerTaxas();
+  const plano = planoEfetivo((prod as any).plano, cfgTaxas);
+  const { pct: feePercent, taxa, valorVendedor } = divisaoVendedor(total, plano, cfgTaxas);
+  const taxaPix = taxaComprador('pix', total, cfgTaxas);
   const linha: any = {
     comprador: p.userId, comprador_email: p.email, product_id: (prod as any).id, store_id: (prod as any).store_id,
-    total, taxa, valor_vendedor: +(total - taxa).toFixed(2), status: 'pendente',
+    total, taxa, valor_vendedor: valorVendedor, status: 'pendente', plano, pct_vendedor: feePercent, taxa_comprador_pix: taxaPix,
   };
   const origem = { utm_source: 'pos_compra', utm_medium: oferta.etapa, utm_content: String(p.orderId).slice(0, 8) };
   let { data: novo, error } = await admin.from('orders').insert({ ...linha, origem }).select('id').single();
@@ -86,7 +89,7 @@ export async function responderOferta(admin: any, p: { orderId: string; userId: 
     const { data: me } = await admin.from('profiles').select('nome').eq('id', p.userId).maybeSingle();
     const gw = await getGateway();
     const pay = await gw.createPixPayment({
-      orderId: (novo as any).id, amount: total, sellerRecipientId: (prod as any).stores?.recipient_id ?? null,
+      orderId: (novo as any).id, amount: +(total + taxaPix).toFixed(2), sellerRecipientId: (prod as any).stores?.recipient_id ?? null,
       feePercent, description: (prod as any).titulo, payerEmail: p.email ?? undefined, payerName: (me as any)?.nome ?? undefined,
     });
     if (pay.status !== 'erro') {

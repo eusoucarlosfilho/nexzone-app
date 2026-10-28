@@ -10,23 +10,31 @@ import { NOMES_CATEGORIAS, AVISO_JOGOS, ehJogos } from '@/lib/categorias';
 import SeoPanel from './SeoPanel';
 import EditorMensagem from './EditorMensagem';
 import Icon from '@/components/Icon';
+import { CamposTipoJogo, EscolhaPlano } from './CamposAnuncio';
+import { TIPOS_ANUNCIO, type TipoAnuncio, type Plano } from '@/lib/taxas';
 
 const CATS = NOMES_CATEGORIAS;
 
-export default function CreateProduct({ userId }: { userId: string }) {
+type PlanosInfo = { pcts: { basico: number; destaque: number; topo: number }; ativos: boolean };
+
+export default function CreateProduct({ userId, planos = { pcts: { basico: 5, destaque: 8, topo: 11 }, ativos: false } }: { userId: string; planos?: PlanosInfo }) {
+  // modelo marketplace (SQL 21): o que é o anúncio, de qual jogo e em qual plano
+  const [tipoAnuncio, setTipoAnuncio] = useState<TipoAnuncio>('conta');
+  const [jogo, setJogo] = useState('');
+  const [plano, setPlano] = useState<Plano>('basico');
   // campos do produto (controlados — pra importação preencher)
   const [titulo, setTitulo] = useState('');
   const [descricao, setDescricao] = useState('');
   const [preco, setPreco] = useState('');
   const [precoPromo, setPrecoPromo] = useState('');
-  const [categoria, setCategoria] = useState(CATS[0]);
+  const [categoria, setCategoria] = useState(CATS.find((c) => ehJogos(c)) || CATS[0]);
   const [garantia, setGarantia] = useState('7');
   const [estoque, setEstoque] = useState('');
   const [conteudoEntrega, setConteudoEntrega] = useState('');
   const [usaPadrao, setUsaPadrao] = useState(false);
   const [irParaCheckout, setIrParaCheckout] = useState(true);
 
-  const [tipo, setTipo] = useState('arquivo');
+  const [tipo, setTipo] = useState('acesso');
   const [arquivoPath, setArquivoPath] = useState('');
   const [arquivoNome, setArquivoNome] = useState('');
   const [imagens, setImagens] = useState<string[]>([]); // galeria: a 1ª é a capa
@@ -87,7 +95,8 @@ export default function CreateProduct({ userId }: { userId: string }) {
   function validar() {
     const e: Record<string, string> = {};
     const p = Number(preco);
-    if (!titulo.trim()) e.titulo = 'Informe o título do produto.';
+    if (!titulo.trim()) e.titulo = 'Informe o título do anúncio.';
+    if (tipoAnuncio !== 'digital' && !jogo.trim()) e.jogo = 'Informe o jogo.';
     if (!p || p <= 0) e.preco = 'Informe um preço maior que zero.';
     if (precoPromo !== '') {
       const pr = Number(precoPromo);
@@ -110,14 +119,17 @@ export default function CreateProduct({ userId }: { userId: string }) {
     fd.set('capa_url', imagens[0] || '');
     fd.set('arquivo_path', arquivoPath);
     fd.set('arquivo_nome', arquivoNome);
+    fd.set('tipo_anuncio', tipoAnuncio);
+    fd.set('jogo', jogo);
+    fd.set('plano', plano);
     setBusy(true);
     const r: any = await criarProduto(fd);
     setBusy(false);
     if (r?.ok) {
-      toast('Produto enviado para revisão!', 'success');
+      toast(r.aviso || 'Anúncio enviado para revisão!', r.aviso ? 'info' as any : 'success');
       formRef.current?.reset();
       setTitulo(''); setDescricao(''); setPreco(''); setPrecoPromo(''); setCategoria(CATS[0]); setGarantia('7'); setConteudoEntrega('');
-      setImagens([]); setArquivoPath(''); setArquivoNome(''); setTipo('arquivo');
+      setImagens([]); setArquivoPath(''); setArquivoNome(''); setTipo('acesso'); setJogo(''); setTipoAnuncio('conta'); setPlano('basico');
       setImpUrl(''); setImpTexto(''); setImagemSugerida(''); setBloqueado(false);
       if (irParaCheckout && r.id) { toast('Agora monte o checkout e o order bump deste produto.', 'success'); router.push(`/vender/checkout/${r.id}`); }
       else router.push('/vender/produtos');
@@ -175,10 +187,23 @@ export default function CreateProduct({ userId }: { userId: string }) {
         )}
       </div>
 
+      <section className="ui-sec" aria-labelledby="sec-tipo">
+        <h3 id="sec-tipo"><Icon name="grid" size={16} /> 1. O que você vai vender</h3>
+        <p className="ui-sec-sub">Define a entrega, o prazo de liberação do dinheiro e onde o anúncio aparece.</p>
+        <CamposTipoJogo tipo={tipoAnuncio} jogo={jogo} onJogo={setJogo}
+          onTipo={(t) => {
+            setTipoAnuncio(t);
+            const info = TIPOS_ANUNCIO.find((x) => x.id === t);
+            if (info) setTipo(info.entrega);
+            if (t !== 'digital') { const cj = CATS.find((c) => ehJogos(c)); if (cj) setCategoria(cj); }
+          }} />
+        {err('jogo')}
+      </section>
+
       <section className="ui-sec" aria-labelledby="sec-basico">
-        <h3 id="sec-basico"><Icon name="edit" size={16} /> 1. Informações básicas</h3>
+        <h3 id="sec-basico"><Icon name="edit" size={16} /> 2. Informações básicas</h3>
         <p className="ui-sec-sub">Como o produto aparece na vitrine e na busca.</p>
-      <div className="fg"><label htmlFor="np-titulo">Título<span className="ui-req">*</span></label><input id="np-titulo" name="titulo" value={titulo} onChange={(e) => setTitulo(e.target.value)} required aria-invalid={!!erros.titulo} placeholder="Ex: Pack 100 Templates de Carrossel" />
+      <div className="fg"><label htmlFor="np-titulo">Título<span className="ui-req">*</span></label><input id="np-titulo" name="titulo" value={titulo} onChange={(e) => setTitulo(e.target.value)} required aria-invalid={!!erros.titulo} placeholder={tipoAnuncio === 'conta' ? 'Ex.: Conta Free Fire com 40 skins raras + passe' : tipoAnuncio === 'moeda' ? 'Ex.: 1.000 Robux, entrega em até 1 hora' : tipoAnuncio === 'giftcard' ? 'Ex.: Gift Card Steam R$ 50' : 'Ex.: Pack 100 Templates de Carrossel'} />
         {err('titulo') || <div className="ui-help">Seja específico: o que é, para quem e o principal benefício.</div>}</div>
       <div className="fg"><label htmlFor="np-cat">Categoria<span className="ui-req">*</span></label>
         <select id="np-cat" name="categoria" value={categoria} onChange={(e) => setCategoria(e.target.value)}>{CATS.map((c) => <option key={c}>{c}</option>)}</select>
@@ -193,13 +218,13 @@ export default function CreateProduct({ userId }: { userId: string }) {
       </section>
 
       <section className="ui-sec" aria-labelledby="sec-img">
-        <h3 id="sec-img"><Icon name="image" size={16} /> 2. Imagens</h3>
+        <h3 id="sec-img"><Icon name="image" size={16} /> 3. Imagens</h3>
         <p className="ui-sec-sub">Até {MAX_FOTOS} fotos. A primeira é a capa. Use imagens nítidas, em paisagem, sem textos pequenos. Sem foto, o anúncio mostra o ícone da categoria.</p>
         <GalleryUpload userId={userId} value={imagens} onChange={setImagens} />
       </section>
 
       <section className="ui-sec" aria-labelledby="sec-preco">
-        <h3 id="sec-preco"><Icon name="money" size={16} /> 3. Preço</h3>
+        <h3 id="sec-preco"><Icon name="money" size={16} /> 4. Preço</h3>
       <div className="fg2">
         <div className="fg"><label htmlFor="np-preco">Preço (R$)<span className="ui-req">*</span></label><input id="np-preco" name="preco" value={preco} onChange={(e) => setPreco(e.target.value)} type="number" step="0.01" min={0} inputMode="decimal" required aria-invalid={!!erros.preco} placeholder="19.90" />{err('preco')}</div>
         <div className="fg"><label htmlFor="np-promo">Preço promocional (opcional)</label><input id="np-promo" name="preco_promo" value={precoPromo} onChange={(e) => setPrecoPromo(e.target.value)} type="number" step="0.01" min={0} inputMode="decimal" aria-invalid={!!erros.preco_promo} placeholder="14.90" />
@@ -208,7 +233,7 @@ export default function CreateProduct({ userId }: { userId: string }) {
       </section>
 
       <section className="ui-sec" aria-labelledby="sec-entrega">
-        <h3 id="sec-entrega"><Icon name="package" size={16} /> 4. Entrega e garantia</h3>
+        <h3 id="sec-entrega"><Icon name="package" size={16} /> 5. Entrega e garantia</h3>
         <p className="ui-sec-sub">O que o comprador recebe depois que o pagamento é confirmado.</p>
       <div className="fg2">
         <div className="fg"><label htmlFor="np-tipo">Tipo de entrega<span className="ui-req">*</span></label>
@@ -239,6 +264,12 @@ export default function CreateProduct({ userId }: { userId: string }) {
       <div className="fg"><label htmlFor="np-cont">{tipo === 'arquivo' ? 'Mensagem pós-compra (opcional, vai junto com o arquivo)' : 'Mensagem pós-compra (link, chave ou instruções)'}</label>
         <EditorMensagem id="np-cont" name="conteudo_entrega" novo valor={conteudoEntrega} onValor={setConteudoEntrega} usaPadrao={usaPadrao} onUsaPadrao={setUsaPadrao} />
         <div className="ui-help">Aparece no pedido e é enviada automaticamente no chat com o cliente assim que o pagamento é confirmado.</div></div>
+      </section>
+
+      <section className="ui-sec" aria-labelledby="sec-plano">
+        <h3 id="sec-plano"><Icon name="trophy" size={16} /> 6. Plano de visibilidade</h3>
+        <p className="ui-sec-sub">Quanto maior o plano, mais alto o anúncio aparece. Dentro de cada plano, quem tem melhor reputação e mais vendas vem primeiro.</p>
+        <EscolhaPlano valor={plano} onPlano={setPlano} pcts={planos.pcts} ativos={planos.ativos} />
       </section>
 
       {/* emoji legado: o servidor ainda lê o campo; vazio = padrão do servidor */}

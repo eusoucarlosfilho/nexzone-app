@@ -22,13 +22,13 @@ export type Categoria = {
 };
 
 export const CATEGORIAS: readonly Categoria[] = [
+  { nome: 'Jogos & Games',              slug: 'jogos-games',              icone: 'jogos',       cor: { bg: '#E9DDFF', fg: '#5B21B6' }, emoji: '🎮' },
   { nome: 'IA & Ferramentas',           slug: 'ia-ferramentas',           icone: 'ia',          cor: { bg: '#FFE3CC', fg: '#8F3A00' }, emoji: '🤖' },
   { nome: 'Templates & Planilhas',      slug: 'templates-planilhas',      icone: 'templates',   cor: { bg: '#DDF3E8', fg: '#00603F' }, emoji: '📊' },
   { nome: 'Design',                     slug: 'design',                   icone: 'design',      cor: { bg: '#E6E4FF', fg: '#3B33A8' }, emoji: '🎨' },
   { nome: 'Automações',                 slug: 'automacoes',               icone: 'automacoes',  cor: { bg: '#FFF1C7', fg: '#7A5200' }, emoji: '⚡' },
   { nome: 'Marketing Digital',          slug: 'marketing-digital',        icone: 'marketing',   cor: { bg: '#FFDCDC', fg: '#A61B1B' }, emoji: '📈' },
   { nome: 'Cursos & Ebooks',            slug: 'cursos-ebooks',            icone: 'cursos',      cor: { bg: '#D9EEFF', fg: '#0B5394' }, emoji: '📚' },
-  { nome: 'Jogos & Games',              slug: 'jogos-games',              icone: 'jogos',       cor: { bg: '#E9DDFF', fg: '#5B21B6' }, emoji: '🎮' },
   { nome: 'Programação & Código',       slug: 'programacao-codigo',       icone: 'programacao', cor: { bg: '#DCEBE4', fg: '#1F4D3A' }, emoji: '💻' },
   { nome: 'Vídeo & Edição',             slug: 'video-edicao',             icone: 'video',       cor: { bg: '#FFE0EC', fg: '#9D174D' }, emoji: '🎬' },
   { nome: 'Música & Áudio',             slug: 'musica-audio',             icone: 'musica',      cor: { bg: '#E0E7FF', fg: '#3730A3' }, emoji: '🎵' },
@@ -61,9 +61,10 @@ export function acharCategoria(v?: string | null): Categoria | null {
 // ---------- Regra da categoria Jogos & Games ----------
 export const SLUG_JOGOS = 'jogos-games';
 export const AVISO_JOGOS =
-  "Permitido: guias, e-books, mods/skins/assets feitos por você, jogos do próprio desenvolvedor e keys de distribuidor autorizado com nota. " +
-  "Proibido: contas compartilhadas ou 'offline', 'métodos', moedas/itens de jogo de terceiros, keys aleatórias e assinaturas revendidas — " +
-  "o produto será reprovado e a conta pode ser restrita.";
+  "Permitido: contas, itens, skins e moedas que você conseguiu jogando ou comprou de forma legítima, gift cards e keys de origem comprovável, " +
+  "serviços (boost, coach, elojob) e produtos digitais seus. " +
+  "Proibido: contas roubadas, hackeadas ou compartilhadas, cheats, hacks e scripts, itens obtidos por bug ou fraude, gift cards ou keys de origem duvidosa " +
+  "e assinaturas de streaming compartilhadas: o anúncio é reprovado e a conta pode ser restrita.";
 
 /** true se a categoria (nome ou slug) é Jogos & Games. */
 export const ehJogos = (v?: string | null) => acharCategoria(v)?.slug === SLUG_JOGOS;

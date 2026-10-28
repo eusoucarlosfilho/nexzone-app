@@ -33,7 +33,7 @@ export const dynamic = 'force-dynamic';
 export default async function Home() {
   const supabase = createClient();
   const cfg = await getSettings();
-  const { support_email, commission_percent } = cfg;
+  const { support_email } = cfg;
   const seo = await lerSeoConfig().catch(() => null);
   const nowIso = new Date().toISOString();
 
@@ -63,7 +63,21 @@ export default async function Home() {
     configMix(),
     ofertasAtivas({ limite: 36 }),
   ]);
-  const destaques = produtosPublicos(destRes.data as Product[] | null);
+  // Planos (SQL 21): Topo fixo na home + rodízio dos Destaques; os destaques pagos avulsos continuam valendo
+  let doPlano: Product[] = [];
+  if (cfg.taxas.planosPagosAtivos) {
+    try {
+      const { data: pl, error: plErr } = await supabase.from('products').select(PRODUTO_CARD).eq('status', 'ativo').in('plano', ['topo', 'destaque']).limit(60);
+      if (!plErr) {
+        const lista = (pl ?? []) as unknown as Product[];
+        const topo = lista.filter((x: any) => x.plano === 'topo');
+        const rodizio = lista.filter((x: any) => x.plano === 'destaque').map((x) => ({ x, r: Math.random() })).sort((a, b) => a.r - b.r).map((o) => o.x).slice(0, 6);
+        doPlano = [...topo, ...rodizio];
+      }
+    } catch { /* sem SQL 21 */ }
+  }
+  const vistos = new Set<string>();
+  const destaques = produtosPublicos([...doPlano, ...((destRes.data ?? []) as unknown as Product[])].filter((x) => (vistos.has(x.id) ? false : (vistos.add(x.id), true))).slice(0, 12));
   const maisVendidos = produtosPublicos(altaRes.data as Product[] | null);
   const novidades = produtosPublicos(novoRes.data as Product[] | null);
   const vazio = novidades.length === 0;
@@ -73,7 +87,7 @@ export default async function Home() {
   const cats = CATEGORIAS.filter((c) => (porCategoria[c.nome] || 0) > 0)
     .sort((a, b) => (porCategoria[b.nome] || 0) - (porCategoria[a.nome] || 0))
     .slice(0, 8);
-  const taxa = commission_percent ?? 3;
+  const taxa = cfg.taxas.planoBasico;
 
   // Produtos externos: seção própria depois das vitrines nativas (respeita as chaves do admin)
   const parceirasVisiveis = visiveis(todasParceiras, mix);
@@ -122,19 +136,19 @@ export default async function Home() {
         <section className="v3-hero" aria-labelledby="v3-hero-t">
           <div className="v3-hero-in">
             <div className="v3-hero-tx">
-              <p className="v3-eyebrow">Marketplace de produtos digitais</p>
-              <h1 id="v3-hero-t" className="v3-h1">Produtos digitais para <span className="g">criar, aprender e vender mais</span>.</h1>
-              <p className="v3-sub">Prompts de IA, planilhas e templates, cursos e e-books, design, automações e muito mais, de criadores independentes. Pague {cartao ? 'com Pix ou cartão' : 'com Pix'} e acesse em Minhas compras.</p>
+              <p className="v3-eyebrow">Marketplace gamer e de produtos digitais</p>
+              <h1 id="v3-hero-t" className="v3-h1">Contas, itens e gift cards <span className="g">com o seu dinheiro protegido</span>.</h1>
+              <p className="v3-sub">Contas, skins, moedas, gift cards, keys e serviços dos seus jogos favoritos, além de produtos digitais de criadores independentes. Pague {cartao ? 'com Pix ou cartão' : 'com Pix'}: o vendedor só recebe depois do prazo de garantia.</p>
               <form action="/produtos" method="get" role="search" className="v3-busca" aria-label="Buscar produtos">
                 <label htmlFor="h-q" className="sr-only">O que você procura?</label>
                 <Icon name="search" size={20} color="#5A5A72" strokeWidth={2.2} />
-                <input id="h-q" name="q" type="search" placeholder="O que você procura? Ex.: planilha financeira" maxLength={100} autoComplete="off" enterKeyHint="search" />
+                <input id="h-q" name="q" type="search" placeholder="O que você procura? Ex.: conta Free Fire, Robux, gift card" maxLength={100} autoComplete="off" enterKeyHint="search" />
                 <button className="btn btn-pri" type="submit">Buscar</button>
               </form>
               {cfg.ps_selos && (
                 <ul className="v3-selos" aria-label="Como funciona a compra">
                   <li><Icon name="lock" size={16} />{cartao ? 'Pix ou cartão' : 'Pagamento via Pix'}</li>
-                  <li><Icon name="bag" size={16} />Acesso em Minhas compras</li>
+                  <li><Icon name="shield" size={16} />Dinheiro protegido até a entrega</li>
                   <li><Icon name="chat" size={16} />Suporte pelo site</li>
                 </ul>
               )}
@@ -167,9 +181,9 @@ export default async function Home() {
         {vazio ? (
           <section className="nz"><div className="c">
             <div className="card" style={{ textAlign: 'center', borderStyle: 'dashed', boxShadow: 'none' }}>
-              <h2 style={{ fontFamily: 'Outfit', fontSize: 22, fontWeight: 800 }}>Os primeiros produtos estão chegando</h2>
-              <p className="muted" style={{ margin: '6px 0 16px' }}>Tem um produto digital? Você pode ser um dos primeiros vendedores.</p>
-              <LinkRastreado href="/vender" className="btn btn-dark" evento="vendedor_cta" dados={{ origem: 'home' }}>Cadastrar meu produto</LinkRastreado>
+              <h2 style={{ fontFamily: 'Outfit', fontSize: 22, fontWeight: 800 }}>Os primeiros anúncios estão chegando</h2>
+              <p className="muted" style={{ margin: '6px 0 16px' }}>Vende contas, itens, gift cards ou produtos digitais? Seja um dos primeiros lojistas.</p>
+              <LinkRastreado href="/vender" className="btn btn-dark" evento="vendedor_cta" dados={{ origem: 'home' }}>Anunciar grátis</LinkRastreado>
             </div>
           </div></section>
         ) : (
@@ -213,8 +227,8 @@ export default async function Home() {
         <section className="nz"><div className="c">
           <div className="band">
             <div style={{ maxWidth: 620 }}>
-              <h2>Tem um produto digital? Venda aqui.</h2>
-              <p>Loja grátis, sem mensalidade. Você só paga {String(taxa).replace('.', ',')}% quando vender e acompanha tudo pelo painel.</p>
+              <h2>Tem conta, skin, gold ou gift card parado? Venda aqui.</h2>
+              <p>Anúncio grátis, sem mensalidade. Você paga a partir de {String(taxa).replace('.', ',')}% só quando vender e saca por Pix.</p>
             </div>
             <LinkRastreado href="/seja-vendedor" className="btn btn-pri btn-lg" evento="vendedor_cta" dados={{ origem: 'home' }}>Criar minha loja grátis</LinkRastreado>
           </div>

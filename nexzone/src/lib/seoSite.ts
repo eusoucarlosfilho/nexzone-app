@@ -9,7 +9,7 @@ import { CATEGORIAS, type Categoria } from './categorias';
 
 export const MARCA = 'Comprei Barato';
 export const MARCA_ALTERNATIVAS = ['CompreiBarato', 'Comprei Barato Marketplace', 'compreibarato.com.br'];
-export const SLOGAN = 'Marketplace de produtos digitais';
+export const SLOGAN = 'Marketplace gamer e de produtos digitais';
 export const SITE = (process.env.NEXT_PUBLIC_SITE_URL || SITE_URL_FALLBACK).replace(/\/+$/, '');
 export const OG_PADRAO = '/og-padrao.png';
 
@@ -64,7 +64,7 @@ export function dadosOrganizacao(perfis: string[] = [], email?: string | null) {
     alternateName: MARCA_ALTERNATIVAS,
     url: `${SITE}/`,
     logo: { '@type': 'ImageObject', url: `${SITE}/logo.png`, width: 1774, height: 887 },
-    description: 'Marketplace brasileiro de produtos digitais: cursos, ebooks, planilhas, templates, prompts, automações e ferramentas, com pagamento via Pix ou cartão e entrega imediata.',
+    description: 'Marketplace brasileiro para comprar e vender contas, skins, moedas, gift cards, keys e serviços de jogos, além de produtos digitais, com pagamento via Pix ou cartão e dinheiro protegido até a entrega.',
     ...(perfis.length ? { sameAs: perfis } : {}),
     ...(email ? { contactPoint: { '@type': 'ContactPoint', contactType: 'customer support', email, availableLanguage: ['Portuguese'] } } : {}),
   };
@@ -113,7 +113,7 @@ const BUSCAS: Record<string, string[]> = {
   'automacoes': ['automações para WhatsApp', 'fluxos n8n e Make', 'scripts prontos', 'bots'],
   'marketing-digital': ['criativos para anúncios', 'roteiros de vendas', 'estratégias de tráfego', 'copys prontas'],
   'cursos-ebooks': ['cursos online', 'ebooks em PDF', 'apostilas', 'guias completos'],
-  'jogos-games': ['guias de jogos', 'contas e itens digitais', 'mods e recursos', 'tutoriais gamer'],
+  'jogos-games': ['contas de jogos', 'skins e itens', 'moedas e gift cards', 'boost e coach'],
   'programacao-codigo': ['códigos-fonte', 'templates de sites', 'sistemas prontos', 'cursos de programação'],
   'video-edicao': ['presets de vídeo', 'transições', 'packs para Premiere e CapCut', 'efeitos'],
   'musica-audio': ['beats', 'samples', 'efeitos sonoros', 'cursos de música'],
@@ -143,8 +143,8 @@ export function textoDaCategoria(c: Categoria): { titulo: string; paragrafos: st
   return {
     titulo: `${c.nome} no ${MARCA}`,
     paragrafos: [
-      `Aqui você encontra ${b.slice(0, -1).join(', ')} e ${b[b.length - 1]} criados por produtores brasileiros. Cada produto passa por aprovação antes de entrar na vitrine.`,
-      `A compra é feita no próprio ${MARCA}, com Pix ou cartão. O acesso é liberado assim que o pagamento é confirmado, e você encontra tudo em Minhas compras. Produtos com garantia permitem pedir reembolso dentro do prazo informado no anúncio.`,
+      `Aqui você encontra ${b.slice(0, -1).join(', ')} e ${b[b.length - 1]} de vendedores brasileiros. Cada anúncio passa por aprovação antes de entrar na vitrine.`,
+      `A compra é feita no próprio ${MARCA}, com Pix ou cartão, e o vendedor só recebe depois do prazo de garantia. Códigos e gift cards são liberados assim que o pagamento é confirmado; contas e serviços são entregues pelo chat do pedido.`,
     ],
   };
 }

@@ -60,7 +60,7 @@ export default function Reembolsos({ onContagem }: { onContagem?: (n: number) =>
               <div style={{ minWidth: 0 }}>
                 <b style={{ fontFamily: 'Outfit', fontSize: 16 }}>{p.produto || 'Produto'}</b>
                 <div style={{ color: 'var(--sub)', fontSize: 13, marginTop: 2 }}>
-                  {p.loja} · {brl(p.total)} · {p.forma === 'pix' ? 'Pix' : p.forma === 'cartao' ? 'Cartão' : 'forma não registrada'} · pago em {dt(p.pago_em)}
+                  {p.loja} · {brl(p.total)}{p.pago > p.total ? ` + taxa ${brl(p.pago - p.total)}` : ''} · {p.forma === 'pix' ? 'Pix' : p.forma === 'cartao' ? 'Cartão' : 'forma não registrada'} · pago em {dt(p.pago_em)}
                 </div>
                 <div style={{ color: 'var(--sub)', fontSize: 13 }}>Pedido #{String(r.order_id).slice(0, 8)}{p.comprador_email ? ` · ${p.comprador_email}` : ''}{p.gateway_ref ? ` · gateway: ${p.gateway_ref}` : ''}</div>
               </div>
@@ -77,7 +77,7 @@ export default function Reembolsos({ onContagem }: { onContagem?: (n: number) =>
                   <div style={{ fontSize: 13.5, background: '#FFB02E18', border: '1px solid #FFB02E55', borderRadius: 12, padding: '10px 12px' }}>
                     <b>Antes de aprovar, devolva o dinheiro no gateway:</b> {p.forma === 'cartao' ? 'Stripe → Pagamentos → encontre o pagamento → Reembolsar.' : 'MisticPay → transação Pix' + (p.gateway_ref ? ` ${p.gateway_ref}` : '') + ' → Devolver.'} Aprovar aqui marca o pedido como reembolsado, encerra o acesso do comprador e tira o valor do saldo do vendedor.
                     <label style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 8, fontWeight: 800, cursor: 'pointer' }}>
-                      <input type="checkbox" checked={devolvido} onChange={(e) => setDevolvido(e.target.checked)} /> Já devolvi {brl(p.total)} ao cliente
+                      <input type="checkbox" checked={devolvido} onChange={(e) => setDevolvido(e.target.checked)} /> Já devolvi {brl(p.pago ?? p.total)} ao cliente
                     </label>
                   </div>
                 )}

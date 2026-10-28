@@ -36,7 +36,10 @@ export async function GET(req: Request) {
     const { data: os } = await admin.from('orders').select('*, products(titulo), stores(nome)').in('id', ids);
     for (const o of (os ?? []) as any[]) {
       pedidos[o.id] = {
-        total: Number(o.total), status: o.status, pago_em: o.entregue_em || o.created_at, forma: o.forma_pagamento ?? null,
+        total: Number(o.total),
+        // o que o cliente pagou de fato = pedido + taxa de serviço do método (SQL 21); é isso que se devolve
+        pago: Math.round((Number(o.total) + (o.forma_pagamento === 'cartao' ? Number(o.taxa_comprador_cartao || 0) : o.forma_pagamento === 'pix' ? Number(o.taxa_comprador_pix || 0) : 0)) * 100) / 100,
+        status: o.status, pago_em: o.entregue_em || o.created_at, forma: o.forma_pagamento ?? null,
         gateway_ref: reforcado ? o.gateway_ref : null, comprador_email: reforcado ? o.comprador_email : null,
         produto: o.products?.titulo ?? 'Produto', loja: o.stores?.nome ?? '—',
       };

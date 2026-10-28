@@ -9,6 +9,8 @@ import { normalizarCheckout } from '@/lib/checkoutConfig';
 import { temPixel } from '@/lib/rastreioVenda';
 import { produtosComCurso } from '@/lib/curso-servidor';
 import { situacaoGarantia } from '@/lib/reembolso-servidor';
+import { lerTaxas } from '@/lib/settings';
+import { taxaComprador } from '@/lib/taxas';
 
 export const dynamic = 'force-dynamic';
 
@@ -49,6 +51,13 @@ export default async function PedidoPage({ params, searchParams }: { params: { i
   const g = await situacaoGarantia(adminP, order.id);
   const garantia = g && g.sql18 ? { dias: g.dias, ate: g.elegivel.ate ? g.elegivel.ate.toISOString() : null, pode: g.elegivel.pode, motivo: g.elegivel.pode ? null : g.elegivel.motivo, pedidos: g.pedidos } : null;
   // Convite de WhatsApp: só se a coluna existir (SQL aplicado) e o comprador ainda não tiver número
+  // Taxa de serviço do comprador (SQL 21): a do Pix já está no Pix gerado; a do cartão é calculada na hora
+  let taxaPix = 0;
+  try {
+    const { data: tx, error: txErr } = await supabase.from('orders').select('taxa_comprador_pix').eq('id', order.id).maybeSingle();
+    if (!txErr) taxaPix = Number((tx as any)?.taxa_comprador_pix) || 0;
+  } catch { /* sem SQL 21 */ }
+  const taxaCartao = taxaComprador('cartao', Number(order.total), await lerTaxas());
   const { data: wp, error: wpErro } = await supabase.from('profiles').select('whatsapp').eq('id', user.id).maybeSingle();
   const mostrarConvite = !wpErro && !(wp as any)?.whatsapp;
   return (
@@ -68,6 +77,8 @@ export default async function PedidoPage({ params, searchParams }: { params: { i
           categoria={p?.categoria}
           capa_url={p?.capa_url}
           total={Number(order.total)}
+          taxaPix={taxaPix}
+          taxaCartao={taxaCartao}
           extras={extrasDoPedido(order)}
           reclamacaoAberta={!!cmp}
           cartaoDisponivel={cartaoDisponivel}

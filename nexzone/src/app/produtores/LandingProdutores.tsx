@@ -1,10 +1,12 @@
 'use client';
+import PlanosVendedor from '@/components/PlanosVendedor';
+import type { ConfigTaxas } from '@/lib/taxas';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Icon from '@/components/Icon';
 import { uuid, origemGuardada } from '@/lib/rastreio-cliente';
 import {
-  TAXA_FUNDADOR, MESES_FUNDADOR, VAGAS_FUNDADOR, TIPOS, PLATAFORMAS, FATURAMENTO, NICHOS, economiaMensal,
+  TAXA_BASE, TIPOS, PLATAFORMAS, FATURAMENTO, NICHOS, economiaMensal,
 } from '@/lib/recrutamento';
 import { iniciarPixel, evento, novoEventId } from './pixel';
 
@@ -31,17 +33,17 @@ function origemAtual() {
 }
 
 const RECURSOS: [string, string, string][] = [
-  ['dollar', `Você fica com ${100 - TAXA_FUNDADOR}% de cada venda`, `Taxa de ${TAXA_FUNDADOR}% por venda aprovada. Sem mensalidade, sem taxa de adesão.`],
-  ['store', 'Vitrine + link direto', 'Seu produto entra no marketplace, com busca e categorias, e você ainda divulga o link da sua loja onde quiser.'],
-  ['cart', 'Checkout que vende mais', 'Pix e cartão, cupons, order bump e oferta de 1 clique depois da compra (upsell e downsell).'],
-  ['bell', 'Carrinho abandonado no automático', 'Quem começou a compra e não terminou recebe lembretes com o link de volta para o checkout.'],
-  ['play', 'Área de membros com certificado', 'Módulos e aulas em vídeo (YouTube, Vimeo, Panda e outros), materiais, progresso do aluno e certificado.'],
-  ['target', 'Pixel e API de Conversões', 'Meta, TikTok e Google por produto, UTMs e postback para o seu sistema. Você enxerga de onde vem cada venda.'],
-  ['growth', 'Painel de vendas completo', 'Faturamento por dia, mês ou período, Pix × cartão, produtos campeões e planilha para baixar.'],
-  ['shield', 'Segurança para você e para o cliente', 'Garantia de 7 dias gerenciada pela plataforma, verificação de identidade e saque direto no Pix.'],
+  ['dollar', 'Anúncio grátis, taxa só quando vende', `A partir de ${TAXA_BASE}% por venda aprovada, abaixo dos grandes marketplaces de jogos. Sem mensalidade.`],
+  ['shield', 'Dinheiro protegido, menos golpe', 'O cliente paga no site e o valor fica retido até o fim da garantia. Acabou a discussão de "manda primeiro" no direct.'],
+  ['store', 'Vitrine com busca e categorias', 'Seus anúncios aparecem para quem já está procurando conta, item ou gift card, e você ainda tem o link da sua loja para divulgar.'],
+  ['key', 'Entrega automática de códigos', 'Gift cards, keys e códigos são liberados sozinhos assim que o pagamento cai. Controle de estoque por anúncio.'],
+  ['chat', 'Chat do pedido', 'Você conversa com o comprador dentro do pedido para entregar contas e combinar serviços, com tudo registrado.'],
+  ['star', 'Reputação que vende por você', 'Avaliações reais de quem comprou. Quanto melhor sua nota e mais vendas, mais alto seu anúncio aparece.'],
+  ['cart', 'Pix e cartão no checkout', 'Pagamento na hora, cupons de desconto e checkout pronto para celular.'],
+  ['growth', 'Painel e saque no Pix', 'Vendas por dia, mês ou período, Pix × cartão, e saque direto na sua chave Pix depois da verificação.'],
 ];
 
-export default function LandingProdutores({ pixel, liberacaoDias }: { pixel: string; liberacaoDias: number }) {
+export default function LandingProdutores({ pixel, taxas }: { pixel: string; taxas: ConfigTaxas }) {
   const router = useRouter();
   const [est, setEst] = useState<Estado | null>(null);
   const [f1, setF1] = useState({ nome: '', whatsapp: '', email: '', instagram: '', site: '' });
@@ -53,7 +55,7 @@ export default function LandingProdutores({ pixel, liberacaoDias }: { pixel: str
   const cardRef = useRef<HTMLDivElement>(null);
 
   // simulador
-  const [sim, setSim] = useState({ fat: '10000', taxa: '10', fixo: '1', vendas: '100' });
+  const [sim, setSim] = useState({ fat: '10000', taxa: '12', fixo: '0', vendas: '300' });
   const conta = useMemo(() => economiaMensal(Number(sim.fat), Number(sim.taxa.replace(',', '.')), Number(sim.fixo.replace(',', '.')), Number(sim.vendas)), [sim]);
 
   useEffect(() => {
@@ -142,16 +144,17 @@ export default function LandingProdutores({ pixel, liberacaoDias }: { pixel: str
         <div className="rp-glow" aria-hidden="true" />
         <div className="rp-wrap rp-hero-in">
           <div className="rp-hero-txt">
-            <span className="rp-eye"><i /> Vagas de produtor fundador abertas</span>
-            <h1>Venda seus produtos digitais pagando só <em>{TAXA_FUNDADOR}%</em> por venda.</h1>
-            <p className="rp-lead">O Comprei Barato é o novo marketplace brasileiro de <b>ebooks, cursos, planilhas, templates e ferramentas digitais</b>. Os {VAGAS_FUNDADOR} primeiros produtores aprovados garantem a taxa de {TAXA_FUNDADOR}% por {MESES_FUNDADOR} meses.</p>
+            <span className="rp-eye"><i /> Cadastro de lojistas aberto</span>
+            <h1>Venda contas, itens e gift cards com <em>taxa a partir de {TAXA_BASE}%</em>.</h1>
+            <p className="rp-lead">O Comprei Barato é o novo marketplace brasileiro de <b>contas, skins, moedas, gift cards, keys e serviços de jogos</b>. Anuncie grátis, receba no Pix e venda com o dinheiro do cliente protegido até a entrega.</p>
             <ul className="rp-checks">
-              <li><Icon name="check" size={16} /> Sem mensalidade e sem taxa de adesão</li>
+              <li><Icon name="check" size={16} /> Anúncio grátis, sem mensalidade</li>
+              <li><Icon name="check" size={16} /> Dinheiro protegido até a entrega: menos golpe</li>
               <li><Icon name="check" size={16} /> Pix e cartão, saque direto no Pix</li>
               <li><Icon name="check" size={16} /> Sem exclusividade: continue onde já vende</li>
             </ul>
             <div className="rp-tiles" aria-hidden="true">
-              {[['file', 'Ebook'], ['play', 'Curso'], ['grid', 'Planilha'], ['palette', 'Template'], ['settings', 'Ferramenta']].map(([ic, t], i) => (
+              {[['user', 'Contas'], ['gift', 'Skins e itens'], ['money', 'Moedas'], ['key', 'Gift cards e keys'], ['rocket', 'Boost e coach']].map(([ic, t], i) => (
                 <span key={t} style={{ animationDelay: `${i * 0.08}s` }}><Icon name={ic} size={18} /> {t}</span>
               ))}
             </div>
@@ -164,7 +167,7 @@ export default function LandingProdutores({ pixel, liberacaoDias }: { pixel: str
             </div>
             {!etapa2 ? (
               <form onSubmit={enviar1} noValidate>
-                <h2>Quero ser produtor fundador</h2>
+                <h2>Quero vender no Comprei Barato</h2>
                 <p className="rp-mini">Leva menos de 1 minuto. A gente te chama no WhatsApp para explicar tudo.</p>
                 <label className={'rp-f' + errCampo('nome')}><span>Seu nome</span>
                   <input id="rp-nome" autoComplete="name" value={f1.nome} onFocus={comecou} onChange={(e) => setF1({ ...f1, nome: e.target.value })} placeholder="Como você se chama?" maxLength={120} required /></label>
@@ -181,9 +184,9 @@ export default function LandingProdutores({ pixel, liberacaoDias }: { pixel: str
               </form>
             ) : (
               <form onSubmit={enviar2} noValidate>
-                <h2>Falta pouco, {est?.nome.split(' ')[0] || 'produtor'}!</h2>
-                <p className="rp-mini">Conta um pouco do seu produto para a gente já chegar com a proposta certa.</p>
-                <label className={'rp-f' + errCampo('nicho')}><span>Seu nicho</span>
+                <h2>Falta pouco, {est?.nome.split(' ')[0] || 'lojista'}!</h2>
+                <p className="rp-mini">Conta o que você vende para a gente já chegar com a proposta certa.</p>
+                <label className={'rp-f' + errCampo('nicho')}><span>Jogo principal</span>
                   <select value={f2.nicho} onChange={(e) => setF2({ ...f2, nicho: e.target.value })} required>
                     <option value="">Escolha…</option>
                     {NICHOS.map((n) => <option key={n} value={n}>{n}</option>)}
@@ -192,7 +195,7 @@ export default function LandingProdutores({ pixel, liberacaoDias }: { pixel: str
                   <div className="rp-opts">
                     {TIPOS.map((t) => <button type="button" key={t.id} className={f2.tipos.includes(t.id) ? 'on' : ''} aria-pressed={f2.tipos.includes(t.id)} onClick={() => setF2({ ...f2, tipos: alterna(f2.tipos, t.id) })}>{t.rotulo}</button>)}
                   </div></fieldset>
-                <fieldset className={'rp-f' + errCampo('ja_vende')}><legend>Você já vende produtos digitais?</legend>
+                <fieldset className={'rp-f' + errCampo('ja_vende')}><legend>Você já vende hoje?</legend>
                   <div className="rp-opts">
                     {[['sim', 'Sim, já vendo'], ['comecando', 'Estou começando'], ['nao', 'Ainda não']].map(([v, l]) => (
                       <button type="button" key={v} className={f2.ja_vende === v ? 'on' : ''} aria-pressed={f2.ja_vende === v} onClick={() => setF2({ ...f2, ja_vende: v, plataformas: v === 'nao' ? [] : f2.plataformas })}>{l}</button>
@@ -204,17 +207,17 @@ export default function LandingProdutores({ pixel, liberacaoDias }: { pixel: str
                       <div className="rp-opts">
                         {PLATAFORMAS.map((p) => <button type="button" key={p} className={f2.plataformas.includes(p) ? 'on' : ''} aria-pressed={f2.plataformas.includes(p)} onClick={() => setF2({ ...f2, plataformas: alterna(f2.plataformas, p) })}>{p}</button>)}
                       </div></fieldset>
-                    <label className="rp-f"><span>Quanto fatura por mês com produtos digitais?</span>
+                    <label className="rp-f"><span>Quanto fatura por mês com essas vendas?</span>
                       <select value={f2.faturamento} onChange={(e) => setF2({ ...f2, faturamento: e.target.value })}>
                         <option value="">Prefiro não dizer</option>
                         {FATURAMENTO.filter((x) => x !== 'Ainda não vendi').map((x) => <option key={x} value={x}>{x}</option>)}
                       </select></label>
                   </>
                 )}
-                <label className={'rp-f' + errCampo('link_produto')}><span>Link do seu produto ou página <small>(opcional)</small></span>
+                <label className={'rp-f' + errCampo('link_produto')}><span>Link da sua loja ou perfil de vendas <small>(opcional)</small></span>
                   <input type="url" inputMode="url" value={f2.link_produto} onChange={(e) => setF2({ ...f2, link_produto: e.target.value })} placeholder="https://" maxLength={300} /></label>
                 {erro && <p className="rp-erro" role="alert">{erro.texto}</p>}
-                <button className="rp-btn" disabled={enviando}>{enviando ? 'Enviando…' : <>Garantir minha vaga de fundador <Icon name="arrowRight" size={18} /></>}</button>
+                <button className="rp-btn" disabled={enviando}>{enviando ? 'Enviando…' : <>Enviar cadastro <Icon name="arrowRight" size={18} /></>}</button>
               </form>
             )}
           </div>
@@ -224,18 +227,18 @@ export default function LandingProdutores({ pixel, liberacaoDias }: { pixel: str
       {/* ---------- números da oferta ---------- */}
       <section className="rp-faixa">
         <div className="rp-wrap rp-faixa-in">
-          <div><b>{TAXA_FUNDADOR}%</b><span>por venda aprovada</span></div>
-          <div><b>{MESES_FUNDADOR} meses</b><span>de taxa garantida</span></div>
-          <div><b>R$ 0</b><span>de mensalidade</span></div>
-          <div><b>{VAGAS_FUNDADOR}</b><span>vagas de fundador</span></div>
+          <div><b>R$ 0</b><span>para anunciar</span></div>
+          <div><b>{TAXA_BASE}%</b><span>de taxa, a partir de</span></div>
+          <div><b>Pix</b><span>e cartão no checkout</span></div>
+          <div><b>Auto</b><span>entrega de códigos e keys</span></div>
         </div>
       </section>
 
       {/* ---------- recursos ---------- */}
       <section className="rp-sec">
         <div className="rp-wrap">
-          <p className="rp-kick">Tudo que você precisa para vender</p>
-          <h2 className="rp-h2">Uma plataforma completa, sem cobrar caro por isso</h2>
+          <p className="rp-kick">Feito para quem vende no mundo gamer</p>
+          <h2 className="rp-h2">Venda mais e pare de perder tempo com golpe no direct</h2>
           <div className="rp-grid">
             {RECURSOS.map(([ic, t, d]) => (
               <div className="rp-rec" key={t}><div className="ic"><Icon name={ic} size={22} /></div><h3>{t}</h3><p>{d}</p></div>
@@ -244,13 +247,23 @@ export default function LandingProdutores({ pixel, liberacaoDias }: { pixel: str
         </div>
       </section>
 
+      {/* ---------- planos ---------- */}
+      <section className="rp-sec" id="planos">
+        <div className="rp-wrap">
+          <p className="rp-kick">Planos por anúncio</p>
+          <h2 className="rp-h2">Você escolhe quanto quer aparecer</h2>
+          <p className="rp-sub" style={{ textAlign: 'center', maxWidth: 640, margin: '0 auto 26px' }}>Todo anúncio começa no Básico. Quer mais visibilidade? Suba para Destaque ou Topo naquele anúncio. Só paga quando vende.</p>
+          <PlanosVendedor cfg={taxas} />
+        </div>
+      </section>
+
       {/* ---------- simulador ---------- */}
       <section className="rp-sec rp-sim-sec">
         <div className="rp-wrap rp-sim">
           <div className="rp-sim-txt">
             <p className="rp-kick">Faça a conta</p>
-            <h2 className="rp-h2 l">Quanto a taxa da sua plataforma te custa por ano?</h2>
-            <p className="rp-sub">Coloque os números da plataforma que você usa hoje. A conta é sua, com os seus dados.</p>
+            <h2 className="rp-h2 l">Quanto a taxa do marketplace onde você vende te custa por ano?</h2>
+            <p className="rp-sub">Coloque a taxa que você paga hoje. A conta é sua, com os seus números, comparada ao nosso plano Básico.</p>
           </div>
           <div className="rp-sim-box">
             <div className="rp-sim-campos">
@@ -261,7 +274,7 @@ export default function LandingProdutores({ pixel, liberacaoDias }: { pixel: str
             </div>
             <div className="rp-sim-res">
               <div><small>Hoje você paga por mês</small><b>{brl(conta.atual)}</b></div>
-              <div><small>Como fundador ({TAXA_FUNDADOR}%)</small><b>{brl(conta.nossa)}</b></div>
+              <div><small>No Comprei Barato ({TAXA_BASE}%)</small><b>{brl(conta.nossa)}</b></div>
               <div className="eco"><small>Fica no seu bolso em 12 meses</small><b>{brl(conta.economia * 12)}</b></div>
             </div>
             <button type="button" className="rp-btn" onClick={irParaForm}>Quero essa economia <Icon name="arrowRight" size={18} /></button>
@@ -273,32 +286,32 @@ export default function LandingProdutores({ pixel, liberacaoDias }: { pixel: str
       <section className="rp-sec">
         <div className="rp-wrap">
           <p className="rp-kick">Como funciona</p>
-          <h2 className="rp-h2">Do formulário à primeira venda</h2>
+          <h2 className="rp-h2">Do cadastro à primeira venda</h2>
           <div className="rp-steps">
             <div><span>1</span><h3>Preencha o formulário</h3><p>Menos de 1 minuto. Sem compromisso.</p></div>
-            <div><span>2</span><h3>A gente te chama no WhatsApp</h3><p>Explicamos a plataforma e ajudamos a cadastrar e configurar seus produtos.</p></div>
-            <div><span>3</span><h3>Produto aprovado, venda liberada</h3><p>Cada produto passa por uma revisão rápida antes de entrar na vitrine.</p></div>
-            <div><span>4</span><h3>Receba no Pix</h3><p>O valor fica disponível {liberacaoDias} dia{liberacaoDias === 1 ? '' : 's'} depois da venda (período de garantia) e você saca para a sua chave Pix.</p></div>
+            <div><span>2</span><h3>A gente te chama no WhatsApp</h3><p>Explicamos tudo e ajudamos você a subir seus primeiros anúncios.</p></div>
+            <div><span>3</span><h3>Anúncio aprovado, venda liberada</h3><p>Cada anúncio passa por uma revisão rápida antes de entrar na vitrine.</p></div>
+            <div><span>4</span><h3>Receba no Pix</h3><p>Depois do prazo de liberação ({taxas.liberaPadraoDias} dias na maioria dos anúncios, {taxas.liberaContaDias} para contas) o valor entra no saldo e você saca na sua chave Pix.</p></div>
           </div>
         </div>
       </section>
 
-      {/* ---------- fundador ---------- */}
+      {/* ---------- primeiros lojistas ---------- */}
       <section className="rp-sec">
         <div className="rp-wrap">
           <div className="rp-fund">
             <div>
-              <p className="rp-kick claro">Condição de produtor fundador</p>
-              <h2>Entre cedo e cresça junto com a plataforma.</h2>
-              <p>Estamos abrindo o Comprei Barato com um grupo de produtores escolhidos a dedo. Quem entra agora tem condição que não vai se repetir.</p>
+              <p className="rp-kick claro">Primeiros lojistas</p>
+              <h2>Chegue antes da concorrência na vitrine.</h2>
+              <p>Estamos abrindo o Comprei Barato com um grupo de lojistas escolhidos a dedo. Quem entra agora aparece primeiro enquanto a vitrine ainda está sendo montada.</p>
             </div>
             <ul>
-              <li><Icon name="dollar" size={18} /> <span><b>{TAXA_FUNDADOR}% por venda por {MESES_FUNDADOR} meses</b>, para os {VAGAS_FUNDADOR} primeiros produtores aprovados</span></li>
+              <li><Icon name="star" size={18} /> <span><b>Mais visibilidade no lançamento:</b> com poucos anúncios por categoria, o seu aparece para todo mundo que procura</span></li>
               <li><Icon name="chat" size={18} /> <span><b>Atendimento direto</b> com quem constrói a plataforma, pelo WhatsApp</span></li>
-              <li><Icon name="rocket" size={18} /> <span><b>Ajuda para cadastrar</b> e configurar seus produtos, checkout e área de membros</span></li>
-              <li><Icon name="sparkles" size={18} /> <span><b>Sua opinião vira recurso:</b> os pedidos dos fundadores entram primeiro no que construímos</span></li>
+              <li><Icon name="rocket" size={18} /> <span><b>Ajuda para subir</b> seus primeiros anúncios, estoque e entrega automática</span></li>
+              <li><Icon name="sparkles" size={18} /> <span><b>Sua opinião vira recurso:</b> os pedidos dos primeiros lojistas entram primeiro no que construímos</span></li>
             </ul>
-            <button type="button" className="rp-btn claro" onClick={irParaForm}>Quero minha vaga <Icon name="arrowRight" size={18} /></button>
+            <button type="button" className="rp-btn claro" onClick={irParaForm}>Quero anunciar <Icon name="arrowRight" size={18} /></button>
           </div>
         </div>
       </section>
@@ -309,14 +322,14 @@ export default function LandingProdutores({ pixel, liberacaoDias }: { pixel: str
           <p className="rp-kick">Perguntas frequentes</p>
           <h2 className="rp-h2">Antes de você perguntar</h2>
           {[
-            ['Quanto custa?', `Criar a loja e cadastrar produtos é grátis. Não tem mensalidade nem taxa de adesão. Você só paga a taxa quando vende: ${TAXA_FUNDADOR}% por venda aprovada para os produtores fundadores, garantidos por ${MESES_FUNDADOR} meses.`],
-            ['E depois dos 12 meses?', 'A taxa segue a tabela vigente da plataforma, e qualquer mudança é avisada com antecedência. Você nunca é pego de surpresa.'],
-            ['Preciso sair da plataforma onde vendo hoje?', 'Não. Não existe exclusividade. Você pode vender aqui e continuar onde já vende.'],
+            ['Quanto custa?', `Anunciar é grátis. Não tem mensalidade nem taxa de adesão. Você só paga quando vende: ${TAXA_BASE}% no plano Básico, mais nos planos Destaque e Topo, que dão mais visibilidade.`],
+            ['O que posso vender?', 'Contas, skins, itens, moedas, gift cards, keys, recargas e serviços como boost e coach, além de produtos digitais como guias e softwares. Só o que você tem direito de vender: nada de cheats, contas roubadas ou assinaturas compartilhadas. Todo anúncio passa por aprovação.'],
+            ['Como o comprador fica protegido?', 'O cliente paga no site e o valor fica retido durante o período de garantia. Se algo der errado, ele abre uma reclamação e a equipe analisa. Isso dá confiança para comprar de quem ele ainda não conhece, e você vende mais.'],
+            ['Quando eu recebo?', `Depois da entrega: contas de jogo liberam em ${taxas.liberaContaDias} dias, os demais tipos em ${taxas.liberaPadraoDias} dias e vendas no cartão em ${taxas.liberaCartaoDias} dias (proteção contra recuperação de conta e estorno). Aí você saca na sua chave Pix, com 1 saque grátis por semana.`],
+            ['O comprador paga taxa?', `Paga uma taxa de serviço do meio de pagamento, mostrada antes de pagar: R$ ${taxas.compradorPix.toFixed(2).replace('.', ',')} no Pix ou ${String(taxas.compradorCartaoPct).replace('.', ',')}% + R$ ${taxas.compradorCartaoFixo.toFixed(2).replace('.', ',')} no cartão. Ela não sai do seu valor.`],
+            ['Preciso sair da GGMax ou de onde vendo hoje?', 'Não. Não existe exclusividade. Você pode anunciar aqui e continuar onde já vende.'],
             ['Preciso ter CNPJ?', 'Não. Você pode vender como pessoa física (CPF) ou jurídica (CNPJ). Antes do primeiro saque fazemos uma verificação de identidade rápida, para proteger o seu dinheiro.'],
-            ['Quando eu recebo?', `O valor de cada venda fica disponível ${liberacaoDias} dia${liberacaoDias === 1 ? '' : 's'} depois da compra (período de garantia do cliente) e você saca para a sua chave Pix.`],
-            ['Que produtos posso vender?', 'Produtos digitais seus ou que você tem direito de vender: ebooks, cursos, planilhas, templates, ferramentas, mentorias e afins. Todo produto passa por aprovação antes de ir para a vitrine.'],
-            ['Vocês hospedam os meus cursos?', 'Sim. A área de membros tem módulos, aulas em vídeo (YouTube, Vimeo, Panda, Bunny e outros), materiais para baixar, progresso do aluno e certificado de conclusão.'],
-            ['Consigo usar meu pixel e rastrear meus anúncios?', 'Sim. Cada produto aceita Pixel do Meta, TikTok e Google, API de Conversões do Meta, UTMs e postback para o seu sistema.'],
+            ['Gift cards e keys são entregues sozinhos?', 'Sim. Você cadastra os códigos no estoque do anúncio e cada comprador recebe o dele assim que o pagamento é confirmado.'],
           ].map(([q, a]) => (
             <details key={q}><summary>{q}<Icon name="chevronDown" size={18} /></summary><p>{a}</p></details>
           ))}
@@ -325,8 +338,8 @@ export default function LandingProdutores({ pixel, liberacaoDias }: { pixel: str
 
       <section className="rp-final">
         <div className="rp-wrap">
-          <h2>Seu produto merece uma vitrine — e uma taxa justa.</h2>
-          <button type="button" className="rp-btn" onClick={irParaForm}>Quero ser produtor fundador <Icon name="arrowRight" size={18} /></button>
+          <h2>Sua loja gamer merece uma vitrine — e uma taxa justa.</h2>
+          <button type="button" className="rp-btn" onClick={irParaForm}>Quero anunciar grátis <Icon name="arrowRight" size={18} /></button>
         </div>
       </section>
 
@@ -334,7 +347,7 @@ export default function LandingProdutores({ pixel, liberacaoDias }: { pixel: str
         <div className="rp-wrap">© {new Date().getFullYear()} Comprei Barato · <a href="/termos">Termos</a> · <a href="/privacidade">Privacidade</a></div>
       </footer>
 
-      <div className={`rp-fixo${mostrarFixo ? ' on' : ''}`} aria-hidden={!mostrarFixo}><button type="button" className="rp-btn" onClick={irParaForm}>Quero ser fundador · {TAXA_FUNDADOR}%</button></div>
+      <div className={`rp-fixo${mostrarFixo ? ' on' : ''}`} aria-hidden={!mostrarFixo}><button type="button" className="rp-btn" onClick={irParaForm}>Anunciar grátis · taxa a partir de {TAXA_BASE}%</button></div>
     </div>
   );
 }

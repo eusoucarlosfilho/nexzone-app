@@ -36,28 +36,28 @@ t('etapa 1: nome e WhatsApp obrigatórios; e-mail e @ opcionais mas validados', 
 });
 t('etapa 2: só aceita valores da lista e limpa plataformas de quem não vende', () => {
   assert.strictEqual(R.validarEtapa2({}).campo, 'nicho');
-  assert.strictEqual(R.validarEtapa2({ nicho: 'Idiomas' }).campo, 'tipos');
-  assert.strictEqual(R.validarEtapa2({ nicho: 'Idiomas', tipos: ['hackeado'] }).campo, 'tipos');
-  assert.strictEqual(R.validarEtapa2({ nicho: 'Idiomas', tipos: ['ebook'] }).campo, 'ja_vende');
-  const v = R.validarEtapa2({ nicho: 'Idiomas', tipos: ['ebook', 'ebook', 'curso'], ja_vende: 'nao', plataformas: ['Hotmart'], link_produto: 'meusite.com/x' });
+  assert.strictEqual(R.validarEtapa2({ nicho: 'Free Fire' }).campo, 'tipos');
+  assert.strictEqual(R.validarEtapa2({ nicho: 'Free Fire', tipos: ['hackeado'] }).campo, 'tipos');
+  assert.strictEqual(R.validarEtapa2({ nicho: 'Free Fire', tipos: ['contas'] }).campo, 'ja_vende');
+  const v = R.validarEtapa2({ nicho: 'Free Fire', tipos: ['contas', 'contas', 'itens'], ja_vende: 'nao', plataformas: ['GGMax'], link_produto: 'meusite.com/x' });
   assert.ok(v.ok);
-  assert.deepStrictEqual(v.dados.tipos, ['ebook', 'curso']);
+  assert.deepStrictEqual(v.dados.tipos, ['contas', 'itens']);
   assert.deepStrictEqual(v.dados.plataformas, []);
   assert.strictEqual(v.dados.link_produto, 'https://meusite.com/x');
-  const w = R.validarEtapa2({ nicho: 'Idiomas', tipos: ['curso'], ja_vende: 'sim', plataformas: ['Hotmart', 'Inventada'], faturamento: 'R$ 1 mil a R$ 5 mil/mês' });
-  assert.deepStrictEqual(w.dados.plataformas, ['Hotmart']);
-  assert.strictEqual(R.validarEtapa2({ nicho: 'Idiomas', tipos: ['curso'], ja_vende: 'sim', link_produto: 'javascript:alert(1)' }).campo, 'link_produto');
+  const w = R.validarEtapa2({ nicho: 'Free Fire', tipos: ['itens'], ja_vende: 'sim', plataformas: ['GGMax', 'Inventada'], faturamento: 'R$ 1 mil a R$ 5 mil/mês' });
+  assert.deepStrictEqual(w.dados.plataformas, ['GGMax']);
+  assert.strictEqual(R.validarEtapa2({ nicho: 'Free Fire', tipos: ['itens'], ja_vende: 'sim', link_produto: 'javascript:alert(1)' }).campo, 'link_produto');
 });
 t('origem: só chaves conhecidas', () => {
   assert.deepStrictEqual(R.limparOrigem({ utm_source: 'meta', utm_campaign: 'fundadores', x: 'y', ref: 5 }), { utm_source: 'meta', utm_campaign: 'fundadores' });
 });
-t('simulador: 10 mil a 10% + R$1 x 100 vendas = 1.100; com 3% = 300', () => {
-  assert.deepStrictEqual(R.economiaMensal(10000, 10, 1, 100), { atual: 1100, nossa: 300, economia: 800 });
+t('simulador: 10 mil a 10% + R$1 x 100 vendas = 1.100; com 5% = 500', () => {
+  assert.deepStrictEqual(R.economiaMensal(10000, 10, 1, 100), { atual: 1100, nossa: 500, economia: 600 });
   assert.strictEqual(R.economiaMensal(1000, 2, 0, 0).economia, 0);
 });
 t('links e mensagens do WhatsApp', () => {
   assert.match(R.linkWhatsapp('+55 (63) 99999-8888', 'Oi, tudo?'), /^https:\/\/wa\.me\/5563999998888\?text=Oi%2C%20tudo%3F$/);
-  assert.match(R.mensagemParaProdutor('Ana Souza', 'Idiomas'), /Oi, Ana!.*\(idiomas\).*3% por venda por 12 meses/);
+  assert.match(R.mensagemParaProdutor('Ana Souza', 'Free Fire'), /Oi, Ana!.*\(Free Fire\).*a partir de 5%/);
 });
 t('API de Conversões: dados com hash, event_id igual ao do navegador, código de teste', () => {
   const c = S.corpoEventoLead({ nome: 'Lead', eventId: 'lead-abc12345', url: 'https://compreibarato.com.br/produtores', ip: '1.2.3.4', userAgent: 'UA', fbp: 'fb.1.1.2', fbc: null,

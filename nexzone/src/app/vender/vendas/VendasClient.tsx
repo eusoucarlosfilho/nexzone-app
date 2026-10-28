@@ -98,7 +98,7 @@ export default function VendasClient({ vendas }: any) {
                           <div style={{ display: 'flex', gap: 28, flexWrap: 'wrap', fontSize: 13 }}>
                             <span className="muted">Pedido: <strong style={{ color: 'var(--text)' }}>#{String(v.id).slice(0, 8)}</strong></span>
                             <span className="muted">Bruto: <strong style={{ color: 'var(--text)' }}>{money(v.total)}</strong></span>
-                            <span className="muted">Taxa plataforma (3%): <strong style={{ color: 'var(--text)' }}>{money(v.taxa)}</strong></span>
+                            <span className="muted">Taxa da plataforma: <strong style={{ color: 'var(--text)' }}>{money(v.taxa)}</strong></span>
                             <span className="muted">Líquido p/ você: <strong style={{ color: 'var(--green)' }}>{money(v.valor_vendedor)}</strong></span>
                             <span className="muted">Data/hora: <strong style={{ color: 'var(--text)' }}>{new Date(v.created_at).toLocaleString('pt-BR')}</strong></span>
                             {v.comprador_email && <span className="muted">Cliente: <strong style={{ color: 'var(--text)' }}>{v.comprador_email}</strong></span>}

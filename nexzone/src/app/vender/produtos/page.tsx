@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
-import { getSettings } from '@/lib/settings';
+import { getSettings, lerTaxas } from '@/lib/settings';
 import { redirect } from 'next/navigation';
 import ProductManager from './ProductManager';
 import OcultarMinhaLoja from './OcultarMinhaLoja';
@@ -45,6 +45,8 @@ export default async function ProdutosPage({ searchParams }: { searchParams: SP 
     }
   }
   const { boost_plans } = await getSettings();
+  const tx = await lerTaxas();
+  const planosModelo = { pcts: { basico: tx.planoBasico, destaque: tx.planoDestaque, topo: tx.planoTopo }, ativos: tx.planosPagosAtivos };
 
   const filtro = (FILTROS as readonly string[]).includes(searchParams.status || '') ? (searchParams.status as string) : 'todos';
   const ordemKey = searchParams.ordem && ORDENS[searchParams.ordem] ? searchParams.ordem : 'recentes';
@@ -95,6 +97,14 @@ export default async function ProdutosPage({ searchParams }: { searchParams: SP 
     const extras = await extrasDe(supabase, produtos.map((p) => p.id));
     estoqueAtivo = Object.keys(extras).length > 0;
     produtos = produtos.map((p) => ({ ...p, ...(extras[p.id] ?? EXTRAS_VAZIO) }));
+    // Plano e tipo do anúncio (SQL 21). Sem o SQL 21: todos aparecem como Básico.
+    if (produtos.length) {
+      const { data: pls, error: plErr } = await supabase.from('products').select('id, plano, tipo_anuncio, jogo').in('id', produtos.map((p) => p.id));
+      if (!plErr && pls) {
+        const mp: Record<string, any> = Object.fromEntries((pls as any[]).map((m) => [m.id, m]));
+        produtos = produtos.map((p) => ({ ...p, plano: mp[p.id]?.plano ?? 'basico', tipo_anuncio: mp[p.id]?.tipo_anuncio, jogo: mp[p.id]?.jogo }));
+      }
+    }
     // Moderação da equipe (SQL 14): "O que corrigir" / pausado ou cancelado pela equipe. Sem o SQL 14: nada muda.
     if (produtos.length) {
       const { data: mods, error: modErr } = await supabase.from('products')
@@ -111,9 +121,9 @@ export default async function ProdutosPage({ searchParams }: { searchParams: SP 
       <div className="pm-head">
         <div>
           <h1 style={{ fontFamily: 'Outfit', fontSize: 26, fontWeight: 900 }}>Meus produtos</h1>
-          <p className="muted">Gerencie seus anúncios, acompanhe a revisão e destaque os produtos ativos.</p>
+          <p className="muted">Gerencie seus anúncios, acompanhe a revisão e escolha o plano de visibilidade de cada um.</p>
         </div>
-        <Link href="/vender/produtos/novo" className="btn btn-pri">+ Cadastrar novo produto</Link>
+        <Link href="/vender/produtos/novo" className="btn btn-pri">+ Novo anúncio</Link>
       </div>
       {lojaAdmin && <OcultarMinhaLoja storeId={lojaAdmin.id} nomeLoja={lojaAdmin.nome} ocultoInicial={lojaAdmin.oculto} />}
       <ProductManager
@@ -126,6 +136,7 @@ export default async function ProdutosPage({ searchParams }: { searchParams: SP 
         filtros={{ q: searchParams.q || '', status: filtro, cat, ordem: ordemKey }}
         userId={user.id}
         planos={boost_plans}
+        planosModelo={planosModelo}
         estoqueAtivo={estoqueAtivo}
       />
     </div>

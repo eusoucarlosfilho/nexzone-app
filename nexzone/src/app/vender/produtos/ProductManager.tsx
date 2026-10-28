@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import { toast } from '@/lib/toast';
-import BoostButton from './BoostButton';
+import PlanoRapido from './PlanoRapido';
 import EditProductForm from './EditProductForm';
 import ProductThumb from '@/components/ProductThumb';
 import Icon from '@/components/Icon';
@@ -26,7 +26,8 @@ function destaqueAtivo(p: any) {
 
 // Meus produtos — a lista, os filtros e a paginação vêm do SERVIDOR (page.tsx).
 // Este componente só recebe a página atual e troca os parâmetros da URL.
-export default function ProductManager({ products, total, pagina, porPagina, stats, categorias, filtros, userId, planos, estoqueAtivo = false }: {
+export default function ProductManager({ products, total, pagina, porPagina, stats, categorias, filtros, userId, planos, estoqueAtivo = false, planosModelo = { pcts: { basico: 5, destaque: 8, topo: 11 }, ativos: false } }: {
+  planosModelo?: { pcts: { basico: number; destaque: number; topo: number }; ativos: boolean };
   products: any[]; total: number; pagina: number; porPagina: number; stats: Stats; categorias: string[];
   filtros: Filtros; userId: string; planos: Plano[]; estoqueAtivo?: boolean;
 }) {
@@ -266,8 +267,7 @@ export default function ProductManager({ products, total, pagina, porPagina, sta
                         onClick={() => abrirEdicao(p.id, 'imagens')}><Icon name="image" size={16} /> Imagens</button>
                       <Link href={`/vender/checkout/${p.id}`} className="btn btn-ghost btn-sm"><Icon name="cart" size={16} /> Checkout e order bump</Link>
                       <Link href={`/vender/curso/${p.id}`} className="btn btn-ghost btn-sm"><Icon name="play" size={16} /> Área de membros</Link>
-                      {ativo && !emDestaque && <BoostButton productId={p.id} destaqueAte={p.destaque_ate} planos={planos} />}
-                      {!ativo && !emDestaque && <span className="btn btn-ghost btn-sm pm-off" title="O destaque fica disponível depois que o anúncio for aprovado"><Icon name="rocket" size={16} /> Destacar</span>}
+                      <PlanoRapido productId={p.id} plano={p.plano || 'basico'} pcts={planosModelo.pcts} ativos={planosModelo.ativos} />
 
                       <div className="pm-more" ref={menu === p.id ? menuRef : undefined}>
                         <button type="button" className="btn btn-ghost btn-sm" aria-haspopup="menu" aria-expanded={menu === p.id}

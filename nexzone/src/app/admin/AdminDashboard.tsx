@@ -15,6 +15,7 @@ import SuporteConfig from './SuporteConfig';
 import UsersPanel from './v3/UsersPanel';
 import GrowthPanel from './v3/GrowthPanel';
 import { ehJogos } from '@/lib/categorias';
+import { TIPOS_ANUNCIO } from '@/lib/taxas';
 import Icon from '@/components/Icon';
 import ProductThumb from '@/components/ProductThumb';
 import ProdutoGerenciar from './ProdutoGerenciar';
@@ -27,6 +28,7 @@ import Reembolsos from './Reembolsos';
 import Verificacoes from './Verificacoes';
 import ProdutoresInteressados from './ProdutoresInteressados';
 import SeoGoogle from './SeoGoogle';
+import TaxasPlanos from './TaxasPlanos';
 
 const money = (v: number) => 'R$ ' + Number(v).toFixed(2).replace('.', ',');
 const fmt = (v: number) => Number(v).toLocaleString('pt-BR');
@@ -259,7 +261,7 @@ export default function AdminDashboard({ painel, adminEmail, users, metrics, dai
     ['destaques', 'star', 'Destaques', metrics.destaquesAtivos],
     ['crescimento', 'growth', 'Crescimento', 0],
     ['seo', 'search', 'SEO e Google', 0],
-    ['produtores', 'magnet', 'Produtores interessados', produtoresNovos],
+    ['produtores', 'magnet', 'Lojistas interessados', produtoresNovos],
     ['reclamacoes', 'shield', 'Reclamações', recPendentes.length],
     ['reembolsos', 'undo', 'Reembolsos', reembolsosAbertos],
     ['verificacoes', 'key', 'Verificações', verificacoesPendentes],
@@ -426,7 +428,7 @@ export default function AdminDashboard({ painel, adminEmail, users, metrics, dai
               {queue.length ? queue.map((p: any) => (
                 <div className="adm-row" key={p.id}>
                   <ProductThumb className="em" capa_url={p.capa_url} categoria={p.categoria} titulo={p.titulo} tamanho={42} raio={11} icone={22} />
-                  <div className="info"><b>{p.titulo}{ehJogos(p.categoria) && <span title="Categoria Jogos & Games: confira se não é conta compartilhada, 'método', moeda/item de terceiros, key aleatória ou assinatura revendida." style={{ marginLeft: 8, verticalAlign: 1, fontSize: 10.5, fontWeight: 900, fontFamily: 'Outfit', color: '#fff', background: '#7C3AED', borderRadius: 50, padding: '2px 9px', display: 'inline-block' }}>Revisar com atenção</span>}</b><span>{p.stores?.nome ?? '—'} · {p.categoria} · {money(p.preco_promo ?? p.preco)}</span>
+                  <div className="info"><b>{p.titulo}{ehJogos(p.categoria) && <span title="Categoria Jogos & Games: confira se não é conta compartilhada, 'método', moeda/item de terceiros, key aleatória ou assinatura revendida." style={{ marginLeft: 8, verticalAlign: 1, fontSize: 10.5, fontWeight: 900, fontFamily: 'Outfit', color: '#fff', background: '#7C3AED', borderRadius: 50, padding: '2px 9px', display: 'inline-block' }}>Revisar com atenção</span>}</b><span>{p.stores?.nome ?? '—'} · {p.categoria}{p.tipo_anuncio ? ` · ${TIPOS_ANUNCIO.find((t) => t.id === p.tipo_anuncio)?.nome ?? p.tipo_anuncio}` : ''}{p.jogo ? ` · ${p.jogo}` : ''} · {money(p.preco_promo ?? p.preco)}</span>
                     {Array.isArray(p.imagens) && p.imagens.length > 0 ? (
                       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
                         {p.imagens.map((u: string, i: number) => (
@@ -471,7 +473,7 @@ export default function AdminDashboard({ painel, adminEmail, users, metrics, dai
             <div className="adm-card">
               {filteredOrders.length ? (
                 <table className="adm-table">
-                  <thead><tr><th>Produto</th><th>Vendedor</th><th>Valor</th><th>Taxa 3%</th><th>Status</th><th>Data</th><th></th></tr></thead>
+                  <thead><tr><th>Produto</th><th>Vendedor</th><th>Valor</th><th>Taxa</th><th>Status</th><th>Data</th><th></th></tr></thead>
                   <tbody>
                     {filteredOrders.map((o: any) => (
                       <tr key={o.id}>
@@ -884,7 +886,7 @@ export default function AdminDashboard({ painel, adminEmail, users, metrics, dai
 
         {tab === 'produtores' && (
           <>
-            <h1 className="adm-h">Produtores interessados</h1>
+            <h1 className="adm-h">Lojistas interessados</h1>
             <p className="adm-sub">Quem preencheu o formulário da página /produtores. Chame no WhatsApp, anote a conversa e mude o status até ele começar a vender.</p>
             <ProdutoresInteressados onContagem={setProdutoresNovos} />
           </>
@@ -921,7 +923,8 @@ export default function AdminDashboard({ painel, adminEmail, users, metrics, dai
         {tab === 'config' && (
           <>
             <h1 className="adm-h">Configurações</h1>
-            <p className="adm-sub">Ajuste a comissão, os preços de destaque e o e-mail de suporte — sem mexer no código.</p>
+            <p className="adm-sub">Planos do vendedor, taxa de serviço do comprador, prazos de liberação e o resto da operação — sem mexer no código.</p>
+            <TaxasPlanos />
             <SettingsForm settings={settings} />
             <SuporteConfig inicial={settings.suporte} />
           </>

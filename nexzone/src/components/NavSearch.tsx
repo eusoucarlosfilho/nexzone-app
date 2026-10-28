@@ -120,7 +120,7 @@ export default function NavSearch() {
         onChange={(e) => { setQ(e.target.value); setAberto(true); setAtivo(-1); }}
         onFocus={() => { setRecentes(lerRecentes()); setAberto(true); }}
         onKeyDown={onKey}
-        placeholder="Busque prompts, planilhas, cursos, templates…" />
+        placeholder="Busque contas, skins, gift cards, cursos…" />
       <button type="submit">Buscar</button>
       {mostrar && (
         <div className="nsg">

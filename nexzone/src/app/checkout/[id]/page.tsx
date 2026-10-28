@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import CheckoutClient from './CheckoutClient';
+import { lerTaxas } from '@/lib/settings';
 import CheckoutBlocos from '@/components/CheckoutBlocos';
 import { normalizarCheckout, urlDoArmazenamento, listaDeBumps, visualDoBump } from '@/lib/checkoutConfig';
 import type { Product } from '@/lib/types';
@@ -58,6 +59,8 @@ export default async function CheckoutPage({ params }: { params: { id: string } 
     meusPontos = Number((prof as any)?.cb_points ?? 0);
   }
   const cartaoDisponivel = await stripeAvailable();
+  const cfgTaxas = await lerTaxas();
+  const taxas = { pix: cfgTaxas.compradorPix, cartaoPct: cfgTaxas.compradorCartaoPct, cartaoFixo: cfgTaxas.compradorCartaoFixo };
   // Carrinho abandonado (SQL 19): quem já está logado e abriu o checkout entra na recuperação (o dono não)
   if (user?.email && (p as any).stores && user.id) {
     const { data: dono } = await supabase.from('stores').select('owner').eq('id', (p as any).store_id).maybeSingle();
@@ -96,6 +99,7 @@ export default async function CheckoutPage({ params }: { params: { id: string } 
               meusPontos={meusPontos}
               perBrl={perBrl}
               cartaoDisponivel={cartaoDisponivel}
+              taxas={taxas}
               convidado={!user}
               emailLogado={user?.email ?? null}
               rastreio={temPixel(cfg.rastreio) ? cfg.rastreio : null}

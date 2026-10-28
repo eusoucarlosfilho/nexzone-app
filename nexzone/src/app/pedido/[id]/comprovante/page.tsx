@@ -31,6 +31,9 @@ export default async function Comprovante({ params }: { params: { id: string } }
   const extras = extrasDoPedido(o as any).map((x) => ({ titulo: x.titulo, valor: brutos[x.i]?.valor ?? (x.i === 0 ? (o as any).bump_valor : null) }));
   const total = Number((o as any).total) || 0;
   const desconto = Number((o as any).desconto) || 0;
+  // taxa de serviço do comprador no método usado (SQL 21; pedidos antigos não têm)
+  const fp = (o as any).forma_pagamento;
+  const taxaServico = Number(fp === 'cartao' ? (o as any).taxa_comprador_cartao : fp === 'pix' ? (o as any).taxa_comprador_pix : 0) || 0;
   const forma = (o as any).forma_pagamento === 'pix' ? 'Pix' : (o as any).forma_pagamento === 'cartao' ? 'Cartão de crédito' : 'Pix ou cartão';
   const loja = vendedorPublico((o as any).stores).nome;
   const linhas: { d: string; v: number | null }[] = [{ d: (o as any).products?.titulo || 'Produto', v: null }, ...extras.map((x) => ({ d: `Item extra: ${x.titulo}`, v: Number(x.valor) || null }))];
@@ -81,8 +84,9 @@ export default async function Comprovante({ params }: { params: { id: string } }
             <tbody>
               {linhas.map((l, i) => <tr key={i}><td>{l.d}</td><td>{l.v !== null ? brl(l.v) : ''}</td></tr>)}
               {desconto > 0 && <tr><td>Desconto{(o as any).cupom ? ` (cupom ${(o as any).cupom})` : ''}</td><td>− {brl(desconto)}</td></tr>}
+              {taxaServico > 0 && <tr><td>Taxa de serviço ({fp === 'cartao' ? 'cartão' : 'Pix'})</td><td>{brl(taxaServico)}</td></tr>}
             </tbody>
-            <tfoot><tr><td>Total pago</td><td>{brl(total)}</td></tr></tfoot>
+            <tfoot><tr><td>Total pago</td><td>{brl(total + taxaServico)}</td></tr></tfoot>
           </table>
           <p className="cp-nota">Produto digital. Este comprovante não é nota fiscal. Dúvidas sobre o produto: use a conversa do pedido. Suporte: compreibarato.com.br/suporte.</p>
         </div>

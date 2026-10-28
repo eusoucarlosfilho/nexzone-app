@@ -4,6 +4,8 @@ import Nav from '@/components/Nav';
 import Footer from '@/components/Footer';
 import Icon from '@/components/Icon';
 import { stripeAvailable } from '@/lib/payments/stripe';
+import { lerTaxas } from '@/lib/settings';
+import { TAXAS_PADRAO, brl, pctTexto } from '@/lib/taxas';
 
 export const dynamic = 'force-dynamic';
 export const metadata: Metadata = {
@@ -15,7 +17,7 @@ export const metadata: Metadata = {
 // disponível, liberação automática após a confirmação, Minhas compras, conversa com o vendedor,
 // reclamação no pedido, Central de Suporte). Prazos e regras de reembolso: os do produto e dos Termos.
 export default async function ComoFuncionaPage() {
-  const cartao = await stripeAvailable().catch(() => false);
+  const [cartao, t] = await Promise.all([stripeAvailable().catch(() => false), lerTaxas().catch(() => TAXAS_PADRAO)]);
   const pagamento = cartao ? 'Pix ou cartão' : 'Pix';
 
   return (
@@ -24,7 +26,7 @@ export default async function ComoFuncionaPage() {
       <main className="page v3-doc">
         <p className="slabel">Ajuda</p>
         <h1>Como funciona a compra</h1>
-        <p className="v3-doc-lead">O Comprei Barato é um marketplace de produtos digitais: criadores publicam seus produtos e você compra direto pelo site, com acesso pela sua conta.</p>
+        <p className="v3-doc-lead">O Comprei Barato é um marketplace gamer e de produtos digitais: vendedores anunciam contas, itens, moedas, gift cards, keys, serviços e produtos digitais, e você compra pelo site com o dinheiro protegido até a entrega.</p>
 
         <ol className="v3-etapas">
           <li>
@@ -38,14 +40,14 @@ export default async function ComoFuncionaPage() {
             <span className="v3-etapa-n" aria-hidden="true">2</span>
             <div>
               <h2>Entre na sua conta e pague com {pagamento}</h2>
-              <p>Ao tocar em <b>Comprar</b>, você entra na sua conta (ou cria uma) e vai para o checkout. O pagamento é feito por {cartao ? 'Pix ou cartão' : 'Pix, com QR Code ou código copia e cola'}.</p>
+              <p>Ao tocar em <b>Comprar</b>, você entra na sua conta (ou cria uma) e vai para o checkout. O pagamento é feito por {cartao ? 'Pix ou cartão' : 'Pix, com QR Code ou código copia e cola'}. O checkout mostra a taxa de serviço antes de pagar: {brl(t.compradorPix)} no Pix{cartao ? <> ou {pctTexto(t.compradorCartaoPct)} + {brl(t.compradorCartaoFixo)} no cartão</> : null}.</p>
             </div>
           </li>
           <li>
             <span className="v3-etapa-n" aria-hidden="true">3</span>
             <div>
               <h2>Receba em Minhas compras</h2>
-              <p>Assim que o pagamento é confirmado, o pedido é liberado automaticamente. O arquivo, o link, a chave ou as instruções de acesso ficam na página do pedido, em <Link href="/minhas-compras">Minhas compras</Link>. Enquanto a confirmação não chega, a página do pedido se atualiza sozinha.</p>
+              <p>Gift cards, keys, códigos, arquivos e links saem automaticamente assim que o pagamento é confirmado, na página do pedido em <Link href="/minhas-compras">Minhas compras</Link>. Contas, itens, moedas e serviços são entregues pelo vendedor no chat do pedido. Recebeu uma conta? Troque e-mail, senha e recuperação na hora.</p>
             </div>
           </li>
           <li>
@@ -61,6 +63,7 @@ export default async function ComoFuncionaPage() {
           <h2 id="cf-problema"><Icon name="alert" size={20} />Teve algum problema?</h2>
           <ul>
             <li>Na página do pedido, converse com o vendedor ou use <b>Abrir reclamação</b>. Enquanto a reclamação estiver aberta, o pagamento fica retido com a plataforma.</li>
+            <li>O vendedor só recebe depois do prazo de liberação ({t.liberaContaDias} dias para contas de jogo, {t.liberaPadraoDias} dias para os demais), contado da entrega. Se algo der errado nesse tempo, o dinheiro ainda está com a gente.</li>
             <li>Você pode pedir reembolso dentro do prazo de garantia informado na página do produto, conforme os <Link href="/termos">Termos de uso</Link>.</li>
             <li>Para qualquer outra dúvida, fale com a <Link href="/suporte">Central de Suporte</Link>. Com a conta, você acompanha seus chamados em <Link href="/suporte/meus-chamados">Meus chamados</Link>.</li>
           </ul>

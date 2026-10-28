@@ -166,6 +166,7 @@ section.nz{padding:56px 0 0}
 .pc:hover .top .cov,.pc:hover .top>span[aria-hidden]:not(.cov){transform:scale(1.06)}
 .pc .badge{display:inline-flex;align-items:center;gap:4px;position:absolute;top:12px;left:12px;font-size:12px;font-weight:900;padding:5px 11px;border-radius:999px;background:var(--text);color:#fff;z-index:2}
 .pc .badge.off{left:12px;right:auto;top:auto;bottom:12px;background:var(--orange);color:var(--text)}
+.pc .badge.topo{background:linear-gradient(135deg,#FF6B00,#FFB067);color:#16162A}
 .pc .body{padding:16px 18px 18px;display:flex;flex-direction:column;gap:7px;flex:1}
 .pc .vend{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--sub);font-weight:800}
 .pc .tit{font-family:'Outfit';font-weight:700;font-size:16px;line-height:1.3;min-height:42px;color:var(--text);transition:color .2s}

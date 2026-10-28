@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import Icon from '@/components/Icon';
-import { linkWhatsapp, mensagemDoProdutor, TAXA_FUNDADOR, MESES_FUNDADOR } from '@/lib/recrutamento';
+import { linkWhatsapp, mensagemDoProdutor } from '@/lib/recrutamento';
 import { iniciarPixel, evento, novoEventId } from '../pixel';
 
 // Página de obrigado: o produtor já pode chamar a equipe no WhatsApp (lead quente responde em minutos).
@@ -31,7 +31,7 @@ export default function Obrigado({ pixel, whatsapp }: { pixel: string; whatsapp:
         <a href="/" className="ob-logo"><img src="/logo.png" alt="Comprei Barato" width={150} height={75} /></a>
         <div className="ob-ok"><Icon name="check" size={34} /></div>
         <h1>{primeiro ? `${primeiro}, recebemos seu cadastro!` : 'Recebemos seu cadastro!'}</h1>
-        <p>Sua vaga de <b>produtor fundador</b> ({TAXA_FUNDADOR}% por venda por {MESES_FUNDADOR} meses) está reservada para análise. A nossa equipe vai te chamar no WhatsApp.</p>
+        <p>Seu cadastro de <b>lojista</b> está em análise. A nossa equipe vai te chamar no WhatsApp para liberar seus primeiros anúncios.</p>
         {whatsapp ? (
           <>
             <p className="ob-forte">Quer adiantar? Chame a gente agora:</p>

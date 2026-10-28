@@ -4,6 +4,8 @@
 // - Vendedor oculto aplicado antes de chegar à página (produtosPublicos).
 // - Ofertas externas: só ativas e visíveis pela configuração do admin (ofertasAtivas + visiveis),
 //   completando a ÚLTIMA página, depois dos nativos e com o teto de participação do mix.
+import { lerTaxas } from '@/lib/settings';
+import { pesoDoPlano } from '@/lib/taxas';
 import { Suspense } from 'react';
 import Link from 'next/link';
 import Filters from './Filters';
@@ -30,7 +32,7 @@ import {
 const POR_PAGINA = 24;
 // Ordenações calculadas no servidor da aplicação (relevância e preço efetivo) usam até este número de candidatos.
 const LIMITE_MEMORIA = 240;
-const COLUNAS_LEVES = 'id, titulo, categoria, preco, preco_promo, vendas, nota, created_at';
+const COLUNAS_LEVES = 'id, titulo, categoria, preco, preco_promo, vendas, nota, created_at, plano, jogo';
 
 export type ParamsCatalogo = { q?: string; cat?: string; min?: string; max?: string; sort?: string; page?: string; aviso?: string };
 
@@ -38,6 +40,7 @@ const money = (v: number) => 'R$ ' + (Number.isInteger(v) ? String(v) : v.toFixe
 
 export default async function Catalogo({ searchParams, catFixa = null }: { searchParams: ParamsCatalogo; catFixa?: Categoria | null }) {
   const supabase = createClient();
+  const cfgTaxas = await lerTaxas();
   const basePath = catFixa ? `/categoria/${catFixa.slug}` : '/produtos';
 
   const termo = String(searchParams.q ?? '').trim().slice(0, 100);
@@ -72,7 +75,13 @@ export default async function Catalogo({ searchParams, catFixa = null }: { searc
     total = count ?? lista.length;
     if (total <= LIMITE_MEMORIA) {
       ordenadoNoBanco = false;
-      const ids = ordenarEmMemoria(lista, ordem, termo, palavras, catsTermo).slice(de, de + POR_PAGINA).map((x) => x.id);
+      // Planos pagos ligados: na relevância, Topo e Destaque vêm primeiro (a ordem por preço continua pura)
+      let ordenados = ordenarEmMemoria(lista, ordem, termo, palavras, catsTermo);
+      if (cfgTaxas.planosPagosAtivos && ordem === 'relevancia') {
+        const peso = new Map(ordenados.map((x, i) => [x.id, i]));
+        ordenados = [...ordenados].sort((a: any, b: any) => pesoDoPlano(b.plano, cfgTaxas) - pesoDoPlano(a.plano, cfgTaxas) || peso.get(a.id)! - peso.get(b.id)!);
+      }
+      const ids = ordenados.slice(de, de + POR_PAGINA).map((x) => x.id);
       if (ids.length) {
         const { data } = await supabase.from('products').select(PRODUTO_CARD).eq('status', 'ativo').in('id', ids);
         const porId = new Map(((data ?? []) as unknown as Product[]).map((p) => [p.id, p]));
@@ -83,7 +92,10 @@ export default async function Catalogo({ searchParams, catFixa = null }: { searc
   if (ordenadoNoBanco) {
     // Muitos resultados (ou ordenação simples): o banco ordena e pagina.
     const col = ordem === 'novos' ? 'created_at' : ordem === 'menor' || ordem === 'maior' ? 'preco' : 'vendas';
-    let q = consulta(PRODUTO_CARD).order(col, { ascending: ordem === 'menor' });
+    let q = consulta(PRODUTO_CARD);
+    // Planos pagos ligados: Topo > Destaque > Básico (ordem alfabética invertida do plano), depois reputação e vendas
+    if (cfgTaxas.planosPagosAtivos && col === 'vendas') q = q.order('plano', { ascending: false });
+    q = q.order(col, { ascending: ordem === 'menor' });
     if (col === 'vendas') q = q.order('nota', { ascending: false });
     const { data, count } = await q.order('id', { ascending: true }).range(de, de + POR_PAGINA - 1);
     produtos = produtosPublicos(data as unknown as Product[] | null);

@@ -18,6 +18,9 @@ export interface Product {
   capa_url?: string | null;
   imagens?: string[] | null; // galeria (a 1ª é a capa)
   destaque_ate?: string | null;
+  plano?: 'basico' | 'destaque' | 'topo' | null;       // SQL 21
+  tipo_anuncio?: string | null;                          // conta, item, moeda, giftcard, servico, digital
+  jogo?: string | null;
   checkout_config?: any;
   bump_product_id?: string | null;
   bump_valor?: number | null;

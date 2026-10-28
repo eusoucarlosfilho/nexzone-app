@@ -1,38 +1,49 @@
 import Nav from '@/components/Nav';
 import Link from 'next/link';
 import Icon from '@/components/Icon';
+import { lerTaxas } from '@/lib/settings';
+import PlanosVendedor from '@/components/PlanosVendedor';
+import { TAXAS_PADRAO } from '@/lib/taxas';
 
 export const metadata = {
-  title: 'Venda no Comprei Barato — Crie sua loja grátis',
-  description: 'Venda seus produtos digitais no Comprei Barato. Só 3% por venda, sem mensalidade, entrega automática e recebimento via Pix.',
+  title: 'Venda no Comprei Barato — contas, itens, gift cards e produtos digitais',
+  description: 'Anuncie grátis contas, skins, moedas, gift cards, keys, serviços de jogos e produtos digitais. Dinheiro do cliente protegido até a entrega, Pix e cartão, saque no Pix.',
+  alternates: { canonical: '/seja-vendedor' },
 };
+export const dynamic = 'force-dynamic';
 
-const BENEFICIOS = [
-  ['dollar', 'Comissão justa', 'Só 3% por venda. Sem mensalidade, sem taxa escondida.'],
-  ['bolt', 'Entrega imediata', 'O comprador recebe na hora em que o Pix é confirmado.'],
-  ['store', 'Loja com a sua cara', 'Logo, banner, cor e uma página de loja com link próprio.'],
-  ['rocket', 'Destaque pago', 'Apareça no carrossel da página inicial pelo período que você escolher.'],
-  ['lock', 'Pagamento via Pix', 'Aprovação na hora e taxa baixa — o dinheiro entra rápido.'],
-  ['star', 'Prova social real', 'Avaliações de verdade dos seus compradores, sem inventar.'],
+const beneficios = (taxa: string) => [
+  ['dollar', 'Anúncio grátis', `Taxa a partir de ${taxa}% só quando vende. Sem mensalidade, sem taxa escondida.`],
+  ['shield', 'Dinheiro protegido', 'O cliente paga no site e o valor fica retido até o fim da garantia. Menos golpe, mais confiança para comprar de você.'],
+  ['bolt', 'Entrega automática', 'Gift cards, keys e códigos são liberados sozinhos quando o pagamento cai, com controle de estoque.'],
+  ['chat', 'Chat do pedido', 'Combine a entrega de contas e serviços com o comprador dentro do pedido, com tudo registrado.'],
+  ['star', 'Reputação real', 'Avaliações só de quem comprou. Dentro de cada plano, quem tem melhor reputação e mais vendas aparece primeiro.'],
+  ['lock', 'Pix e cartão', 'Pagamento aprovado na hora e saque direto na sua chave Pix.'],
 ];
 
 const PASSOS = [
   ['1', 'Crie sua conta e sua loja', 'Cadastro grátis em segundos. Personalize com logo e banner.'],
-  ['2', 'Cadastre seu produto', 'Arquivo, link, chave ou acesso. Defina preço e garantia.'],
-  ['3', 'Divulgue seu link', 'Compartilhe no WhatsApp, Instagram e anúncios com um clique.'],
-  ['4', 'Receba via Pix', 'Acompanhe as vendas no painel e saque para sua chave Pix.'],
+  ['2', 'Anuncie', 'Conta, item, moeda, gift card, serviço ou produto digital. Defina preço, estoque e forma de entrega.'],
+  ['3', 'Venda com segurança', 'O comprador paga no site; você entrega pelo chat do pedido ou automaticamente.'],
+  ['4', 'Receba via Pix', 'Depois do prazo de liberação o valor entra no seu saldo. 1 saque grátis por semana na sua chave Pix.'],
 ];
 
-const FAQ = [
-  ['Quanto custa para vender?', 'É grátis criar sua loja e cadastrar produtos. Você só paga 3% quando realmente vende. Sem mensalidade.'],
-  ['Quando e como eu recebo?', 'Após a confirmação do Pix, o valor entra no seu saldo (respeitando um período de garantia) e você solicita o saque para sua chave Pix.'],
-  ['Que produtos posso vender?', 'Ebooks, planilhas, templates, prompts, cursos, presets, automações — qualquer produto digital de entrega imediata, desde que você tenha os direitos sobre ele.'],
-  ['Como o produto é entregue?', 'Você escolhe: upload de arquivo (liberado após o pagamento), link de acesso, chave/código ou instruções.'],
-  ['Preciso de CNPJ para começar?', 'Você consegue começar a vender rapidamente. Conforme seu volume crescer, recomendamos formalizar com CNPJ para escalar com segurança.'],
-  ['Tem mensalidade ou fidelidade?', 'Não. Zero mensalidade e zero fidelidade. Você só é cobrado nos 3% por venda concluída.'],
+const faq = (taxa: string) => [
+  ['Quanto custa para vender?', `Criar a loja e anunciar é grátis. No plano Básico você paga ${taxa}% por venda concluída. Os planos Destaque e Topo cobram um pouco mais em troca de mais visibilidade. Sem mensalidade.`],
+  ['O comprador paga alguma taxa?', 'Sim, uma taxa de serviço pequena do meio de pagamento (Pix ou cartão), mostrada no checkout antes de pagar. Ela não é descontada do seu valor.'],
+  ['O que posso vender?', 'Contas, skins, itens, moedas, gift cards, keys, recargas, serviços (boost, coach) e produtos digitais como ebooks, cursos e planilhas. Só o que você tem direito de vender: nada de cheats, contas roubadas ou assinaturas compartilhadas.'],
+  ['Quando e como eu recebo?', 'Depois da entrega, o valor fica retido pelo prazo de liberação (contas de jogo seguram mais, por causa do risco de recuperação; cartão segura mais por causa de estorno). Depois entra no seu saldo e você saca para sua chave Pix.'],
+  ['Posso trocar de plano depois?', 'Pode, a qualquer momento, no painel Meus anúncios. Trocar de plano não manda o anúncio para revisão.'],
+  ['Como o produto é entregue?', 'Você escolhe: código ou chave (liberado automaticamente), arquivo, link de acesso ou entrega pelo chat do pedido (contas e serviços).'],
+  ['Preciso de CNPJ para começar?', 'Não. Dá para vender como pessoa física. Antes do primeiro saque fazemos uma verificação de identidade rápida.'],
+  ['Tem mensalidade ou fidelidade?', 'Não. Zero mensalidade e zero fidelidade. Você só paga a taxa do plano quando a venda é concluída.'],
 ];
 
-export default function SejaVendedorPage() {
+export default async function SejaVendedorPage() {
+  const cfg = await lerTaxas().catch(() => TAXAS_PADRAO);
+  const taxa = String(cfg.planoBasico).replace('.', ',');
+  const BENEFICIOS = beneficios(taxa);
+  const FAQ = faq(taxa);
   return (
     <>
       <Nav />
@@ -65,9 +76,9 @@ export default function SejaVendedorPage() {
       ` }} />
 
       <section className="sv-hero">
-        <div className="eye">Para criadores e infoprodutores</div>
-        <h1>Venda seus produtos digitais no Comprei Barato.</h1>
-        <p>Fique com <strong style={{ whiteSpace: 'nowrap' }}>97% de cada venda</strong>. Crie sua loja grátis, entregue automaticamente na hora do pagamento e receba via Pix. Sem mensalidade.</p>
+        <div className="eye">Para lojistas gamer e criadores</div>
+        <h1>Venda contas, itens, gift cards e produtos digitais no Comprei Barato.</h1>
+        <p>Anuncie grátis, venda com o dinheiro do cliente protegido até a entrega e receba via Pix. Taxa a partir de <strong style={{ whiteSpace: 'nowrap' }}>{taxa}% por venda</strong>, sem mensalidade.</p>
         <div className="sv-cta">
           <Link href="/login" className="btn btn-pri btn-lg">Criar minha loja grátis</Link>
           <Link href="/produtos" className="btn btn-lg" style={{ background: 'rgba(255,255,255,.1)', color: '#fff', border: '1.5px solid rgba(255,255,255,.3)' }}>Ver o marketplace</Link>
@@ -76,12 +87,18 @@ export default function SejaVendedorPage() {
 
       <section className="sv-sec">
         <h2 className="sv-h2">Por que vender no Comprei Barato</h2>
-        <p className="sv-sub">Condições simples e transparentes para quem cria produto digital.</p>
+        <p className="sv-sub">Condições simples e transparentes para quem vende no mundo gamer e digital.</p>
         <div className="sv-grid">
           {BENEFICIOS.map(([ic, t, d]) => (
             <div className="sv-card" key={t}><div className="ic"><Icon name={ic} size={28} /></div><h3>{t}</h3><p>{d}</p></div>
           ))}
         </div>
+      </section>
+
+      <section className="sv-sec" style={{ paddingTop: 0 }} id="planos">
+        <h2 className="sv-h2">Planos por anúncio</h2>
+        <p className="sv-sub">Você escolhe o plano em cada anúncio. Mais visibilidade, taxa um pouco maior. Só paga quando vende.</p>
+        <PlanosVendedor cfg={cfg} />
       </section>
 
       <section className="sv-sec" style={{ paddingTop: 0 }}>
@@ -106,7 +123,7 @@ export default function SejaVendedorPage() {
 
       <div className="sv-band">
         <h2>Pronto para vender?</h2>
-        <p style={{ opacity: .93, marginBottom: 22 }}>Crie sua loja grátis agora e publique seus produtos hoje mesmo.</p>
+        <p style={{ opacity: .93, marginBottom: 22 }}>Crie sua loja grátis agora e publique seus anúncios hoje mesmo.</p>
         <Link href="/login" className="btn btn-pri btn-lg">Começar a vender agora</Link>
       </div>
     </>

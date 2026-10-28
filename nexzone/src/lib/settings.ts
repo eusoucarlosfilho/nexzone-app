@@ -1,5 +1,6 @@
 import { createAdminClient } from './supabase/server';
 import { PLANOS_DESTAQUE } from './boost';
+import { lerConfigTaxas, TAXAS_PADRAO, type ConfigTaxas } from './taxas';
 
 export type BoostPlan = { dias: number; valor: number; label: string };
 export type Settings = {
@@ -26,6 +27,8 @@ export type Settings = {
   ps_min_vendas: number;
   ps_mostrar_ultimas_vendas: boolean;
   ps_selos: boolean;
+  // Modelo de taxas (planos do vendedor + taxa de serviço do comprador + liberação + saque)
+  taxas: ConfigTaxas;
 };
 
 const DEFAULTS: Settings = {
@@ -51,6 +54,7 @@ const DEFAULTS: Settings = {
   ps_min_vendas: 50,
   ps_mostrar_ultimas_vendas: false,
   ps_selos: true,
+  taxas: TAXAS_PADRAO,
 };
 
 function num(v: any, def: number) {
@@ -88,6 +92,7 @@ export async function getSettings(): Promise<Settings> {
       ps_min_vendas: num(map.ps_min_vendas, DEFAULTS.ps_min_vendas),
       ps_mostrar_ultimas_vendas: map.ps_mostrar_ultimas_vendas === true,
       ps_selos: map.ps_selos !== false,
+      taxas: lerConfigTaxas(map),
     };
   } catch {
     return DEFAULTS;
@@ -103,5 +108,16 @@ export async function cbPointsAtivo(): Promise<boolean> {
     return (data as any)?.value === true;
   } catch {
     return false;
+  }
+}
+
+/** Só a configuração de taxas (checkout, saldo, saque, vitrine). Sem o banco: padrões. */
+export async function lerTaxas(): Promise<ConfigTaxas> {
+  try {
+    const admin = createAdminClient();
+    const { data } = await admin.from('settings').select('key, value').in('key', ['plano_basico_pct', 'plano_destaque_pct', 'plano_topo_pct', 'planos_pagos_ativos', 'topo_vagas_categoria', 'taxa_comprador_pix', 'taxa_comprador_cartao_pct', 'taxa_comprador_cartao_fixo', 'liberacao_conta_dias', 'liberacao_padrao_dias', 'liberacao_cartao_dias', 'saque_extra_taxa']);
+    return lerConfigTaxas(Object.fromEntries(((data ?? []) as any[]).map((r) => [r.key, r.value])));
+  } catch {
+    return TAXAS_PADRAO;
   }
 }

@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server';
 import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { awardPoints } from '@/lib/points';
 import { getGateway } from '@/lib/payments/gateway';
-import { getSettings } from '@/lib/settings';
+import { lerTaxas } from '@/lib/settings';
+import { divisaoVendedor, taxaComprador, planoEfetivo } from '@/lib/taxas';
 import { listaDeBumps } from '@/lib/checkoutConfig';
 import { limparOrigem, limparCliques } from '@/lib/rastreioVenda';
 
@@ -18,7 +19,7 @@ export async function POST(req: Request) {
   const { data: product } = await supabase
     .from('products')
     // Colunas explícitas: conteúdo de entrega e arquivo nunca são lidos com a chave do usuário (SQL 12)
-    .select('id, titulo, preco, preco_promo, store_id, status, aceita_cupom, bumps, bump_product_id, bump_valor, stores(recipient_id, owner)')
+    .select('id, titulo, preco, preco_promo, store_id, status, aceita_cupom, bumps, bump_product_id, bump_valor, plano, stores(recipient_id, owner)')
     .eq('id', productId).eq('status', 'ativo').single();
   if (!product) return NextResponse.json({ error: 'produto indisponível' }, { status: 404 });
 
@@ -87,16 +88,19 @@ export async function POST(req: Request) {
   }
 
   const total = Math.max(0, +(totalBruto - descontoPontos).toFixed(2));
-  const feePercent = (await getSettings()).commission_percent;
-  const taxa = +(total * (feePercent / 100)).toFixed(2);
-  const valorVendedor = +(total - taxa).toFixed(2);
+  // Modelo de taxas (SQL 21): % do vendedor pelo plano do anúncio + taxa de serviço do comprador no Pix
+  const cfgTaxas = await lerTaxas();
+  const plano = planoEfetivo((product as any).plano, cfgTaxas);
+  const { pct: feePercent, taxa, valorVendedor } = divisaoVendedor(total, plano, cfgTaxas);
+  const taxaPix = taxaComprador('pix', total, cfgTaxas);
+  const valorPix = +(total + taxaPix).toFixed(2);
 
   // Sem cupom: reaproveita pedido pendente; com cupom: cria novo (evita inconsistência de valor)
   if (!cupomCodigo && !itensBump.length && !descontoPontos) {
     const { data: existing } = await supabase.from('orders')
       .select('id, pix_code')
       .eq('comprador', user.id).eq('product_id', product.id).eq('status', 'pendente')
-      .is('bump_product_id', null).eq('total', total) // nunca reaproveita um pedido com bump ou outro valor
+      .is('bump_product_id', null).eq('total', total).eq('taxa_comprador_pix', taxaPix) // nunca reaproveita um pedido com bump ou outro valor/taxa
       .order('created_at', { ascending: false }).limit(1).maybeSingle();
     if (existing && (existing as any).pix_code) return NextResponse.json({ orderId: existing.id });
   }
@@ -106,6 +110,7 @@ export async function POST(req: Request) {
   const linhaPedido: any = {
     comprador: user.id, comprador_email: user.email ?? null, product_id: product.id, store_id: product.store_id,
     total, taxa, valor_vendedor: valorVendedor, status: 'pendente', cupom: cupomCodigo, desconto, ...bumpFields,
+    plano, pct_vendedor: feePercent, taxa_comprador_pix: taxaPix,
   };
   const adminIns = createAdminClient();
   let { data: order, error } = await adminIns.from('orders').insert(origem ? { ...linhaPedido, origem } : linhaPedido).select().single();
@@ -125,7 +130,7 @@ export async function POST(req: Request) {
   const { data: me } = await supabase.from('profiles').select('nome').eq('id', user.id).maybeSingle();
   const gw = await getGateway();
   const pay = await gw.createPixPayment({
-    orderId: order.id, amount: total,
+    orderId: order.id, amount: valorPix, // pedido + taxa de serviço do Pix (o webhook confere se cobre o total)
     sellerRecipientId: (product as any).stores?.recipient_id ?? null,
     feePercent, description: product.titulo, payerEmail: user.email ?? undefined,
     payerName: (me as any)?.nome ?? undefined, payerDocument: cpf ?? undefined,

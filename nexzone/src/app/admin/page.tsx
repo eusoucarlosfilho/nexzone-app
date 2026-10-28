@@ -15,12 +15,18 @@ import type { VendaDash, ExtraDash } from '@/lib/dashboardVendas';
 async function pedidosDoDashboard(admin: any): Promise<{ vendas: VendaDash[]; temForma: boolean }> {
   const base = 'id, status, total, taxa, valor_vendedor, created_at, entregue_em, store_id, product_id, comprador';
   let temForma = true;
+  let temTaxaComprador = true; // SQL 21
   const linhas: any[] = [];
+  const colunas = () => base + (temForma ? ', forma_pagamento' : '') + (temTaxaComprador ? ', taxa_comprador_pix, taxa_comprador_cartao' : '');
   for (let de = 0; de < 200000; de += 1000) {
-    let { data, error } = await admin.from('orders').select(temForma ? `${base}, forma_pagamento` : base).order('created_at', { ascending: true }).range(de, de + 999);
+    let { data, error } = await admin.from('orders').select(colunas()).order('created_at', { ascending: true }).range(de, de + 999);
+    if (error && temTaxaComprador && /taxa_comprador/i.test(error.message || '')) {
+      temTaxaComprador = false;
+      ({ data, error } = await admin.from('orders').select(colunas()).order('created_at', { ascending: true }).range(de, de + 999));
+    }
     if (error && temForma && /forma_pagamento/i.test(error.message || '')) {
       temForma = false;
-      ({ data, error } = await admin.from('orders').select(base).order('created_at', { ascending: true }).range(de, de + 999));
+      ({ data, error } = await admin.from('orders').select(colunas()).order('created_at', { ascending: true }).range(de, de + 999));
     }
     if (error || !data) break;
     linhas.push(...data);
@@ -30,7 +36,9 @@ async function pedidosDoDashboard(admin: any): Promise<{ vendas: VendaDash[]; te
   return {
     temForma,
     vendas: linhas.map((o) => ({
-      i: o.id, s: o.status, v: n(o.total), t: n(o.taxa), r: n(o.valor_vendedor), c: o.created_at, p: o.entregue_em ?? null,
+      i: o.id, s: o.status, v: n(o.total),
+      // receita da plataforma = taxa do plano do vendedor + taxa de serviço que o comprador pagou no método usado
+      t: n(Number(o.taxa || 0) + (o.forma_pagamento === 'cartao' ? Number(o.taxa_comprador_cartao || 0) : o.forma_pagamento === 'pix' ? Number(o.taxa_comprador_pix || 0) : 0)), r: n(o.valor_vendedor), c: o.created_at, p: o.entregue_em ?? null,
       l: o.store_id, d: o.product_id, u: o.comprador, f: o.forma_pagamento === 'pix' || o.forma_pagamento === 'cartao' ? o.forma_pagamento : null,
     })),
   };
@@ -104,6 +112,9 @@ export default async function AdminPage() {
       // Correção pedida pela equipe (SQL 14): a fila mostra o checklist para conferir item por item
       const modPor: Record<string, any> = Object.fromEntries(((fotosRows ?? []) as any[]).filter((r) => r.moderacao).map((r) => [r.id, { estado: r.moderacao, itens: r.moderacao_itens ?? [], texto: r.moderacao_texto ?? '', em: r.moderacao_em }]));
       products.forEach((p) => { if (modPor[p.id]) p.moderacaoPendente = modPor[p.id]; });
+      // Modelo gamer (SQL 21): tipo do anúncio e jogo, para o revisor conferir
+      const tipoPor: Record<string, any> = Object.fromEntries(((fotosRows ?? []) as any[]).map((r) => [r.id, { tipo: r.tipo_anuncio ?? null, jogo: r.jogo ?? null }]));
+      products.forEach((p) => { if (tipoPor[p.id]) { p.tipo_anuncio = tipoPor[p.id].tipo; p.jogo = tipoPor[p.id].jogo; } });
     }
   } catch { /* sem fotos: a fila continua funcionando */ }
   // O que mudou em cada anúncio da fila (SQL 09). Sem a tabela: alteracoes = null e a fila segue igual.

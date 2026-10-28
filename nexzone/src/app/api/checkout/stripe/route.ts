@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { stripeAvailable, createCheckoutSession, STRIPE_MIN_BRL } from '@/lib/payments/stripe';
+import { lerTaxas } from '@/lib/settings';
+import { taxaComprador } from '@/lib/taxas';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -36,7 +38,11 @@ export async function POST(req: Request) {
   if (!Number.isFinite(total) || total < STRIPE_MIN_BRL) {
     return NextResponse.json({ error: 'Valor abaixo do mínimo para cartão. Pague com Pix.' }, { status: 400 });
   }
-  const amountCents = Math.round(total * 100);
+  // Taxa de serviço do cartão (paga pelo comprador, mostrada antes do pagamento). O webhook confere se cobre o total.
+  const taxaCartao = taxaComprador('cartao', total, await lerTaxas());
+  const amountCents = Math.round((total + taxaCartao) * 100);
+  const { error: eTaxa } = await admin.from('orders').update({ taxa_comprador_cartao: taxaCartao }).eq('id', orderId).eq('status', 'pendente');
+  if (eTaxa && !/taxa_comprador/i.test(eTaxa.message || '')) console.error('[stripe] taxa do comprador:', eTaxa.message);
 
   const site = (process.env.NEXT_PUBLIC_SITE_URL || new URL(req.url).origin).replace(/\/+$/, '');
   const titulo = (order as any).products?.titulo || 'Produto digital';

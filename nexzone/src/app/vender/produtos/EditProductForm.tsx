@@ -7,6 +7,8 @@ import { galeriaDe, MAX_FOTOS } from '@/lib/galeria';
 import { NOMES_CATEGORIAS, AVISO_JOGOS, ehJogos } from '@/lib/categorias';
 import Icon from '@/components/Icon';
 import EditorMensagem from './EditorMensagem';
+import { CamposTipoJogo } from './CamposAnuncio';
+import { tipoValido, TIPOS_ANUNCIO } from '@/lib/taxas';
 
 const CATS = NOMES_CATEGORIAS;
 
@@ -27,6 +29,7 @@ export default function EditProductForm({ product, userId, foco, onSaved, onCanc
     garantia_dias: p.garantia_dias || 7, conteudo_entrega: p.conteudo_entrega || '', emoji: p.emoji || '📦',
     arquivo_path: p.arquivo_path || '', arquivo_nome: p.arquivo_nome || '', imagens: galeriaDe(p),
     usa_mensagem_padrao: p.usa_mensagem_padrao === true,
+    tipo_anuncio: tipoValido(p.tipo_anuncio), jogo: p.jogo || '',
   });
   const [busy, setBusy] = useState(false);
   const [erros, setErros] = useState<Record<string, string>>({});
@@ -42,6 +45,7 @@ export default function EditProductForm({ product, userId, foco, onSaved, onCanc
     const e: Record<string, string> = {};
     const preco = Number(form.preco);
     if (!String(form.titulo || '').trim()) e.titulo = 'Informe o título.';
+    if (form.tipo_anuncio !== 'digital' && !String(form.jogo || '').trim()) e.jogo = 'Informe o jogo.';
     if (!preco || preco <= 0) e.preco = 'Informe um preço maior que zero.';
     if (form.preco_promo !== '' && form.preco_promo != null) {
       const promo = Number(form.preco_promo);
@@ -78,6 +82,13 @@ export default function EditProductForm({ product, userId, foco, onSaved, onCanc
 
   return (
     <div className="pm-edit" aria-label={`Editar ${p.titulo}`}>
+      <div className="ui-sec">
+        <h3><Icon name="grid" size={16} /> Tipo do anúncio</h3>
+        <CamposTipoJogo tipo={form.tipo_anuncio} jogo={form.jogo} onJogo={(j) => setForm((f: any) => ({ ...f, jogo: j }))}
+          onTipo={(t) => setForm((f: any) => ({ ...f, tipo_anuncio: t, tipo_entrega: TIPOS_ANUNCIO.find((x) => x.id === t)?.entrega || f.tipo_entrega }))} />
+        {err('jogo')}
+      </div>
+
       <div className="ui-sec">
         <h3><Icon name="edit" size={16} /> Informações do anúncio</h3>
         <div className="fg"><label htmlFor={`t-${p.id}`}>Título<span className="ui-req">*</span></label>

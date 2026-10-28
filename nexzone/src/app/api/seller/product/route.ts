@@ -4,6 +4,8 @@ import { validarImagens, galeriaDe } from '@/lib/galeria';
 import { lerEstoque } from '@/lib/estoque';
 import { mensagemPadraoDaLoja } from '@/lib/mensagemPadrao';
 import { arquivoPermitido } from '@/lib/arquivoEntrega';
+import { lerTaxas } from '@/lib/settings';
+import { tipoValido, planoValido } from '@/lib/taxas';
 
 async function ownsProduct(supabase: any, userId: string, productId: string) {
   const { data } = await supabase
@@ -19,6 +21,7 @@ async function ownsProduct(supabase: any, userId: string, productId: string) {
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const COLUNAS_EDICAO =
   'id, titulo, descricao, categoria, preco, preco_promo, tipo_entrega, conteudo_entrega, garantia_dias, status, emoji, capa_url, imagens, arquivo_path, arquivo_nome, destaque_ate, vendas, nota, created_at';
+const COLUNAS_MODELO = 'tipo_anuncio, jogo, plano'; // SQL 21 (lidas à parte: sem o SQL o resto continua funcionando)
 
 export async function GET(req: Request) {
   const supabase = createClient();
@@ -34,6 +37,8 @@ export async function GET(req: Request) {
   // Mensagem padrão (SQL 10): lida à parte para não quebrar a edição se a coluna ainda não existir
   const { data: mp, error: mpErr } = await admin.from('products').select('usa_mensagem_padrao').eq('id', id).maybeSingle();
   (data as any).usa_mensagem_padrao = !mpErr && (mp as any)?.usa_mensagem_padrao === true;
+  const { data: md, error: mdErr } = await admin.from('products').select(COLUNAS_MODELO).eq('id', id).maybeSingle();
+  if (!mdErr && md) Object.assign(data as any, md);
   return NextResponse.json({ produto: data }, { headers: { 'Cache-Control': 'no-store' } });
 }
 
@@ -72,6 +77,19 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: semColuna ? 'O controle de estoque ainda não foi ativado no banco (SQL 07).' : 'falha ao salvar o estoque' }, { status: 500 });
     }
     return NextResponse.json({ ok: true, estoque: (upd as any)?.estoque ?? null, status: (upd as any)?.status, pausado_sem_estoque: (upd as any)?.pausado_sem_estoque === true });
+  }
+
+  // Plano de visibilidade (SQL 21): troca direta, SEM voltar para revisão. Topo respeita as vagas da categoria.
+  if (action === 'plano') {
+    const cfg = await lerTaxas();
+    const plano = planoValido(body.plano);
+    if (plano !== 'basico' && !cfg.planosPagosAtivos) return NextResponse.json({ error: 'Os planos Destaque e Topo ainda não foram liberados. No lançamento todo anúncio fica no Básico.' }, { status: 400 });
+    const { error } = await supabase.from('products').update({ plano }).eq('id', id);
+    if (error) {
+      if (/topo_sem_vaga/.test(error.message || '')) return NextResponse.json({ error: `As ${cfg.topoVagas} vagas do plano Topo desta categoria estão ocupadas. Tente o Destaque ou volte mais tarde.` }, { status: 409 });
+      return NextResponse.json({ error: /plano/.test(error.message || '') ? 'Os planos ainda não foram ativados no banco (SQL 21).' : 'falha ao trocar o plano' }, { status: 500 });
+    }
+    return NextResponse.json({ ok: true, plano });
   }
 
   let patch: any = {};
@@ -115,7 +133,14 @@ export async function PATCH(req: Request) {
     if (padrao) patch.conteudo_entrega = padrao;
   }
 
-  const { error } = await supabase.from('products').update(patch).eq('id', id);
+  // Tipo do anúncio e jogo (SQL 21) vão na mesma gravação da edição; sem as colunas, salva o resto igual
+  const editando = action !== 'pausar' && action !== 'reativar';
+  const tipoAnuncio = tipoValido(body.tipo_anuncio);
+  const jogo = String(body.jogo || '').replace(/\s+/g, ' ').trim().slice(0, 60) || null;
+  if (editando && 'tipo_anuncio' in body && tipoAnuncio !== 'digital' && !jogo) return NextResponse.json({ error: 'Informe o jogo do anúncio.' }, { status: 400 });
+  const patchModelo = editando && 'tipo_anuncio' in body ? { ...patch, tipo_anuncio: tipoAnuncio, jogo } : patch;
+  let { error } = await supabase.from('products').update(patchModelo).eq('id', id);
+  if (error && patchModelo !== patch && /tipo_anuncio|jogo/.test(error.message || '')) ({ error } = await supabase.from('products').update(patch).eq('id', id));
   if (error) return NextResponse.json({ error: 'falha ao salvar' }, { status: 500 });
   if (querPadrao) {
     const { error: eFlag } = await supabase.from('products').update({ usa_mensagem_padrao: body.usa_mensagem_padrao === true }).eq('id', id);

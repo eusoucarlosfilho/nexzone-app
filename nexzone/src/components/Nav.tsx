@@ -9,15 +9,15 @@ import LinkRastreado from './v3/LinkRastreado';
 import NotificacoesSino from './NotificacoesSino';
 
 // Leitura leve de duas chaves públicas da tabela settings (service_role, só no servidor):
-// CB Points ligado? e a comissão real (a faixa do topo não pode prometer um número diferente do cobrado).
+// CB Points ligado? e a taxa do plano Básico (a faixa do topo não pode prometer um número diferente do cobrado).
 async function configNav(): Promise<{ cbAtivo: boolean; comissao: number }> {
   try {
-    const { data } = await createAdminClient().from('settings').select('key, value').in('key', ['cb_points_ativo', 'commission_percent']);
+    const { data } = await createAdminClient().from('settings').select('key, value').in('key', ['cb_points_ativo', 'plano_basico_pct']);
     const m: Record<string, any> = Object.fromEntries(((data ?? []) as any[]).map((r) => [r.key, r.value]));
-    const c = Number(m.commission_percent);
-    return { cbAtivo: m.cb_points_ativo === true, comissao: Number.isFinite(c) && c >= 0 ? c : 3 };
+    const c = Number(m.plano_basico_pct);
+    return { cbAtivo: m.cb_points_ativo === true || m.cb_points_ativo === 'true', comissao: Number.isFinite(c) && c >= 0 && m.plano_basico_pct != null ? c : 5 };
   } catch {
-    return { cbAtivo: false, comissao: 3 };
+    return { cbAtivo: false, comissao: 5 };
   }
 }
 
@@ -33,7 +33,7 @@ export default async function Nav() {
     user ? supabase.from('stores').select('id').eq('owner', user.id).maybeSingle() : Promise.resolve({ data: null }),
     configNav(),
   ]);
-  const taxa = `${String(comissao).replace('.', ',')}% por venda`;
+  const taxa = `${String(comissao).replace('.', ',')}%`;
   const temLoja = !!(lojaRes as any)?.data;
   // Categorias da fonte única (src/lib/categorias.ts), na ordem definida
   const cats: NavCat[] = CATEGORIAS.map((c) => ({ nome: c.nome, slug: c.slug }));
@@ -42,8 +42,8 @@ export default async function Nav() {
     <>
       {!temLoja && (
         <div className="topbar">
-          <span className="tb-long">Crie sua loja grátis e pague só <span className="g">{taxa}</span>. Sem mensalidade.</span>
-          <span className="tb-short">Loja grátis · só <span className="g">{taxa}</span></span>
+          <span className="tb-long">Venda contas, itens, moedas e gift cards. Anuncie grátis e pague a partir de <span className="g">{taxa}</span> só quando vender.</span>
+          <span className="tb-short">Anuncie grátis · a partir de <span className="g">{taxa}</span></span>
           <LinkRastreado href="/seja-vendedor" evento="vendedor_cta" dados={{ origem: 'nav' }}>Quero vender →</LinkRastreado>
         </div>
       )}

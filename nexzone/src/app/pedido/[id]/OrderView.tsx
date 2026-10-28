@@ -29,6 +29,8 @@ type Props = {
   categoria?: string | null;
   capa_url?: string | null;
   total: number;
+  taxaPix?: number;                  // taxa de serviço do Pix (já somada no código Pix)
+  taxaCartao?: number;               // taxa de serviço do cartão (somada ao abrir a Stripe)
   extras?: ExtraPedido[];
   reclamacaoAberta?: boolean;
   cartaoDisponivel?: boolean;
@@ -220,6 +222,10 @@ export default function OrderView(props: Props) {
             </div>
           )}
           <div className="slabel" style={{ color: 'var(--orange-ink)' }}>Pague com Pix</div>
+          <div className="ov-valor">
+            <b>{money(props.total + (props.taxaPix || 0))}</b>
+            {(props.taxaPix || 0) > 0 && <small>{money(props.total)} + {money(props.taxaPix || 0)} de taxa de serviço</small>}
+          </div>
           {props.pixQr && <img alt="QR Pix" src={`data:image/png;base64,${props.pixQr}`} style={{ width: 200, height: 200 }} />}
           {props.pixCode && (
             <>
@@ -239,15 +245,16 @@ export default function OrderView(props: Props) {
               <div className="muted" style={{ fontSize: 13, marginBottom: 10 }}>Prefere cartão?</div>
               <button className="btn btn-dark" style={{ width: '100%', maxWidth: 360 }} onClick={pagarComCartao} disabled={cartaoBusy}>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="2" y="5" width="20" height="14" rx="2" /><path d="M2 10h20M6 15h4" /></svg>
-                {cartaoBusy ? 'Abrindo pagamento seguro…' : 'Pagar com cartão de crédito'}
+                {cartaoBusy ? 'Abrindo pagamento seguro…' : `Pagar ${money(props.total + (props.taxaCartao || 0))} com cartão`}
               </button>
+              {(props.taxaCartao || 0) > 0 && <p className="muted" style={{ fontSize: 12, marginTop: 6 }}>Inclui {money(props.taxaCartao || 0)} de taxa de serviço do cartão.</p>}
               <p className="muted" style={{ fontSize: 12, marginTop: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
                 <Icon name="lock" size={13} /> Você será levado ao ambiente seguro da Stripe. Não guardamos dados do cartão.
               </p>
               {cartaoErro && <p role="alert" style={{ color: 'var(--red)', fontSize: 13, marginTop: 6 }}>{cartaoErro}</p>}
             </div>
           )}
-          <style dangerouslySetInnerHTML={{ __html: `@keyframes pulsePix{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.8)}}@keyframes spinCartao{to{transform:rotate(360deg)}}` }} />
+          <style dangerouslySetInnerHTML={{ __html: `@keyframes pulsePix{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.8)}}@keyframes spinCartao{to{transform:rotate(360deg)}}.ov-valor{margin:4px 0 12px}.ov-valor b{display:block;font-family:Outfit;font-size:26px;font-weight:900}.ov-valor small{color:var(--muted);font-size:12.5px;font-weight:700}` }} />
         </div>
       )}
     </div>

@@ -59,7 +59,7 @@ function Step({ n, label, active, done }: { n: number; label: string; active?: b
   );
 }
 
-export default function CheckoutClient({ productId, titulo, emoji, categoria, capa_url, loja, preco, cor, bumps = [], aceitaCupom, meusPontos = 0, perBrl = 100, cartaoDisponivel = false, convidado: convidadoInicial = false, emailLogado = null, rastreio = null }: any) {
+export default function CheckoutClient({ productId, titulo, emoji, categoria, capa_url, loja, preco, cor, bumps = [], aceitaCupom, meusPontos = 0, perBrl = 100, cartaoDisponivel = false, convidado: convidadoInicial = false, emailLogado = null, rastreio = null, taxas = { pix: 0, cartaoPct: 0, cartaoFixo: 0 } }: any) {
   // Checkout sem login (Sprint 1): quem não está logado preenche nome, e-mail e WhatsApp aqui mesmo
   const [convidado, setConvidado] = useState<boolean>(!!convidadoInicial);
   const [modoId, setModoId] = useState<'form' | 'existe'>('form');
@@ -112,6 +112,11 @@ export default function CheckoutClient({ productId, titulo, emoji, categoria, ca
   const mostrarCartao = !!cartaoDisponivel && total >= CARTAO_MIN_BRL;
   // Se o cartão sumir (ex.: cupom/pontos baixaram o total), volta para Pix.
   const metodoEfetivo: 'pix' | 'cartao' = mostrarCartao ? metodo : 'pix';
+  // Taxa de serviço do meio de pagamento (paga pelo comprador; mostrada antes de pagar, como manda o CDC)
+  const taxaServico = total <= 0 ? 0 : metodoEfetivo === 'cartao'
+    ? Math.round((total * Number(taxas.cartaoPct || 0) / 100 + Number(taxas.cartaoFixo || 0)) * 100) / 100
+    : Math.round(Number(taxas.pix || 0) * 100) / 100;
+  const totalAPagar = Math.round((total + taxaServico) * 100) / 100;
 
   async function aplicarCupom(codigoLink?: string) {
     const codigo = (codigoLink ?? cupom).trim();
@@ -192,8 +197,8 @@ export default function CheckoutClient({ productId, titulo, emoji, categoria, ca
   }
 
   const textoBotao = metodoEfetivo === 'cartao'
-    ? (gerando ? 'Abrindo pagamento seguro…' : `Pagar ${money(total)} com cartão`)
-    : (gerando ? 'Gerando Pix…' : `Pagar ${money(total)} com Pix`);
+    ? (gerando ? 'Abrindo pagamento seguro…' : `Pagar ${money(totalAPagar)} com cartão`)
+    : (gerando ? 'Gerando Pix…' : `Pagar ${money(totalAPagar)} com Pix`);
 
   return (
     <div className="card">
@@ -263,9 +268,15 @@ export default function CheckoutClient({ productId, titulo, emoji, categoria, ca
             <span>CB Points</span><span>- {money(descontoPontos)}</span>
           </div>
         )}
+        {taxaServico > 0 && (
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, marginBottom: 6 }}>
+            <span className="muted">Taxa de serviço ({metodoEfetivo === 'cartao' ? 'cartão' : 'Pix'})</span><span>{money(taxaServico)}</span>
+          </div>
+        )}
         <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'Outfit', fontWeight: 900, fontSize: 20, marginTop: 8 }}>
-          <span>Total</span><span>{money(total)}</span>
+          <span>Total</span><span>{money(totalAPagar)}</span>
         </div>
+        <p className="muted" style={{ fontSize: 12, margin: '6px 0 0', display: 'flex', gap: 6, alignItems: 'flex-start' }}><Icon name="shield" size={13} /> Seu dinheiro fica protegido: o vendedor só recebe depois do prazo de garantia.</p>
       </div>
 
       {podeUsarPontos && (

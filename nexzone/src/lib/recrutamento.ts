@@ -3,25 +3,26 @@
 // Usado pela página, pela API e pelos testes.
 // ============================================================
 
-export const TAXA_FUNDADOR = 3;          // % por venda
-export const MESES_FUNDADOR = 12;        // garantidos por 12 meses
-export const VAGAS_FUNDADOR = 100;       // para os 100 primeiros produtores aprovados
+// Recrutamento de LOJISTAS do marketplace gamer (contas, itens, moedas, gift cards e serviços)
+// e de quem vende produtos digitais. A taxa exibida é a do plano mais barato (Básico).
+export const TAXA_BASE = 5;               // % por venda no plano Básico ("a partir de")
 
 export const TIPOS = [
-  { id: 'ebook', rotulo: 'Ebook' },
-  { id: 'curso', rotulo: 'Curso online' },
-  { id: 'planilha', rotulo: 'Planilha' },
-  { id: 'template', rotulo: 'Template' },
-  { id: 'ferramenta', rotulo: 'Ferramenta / software' },
-  { id: 'mentoria', rotulo: 'Mentoria / comunidade' },
+  { id: 'contas', rotulo: 'Contas' },
+  { id: 'itens', rotulo: 'Itens, skins e moedas' },
+  { id: 'giftcards', rotulo: 'Gift cards e keys' },
+  { id: 'servicos', rotulo: 'Serviços (boost, coach)' },
+  { id: 'recargas', rotulo: 'Recargas' },
+  { id: 'digitais', rotulo: 'Produtos digitais (guias, cursos, softwares)' },
   { id: 'outro', rotulo: 'Outro' },
 ] as const;
 
-export const PLATAFORMAS = ['Hotmart', 'Kiwify', 'Eduzz', 'Monetizze', 'Cakto', 'Kirvano', 'Ticto', 'Braip', 'Greenn', 'Lastlink', 'Hubla', 'Loja própria', 'Direto no Pix/WhatsApp', 'Outra'] as const;
+export const PLATAFORMAS = ['GGMax', 'Desapego Games', 'DFG', 'GameMarket', 'Mercado Livre', 'Eldorado / G2G', 'Instagram / WhatsApp', 'Discord', 'Loja própria', 'Outra'] as const;
 
 export const FATURAMENTO = ['Ainda não vendi', 'Até R$ 1 mil/mês', 'R$ 1 mil a R$ 5 mil/mês', 'R$ 5 mil a R$ 20 mil/mês', 'R$ 20 mil a R$ 100 mil/mês', 'Mais de R$ 100 mil/mês'] as const;
 
-export const NICHOS = ['Marketing digital e negócios', 'Finanças e investimentos', 'Saúde, nutrição e fitness', 'Beleza e estética', 'Educação e concursos', 'Idiomas', 'Desenvolvimento pessoal', 'Espiritualidade e religião', 'Maternidade e família', 'Culinária e artesanato', 'Tecnologia, IA e design', 'Direito e profissões', 'Outro'] as const;
+/** "Nicho" no formulário = jogo principal (a coluna continua se chamando nicho). */
+export const NICHOS = ['Free Fire', 'Roblox / Blox Fruits', 'Valorant', 'League of Legends', 'CS2 / Steam', 'Fortnite', 'GTA', 'Minecraft', 'Genshin / Honkai', 'Clash / Brawl Stars', 'EA FC / eFootball', 'Tibia / MMORPG', 'PUBG / COD Mobile', 'Pokémon', 'Vários jogos', 'Produtos digitais (não jogos)', 'Outro'] as const;
 
 export const STATUS = [
   { id: 'novo', rotulo: 'Novo', cor: '#FF7A14' },
@@ -97,7 +98,7 @@ export function validarEtapa1(b: any): Validacao<DadosEtapa1> {
 
 export function validarEtapa2(b: any): Validacao<DadosEtapa2> {
   const nicho = (NICHOS as readonly string[]).includes(b?.nicho) ? String(b.nicho) : null;
-  if (!nicho) return { ok: false, campo: 'nicho', erro: 'Escolha o seu nicho.' };
+  if (!nicho) return { ok: false, campo: 'nicho', erro: 'Escolha o jogo principal.' };
   const ids = TIPOS.map((t) => t.id as string);
   const tipos = Array.isArray(b?.tipos) ? Array.from(new Set(b.tipos.filter((t: any) => ids.includes(t)))) as string[] : [];
   if (!tipos.length) return { ok: false, campo: 'tipos', erro: 'Marque o que você vende (ou quer vender).' };
@@ -130,18 +131,18 @@ export function linkWhatsapp(numero: string, texto: string) {
 
 export function mensagemParaProdutor(nome: string, nicho?: string | null) {
   const primeiro = nome.split(' ')[0] || nome;
-  return `Oi, ${primeiro}! Aqui é do Comprei Barato. Vi que você se cadastrou como produtor${nicho ? ` (${nicho.toLowerCase()})` : ''} e quero te mostrar como funciona a plataforma e a condição de fundador: ${TAXA_FUNDADOR}% por venda por ${MESES_FUNDADOR} meses. Posso te explicar rapidinho por aqui?`;
+  return `Oi, ${primeiro}! Aqui é do Comprei Barato. Vi que você se cadastrou para vender${nicho ? ` (${nicho})` : ''} e quero te mostrar como funciona: anúncio grátis, taxa a partir de ${TAXA_BASE}% e o dinheiro do cliente protegido até a entrega. Posso te explicar rapidinho por aqui?`;
 }
 
 export function mensagemDoProdutor(nome: string) {
   const primeiro = nome.split(' ')[0] || nome;
-  return `Oi! Sou ${primeiro}, acabei de preencher o formulário de produtor fundador do Comprei Barato e quero saber mais.`;
+  return `Oi! Sou ${primeiro}, acabei de me cadastrar para vender no Comprei Barato e quero saber mais.`;
 }
 
-/** Simulador da página: quanto o produtor economiza por mês com a taxa de fundador. */
+/** Simulador da página: quanto o lojista economiza por mês com a taxa do plano Básico. */
 export function economiaMensal(faturamentoMes: number, taxaAtualPct: number, fixoPorVenda: number, vendasMes: number) {
   const f = Math.max(0, Number(faturamentoMes) || 0);
   const atual = f * (Math.max(0, Number(taxaAtualPct) || 0) / 100) + Math.max(0, Number(fixoPorVenda) || 0) * Math.max(0, Math.round(Number(vendasMes) || 0));
-  const nossa = f * (TAXA_FUNDADOR / 100);
+  const nossa = f * (TAXA_BASE / 100);
   return { atual: Math.round(atual * 100) / 100, nossa: Math.round(nossa * 100) / 100, economia: Math.round(Math.max(0, atual - nossa) * 100) / 100 };
 }

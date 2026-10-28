@@ -15,11 +15,11 @@ export const LOJA_PUBLICA = 'stores(nome, nivel, slug, status, ocultar_vendedor)
 
 // Card de produto (vitrines, listagens, busca, relacionados).
 export const PRODUTO_CARD =
-  `id, store_id, titulo, categoria, preco, preco_promo, capa_url, destaque_ate, vendas, nota, created_at, ${LOJA_PUBLICA}`;
+  `id, store_id, titulo, categoria, preco, preco_promo, capa_url, destaque_ate, vendas, nota, created_at, plano, tipo_anuncio, jogo, ${LOJA_PUBLICA}`;
 
 // Página do produto: card + descrição, entrega (só o TIPO), garantia e galeria.
 export const PRODUTO_PAGINA =
-  `id, store_id, titulo, descricao, categoria, preco, preco_promo, tipo_entrega, garantia_dias, status, capa_url, imagens, destaque_ate, vendas, nota, created_at, ${LOJA_PUBLICA}`;
+  `id, store_id, titulo, descricao, categoria, preco, preco_promo, tipo_entrega, garantia_dias, status, capa_url, imagens, destaque_ate, vendas, nota, created_at, plano, tipo_anuncio, jogo, ${LOJA_PUBLICA}`;
 
 // Escapa os curingas do LIKE/ILIKE para a busca do usuário ser literal ("%" não traz tudo).
 export function termoBusca(q: string | null | undefined): string {

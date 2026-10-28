@@ -14,8 +14,8 @@ import { lerSeoConfig } from '@/lib/seo-servidor';
 // (os códigos são colados pelo admin em Admin → SEO e Google).
 export async function generateMetadata(): Promise<Metadata> {
   const cfg = await lerSeoConfig().catch(() => null);
-  const titulo = `${MARCA} | Marketplace de produtos digitais`;
-  const descricao = 'Compre e venda produtos digitais no Comprei Barato: cursos, ebooks, planilhas, templates, prompts e ferramentas. Pix ou cartão, acesso imediato e garantia.';
+  const titulo = `${MARCA} | Marketplace de contas, itens e gift cards de jogos`;
+  const descricao = 'Compre e venda contas, skins, moedas, gift cards, keys e serviços de jogos, além de produtos digitais. Pix ou cartão e dinheiro protegido até a entrega.';
   return {
     metadataBase: new URL(SITE),
     title: titulo,

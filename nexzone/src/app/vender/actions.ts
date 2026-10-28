@@ -7,6 +7,8 @@ import { revalidatePath } from 'next/cache';
 import { contaStatus } from '@/lib/account';
 import { validarImagens } from '@/lib/galeria';
 import { CATEGORIA_PADRAO } from '@/lib/categorias';
+import { lerTaxas } from '@/lib/settings';
+import { tipoValido, planoEfetivo } from '@/lib/taxas';
 
 function slugify(s: string) {
   return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
@@ -51,7 +53,10 @@ export async function criarProduto(formData: FormData) {
     const est = lerEstoque(formData.get('estoque'));
     if (!est.ok) return { ok: false, error: est.erro };
     if (!arquivoPermitido(String(formData.get('arquivo_path') || ''), user.id)) return { ok: false, error: 'Arquivo de entrega inválido. Envie o arquivo pelo botão de upload.' };
-    const { data: criado, error } = await supabase.from('products').insert({
+    const tipoAnuncio = tipoValido(formData.get('tipo_anuncio'));
+    const jogo = String(formData.get('jogo') || '').replace(/\s+/g, ' ').trim().slice(0, 60) || null;
+    if (tipoAnuncio !== 'digital' && !jogo) return { ok: false, error: 'Informe o jogo do anúncio.' };
+    const linhaProduto: any = {
       store_id: storeId, titulo, slug: slugify(titulo),
       descricao: String(formData.get('descricao') || ''),
       categoria: String(formData.get('categoria') || CATEGORIA_PADRAO),
@@ -65,7 +70,10 @@ export async function criarProduto(formData: FormData) {
       imagens: gal.imagens,
       capa_url: gal.imagens[0] ?? null,
       status: 'em_revisao',
-    }).select('id').single();
+    };
+    // Tipo do anúncio e jogo (SQL 21) vão na mesma gravação; sem as colunas, cria o produto igual a antes
+    let { data: criado, error } = await supabase.from('products').insert({ ...linhaProduto, tipo_anuncio: tipoAnuncio, jogo }).select('id').single();
+    if (error && /tipo_anuncio|jogo/.test(error.message || '')) ({ data: criado, error } = await supabase.from('products').insert(linhaProduto).select('id').single());
     if (error) return { ok: false, error: error.message };
     // Estoque em gravação separada: se o SQL 07 ainda não rodou, o produto é criado mesmo assim.
     if (est.valor !== null && (criado as any)?.id) {
@@ -76,8 +84,17 @@ export async function criarProduto(formData: FormData) {
       const padrao = await mensagemPadraoDaLoja(supabase, user.id);
       await supabase.from('products').update(padrao ? { usa_mensagem_padrao: true, conteudo_entrega: padrao } : { usa_mensagem_padrao: true }).eq('id', (criado as any).id);
     }
+    // Plano de visibilidade (SQL 21): só vale com os planos pagos ligados; Topo respeita as vagas da categoria
+    let aviso: string | null = null;
+    if ((criado as any)?.id) {
+      const plano = planoEfetivo(formData.get('plano'), await lerTaxas());
+      if (plano !== 'basico') {
+        const { error: ePlano } = await supabase.from('products').update({ plano }).eq('id', (criado as any).id);
+        if (ePlano && /topo_sem_vaga/.test(ePlano.message || '')) aviso = 'As vagas do plano Topo desta categoria estão ocupadas. O anúncio ficou no plano Básico; você pode trocar depois em Meus produtos.';
+      }
+    }
     revalidatePath('/vender');
-    return { ok: true, id: (criado as any)?.id ?? null };
+    return { ok: true, id: (criado as any)?.id ?? null, aviso };
   } catch (e: any) {
     return { ok: false, error: e?.message || 'Erro inesperado ao cadastrar o produto.' };
   }

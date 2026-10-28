@@ -94,20 +94,20 @@ export default function SettingsForm({ settings }: any) {
   return (
     <div className="adm-card" style={{ maxWidth: 560 }}>
       <div style={{ marginBottom: 22 }}>
-        <label style={lbl}>Comissão da plataforma (%)</label>
+        <label style={lbl}>Comissão antiga (%)</label>
         <input type="number" step="0.1" value={comissao} onChange={(e) => setComissao(e.target.value)} style={inp} />
-        <small style={hint}>Percentual cobrado sobre cada venda. Atual: {comissao}%.</small>
+        <small style={hint}>Só vale enquanto o SQL 21 não rodou. Depois disso, a taxa do vendedor é a do plano (acima, em Planos e taxas).</small>
       </div>
 
       <div style={{ marginBottom: 22 }}>
-        <label style={lbl}>Preços dos planos de destaque (R$)</label>
+        <label style={lbl}>Destaque pago avulso (modelo antigo, R$)</label>
         {planos.map((p: any, i: number) => (
           <div key={p.dias} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
             <span style={{ width: 70, fontWeight: 700, fontFamily: 'Outfit' }}>{p.dias} dias</span>
             <input type="number" step="0.01" value={p.valor} onChange={(e) => setPreco(i, e.target.value)} style={{ ...inp, marginBottom: 0, maxWidth: 160 }} />
           </div>
         ))}
-        <small style={hint}>Valores que o vendedor paga para destacar um produto.</small>
+        <small style={hint}>Substituído pelos planos Destaque e Topo. Os destaques já comprados continuam valendo até vencer.</small>
       </div>
 
       <div style={{ marginBottom: 22 }}>
@@ -146,7 +146,7 @@ export default function SettingsForm({ settings }: any) {
       </div>
 
       <div style={{ borderTop: '1px solid var(--border)', paddingTop: 20, marginBottom: 22 }}>
-        <label style={lbl}>Liberação de saldo do vendedor</label>
+        <label style={lbl}>Janela de reclamação e avaliação</label>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           <div style={{ flex: '1 1 200px' }}>
             <small style={hint}>Dias para liberar (janela de reclamação)</small>

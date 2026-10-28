@@ -61,7 +61,7 @@ export default function RecebimentosClient({ bal, pixKey, pixTipo, payouts }: an
       {bal.liberacoes && bal.liberacoes.length > 0 && (
         <div className="card" style={{ marginBottom: 20 }}>
           <h3 style={{ fontFamily: 'Outfit', fontSize: 16, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 8 }}><Icon name="calendar" size={17} /> Cronograma de liberação</h3>
-          <p className="muted" style={{ fontSize: 13, marginBottom: 14 }}>Cada venda fica retida por {bal.garantiaDias} dias (garantia) e depois entra no seu saldo disponível para saque.</p>
+          <p className="muted" style={{ fontSize: 13, marginBottom: 14 }}>Cada venda fica retida durante a garantia e depois entra no seu saldo disponível: <b>contas de jogo 7 dias</b>, demais anúncios 3 dias e <b>vendas no cartão 14 dias</b> (proteção contra estorno).</p>
           {bal.liberacoes.map((l: any, i: number) => {
             const totalDias = bal.garantiaDias;
             const pct = Math.min(100, Math.max(0, Math.round(((totalDias - l.dias) / totalDias) * 100)));
@@ -98,7 +98,7 @@ export default function RecebimentosClient({ bal, pixKey, pixTipo, payouts }: an
 
       <div className="card" style={{ marginBottom: 20, textAlign: 'center' }}>
         <h3 style={{ fontFamily: 'Outfit', fontSize: 16, marginBottom: 6 }}>Solicitar saque</h3>
-        <p className="muted" style={{ fontSize: 13, marginBottom: 14 }}>Saque todo o seu saldo disponível ({money(bal.disponivel)}) para sua chave Pix.</p>
+        <p className="muted" style={{ fontSize: 13, marginBottom: 14 }}>Saque todo o seu saldo disponível ({money(bal.disponivel)}) para sua chave Pix. O primeiro saque de cada semana é grátis; os seguintes custam R$ 0,99.</p>
         <button className="btn btn-pri" onClick={saque} disabled={pending || bal.disponivel <= 0}>
           {pending ? 'Processando…' : `Sacar ${money(bal.disponivel)}`}
         </button>

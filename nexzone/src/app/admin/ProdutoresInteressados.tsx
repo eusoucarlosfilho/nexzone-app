@@ -126,7 +126,7 @@ export default function ProdutoresInteressados({ onContagem }: { onContagem?: (n
       </div>
 
       {carregando ? <div className="adm-empty">Carregando…</div> : !lista.length ? (
-        <div className="adm-card adm-empty">{d.itens.length ? 'Nada encontrado nessa busca.' : 'Nenhum produtor ainda. Assim que alguém preencher o formulário, aparece aqui (e no sino).'}</div>
+        <div className="adm-card adm-empty">{d.itens.length ? 'Nada encontrado nessa busca.' : 'Nenhum lojista ainda. Assim que alguém preencher o formulário, aparece aqui (e no sino).'}</div>
       ) : lista.map((i) => (
         <div key={i.id} className="adm-card pi-item" style={{ borderLeft: `3px solid ${COR[i.status] || '#888'}` }}>
           <div className="pi-l1">
