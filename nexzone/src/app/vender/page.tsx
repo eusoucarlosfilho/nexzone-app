@@ -8,6 +8,29 @@ import JourneyChip from '@/components/JourneyChip';
 import { computeJourney } from '@/lib/journey';
 import StatCard from '@/components/ui/StatCard';
 import StatusBadge from '@/components/ui/StatusBadge';
+import PainelLoja from './PainelLoja';
+import type { VendaDash } from '@/lib/dashboardVendas';
+
+// Pedidos da loja (paginado). Tenta com a forma de pagamento (SQL 17); se a coluna não existir, segue sem ela.
+async function pedidosDaLoja(supabase: any, storeId: string): Promise<{ linhas: any[]; temForma: boolean }> {
+  const tentativas = [
+    { cols: 'id, total, valor_vendedor, status, created_at, entregue_em, product_id, comprador, forma_pagamento', forma: true },
+    { cols: 'id, total, valor_vendedor, status, created_at, entregue_em, product_id, comprador', forma: false },
+    { cols: 'id, total, valor_vendedor, status, created_at, product_id', forma: false },
+  ];
+  for (const t of tentativas) {
+    const linhas: any[] = [];
+    let falhou = false;
+    for (let de = 0; de < 100000; de += 1000) {
+      const { data, error } = await supabase.from('orders').select(t.cols).eq('store_id', storeId).order('created_at', { ascending: false }).range(de, de + 999);
+      if (error) { falhou = true; break; }
+      linhas.push(...(data ?? []));
+      if (!data || data.length < 1000) break;
+    }
+    if (!falhou) return { linhas, temForma: t.forma };
+  }
+  return { linhas: [], temForma: false };
+}
 
 const money = (v: number) => 'R$ ' + Number(v).toFixed(2).replace('.', ',');
 export const dynamic = 'force-dynamic';
@@ -29,42 +52,35 @@ export default async function VenderCockpit() {
     );
   }
 
-  const { data: orders } = await supabase.from('orders')
-    .select('total, valor_vendedor, status, created_at, products(titulo, categoria, capa_url)')
-    .eq('store_id', store.id).order('created_at', { ascending: false });
-  const all = (orders ?? []) as any[];
+  const { linhas: all, temForma } = await pedidosDaLoja(supabase, store.id);
   const entregues = all.filter((o) => o.status === 'entregue' || o.status === 'pago');
+  // Catálogo do vendedor (só os próprios produtos; números reais)
+  const { data: prodRows } = await supabase.from('products').select('id, titulo, categoria, capa_url, status, destaque_ate').eq('store_id', store.id);
+  const prodMap: Record<string, any> = Object.fromEntries(((prodRows ?? []) as any[]).map((p) => [p.id, p]));
+  const n2 = (x: any) => Math.round((Number(x) || 0) * 100) / 100;
+  const vendasDash: VendaDash[] = all.map((o) => ({
+    i: String(o.id), s: o.status, v: n2(o.total), r: n2(o.valor_vendedor), t: n2(Number(o.total) - Number(o.valor_vendedor)),
+    c: o.created_at, p: o.entregue_em ?? null, l: store.id, d: o.product_id ?? '', u: o.comprador ?? String(o.id),
+    f: o.forma_pagamento === 'pix' || o.forma_pagamento === 'cartao' ? o.forma_pagamento : null,
+  }));
+  const nomesProdutos: Record<string, string> = Object.fromEntries(((prodRows ?? []) as any[]).map((p) => [p.id, p.titulo]));
   const bal = await calcBalance(supabase, store.id);
 
   const now = new Date();
   const mesIni = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
   const mesPassadoIni = new Date(now.getFullYear(), now.getMonth() - 1, 1).getTime();
 
-  const fatTotal = entregues.reduce((s, o) => s + Number(o.valor_vendedor), 0);
   const fatMes = entregues.filter((o) => new Date(o.created_at).getTime() >= mesIni).reduce((s, o) => s + Number(o.valor_vendedor), 0);
   const fatMesPassado = entregues.filter((o) => { const t = new Date(o.created_at).getTime(); return t >= mesPassadoIni && t < mesIni; }).reduce((s, o) => s + Number(o.valor_vendedor), 0);
-  const vendasMes = entregues.filter((o) => new Date(o.created_at).getTime() >= mesIni).length;
-  const ticket = entregues.length ? fatTotal / entregues.length : 0;
 
   // meta do mês
   const meta = Math.max(1000, Math.ceil((fatMesPassado * 1.2 || 1000) / 100) * 100);
   const progresso = Math.min(100, meta ? (fatMes / meta) * 100 : 0);
 
-  // gráfico 7 dias (faturamento líquido)
-  const daily: { label: string; total: number }[] = [];
-  for (let i = 6; i >= 0; i--) {
-    const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - i);
-    const next = new Date(d); next.setDate(d.getDate() + 1);
-    const total = entregues.filter((o) => { const t = new Date(o.created_at); return t >= d && t < next; }).reduce((s, o) => s + Number(o.valor_vendedor), 0);
-    daily.push({ label: d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }), total });
-  }
-  const maxDay = Math.max(1, ...daily.map((d) => d.total));
-  const recentes = entregues.slice(0, 5);
+  const recentes = entregues.slice(0, 5).map((o) => ({ ...o, products: prodMap[o.product_id] ?? null }));
   // Pedidos pagos que ainda aguardam a entrega manual do vendedor (status 'pago')
   const aEntregar = all.filter((o) => o.status === 'pago').length;
 
-  // Catálogo do vendedor (só os próprios produtos; números reais)
-  const { data: prodRows } = await supabase.from('products').select('status, destaque_ate').eq('store_id', store.id);
   const prods = (prodRows ?? []) as { status: string; destaque_ate: string | null }[];
   const agora = Date.now();
   const cat = {
@@ -98,13 +114,6 @@ export default async function VenderCockpit() {
         </Link>
       </div>
 
-      <div className="sd-stats" style={{ marginTop: 18 }}>
-        <div className="sd-stat"><div className="ic"><Icon name="money" size={20} /></div><b>{money(fatMes)}</b><small>Faturamento do mês</small></div>
-        <div className="sd-stat"><div className="ic"><Icon name="receipt" size={20} /></div><b>{vendasMes}</b><small>Vendas no mês</small></div>
-        <div className="sd-stat"><div className="ic"><Icon name="target" size={20} /></div><b>{money(ticket)}</b><small>Ticket médio</small></div>
-        <div className="sd-stat"><div className="ic"><Icon name="trophy" size={20} /></div><b>{money(fatTotal)}</b><small>Faturamento total</small></div>
-      </div>
-
       {aEntregar > 0 && (
         <Link href="/vender/conversas" className="card" style={{ marginBottom: 20, display: 'flex', alignItems: 'center', gap: 12, textDecoration: 'none', color: 'inherit', borderLeft: '3px solid var(--orange)' }}>
           <Icon name="package" size={20} color="var(--orange-ink)" />
@@ -113,6 +122,8 @@ export default async function VenderCockpit() {
           <Icon name="chevronRight" size={18} color="var(--sub)" />
         </Link>
       )}
+
+      <PainelLoja vendas={vendasDash} produtos={nomesProdutos} temForma={temForma} />
 
       <div className="card" style={{ marginBottom: 20 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', marginBottom: 8 }}>
@@ -151,19 +162,6 @@ export default async function VenderCockpit() {
         <p className="muted" style={{ fontSize: 12, marginTop: 8 }}>
           {progresso >= 100 ? 'Meta batida! Você está voando.' : `Faltam ${money(meta - fatMes)} para bater sua meta do mês.`}
         </p>
-      </div>
-
-      <div className="card" style={{ marginBottom: 20 }}>
-        <strong style={{ fontFamily: 'Outfit', display: 'block', marginBottom: 16 }}>Faturamento dos últimos 7 dias</strong>
-        <div className="sd-bars">
-          {daily.map((d, i) => (
-            <div className="sd-bar" key={i}>
-              <span className="v">{d.total > 0 ? money(d.total).replace('R$ ', '') : ''}</span>
-              <div className="b" style={{ height: `${(d.total / maxDay) * 100}%` }} />
-              <span className="l">{d.label}</span>
-            </div>
-          ))}
-        </div>
       </div>
 
     </div>
