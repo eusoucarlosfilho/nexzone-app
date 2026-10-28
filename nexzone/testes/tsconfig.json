@@ -53,6 +53,8 @@
     "../src/lib/curso.ts",
     "../src/lib/garantia.ts",
     "../src/lib/posVenda.ts",
-    "../src/lib/documento.ts"
+    "../src/lib/documento.ts",
+    "../src/lib/recrutamento.ts",
+    "../src/lib/recrutamento-servidor.ts"
   ]
 }
