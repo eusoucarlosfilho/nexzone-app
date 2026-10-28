@@ -24,7 +24,7 @@ export async function GET(req: Request) {
   if (a.erro) return a.erro;
   const admin = createAdminClient();
   const cfg = await lerConfig(admin);
-  const config = { whatsapp: cfg.whatsapp, pixel: cfg.pixel, teste: cfg.teste, tokenDefinido: cfg.tokenDefinido };
+  const config = { whatsapp: cfg.whatsapp, pixel: cfg.pixel, teste: cfg.teste, tokenDefinido: cfg.tokenDefinido, avisar: cfg.avisar, avisarEmail: cfg.avisarEmail };
   const status = new URL(req.url).searchParams.get('status') || 'todos';
   let q = admin.from('produtores_interessados').select('*').order('criado_em', { ascending: false }).limit(2000);
   if (IDS.includes(status)) q = q.eq('status', status);
@@ -54,7 +54,7 @@ export async function POST(req: Request) {
       }
     }
     const cfg = await lerConfig(admin);
-    return NextResponse.json({ ok: true, config: { whatsapp: cfg.whatsapp, pixel: cfg.pixel, teste: cfg.teste, tokenDefinido: cfg.tokenDefinido } });
+    return NextResponse.json({ ok: true, config: { whatsapp: cfg.whatsapp, pixel: cfg.pixel, teste: cfg.teste, tokenDefinido: cfg.tokenDefinido, avisar: cfg.avisar, avisarEmail: cfg.avisarEmail } });
   }
 
   const id = String(b.id || '');
