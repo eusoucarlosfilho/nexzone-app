@@ -857,3 +857,6 @@ button.ui-stat{text-align:left;cursor:pointer;font:inherit}
 .ftr-app{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:6px;min-height:32px;color:inherit;font:inherit}
 .ftr-app:hover{color:var(--orange-ink)}
 .ftr-app:focus-visible{outline:2px solid var(--orange);outline-offset:2px;border-radius:6px}
+
+/* botão da Sala de comando (só admin) */
+.nav-link.nav-admin{color:var(--orange-ink);font-weight:900}
