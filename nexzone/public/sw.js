@@ -7,9 +7,9 @@
  *
  * O que NÃO faz (de propósito):
  *  - não guarda páginas, respostas da API, pedidos, saldo nem conteúdo pago no aparelho;
- *  - notificação push continua desligada até existir chave VAPID e aprovação (o código abaixo só exibe).
+ *  - notificações na tela do celular (Web Push, SQL 22): vendas, mensagens e avisos, mesmo com o site fechado.
  */
-const VERSAO = 'cb-app-v1';
+const VERSAO = 'cb-app-v2';
 const OFFLINE = '/offline.html';
 const ESTATICOS = [OFFLINE, '/pwa/icon-192.png', '/logo.png'];
 
@@ -40,7 +40,7 @@ self.addEventListener('fetch', (event) => {
   })());
 });
 
-// Exibe uma notificação recebida (quando o push for ligado). Só links internos.
+// Exibe a notificação recebida do servidor. Só links internos do site.
 self.addEventListener('push', (event) => {
   let d = {};
   try { d = event.data ? event.data.json() : {}; } catch (e) { d = {}; }
@@ -49,7 +49,8 @@ self.addEventListener('push', (event) => {
   const url = typeof d.url === 'string' && /^\/(?!\/)/.test(d.url) ? d.url : '/notificacoes';
   event.waitUntil(self.registration.showNotification(titulo, {
     body: corpo, icon: '/pwa/icon-192.png', badge: '/pwa/icon-192.png',
-    tag: typeof d.tag === 'string' ? d.tag.slice(0, 64) : undefined, data: { url },
+    tag: typeof d.tag === 'string' ? d.tag.slice(0, 64) : undefined, renotify: typeof d.tag === 'string',
+    vibrate: [120, 60, 120], timestamp: Date.now(), data: { url },
   }));
 });
 
