@@ -229,7 +229,7 @@ export default function PainelLoja({ vendas, produtos, temForma }: Props) {
             )}
           </div>
           <div className="pl-mini">
-            <div><small>Aguardando pagamento</small><b>{num(r.pendentes.qtd)}</b><em>{brl(b.pendentes.valor)} em pedidos abertos</em></div>
+            <a href="/vender/vendas?f=aguardando" style={{ textDecoration: 'none', color: 'inherit' }} title="Ver quem não pagou e chamar no WhatsApp"><small>Aguardando pagamento</small><b>{num(r.pendentes.qtd)}</b><em>{brl(b.pendentes.valor)} em pedidos abertos · ver lista →</em></a>
             <div><small>Conversão</small><b>{pct(r.conversao)}</b><em>pedidos pagos ÷ criados</em></div>
             <div><small>Reembolsos</small><b>{num(r.reembolsos.qtd)}</b><em>{brl(b.reembolsos.valor)}</em></div>
           </div>
