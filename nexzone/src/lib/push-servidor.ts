@@ -74,6 +74,9 @@ export async function enviarPara(admin: any, inscricoes: Inscricao[], carga: Rec
 export async function enviarNotificacao(admin: any, id: number) {
   const { data: n } = await admin.from('notificacoes').select('id, user_id, tipo, titulo, texto, link, grupo, lida_em').eq('id', id).maybeSingle();
   if (!n || n.lida_em) return { enviados: 0, removidos: 0 };
+  // a pessoa desligou esse tipo na Central de notificações (SQL 23)? não toca no celular
+  const { data: pref } = await admin.from('notificacao_prefs').select('celular').eq('user_id', n.user_id).eq('tipo', n.tipo).maybeSingle();
+  if ((pref as any)?.celular === false) return { enviados: 0, removidos: 0 };
   const { data: subs } = await admin.from('push_inscricoes').select('id, endpoint, p256dh, auth').eq('user_id', n.user_id).limit(10);
   return enviarPara(admin, (subs ?? []) as Inscricao[], cargaDoPush(n));
 }

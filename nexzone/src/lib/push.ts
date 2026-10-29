@@ -6,6 +6,7 @@ export type Inscricao = { id: number; endpoint: string; p256dh: string; auth: st
 const ICONE: Record<string, string> = {
   venda: '💰', compra: '🛍️', pagamento: '✅', reembolso: '↩️', mensagem: '💬', pergunta: '❓', resposta: '💬',
   saque: '🏦', anuncio: '📢', aviso: '🔔', advertencia: '⚠️', novidade: '🎮',
+  pix_gerado: '⚡', adm_pix: '⚡', adm_venda: '💰',
 };
 
 /** Só links internos do site (começando com / e sem //). */

@@ -1,7 +1,8 @@
 // Central de notificações do usuário (SQL 17) — partes que o navegador também usa.
 export type TipoNotificacao =
   | 'venda' | 'compra' | 'pagamento' | 'reembolso' | 'mensagem' | 'pergunta' | 'resposta'
-  | 'saque' | 'anuncio' | 'aviso' | 'advertencia' | 'novidade';
+  | 'saque' | 'anuncio' | 'aviso' | 'advertencia' | 'novidade'
+  | 'pix_gerado' | 'adm_pix' | 'adm_venda'; // SQL 23
 
 export type Notificacao = {
   id: number;
@@ -17,12 +18,13 @@ export const ICONE_TIPO: Record<TipoNotificacao, string> = {
   venda: 'money', compra: 'bag', pagamento: 'clock', reembolso: 'receipt', mensagem: 'chat',
   pergunta: 'help', resposta: 'chat', saque: 'wallet', anuncio: 'package', aviso: 'megaphone',
   advertencia: 'alert', novidade: 'sparkles',
+  pix_gerado: 'bolt', adm_pix: 'bolt', adm_venda: 'money',
 };
 
 /** Filtros da página /notificacoes → tipos do banco */
 export const FILTROS: { id: string; rotulo: string; tipos: TipoNotificacao[] | null }[] = [
   { id: 'todas', rotulo: 'Todas', tipos: null },
-  { id: 'vendas', rotulo: 'Vendas', tipos: ['venda', 'saque', 'anuncio', 'pergunta'] },
+  { id: 'vendas', rotulo: 'Vendas', tipos: ['venda', 'pix_gerado', 'adm_venda', 'adm_pix', 'saque', 'anuncio', 'pergunta'] },
   { id: 'compras', rotulo: 'Compras', tipos: ['compra', 'pagamento', 'reembolso', 'resposta'] },
   { id: 'mensagens', rotulo: 'Mensagens', tipos: ['mensagem'] },
   { id: 'avisos', rotulo: 'Avisos', tipos: ['aviso', 'advertencia', 'novidade'] },
