@@ -29,10 +29,13 @@ export default async function Nav() {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
   // Faixa "Crie sua loja": só para quem ainda não tem loja. CB Points: só com o programa ativo.
-  const [lojaRes, { cbAtivo, comissao }] = await Promise.all([
+  const [lojaRes, { cbAtivo, comissao }, perfilRes] = await Promise.all([
     user ? supabase.from('stores').select('id').eq('owner', user.id).maybeSingle() : Promise.resolve({ data: null }),
     configNav(),
+    // botão "Sala de comando": só aparece para quem tem o perfil admin (a página /admin confere de novo no servidor)
+    user ? supabase.from('profiles').select('role').eq('id', user.id).maybeSingle() : Promise.resolve({ data: null }),
   ]);
+  const ehAdmin = (perfilRes as any)?.data?.role === 'admin';
   const taxa = `${String(comissao).replace('.', ',')}%`;
   const temLoja = !!(lojaRes as any)?.data;
   // Categorias da fonte única (src/lib/categorias.ts), na ordem definida
@@ -56,6 +59,7 @@ export default async function Nav() {
               <NL href="/produtos" icon="grid" label="Explorar" />
               {user ? (
                 <>
+                  {ehAdmin && <Link href="/admin" className="nav-link nav-admin" title="Sala de comando"><Icon name="cockpit" size={18} strokeWidth={2.2} /><span className="nl-t">Sala de comando</span></Link>}
                   <NL href="/favoritos" icon="heart" label="Favoritos" />
                   <NL href="/minhas-compras" icon="bag" label="Minhas compras" />
                   {cbAtivo && <NL href="/cb-points" icon="star" label="CB Points" />}
@@ -72,7 +76,7 @@ export default async function Nav() {
               )}
             </div>
             {user && <NotificacoesSino className="nsino-m" />}
-            <MobileMenu loggedIn={!!user} cats={cats} cbPoints={cbAtivo} />
+            <MobileMenu loggedIn={!!user} cats={cats} cbPoints={cbAtivo} admin={ehAdmin} />
           </div>
           {cats.length > 0 && (
             <Suspense fallback={<CatChips cats={cats} />}><NavCats cats={cats} /></Suspense>

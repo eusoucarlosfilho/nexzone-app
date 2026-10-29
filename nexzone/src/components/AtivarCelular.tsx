@@ -21,6 +21,10 @@ async function registro() {
 export default function AtivarCelular({ compacto = false }: { compacto?: boolean }) {
   const [estado, setEstado] = useState<Estado>('carregando');
   const [ocupado, setOcupado] = useState(false);
+  // no topo do painel (compacto) o aviso pode ser recolhido; a página Notificações sempre mostra
+  const [recolhido, setRecolhido] = useState(true);
+  useEffect(() => { try { setRecolhido(localStorage.getItem('cb_aviso_celular') === '1'); } catch { setRecolhido(false); } }, []);
+  const recolher = () => { setRecolhido(true); try { localStorage.setItem('cb_aviso_celular', '1'); } catch {} };
 
   const verificar = useCallback(async () => {
     try {
@@ -83,7 +87,7 @@ export default function AtivarCelular({ compacto = false }: { compacto?: boolean
   }
 
   if (estado === 'carregando' || estado === 'indisponivel') return null;
-  if (compacto && estado === 'ligado') return null;
+  if (compacto && (estado === 'ligado' || recolhido)) return null;
 
   return (
     <div className="ac-box" role="region" aria-label="Notificações no celular">
@@ -96,6 +100,7 @@ export default function AtivarCelular({ compacto = false }: { compacto?: boolean
         .ac-box .ac-pri{background:#FF6B00;color:#16162A}
         .ac-box .ac-sec{background:rgba(255,255,255,.12);color:#fff}
         .ac-box button:disabled{opacity:.6;cursor:default}
+        .ac-box .ac-fechar{background:none;color:#fff;opacity:.7;padding:10px 12px;font-family:'Nunito';font-weight:700;font-size:13px}
       ` }} />
       <div style={{ flex: '1 1 260px' }}>
         {estado === 'ligado' && <><b>🔔 Notificações ligadas neste aparelho</b><p>Vendas, mensagens, perguntas e avisos chegam na tela, mesmo com o site fechado.</p></>}
@@ -108,6 +113,7 @@ export default function AtivarCelular({ compacto = false }: { compacto?: boolean
         {estado === 'desligado' && <button className="ac-pri" disabled={ocupado} onClick={ligar}>{ocupado ? 'Ativando…' : 'Ativar notificações'}</button>}
         {estado === 'ligado' && <><button className="ac-pri" disabled={ocupado} onClick={testar}>Enviar teste</button><button className="ac-sec" disabled={ocupado} onClick={desligar}>Desligar</button></>}
         {estado === 'bloqueado' && <button className="ac-sec" onClick={verificar}>Já liberei</button>}
+        {compacto && <button className="ac-fechar" onClick={recolher} title="Dá para ativar depois em Notificações">{estado === 'instalar-iphone' ? 'Já fiz, ocultar' : 'Agora não'}</button>}
       </div>
     </div>
   );

@@ -12,7 +12,7 @@ import { BotaoInstalarApp } from './AppInstalavel';
 
 const ID = 'menu-mobile';
 
-export default function MobileMenu({ loggedIn, cats, cbPoints = false }: { loggedIn: boolean; cats: NavCat[]; cbPoints?: boolean }) {
+export default function MobileMenu({ loggedIn, cats, cbPoints = false, admin = false }: { loggedIn: boolean; cats: NavCat[]; cbPoints?: boolean; admin?: boolean }) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
   const btnRef = useRef<HTMLButtonElement>(null);
@@ -82,6 +82,7 @@ export default function MobileMenu({ loggedIn, cats, cbPoints = false }: { logge
               {L({ href: '/produtos', icon: 'grid', children: 'Explorar' })}
               {loggedIn ? (
                 <>
+                  {admin && L({ href: '/admin', icon: 'cockpit', children: <b style={{ color: 'var(--orange-ink)' }}>Sala de comando</b> })}
                   {L({ href: '/favoritos', icon: 'heart', children: 'Favoritos' })}
                   {L({ href: '/notificacoes', icon: 'bell', children: <>Notificações<ContadorNotificacoes /></> })}
                   {L({ href: '/minhas-compras', icon: 'bag', children: 'Minhas compras' })}
