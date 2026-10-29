@@ -30,6 +30,7 @@ import Verificacoes from './Verificacoes';
 import ProdutoresInteressados from './ProdutoresInteressados';
 import SeoGoogle from './SeoGoogle';
 import TaxasPlanos from './TaxasPlanos';
+import RecuperacaoVendas from './RecuperacaoVendas';
 import AtivarCelular from '@/components/AtivarCelular';
 
 const money = (v: number) => 'R$ ' + Number(v).toFixed(2).replace('.', ',');
@@ -489,6 +490,7 @@ export default function AdminDashboard({ painel, adminEmail, users, metrics, dai
           <>
             <h1 className="adm-h">Pedidos</h1>
             <p className="adm-sub">Todos os pedidos da plataforma.</p>
+            <RecuperacaoVendas />
             <div className="adm-filters">
               {['todos', 'pendente', 'pago', 'entregue', 'reembolsado'].map((f) => (
                 <button key={f} className={`adm-fb ${orderFilter === f ? 'on' : ''}`} onClick={() => setOrderFilter(f)}>
