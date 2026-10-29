@@ -388,6 +388,9 @@ export default function AdminDashboard({ painel, adminEmail, users, metrics, dai
         <a className="adm-nav" href="/admin/ofertas-parceiras" style={{ textDecoration: 'none' }}>
           <Icon name="link" /> Ofertas parceiras
         </a>
+        <a className="adm-nav" href="/notificacoes?aba=preferencias" style={{ textDecoration: 'none' }}>
+          <Icon name="bell" /> Minhas notificações
+        </a>
         <div className="adm-foot">
           <button className="adm-nav" onClick={toggleTheme} style={{ marginBottom: 2 }}>
             <Icon name={theme === 'dark' ? 'sun' : 'moon'} size={16} /> {theme === 'dark' ? 'Modo claro' : 'Modo escuro'}
