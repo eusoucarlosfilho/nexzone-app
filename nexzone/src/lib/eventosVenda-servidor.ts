@@ -157,10 +157,10 @@ export async function processarEventos(admin: any, opts: { orderId?: string; lim
 
 // ---------- Recuperação de Pix ----------
 /** Lembra quem gerou o Pix e não pagou: 15 min depois (Pix ainda válido) e 24 h depois (link para comprar de novo). */
-export async function lembrarPix(admin: any): Promise<{ enviados: number }> {
+export async function lembrarPix(admin: any, minutos = 15): Promise<{ enviados: number }> {
   const agora = Date.now();
   const etapas = [
-    { etapa: '15min', de: 60, ate: 15 },          // criado entre 60 e 15 minutos atrás
+    { etapa: '15min', de: Math.max(60, minutos + 55), ate: minutos }, // 1º lembrete: X minutos depois (Pix ainda válido)
     { etapa: '24h', de: 26 * 60, ate: 23 * 60 },  // criado entre 26 h e 23 h atrás
   ] as const;
   let enviados = 0;

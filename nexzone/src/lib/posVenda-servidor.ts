@@ -2,7 +2,7 @@
 import { getGateway } from '@/lib/payments/gateway';
 import { getSettings, lerTaxas } from '@/lib/settings';
 import { divisaoVendedor, taxaComprador, planoEfetivo } from './taxas';
-import { lerPosVenda, etapaAtual, ofertaNoPrazo, expiraEm, ETAPAS_CARRINHO, linkRecuperacao, type PosVenda } from './posVenda';
+import { lerPosVenda, etapaAtual, ofertaNoPrazo, expiraEm, etapasCarrinho, linkRecuperacao, type PosVenda } from './posVenda';
 import { sendEmail, layoutEmail, emailDoUsuario, esc, SITE_URL } from './email';
 import { avisarWhatsApp } from './whatsapp/enviar';
 
@@ -151,10 +151,10 @@ export async function registrarCarrinho(admin: any, c: { productId: string; emai
 }
 
 /** Rotina (cron de 1 min): lembretes de carrinho em 1 h e 24 h. */
-export async function lembrarCarrinhos(admin: any): Promise<{ enviados: number }> {
+export async function lembrarCarrinhos(admin: any, minutos = 60): Promise<{ enviados: number }> {
   let enviados = 0;
   const agora = Date.now();
-  for (const e of ETAPAS_CARRINHO) {
+  for (const e of etapasCarrinho(minutos)) {
     const { data: lista, error } = await admin.from('carrinhos_abandonados')
       .select('id, product_id, user_id, email, nome, atualizado_em, lembrete_1h, products(titulo, status, preco, preco_promo)')
       .is('convertido_em', null).is(e.coluna, null)

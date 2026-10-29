@@ -90,6 +90,18 @@ export const ETAPAS_CARRINHO = [
   { etapa: '24h' as const, coluna: 'lembrete_24h', de: 26 * 60, ate: 23 * 60 },
 ];
 
+/** Minutos até o 1º lembrete (settings.recuperacao_minutos, SQL 24). Fora da faixa → 5. */
+export function minutosRecuperacao(v: unknown): number {
+  const n = Math.round(Number(String(v ?? '').replace(/"/g, '')));
+  return Number.isFinite(n) && n >= 3 && n <= 120 ? n : 5;
+}
+
+/** Etapas do carrinho com o 1º lembrete no tempo escolhido (janela de 3 h para não perder ninguém). */
+export const etapasCarrinho = (min: number) => [
+  { ...ETAPAS_CARRINHO[0], de: Math.max(180, min + 120), ate: min },
+  ETAPAS_CARRINHO[1],
+];
+
 /** Link de volta ao checkout com e-mail e cupom de recuperação */
 export function linkRecuperacao(site: string, productId: string, email: string, cupom: string | null): string {
   const u = new URL(`/checkout/${productId}`, site);
