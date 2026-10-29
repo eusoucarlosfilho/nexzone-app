@@ -58,7 +58,7 @@ export default function RecuperacaoVendas() {
       <h3 className="adm-ct" style={{ marginBottom: 10 }}>Recuperação de vendas</h3>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))', gap: 10, fontSize: 13.5, marginBottom: 14 }}>
         <div>{ponto(!!roboOk)}<b>Robô automático</b><br /><small style={{ color: 'var(--sub)' }}>{!s.sql24 ? 'Desligado: falta rodar o SQL 24.' : roboOk ? `Rodando · última volta ${ha(s.roboEm)}` : `Parado${s.roboEm ? ` · última volta ${ha(s.roboEm)}` : ''}. Confira o SQL 24.`}</small></div>
-        <div>{ponto(s.whatsapp.ativo && s.whatsapp.conectado)}<b>WhatsApp de avisos</b><br /><small style={{ color: 'var(--sub)' }}>{!s.whatsapp.ativo ? 'Desligado em Admin › WhatsApp. Só o e-mail sai.' : s.whatsapp.conectado ? 'Conectado. As mensagens saem por ele.' : 'Ligado, mas desconectado. Escaneie o QR Code de novo.'}</small></div>
+        <div>{ponto(s.whatsapp.ativo && s.whatsapp.conectado)}<b>WhatsApp de avisos</b><br /><small style={{ color: 'var(--sub)' }}>{!s.whatsapp.ativo ? 'Desligado. Só o e-mail sai.' : s.whatsapp.conectado ? 'Conectado. As mensagens saem por ele.' : 'Ligado, mas desconectado. Escaneie o QR Code de novo.'}</small>{!(s.whatsapp.ativo && s.whatsapp.conectado) && <><br /><a href="/admin?aba=torpedos" style={{ fontSize: 12.5, fontWeight: 800, color: 'var(--or2)' }}>{s.whatsapp.ativo ? 'Reconectar o WhatsApp →' : 'Ligar e conectar o WhatsApp →'}</a></>}<small></small></div>
         <div>{ponto(true)}<b>{s.lembretes24h} lembretes</b> nas últimas 24 h<br /><small style={{ color: 'var(--sub)' }}>Pix, carrinho e antigos</small></div>
       </div>
       <p style={{ fontSize: 13, color: 'var(--sub)', margin: '0 0 12px', lineHeight: 1.55 }}>

@@ -274,7 +274,7 @@ export default function AdminDashboard({ painel, adminEmail, users, metrics, dai
     ['verificacoes', 'key', 'Verificações', verificacoesPendentes],
     ['suporte', 'help', 'Suporte', metrics.suporteAbertos || 0],
     ['observacoes', 'chat', 'Observações', 0],
-    ['torpedos', 'bell', 'Torpedos enviados', 0],
+    ['torpedos', 'chat', 'WhatsApp e torpedos', 0],
     ['avisos', 'send', 'Avisos no sino', 0],
     ['promocoes', 'megaphone', 'Enviar promoção', 0],
     ['provasocial', 'shield', 'Prova social', 0],
@@ -862,7 +862,7 @@ export default function AdminDashboard({ painel, adminEmail, users, metrics, dai
 
         {tab === 'torpedos' && (
           <>
-            <h1 className="adm-h">Torpedos enviados</h1>
+            <h1 className="adm-h">WhatsApp e torpedos</h1>
             <p className="adm-sub">Avisos automáticos para o vendedor quando ele demora a responder o cliente no chat. Configure o tempo e os canais (e-mail/SMS/WhatsApp).</p>
             <div style={{ marginBottom: 22 }}>
               <TorpedosForm settings={settings} />
