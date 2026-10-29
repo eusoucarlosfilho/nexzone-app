@@ -15,7 +15,7 @@ t('curto, vazio, nulo, estrangeiro', () => { assert.strictEqual(tel.normalizarTe
 t('máscara progressiva', () => { assert.strictEqual(tel.formatarTelefone('63'), '(63'); assert.strictEqual(tel.formatarTelefone('639999'), '(63) 9999'); assert.strictEqual(tel.formatarTelefone('63999991234'), '(63) 99999-1234'); });
 t('mascarar para o admin', () => assert.strictEqual(tel.mascararTelefone('5563999991234'), '55 63 9****-1234'));
 
-t('todos os eventos têm modelo e variáveis', () => { for (const e of ev.EVENTOS) { assert.ok(e.padrao.length > 10, e.chave); assert.ok(e.variaveis.length > 0, e.chave); } });
+t('todos os eventos têm modelo e variáveis', () => { for (const e of ev.EVENTOS) { assert.ok(e.padrao.length > 10 || e.chave === 'pix_codigo', e.chave); assert.ok(e.variaveis.length > 0, e.chave); } });
 t('chaves únicas', () => assert.strictEqual(new Set(ev.CHAVES_EVENTOS).size, ev.EVENTOS.length));
 t('variáveis usadas no padrão estão declaradas', () => { for (const e of ev.EVENTOS) for (const m of e.padrao.matchAll(/\{([a-z_]+)\}/g)) assert.ok(e.variaveis.includes(m[1]), `${e.chave}:${m[1]}`); });
 t('monta texto com variáveis', () => assert.strictEqual(ev.montarTexto('Olá, {nome}! {produto} — {valor}', { nome: 'Ana', produto: 'Curso', valor: 'R$ 10,00' }), 'Olá, Ana! Curso — R$ 10,00'));

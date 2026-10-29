@@ -1,0 +1,10 @@
+const assert = require('assert');
+const P = require('./.build/posVenda.js');
+const W = require('./.build/whatsapp/eventos.js');
+let ok = 0; const t = (n, f) => { try { f(); ok++; } catch (e) { console.error('FALHOU:', n); throw e; } };
+t('minutos: padrão 5 e faixa 3 a 120', () => { assert.strictEqual(P.minutosRecuperacao(undefined), 5); assert.strictEqual(P.minutosRecuperacao('"10"'), 10); assert.strictEqual(P.minutosRecuperacao(2), 5); assert.strictEqual(P.minutosRecuperacao(500), 5); assert.strictEqual(P.minutosRecuperacao(120), 120); });
+t('carrinho: 1º lembrete no tempo escolhido, janela de pelo menos 3 h', () => { const e = P.etapasCarrinho(5); assert.strictEqual(e[0].ate, 5); assert.strictEqual(e[0].de, 180); assert.strictEqual(e[1].ate, 23 * 60); assert.strictEqual(P.etapasCarrinho(90)[0].de, 210); });
+t('eventos novos existem com as variáveis certas', () => { const g = W.acharEvento('pix_gerado'); assert.ok(g && g.variaveis.includes('link')); assert.strictEqual(W.acharEvento('pix_codigo').padrao, '{pix}'); });
+t('código Pix vai inteiro na 2ª mensagem', () => { const pix = '00020101021226870014br.gov.bcb.pix2565qrcodepix.exemplo.com/v2/cobv/abc5204000053039865802BR5925COMPREI6304ABCD'; assert.strictEqual(W.montarTexto('{pix}', { pix }), pix); });
+t('compra aprovada aponta o chat com o vendedor', () => assert.ok(W.acharEvento('compra_aprovada').padrao.includes('vendedor')));
+console.log(`recuperação automática: ${ok} testes ok`);
