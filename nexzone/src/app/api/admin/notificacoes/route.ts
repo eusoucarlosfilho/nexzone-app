@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server';
+import { enviarEnvio } from '@/lib/push-servidor';
 import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { linkInterno, PUBLICOS, semTabela } from '@/lib/notificacoesCentral';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
 
 // Admin → Avisos no sino: manda uma notificação para muita gente de uma vez (SQL 17).
 //   GET  → últimos envios
@@ -47,5 +49,12 @@ export async function POST(req: Request) {
     const sem = semTabela(error) || /notificar_em_massa/i.test(error.message || '');
     return NextResponse.json({ error: sem ? 'Rode o SQL 17 no Supabase para ativar as notificações.' : 'Não foi possível enviar.' }, { status: 500 });
   }
-  return NextResponse.json({ ok: true, total: Number(data) || 0 });
+  // também na tela do celular de quem ativou (SQL 22). Nunca derruba o envio do sino.
+  let celulares = 0;
+  try {
+    const adm = createAdminClient();
+    const { data: env } = await adm.from('notificacoes_envios').select('id').eq('autor', a.user!.id).eq('titulo', titulo).order('id', { ascending: false }).limit(1);
+    if (env?.[0]) celulares = (await enviarEnvio(adm, Number((env[0] as any).id))).enviados;
+  } catch (e: any) { console.error('[admin/notificacoes] push', e?.message || e); }
+  return NextResponse.json({ ok: true, total: Number(data) || 0, celulares });
 }
