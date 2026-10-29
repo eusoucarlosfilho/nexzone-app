@@ -6,6 +6,8 @@ import { lerTaxas } from '@/lib/settings';
 import { divisaoVendedor, taxaComprador, planoEfetivo } from '@/lib/taxas';
 import { listaDeBumps } from '@/lib/checkoutConfig';
 import { limparOrigem, limparCliques } from '@/lib/rastreioVenda';
+import { avisarWhatsApp, link } from '@/lib/whatsapp/enviar';
+import { moneyBR } from '@/lib/email';
 
 export async function POST(req: Request) {
   const supabase = createClient();
@@ -144,6 +146,17 @@ export async function POST(req: Request) {
   if (upErr) {
     console.error('Erro ao salvar pix no pedido:', upErr.message);
     return NextResponse.json({ error: 'Pix gerado, mas falhou ao salvar. Tente novamente.' }, { status: 500 });
+  }
+
+  // WhatsApp na hora (no número do comprador, se ele aceitou avisos): link do pedido + código Pix em mensagem separada,
+  // para ele copiar fácil. Nunca segura a resposta do checkout por mais de ~4 s e nunca derruba a compra.
+  if (pay.pixCopiaECola) {
+    const enviar = (async () => {
+      const vars = { produto: product.titulo, valor: moneyBR(valorPix), pedido: String(order.id).slice(0, 8), link: link(`/pedido/${order.id}`), pix: pay.pixCopiaECola };
+      await avisarWhatsApp({ evento: 'pix_gerado', chave: `pix_gerado:${order.id}`, userId: user.id, vars });
+      await avisarWhatsApp({ evento: 'pix_codigo', chave: `pix_codigo:${order.id}`, userId: user.id, vars });
+    })().catch(() => null);
+    await Promise.race([enviar, new Promise((r) => setTimeout(r, 4000))]);
   }
 
   // Debita os CB Points usados como desconto (só após o pedido ficar válido)
