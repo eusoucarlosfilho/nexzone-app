@@ -1,10 +1,10 @@
 'use client';
 import { useEffect, useState } from 'react';
+import AtivarCelular from '@/components/AtivarCelular';
 import { lerPrefs, gravarPrefs, PREFS_PADRAO, type Prefs, type TipoNotif } from '@/lib/notifPrefs';
 
 // Preferências (neste navegador) + preparação para notificações no celular.
-// O envio real (Web Push) NÃO está ativo nesta versão: o botão fica desabilitado e
-// esta página NÃO pede permissão de notificação ao navegador.
+// Notificação no celular (Web Push, SQL 22): o componente AtivarCelular pede a permissão só quando a pessoa toca no botão.
 
 type Ambiente = {
   ios: boolean; android: boolean; instalado: boolean;
@@ -65,9 +65,9 @@ export default function NotificacoesClient() {
       </section>
 
       <section className="card ntf-card" aria-labelledby="ntf-cel">
-        <h2 id="ntf-cel" className="aud-h2">No celular <span className="ntf-tag prep">em preparação</span></h2>
-        <p className="muted">Em breve você poderá receber avisos no celular mesmo com o site fechado. Enquanto isso, deixe o painel aberto ou instale o atalho abaixo.</p>
-        <button type="button" className="btn btn-pri" disabled aria-disabled="true">Ativar notificações no celular (em breve)</button>
+        <h2 id="ntf-cel" className="aud-h2">No celular <span className="ntf-tag ok">ativo</span></h2>
+        <p className="muted">Receba vendas, mensagens e perguntas na tela do celular, mesmo com o site fechado. Ative em cada aparelho que você usa.</p>
+        <AtivarCelular />
 
         {amb && (
           <ul className="ntf-amb" aria-label="Compatibilidade deste aparelho">
