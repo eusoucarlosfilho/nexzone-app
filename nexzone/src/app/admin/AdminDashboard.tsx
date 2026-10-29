@@ -48,6 +48,10 @@ const STATUS: Record<string, [string, string]> = {
 
 export default function AdminDashboard({ painel, adminEmail, users, metrics, daily, orders, products, stores, payouts, boosts, settings, growth, sellers, complaints, alerts }: any) {
   const [tab, setTab] = useState('cockpit');
+  // celular e tablet: o menu lateral fica escondido e abre pelo botão Menu
+  const [menuAberto, setMenuAberto] = useState(false);
+  useEffect(() => { setMenuAberto(false); }, [tab]);
+  useEffect(() => { if (!menuAberto) return; const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') setMenuAberto(false); }; window.addEventListener('keydown', esc); return () => window.removeEventListener('keydown', esc); }, [menuAberto]);
   // Link "Abrir no Admin" dos e-mails do suporte: /admin?suporte=CB-AAAA-000001
   const [suporteProtocolo, setSuporteProtocolo] = useState<string | null>(null);
   useEffect(() => {
@@ -335,25 +339,40 @@ export default function AdminDashboard({ painel, adminEmail, users, metrics, dai
         .adm-fb.on{background:var(--tx);color:var(--bg);border-color:var(--tx);}
         .adm-empty{text-align:center;color:var(--sub);padding:40px;font-size:14px;}
         .adm-soon{display:inline-block;font-size:10px;font-weight:800;color:var(--sub);background:var(--panel2);border:1px solid var(--bd2);border-radius:50px;padding:2px 9px;margin-left:8px;}
-        @media(max-width:820px){
+        .adm-top,.adm-veu,.adm-x{display:none;}
+        @media(max-width:1100px){
+          /* celular e tablet: menu escondido, abre como gaveta pelo botão Menu */
           .adm{flex-direction:column;}
-          /* celular: menu vira uma faixa fixa no topo, com rolagem lateral */
-          .adm-side{width:100%;height:auto;position:sticky;top:0;z-index:50;flex-direction:row;align-items:center;gap:6px;overflow-x:auto;overflow-y:hidden;padding:10px 12px;border-right:none;border-bottom:1px solid var(--bd2);scrollbar-width:none;-webkit-overflow-scrolling:touch;}
-          .adm-side::-webkit-scrollbar{display:none;}
-          .adm-logo,.adm-who{display:none;}
-          .adm-nav{flex:none;width:auto;height:40px;min-height:40px;padding:0 13px;white-space:nowrap;font-size:13px;gap:8px;border-radius:50px;}
+          .adm-top{display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:60;background:var(--panel);border-bottom:1px solid var(--bd2);padding:10px 14px;}
+          .adm-top .adm-menu{display:inline-flex;align-items:center;gap:8px;height:40px;padding:0 14px;border-radius:50px;border:1.5px solid var(--bd2);background:var(--panel2);color:var(--tx);font-family:'Outfit';font-weight:800;font-size:14px;cursor:pointer;}
+          .adm-top b{font-family:'Outfit';font-weight:800;font-size:15px;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+          .adm-top a{color:var(--sub);font-size:13px;font-weight:700;text-decoration:none;white-space:nowrap;}
+          .adm-side{position:fixed;left:0;top:0;bottom:0;z-index:80;width:280px;max-width:86vw;height:100vh;transform:translateX(-105%);transition:transform .25s var(--ease);box-shadow:0 0 40px rgba(0,0,0,.35);}
+          .adm-side.aberto{transform:translateX(0);}
+          .adm-veu{display:block;position:fixed;inset:0;z-index:70;background:rgba(10,10,20,.55);}
+          .adm-x{display:flex;position:absolute;top:14px;right:12px;width:36px;height:36px;border-radius:50%;border:none;background:var(--panel2);color:var(--tx);align-items:center;justify-content:center;cursor:pointer;}
           .adm-nav:hover{transform:none;}
-          .adm-nav.on{box-shadow:0 4px 12px rgba(255,107,0,.25);}
-          .adm-nav .bd{margin-left:4px;}
-          .adm-foot{display:flex;flex:none;align-items:center;gap:6px;margin:0;padding:0 0 0 6px;border-top:none;border-left:1px solid var(--bd2);}
-          .adm-foot a,.adm-foot form{flex:none;white-space:nowrap;}
-          .adm-foot a{padding:0 12px;line-height:40px;}
           .adm-main{padding:18px 14px 50px;}
           .adm-h{font-size:24px;}
+          /* tabelas largas rolam para o lado dentro do card, sem cortar colunas */
+          .adm-card:has(.adm-table){overflow-x:auto;-webkit-overflow-scrolling:touch;}
+          .adm-table{min-width:680px;}
+          .adm-table td:not(:first-child),.adm-table th{white-space:nowrap;}
+          .adm-table td:first-child{min-width:190px;}
+        }
+        @media(max-width:700px){
+          .adm-card:has(.adm-table)::before{content:'Arraste para o lado para ver todas as colunas →';display:block;position:sticky;left:0;font-size:11.5px;color:var(--sub);margin-bottom:8px;}
         }
       ` }} />
 
-      <aside className="adm-side">
+      <header className="adm-top">
+        <button type="button" className="adm-menu" onClick={() => setMenuAberto(true)} aria-label="Abrir menu" aria-expanded={menuAberto}><Icon name="menu" size={18} /> Menu</button>
+        <b>{(NAV.find(([id]: any) => id === tab) as any)?.[2] ?? 'Admin'}</b>
+        <a href="/">Ver site</a>
+      </header>
+      {menuAberto && <div className="adm-veu" onClick={() => setMenuAberto(false)} aria-hidden="true" />}
+      <aside className={`adm-side ${menuAberto ? 'aberto' : ''}`}>
+        <button type="button" className="adm-x" onClick={() => setMenuAberto(false)} aria-label="Fechar menu"><Icon name="x" size={18} /></button>
         <div className="adm-logo">Comprei <span>Barato</span></div>
         {adminEmail && (
           <div className="adm-who" style={{ fontSize: 11, color: 'var(--sub)', padding: '0 6px 12px', wordBreak: 'break-all', lineHeight: 1.4 }}>

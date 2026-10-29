@@ -47,6 +47,7 @@ export default function PainelVendas({ vendas, destaques, saques, cadastros, loj
   const [agrup, setAgrup] = useState<Agrupamento | 'auto'>('auto');
   const [metrica, setMetrica] = useState<'total' | 'receita' | 'vendas'>('total');
   const [foco, setFoco] = useState<number | null>(null);
+  const [filtrosAbertos, setFiltrosAbertos] = useState(false); // a barra de filtros só aparece quando a pessoa pede
   const [agora, setAgora] = useState<Date | null>(null);
 
   useEffect(() => {
@@ -122,8 +123,20 @@ export default function PainelVendas({ vendas, destaques, saques, cadastros, loj
     <div className="pv">
       <style dangerouslySetInnerHTML={{ __html: CSS }} />
 
+      {/* ---------- período escolhido + botão de filtros (a barra completa fica escondida) ---------- */}
+      <div className="pv-resumo">
+        <span className="pv-resumo-t"><Icon name="calendar" size={15} /> <b>{textoPeriodo}</b>
+          {loja !== 'todas' && <> · {lojasOrdenadas.find(([id]) => id === loja)?.[1] ?? 'uma loja'}</>}
+          {forma !== 'todas' && <> · {forma === 'pix' ? 'só Pix' : 'só cartão'}</>}
+          <small> · vs. {textoAnterior}</small>
+        </span>
+        <button type="button" className={`adm-btn rp pv-tg ${filtrosAbertos ? 'on' : ''}`} onClick={() => setFiltrosAbertos((v) => !v)} aria-expanded={filtrosAbertos}>
+          <Icon name="settings" size={15} /> {filtrosAbertos ? 'Fechar filtros' : `Filtros${(loja !== 'todas' ? 1 : 0) + (forma !== 'todas' ? 1 : 0) ? ` (${(loja !== 'todas' ? 1 : 0) + (forma !== 'todas' ? 1 : 0)})` : ''}`}
+        </button>
+      </div>
+
       {/* ---------- filtros ---------- */}
-      <div className="adm-card pv-filtros">
+      {filtrosAbertos && <div className="adm-card pv-filtros">
         <div className="pv-chips" role="group" aria-label="Período">
           {PRESETS.map((p) => (
             <button key={p.id} type="button" className={`adm-fb ${preset === p.id ? 'on' : ''}`} onClick={() => setPreset(p.id)}>{p.rotulo}</button>
@@ -165,7 +178,7 @@ export default function PainelVendas({ vendas, destaques, saques, cadastros, loj
           <b>{textoPeriodo}</b> · comparando com {textoAnterior}
           {(loja !== 'todas' || forma !== 'todas') && <> · <button type="button" className="pv-limpar" onClick={() => { setLoja('todas'); setForma('todas'); }}>limpar filtros</button></>}
         </div>
-      </div>
+      </div>}
 
       {/* ---------- números principais ---------- */}
       <div className="pv-kpis">
@@ -365,6 +378,11 @@ export default function PainelVendas({ vendas, destaques, saques, cadastros, loj
 const CSS = `
 .pv-carregando{color:var(--sub);text-align:center;padding:40px}
 .pv-filtros{padding:16px 18px}
+.pv-resumo{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:0 0 14px}
+.pv-resumo-t{display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:14px;color:var(--tx)}
+.pv-resumo-t small{color:var(--sub);font-size:12.5px}
+.pv-tg{display:inline-flex;align-items:center;gap:6px}
+.pv-tg.on{border-color:#FF8A3D;color:var(--tx)}
 .pv-chips{display:flex;gap:6px;flex-wrap:wrap}
 .pv-chips .adm-fb{min-height:36px;padding:6px 13px;display:inline-flex;align-items:center;gap:6px}
 .pv-linha{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-top:12px}
