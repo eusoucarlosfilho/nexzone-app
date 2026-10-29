@@ -29,6 +29,7 @@ import Verificacoes from './Verificacoes';
 import ProdutoresInteressados from './ProdutoresInteressados';
 import SeoGoogle from './SeoGoogle';
 import TaxasPlanos from './TaxasPlanos';
+import AtivarCelular from '@/components/AtivarCelular';
 
 const money = (v: number) => 'R$ ' + Number(v).toFixed(2).replace('.', ',');
 const fmt = (v: number) => Number(v).toLocaleString('pt-BR');
@@ -377,6 +378,7 @@ export default function AdminDashboard({ painel, adminEmail, users, metrics, dai
       </aside>
 
       <main className="adm-main">
+        <AtivarCelular compacto />
         {tab === 'cockpit' && (
           <>
             <h1 className="adm-h">Dashboard</h1>
