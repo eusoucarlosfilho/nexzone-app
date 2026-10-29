@@ -59,6 +59,7 @@
     "../src/lib/seoSite.ts",
     "../src/lib/taxas.ts",
     "../src/lib/push.ts",
-    "../src/lib/recuperacaoVenda.ts"
+    "../src/lib/recuperacaoVenda.ts",
+    "../src/lib/notifPreferencias.ts"
   ]
 }
