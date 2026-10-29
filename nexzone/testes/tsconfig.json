@@ -57,6 +57,7 @@
     "../src/lib/recrutamento.ts",
     "../src/lib/recrutamento-servidor.ts",
     "../src/lib/seoSite.ts",
-    "../src/lib/taxas.ts"
+    "../src/lib/taxas.ts",
+    "../src/lib/push.ts"
   ]
 }
