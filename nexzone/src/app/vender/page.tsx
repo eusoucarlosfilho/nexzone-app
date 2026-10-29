@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
+import AtivarCelular from '@/components/AtivarCelular';
 import { calcBalance } from '@/lib/balance';
 import Icon from '@/components/Icon';
 import ProductThumb from '@/components/ProductThumb';
@@ -123,6 +124,7 @@ export default async function VenderCockpit() {
         </Link>
       )}
 
+      <AtivarCelular compacto />
       <PainelLoja vendas={vendasDash} produtos={nomesProdutos} temForma={temForma} />
 
       <div className="card" style={{ marginBottom: 20 }}>
