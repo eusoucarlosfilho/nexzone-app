@@ -16,6 +16,7 @@ import UsersPanel from './v3/UsersPanel';
 import GrowthPanel from './v3/GrowthPanel';
 import { ehJogos } from '@/lib/categorias';
 import { TIPOS_ANUNCIO } from '@/lib/taxas';
+import { mensagemRecuperacao, linkWhatsapp, foneLegivel } from '@/lib/recuperacaoVenda';
 import Icon from '@/components/Icon';
 import ProductThumb from '@/components/ProductThumb';
 import ProdutoGerenciar from './ProdutoGerenciar';
@@ -426,6 +427,7 @@ export default function AdminDashboard({ painel, adminEmail, users, metrics, dai
                     {orders.slice(0, 6).map((o: any) => (
                       <tr key={o.id}>
                         <td><ProductThumb capa_url={o.products?.capa_url} categoria={o.products?.categoria} titulo={o.products?.titulo} tamanho={28} raio={7} icone={18} style={{ marginRight: 6 }} /> {o.products?.titulo ?? 'Produto'}</td>
+                        <td><span style={{ display: 'block', fontWeight: 800 }}>{o.cliente?.nome || '—'}</span><small style={{ color: 'var(--sub)' }}>{o.comprador_email || ''}{o.cliente?.whatsapp ? ` · ${foneLegivel(o.cliente.whatsapp)}` : ''}</small></td>
                         <td style={{ color: 'var(--sub)' }}>{o.stores?.nome ?? '—'}</td>
                         <td>{money(o.total)}</td>
                         <td><Pill s={o.status} /></td>
@@ -494,17 +496,24 @@ export default function AdminDashboard({ painel, adminEmail, users, metrics, dai
             <div className="adm-card">
               {filteredOrders.length ? (
                 <table className="adm-table">
-                  <thead><tr><th>Produto</th><th>Vendedor</th><th>Valor</th><th>Taxa</th><th>Status</th><th>Data</th><th></th></tr></thead>
+                  <thead><tr><th>Produto</th><th>Cliente</th><th>Vendedor</th><th>Valor</th><th>Taxa</th><th>Status</th><th>Data</th><th></th></tr></thead>
                   <tbody>
                     {filteredOrders.map((o: any) => (
                       <tr key={o.id}>
                         <td><ProductThumb capa_url={o.products?.capa_url} categoria={o.products?.categoria} titulo={o.products?.titulo} tamanho={28} raio={7} icone={18} style={{ marginRight: 6 }} /> {o.products?.titulo ?? 'Produto'}</td>
+                        <td><span style={{ display: 'block', fontWeight: 800 }}>{o.cliente?.nome || '—'}</span><small style={{ color: 'var(--sub)' }}>{o.comprador_email || ''}{o.cliente?.whatsapp ? ` · ${foneLegivel(o.cliente.whatsapp)}` : ''}</small></td>
                         <td style={{ color: 'var(--sub)' }}>{o.stores?.nome ?? '—'}</td>
                         <td>{money(o.total)}</td>
                         <td style={{ color: 'var(--or2)' }}>{money(o.taxa)}</td>
                         <td><Pill s={o.status} /></td>
                         <td style={{ color: 'var(--sub)' }}>{new Date(o.created_at).toLocaleDateString('pt-BR')}</td>
                         <td style={{ display: 'flex', gap: 6 }}>
+                          {o.status === 'pendente' && (() => {
+                            const msg = mensagemRecuperacao({ nome: o.cliente?.nome, produto: o.products?.titulo || 'o produto', loja: o.stores?.nome, link: `https://www.compreibarato.com.br/checkout/${o.product_id}` });
+                            const wa = o.cliente?.avisos ? linkWhatsapp(o.cliente?.whatsapp, msg) : null;
+                            return wa ? <a className="adm-btn ap" href={wa} target="_blank" rel="noreferrer" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}>WhatsApp</a>
+                              : o.comprador_email ? <a className="adm-btn rp" href={`mailto:${o.comprador_email}?subject=${encodeURIComponent('Sua compra no Comprei Barato')}&body=${encodeURIComponent(msg)}`} style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}>E-mail</a> : null;
+                          })()}
                           <button className="adm-btn rp" onClick={() => setChatOrder(o.id)}>Conversa</button>
                           {(o.status === 'pago' || o.status === 'entregue') && <button className="adm-btn rp" disabled={busy === o.id} onClick={() => reembolsar(o.id)}>Reembolsar</button>}
                         </td>

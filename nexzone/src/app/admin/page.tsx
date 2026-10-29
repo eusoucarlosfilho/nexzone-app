@@ -1,4 +1,5 @@
 import { createClient, createAdminClient } from '@/lib/supabase/server';
+import { contatosDosCompradores } from '@/lib/clientesPedidos';
 import { redirect } from 'next/navigation';
 import AdminDashboard from './AdminDashboard';
 import { resumirAlteracoes } from '@/lib/edicoes';
@@ -76,7 +77,7 @@ export default async function AdminPage() {
 
   const [ordersRes, productsRes, storesRes, buyersRes, payoutsRes, boostsRes, complaintsRes, alertsRes] = await Promise.all([
     supabase.from('orders')
-      .select('id, status, total, taxa, created_at, store_id, products(titulo, emoji, categoria, capa_url), stores(nome)')
+      .select('id, status, total, taxa, created_at, store_id, product_id, comprador, comprador_email, products(titulo, emoji, categoria, capa_url), stores(nome)')
       .order('created_at', { ascending: false }),
     supabase.from('products')
       .select('id, titulo, emoji, capa_url, preco, preco_promo, categoria, status, vendas, nota, created_at, store_id, stores(nome)')
@@ -100,6 +101,11 @@ export default async function AdminPage() {
   ]);
 
   const orders = (ordersRes.data ?? []) as any[];
+  // contato do comprador (nome e WhatsApp) para a aba Pedidos e a recuperação de quem não pagou
+  try {
+    const contatos = await contatosDosCompradores(admin, orders.map((o) => o.comprador));
+    orders.forEach((o) => { o.cliente = contatos[o.comprador] ?? null; });
+  } catch { /* sem contato: a aba segue com o e-mail */ }
   const products = (productsRes.data ?? []) as any[];
 
   // Fotos dos produtos na fila de aprovação (lidas à parte: o painel não quebra se a migração 0006 ainda não rodou)
