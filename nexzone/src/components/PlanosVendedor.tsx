@@ -57,7 +57,7 @@ export default function PlanosVendedor({ cfg, escuro = false }: { cfg: ConfigTax
         </div>
         <div className="pv-box">
           <h4>Saque no Pix</h4>
-          <p><b>1 saque grátis por semana</b>. Os extras na mesma semana custam {brl(cfg.saqueExtraTaxa)}. Sem mensalidade e sem fidelidade.</p>
+          <p><b>1 saque grátis por semana</b> a partir de {brl(cfg.saqueGratisMin)}. Abaixo disso, e os extras na mesma semana, custam {brl(cfg.saqueExtraTaxa)}. Sem mensalidade e sem fidelidade.</p>
         </div>
       </div>
     </div>

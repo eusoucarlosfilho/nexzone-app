@@ -5,10 +5,12 @@ import Icon from '@/components/Icon';
 import { toast } from '@/lib/toast';
 import { createClient } from '@/lib/supabase/client';
 import { AVISO_SEGURANCA, BUCKET_CHAT, ANEXO_CHAT_TIPOS, validarAnexoChat, tamanhoLegivel, produtosNaMensagem, textoSemLinksDeProduto, linkDoProduto } from '@/lib/conversas';
+import DialogoSite from '@/components/DialogoSite';
 
 type Anexo = { url: string; nome: string; tipo: string; tamanho: number };
 type Msg = { id: string; papel: string; texto: string; created_at: string; mine: boolean; anexo?: Anexo; alerta?: string; enviando?: boolean; retida?: boolean };
-type Produto = { id: string; titulo: string; preco: number; precoDe: number | null; capa_url: string | null; ativo?: boolean; loja?: string };
+type Produto = { id: string; titulo: string; preco: number; precoDe: number | null; capa_url: string | null; ativo?: boolean; loja?: string; vendas?: number };
+const semAcento = (s: string) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 const SITE = 'https://www.compreibarato.com.br';
 const brl = (v: number) => 'R$ ' + Number(v).toFixed(2).replace('.', ',');
 
@@ -27,6 +29,8 @@ export default function OrderChat({ orderId, theme = 'light', readOnly = false, 
   const [chat, setChat] = useState<{ fechado: boolean; fechaEm: string | null }>({ fechado: false, fechaEm: null });
   const [catalogo, setCatalogo] = useState<Produto[] | null>(null); // vendedor: escolher um produto da loja
   const [abrirCatalogo, setAbrirCatalogo] = useState(false);
+  const [busca, setBusca] = useState('');
+  const [paraLiberar, setParaLiberar] = useState<Msg | null>(null);
   const [anexo, setAnexo] = useState<File | null>(null);
   const fimRef = useRef<HTMLDivElement | null>(null);
   const boxRef = useRef<HTMLDivElement | null>(null);
@@ -127,7 +131,7 @@ export default function OrderChat({ orderId, theme = 'light', readOnly = false, 
   }
 
   async function abrirProdutos() {
-    setAbrirCatalogo(true);
+    setAbrirCatalogo(true); setBusca('');
     if (catalogo) return;
     try {
       const r = await fetch(`/api/chat/produtos?orderId=${orderId}`, { credentials: 'include', cache: 'no-store' });
@@ -140,7 +144,7 @@ export default function OrderChat({ orderId, theme = 'light', readOnly = false, 
     await enviar(`Dá uma olhada neste produto: ${linkDoProduto(SITE, p.id)}`);
   }
   async function liberar(m: Msg) {
-    if (!confirm('Liberar esta mensagem? A outra parte passa a ver o texto.')) return;
+    setParaLiberar(null);
     const r = await fetch('/api/chat/moderar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ id: m.id }) });
     const d = await r.json().catch(() => ({}));
     if (!r.ok) { toast(d.error || 'Não foi possível liberar.', 'error'); return; }
@@ -155,6 +159,8 @@ export default function OrderChat({ orderId, theme = 'light', readOnly = false, 
 
   return (
     <div className="oc" style={{ border: `1px solid ${C.bd}`, borderRadius: 14, background: C.panel, ['--oc-panel' as any]: C.panel, ['--oc-bd' as any]: C.bd }}>
+      <DialogoSite aberto={!!paraLiberar} titulo="Liberar esta mensagem?" texto="A outra parte passa a ver o texto que estava retido." confirmar="Liberar"
+        onConfirmar={() => paraLiberar && liberar(paraLiberar)} onFechar={() => setParaLiberar(null)} />
       <style dangerouslySetInnerHTML={{ __html: `
         .oc{position:relative}
         .oc-topo{display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:1px solid var(--oc-bd);border-radius:14px 14px 0 0}
@@ -181,7 +187,10 @@ export default function OrderChat({ orderId, theme = 'light', readOnly = false, 
         .oc-prod-tx strong{font-family:Outfit;font-weight:900;color:#1A1A2E}
         .oc-prod-tx em{font-style:normal;font-size:11.5px;font-weight:800;color:#B84A00}
         .oc-fechado{border-top:1px solid var(--oc-bd);padding:14px;text-align:center;font-size:13px;border-radius:0 0 14px 14px}
-        .oc-cat{position:absolute;left:8px;right:8px;bottom:70px;z-index:20;border-radius:14px;max-height:320px;overflow:auto;box-shadow:0 12px 40px rgba(22,22,42,.25);padding:8px}
+        .oc-cat{position:absolute;left:8px;right:8px;bottom:70px;z-index:20;border-radius:14px;max-height:380px;overflow:auto;box-shadow:0 12px 40px rgba(22,22,42,.25);padding:0 8px 8px}
+        .oc-cat-topo{position:sticky;top:0;z-index:1;padding:10px 0 8px;background:var(--oc-panel)}
+        .oc-busca{display:flex;align-items:center;gap:8px;border-radius:10px;padding:0 12px;height:40px;margin-top:8px}
+        .oc-busca input{flex:1;min-width:0;border:0;outline:none;background:transparent;font-size:16px;font-family:inherit;color:inherit}
         .oc-cat button.it{display:flex;gap:10px;align-items:center;width:100%;text-align:left;border:0;background:none;padding:8px;border-radius:10px;cursor:pointer;color:inherit;font-family:inherit}
         .oc-cat button.it:hover{background:rgba(255,107,0,.08)}
         @media(max-width:640px){
@@ -262,7 +271,7 @@ export default function OrderChat({ orderId, theme = 'light', readOnly = false, 
               {m.retida && (own || moderator) && (
                 <div style={{ fontSize: 11, fontWeight: 800, color: '#E5484D', margin: '4px 6px 0', display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                   🔒 Retida: {moderator ? 'a outra parte não vê este texto.' : 'o suporte vai analisar. A outra parte não vê o texto.'}
-                  {moderator && <button type="button" onClick={() => liberar(m)} style={{ background: '#3DDC97', color: '#0B3D1E', border: 0, borderRadius: 8, padding: '3px 10px', fontWeight: 900, cursor: 'pointer', fontSize: 11 }}>Liberar</button>}
+                  {moderator && <button type="button" onClick={() => setParaLiberar(m)} style={{ background: '#3DDC97', color: '#0B3D1E', border: 0, borderRadius: 8, padding: '3px 10px', fontWeight: 900, cursor: 'pointer', fontSize: 11 }}>Liberar</button>}
                 </div>
               )}
               <div style={{ fontSize: 10, color: C.sub, margin: '3px 6px 0', display: 'flex', gap: 8 }}>
@@ -283,17 +292,31 @@ export default function OrderChat({ orderId, theme = 'light', readOnly = false, 
       )}
       {!readOnly && !chat.fechado && abrirCatalogo && (
         <div className="oc-cat" role="dialog" aria-label="Escolher produto" style={{ background: C.panel, color: C.tx, border: `1px solid ${C.bd}` }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 8px 8px' }}>
-            <b style={{ fontFamily: 'Outfit' }}>Indicar um produto da loja</b>
-            <button type="button" onClick={() => setAbrirCatalogo(false)} aria-label="Fechar" style={{ background: 'none', border: 0, color: C.sub, cursor: 'pointer', display: 'inline-flex' }}><Icon name="x" size={18} /></button>
+          <div className="oc-cat-topo">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 8px' }}>
+              <b style={{ fontFamily: 'Outfit' }}>Indicar um produto da loja</b>
+              <button type="button" onClick={() => setAbrirCatalogo(false)} aria-label="Fechar" style={{ background: 'none', border: 0, color: C.sub, cursor: 'pointer', display: 'inline-flex' }}><Icon name="x" size={18} /></button>
+            </div>
+            <label className="oc-busca" style={{ border: `1.5px solid ${C.bd}`, background: C.inputBg }}>
+              <Icon name="search" size={16} style={{ color: C.sub, flexShrink: 0 }} />
+              <input type="search" value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar produto da loja" aria-label="Buscar produto da loja" autoFocus />
+            </label>
+            {catalogo && catalogo.length > 0 && !busca && <small style={{ display: 'block', color: C.sub, fontSize: 11.5, padding: '6px 8px 0' }}>Do mais vendido ao menos vendido</small>}
           </div>
-          {!catalogo ? <p style={{ color: C.sub, fontSize: 13, padding: 8 }}>Carregando…</p> : !catalogo.length ? <p style={{ color: C.sub, fontSize: 13, padding: 8 }}>Nenhum produto ativo na loja.</p> : catalogo.map((p) => (
+          {(() => {
+            if (!catalogo) return <p style={{ color: C.sub, fontSize: 13, padding: 8 }}>Carregando…</p>;
+            if (!catalogo.length) return <p style={{ color: C.sub, fontSize: 13, padding: 8 }}>Nenhum produto ativo na loja.</p>;
+            const termos = semAcento(busca).split(/\s+/).filter(Boolean);
+            const lista = termos.length ? catalogo.filter((p) => { const t = semAcento(p.titulo); return termos.every((x) => t.includes(x)); }) : catalogo;
+            if (!lista.length) return <p style={{ color: C.sub, fontSize: 13, padding: 8 }}>Nenhum produto com &quot;{busca}&quot;.</p>;
+            return lista.map((p) => (
             <button key={p.id} type="button" className="it" onClick={() => enviarProduto(p)}>
               <span className="oc-prod-img" style={{ width: 44, height: 44, ...(p.capa_url ? { backgroundImage: `url(${p.capa_url})` } : {}) }}>{!p.capa_url && <Icon name="package" size={18} />}</span>
-              <span style={{ flex: 1, minWidth: 0 }}><b style={{ display: 'block', fontSize: 13.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.titulo}</b><small style={{ color: C.sub }}>{brl(p.preco)}</small></span>
+              <span style={{ flex: 1, minWidth: 0 }}><b style={{ display: 'block', fontSize: 13.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.titulo}</b><small style={{ color: C.sub }}>{brl(p.preco)}{p.vendas ? ` · ${p.vendas} ${p.vendas === 1 ? 'vendido' : 'vendidos'}` : ''}</small></span>
               <span style={{ fontSize: 12, fontWeight: 800, color: '#FF6B00' }}>Enviar</span>
             </button>
-          ))}
+            ));
+          })()}
         </div>
       )}
       {!readOnly && !chat.fechado && (
