@@ -47,16 +47,20 @@ type Props = {
   suporteWhatsapp?: string | null;           // WhatsApp do suporte (Admin › Configurações)
   compradorEmail?: string | null;            // para onde foi o e-mail com o acesso
   compradorNome?: string | null;
+  entregaOk?: boolean;                       // entregue de verdade (vendedor marcou ou entrega automática)
+  entregaEm?: string | null;                 // quando o vendedor marcou
 };
 
 // Ajusta a linha do tempo ao que acontece na tela: pagamento que acabou de cair (polling) e
 // entrega feita pelo vendedor no chat (o sistema não sabe quando ele entregou, então não marca como feita).
-function etapasVisiveis(etapas: EtapaPedido[], pago: boolean, manual: boolean): EtapaPedido[] {
+function etapasVisiveis(etapas: EtapaPedido[], pago: boolean, entregaOk: boolean, entregaEm: string | null): EtapaPedido[] {
   let l = etapas.map((e) => ({ ...e }));
-  if (pago && !l[1].feito) l = l.map((e, i) => (i === 1 ? { ...e, rotulo: 'Pagamento confirmado', feito: true, atual: false } : i === 2 ? { ...e, atual: true } : e));
-  if (pago && manual) {
-    l[2] = { ...l[2], rotulo: 'Entrega no chat', feito: false, atual: true, quando: null };
-    l[3] = { ...l[3], atual: false };
+  if (pago && !l[1].feito) l = l.map((e, i) => (i === 1 ? { ...e, rotulo: 'Pagamento confirmado', feito: true, atual: false } : e));
+  if (pago) {
+    l[2] = entregaOk
+      ? { ...l[2], rotulo: 'Produto entregue', feito: true, atual: false, quando: entregaEm || l[2].quando }
+      : { ...l[2], rotulo: 'Aguardando entrega', feito: false, atual: true, quando: null };
+    l[3] = { ...l[3], atual: entregaOk && !l[3].feito };
   }
   return l;
 }
@@ -98,9 +102,10 @@ export default function OrderView(props: Props) {
   const [msg, setMsg] = useState('');
   const [pending, start] = useTransition();
   const [copiado, setCopiado] = useState(false);
-  // Entrega pelo vendedor: o formulário de avaliação só aparece 1 h depois do pagamento (antes, a pessoa ainda nem recebeu)
+  // Avaliação: depois que o vendedor marcar como entregue (ou 24 h depois do pagamento, se ele não marcar)
   const pagoEm = props.etapas?.[2]?.quando ? new Date(props.etapas[2].quando).getTime() : NaN;
-  const podeAvaliar = !props.entrega?.manual || avaliado || (Number.isFinite(pagoEm) && Date.now() - pagoEm > 3600000);
+  const aguardaVendedor = props.entregaOk === false;
+  const podeAvaliar = props.entregaOk !== false || avaliado || (Number.isFinite(pagoEm) && Date.now() - pagoEm > 24 * 3600000);
   async function copiarPix() {
     try { await navigator.clipboard.writeText(props.pixCode || ''); }
     catch {
@@ -173,7 +178,7 @@ export default function OrderView(props: Props) {
       </div>
 
       {props.etapas && status !== 'reembolsado' && status !== 'cancelado' && (
-        <LinhaDoTempo etapas={etapasVisiveis(props.etapas, pago, !!props.entrega?.manual)} />
+        <LinhaDoTempo etapas={etapasVisiveis(props.etapas, pago, props.entregaOk !== false, props.entregaEm ?? null)} />
       )}
       {pago ? (
         <div style={{ paddingTop: 18 }}>
@@ -182,10 +187,10 @@ export default function OrderView(props: Props) {
             <h1 style={{ fontFamily: 'Outfit', fontWeight: 900, fontSize: 24, lineHeight: 1.2, margin: '0 0 6px' }}>Obrigado pela compra{props.compradorNome ? `, ${props.compradorNome}` : ''}!</h1>
             <div style={{ color: 'var(--green)', fontWeight: 800, fontFamily: 'Outfit', fontSize: 14.5, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}><Icon name="checkCircle" size={17} /> Pagamento confirmado</div>
             <p className="muted" style={{ margin: '10px auto 16px', maxWidth: 400, fontSize: 14 }}>
-              {props.entrega?.manual ? 'O vendedor já foi avisado e entrega pelo chat abaixo. ' : 'Seu acesso já está liberado aqui embaixo. '}
-              Enviamos os detalhes da compra{props.entrega?.manual ? '' : ' e o acesso'} para {props.compradorEmail ? <b style={{ color: 'var(--text)' }}>{props.compradorEmail}</b> : 'o seu e-mail'}. Ela também fica salva em <Link href="/minhas-compras" style={{ color: 'var(--orange-ink)', fontWeight: 800 }}>Minhas compras</Link>.
+              {aguardaVendedor ? 'O vendedor já foi avisado e entrega pelo chat abaixo. ' : 'Seu acesso já está liberado aqui embaixo. '}
+              Enviamos os detalhes da compra{aguardaVendedor ? '' : ' e o acesso'} para {props.compradorEmail ? <b style={{ color: 'var(--text)' }}>{props.compradorEmail}</b> : 'o seu e-mail'}. Ela também fica salva em <Link href="/minhas-compras" style={{ color: 'var(--orange-ink)', fontWeight: 800 }}>Minhas compras</Link>.
             </p>
-            {props.entrega?.manual && <div style={{ textAlign: 'left', marginBottom: 14 }}><PromessaEntrega e={props.entrega} /></div>}
+            {aguardaVendedor && props.entrega && <div style={{ textAlign: 'left', marginBottom: 14 }}><PromessaEntrega e={{ ...props.entrega, manual: true, titulo: props.entrega.manual ? props.entrega.titulo : 'O vendedor entrega pelo chat', detalhe: 'Quando ele enviar, você recebe um aviso por e-mail e WhatsApp. Ele marca o pedido como entregue e você confere.' }} /></div>}
             {(props.cursos ?? []).length > 0 && (
               <div style={{ display: 'grid', gap: 8, marginBottom: 14 }}>
                 {(props.cursos ?? []).map((c, i) => (
@@ -239,7 +244,7 @@ export default function OrderView(props: Props) {
 
           <div id="avaliar" style={{ borderTop: '1px solid var(--border)', marginTop: 22, paddingTop: 18, scrollMarginTop: 80 }}>
             {!podeAvaliar ? (
-              <p className="muted" style={{ textAlign: 'center', fontSize: 13, margin: 0 }}><Icon name="star" size={14} /> Depois de receber pelo chat, volte aqui para avaliar a compra.</p>
+              <p className="muted" style={{ textAlign: 'center', fontSize: 13, margin: 0 }}><Icon name="star" size={14} /> Quando o vendedor entregar, você poderá avaliar a compra aqui.</p>
             ) : avaliado ? (
               <p style={{ textAlign: 'center', color: 'var(--green)', fontWeight: 700, fontFamily: 'Outfit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}><Icon name="star" size={16} style={{ fill: 'currentColor' }} /> Obrigado pela sua avaliação!</p>
             ) : (

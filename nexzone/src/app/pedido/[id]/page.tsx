@@ -12,6 +12,7 @@ import { situacaoGarantia } from '@/lib/reembolso-servidor';
 import { lerTaxas } from '@/lib/settings';
 import { taxaComprador } from '@/lib/taxas';
 import { lerEmpresa } from '@/lib/confianca-servidor';
+import { entregasEfetivas } from '@/lib/conversas-servidor';
 import { promessaEntrega, linhaDoTempo } from '@/lib/confianca';
 import { CSS_CONFIANCA } from '@/components/ConfiancaCheckout';
 
@@ -66,6 +67,10 @@ export default async function PedidoPage({ params, searchParams }: { params: { i
   // Confiança: prazo de entrega, contato do suporte e a linha do tempo do pedido
   const empresa = await lerEmpresa();
   const entrega = promessaEntrega(p?.tipo_anuncio, empresa.prazoManualHoras);
+  // Entrega marcada pelo vendedor (SQL 25) ou automática de verdade (arquivo, área de membros, link)
+  const ent = await entregasEfetivas(adminP, [{ id: order.id, status: order.status, product_id: (order as any).product_id, conteudo_liberado: (order as any).conteudo_liberado, tipo_anuncio: p?.tipo_anuncio }]);
+  const entregaOk = !!ent.entregue[order.id];
+  const entregaEm = ent.confirmadaEm[order.id] ?? null;
   const etapas = linhaDoTempo({ status: order.status, created_at: (order as any).created_at, entregue_em: (order as any).entregue_em, garantia_ate: garantia?.ate ?? null });
   return (
     <>
@@ -100,6 +105,8 @@ export default async function PedidoPage({ params, searchParams }: { params: { i
           etapas={etapas}
           suporteWhatsapp={empresa.whatsapp || null}
           compradorEmail={user.email ?? null}
+          entregaOk={entregaOk}
+          entregaEm={entregaEm}
           compradorNome={String(md.nome || md.full_name || md.name || '').trim().split(/\s+/)[0]?.replace(/[<>]/g, '').slice(0, 30) || null}
         />
         {mostrarConvite && <ConviteWhatsApp orderId={order.id} aviso={searchParams?.whats} />}
