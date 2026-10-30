@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient, createAdminClient } from '@/lib/supabase/server';
+import { marcarEntregue } from '@/lib/conversas-servidor';
 
 // Entrega manual pelo vendedor (chat do pedido).
 // Só pode entregar, ou atualizar a entrega de, um pedido com pagamento confirmado:
@@ -13,10 +14,8 @@ import { createClient, createAdminClient } from '@/lib/supabase/server';
 // mais recente da linha (READ COMMITTED), então nenhum passo grava com base numa leitura antiga.
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-const MSG_SISTEMA = {
-  entregue: 'O vendedor entregou o produto. O conteúdo já está liberado na sua compra.',
-  atualizado: 'O vendedor atualizou a entrega. O conteúdo atualizado já está liberado na sua compra.',
-};
+// Enviar a entrega NÃO marca mais como entregue sozinho: o vendedor escolhe (marcarEntregue).
+// Muitas vezes a primeira mensagem só pede o e-mail do cliente; a entrega de verdade vem depois.
 
 export async function POST(req: Request) {
   const supabase = createClient();
@@ -27,11 +26,12 @@ export async function POST(req: Request) {
   try { body = await req.json(); } catch { body = null; }
   const orderId = typeof body?.orderId === 'string' ? body.orderId : '';
   const conteudo = body?.conteudo;
+  const marcar = body?.marcarEntregue === true;
   if (!UUID.test(orderId)) return NextResponse.json({ error: 'pedido inválido' }, { status: 400 });
   if (!conteudo || !String(conteudo).trim()) return NextResponse.json({ error: 'conteúdo vazio' }, { status: 400 });
 
   const admin = createAdminClient();
-  const { data: order } = await admin.from('orders').select('id, store_id, status, entregue_em').eq('id', orderId).maybeSingle();
+  const { data: order } = await admin.from('orders').select('id, store_id, status, entregue_em, comprador, products(titulo)').eq('id', orderId).maybeSingle();
   if (!order) return NextResponse.json({ error: 'pedido não encontrado' }, { status: 404 });
 
   // Só o dono da loja entrega
@@ -81,17 +81,19 @@ export async function POST(req: Request) {
   }
 
   // A entrega está gravada. Agora o aviso no chat do pedido (mensagem do sistema + o conteúdo como mensagem do vendedor).
-  const { error: msgErr } = await admin.from('order_messages').insert([
-    { order_id: orderId, remetente: null, papel: 'sistema', texto: MSG_SISTEMA[modo] },
-    { order_id: orderId, remetente: user.id, papel: 'vendedor', texto },
-  ]);
+  const { error: msgErr } = await admin.from('order_messages').insert({ order_id: orderId, remetente: user.id, papel: 'vendedor', texto });
+  // Marca como entregue só se o vendedor escolheu (registra a mensagem de sistema e avisa o cliente)
+  let entregue = false;
+  if (marcar) {
+    const m = await marcarEntregue(admin, { ...(order as any), status: 'entregue' }, 'vendedor');
+    entregue = m.ok;
+  }
   if (msgErr) {
     console.error('[chat/deliver] entrega gravada, mas falhou o aviso no chat:', msgErr.message);
-    // Sucesso PARCIAL: o conteúdo está liberado na compra, mas o aviso na conversa não foi registrado.
-    return NextResponse.json({ ok: true, modo, avisoRegistrado: false, parcial: true });
+    return NextResponse.json({ ok: true, modo, entregue, avisoRegistrado: false, parcial: true });
   }
 
-  return NextResponse.json({ ok: true, modo, avisoRegistrado: true, parcial: false });
+  return NextResponse.json({ ok: true, modo, entregue, avisoRegistrado: true, parcial: false });
 }
 
 function motivoRecusa(status: string | null | undefined): string | null {
