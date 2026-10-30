@@ -48,12 +48,12 @@ export default function VendasClient({ vendas, clientes = {}, loja = '', site = 
   }
 
   function exportarCSV() {
-    const headers = ['Data', 'Produto', 'Cliente', 'E-mail', 'WhatsApp', 'Status', 'Valor Bruto', 'Taxa', 'Valor Liquido'];
+    const headers = privado ? ['Data', 'Produto', 'Cliente', 'Status', 'Valor Bruto', 'Taxa', 'Valor Liquido'] : ['Data', 'Produto', 'Cliente', 'E-mail', 'WhatsApp', 'Status', 'Valor Bruto', 'Taxa', 'Valor Liquido'];
     const linhas = lista.map((v: any) => {
       const c = cliente(v);
       return [
-        new Date(v.created_at).toLocaleString('pt-BR'), v.products?.titulo ?? 'Produto', c.nome ?? '', v.comprador_email ?? '',
-        c.whatsapp ? foneLegivel(c.whatsapp) : '', (STATUS[v.status]?.[1] ?? v.status), money(v.total), money(v.taxa), money(v.valor_vendedor),
+        new Date(v.created_at).toLocaleString('pt-BR'), v.products?.titulo ?? 'Produto', c.nome ?? '',
+        ...(privado ? [] : [v.comprador_email ?? '', c.whatsapp ? foneLegivel(c.whatsapp) : '']), (STATUS[v.status]?.[1] ?? v.status), money(v.total), money(v.taxa), money(v.valor_vendedor),
       ];
     });
     const csv = [headers, ...linhas].map((r: string[]) => r.map((c: string) => `"${String(c).replace(/"/g, '""')}"`).join(';')).join('\n');

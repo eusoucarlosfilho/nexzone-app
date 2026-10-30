@@ -3,7 +3,6 @@ import { redirect } from 'next/navigation';
 import VendasClient from './VendasClient';
 import VendasPorOrigem from './VendasPorOrigem';
 import { contatosDosCompradores, carrinhosAbandonados } from '@/lib/clientesPedidos';
-import { mascararEmail } from '@/lib/conversas';
 
 export const dynamic = 'force-dynamic';
 
@@ -32,14 +31,14 @@ export default async function VendasPage({ searchParams }: { searchParams?: { f?
   // Privacidade: o vendedor NÃO recebe telefone nem e-mail completo do cliente (contato só pela plataforma).
   // Isto é cortado aqui no servidor, para os dados nunca chegarem ao navegador do vendedor.
   clientes = Object.fromEntries(Object.entries(clientes as Record<string, any>).map(([k, c]) => [k, { nome: c?.nome ?? null, whatsapp: null, avisos: false }]));
-  for (const v of lista) v.comprador_email = mascararEmail(v.comprador_email);
+  for (const v of lista) v.comprador_email = ''; // o vendedor vê o nome; e-mail e WhatsApp ficam só com a plataforma
 
   // Quem preencheu o checkout e saiu sem gerar o Pix (SQL 19), só dos produtos desta loja
   let carrinhos: any[] = [];
   try {
     const { data: prods } = await supabase.from('products').select('id').eq('store_id', store.id).limit(1000);
     carrinhos = await carrinhosAbandonados(createAdminClient(), { productIds: ((prods ?? []) as any[]).map((p) => p.id) });
-    carrinhos = carrinhos.map((c: any) => ({ ...c, email: mascararEmail(c.email), whatsapp: null, avisos: false }));
+    carrinhos = carrinhos.map((c: any) => ({ ...c, email: '', whatsapp: null, avisos: false }));
   } catch { carrinhos = []; }
 
   // Origem das vendas (SQL 15). Sem o SQL 15: o relatório mostra tudo como "Direto / sem rastreio".
