@@ -3,8 +3,8 @@ import { createClient } from '@/lib/supabase/server';
 import { verificarEscalonamento } from '@/lib/escalonamento';
 import { notificarMensagem } from '@/lib/notificacoes';
 import { vendedorPublico } from '@/lib/vendedorPublico';
-import { autorizarPedido, registrarVisto, vistoDe, confirmarAnexoChat, entregasEfetivas } from '@/lib/conversas-servidor';
-import { AVISO_SEGURANCA, foiLida, pareceContatoExterno } from '@/lib/conversas';
+import { autorizarPedido, registrarVisto, confirmarAnexoChat, entregasEfetivas } from '@/lib/conversas-servidor';
+import { AVISO_SEGURANCA, pareceContatoExterno } from '@/lib/conversas';
 
 const COLS_NOVAS = 'id, papel, texto, remetente, created_at, anexo_path, anexo_nome, anexo_tipo, anexo_tamanho, alerta';
 const COLS_ANTIGAS = 'id, papel, texto, remetente, created_at';
@@ -42,10 +42,9 @@ export async function GET(req: Request) {
   if (r.error) { novas = false; r = await admin.from('order_messages').select(COLS_ANTIGAS).eq('order_id', orderId).order('created_at', { ascending: true }) as any; }
   const msgs = (r.data ?? []) as any[];
 
-  // "Lido": registra que esta pessoa viu e lê até quando a OUTRA parte viu (o admin olhando não conta)
+  // Registra até quando ESTA pessoa viu a conversa (só para a etiqueta "Nova mensagem" do próprio painel).
+  // A confirmação de leitura NÃO é mostrada para a outra parte: cada um vê só "Enviado".
   if (papel !== 'admin') await registrarVisto(admin, orderId, user.id);
-  const outro = papel === 'comprador' ? dono : papel === 'vendedor' ? order.comprador : null;
-  const vistoOutro = novas ? await vistoDe(admin, orderId, outro) : null;
 
   verificarEscalonamento(admin, orderId).catch(() => {});
 
@@ -53,7 +52,6 @@ export async function GET(req: Request) {
     const mine = m.remetente === user.id;
     return {
       id: m.id, papel: m.papel, texto: m.texto, created_at: m.created_at, mine,
-      ...(mine && novas && papel !== 'admin' ? { lido: foiLida(m.created_at, vistoOutro) } : {}),
       ...(m.anexo_path ? { anexo: { url: `/api/chat/anexo?id=${encodeURIComponent(m.id)}`, nome: m.anexo_nome || 'anexo', tipo: m.anexo_tipo || '', tamanho: Number(m.anexo_tamanho) || 0 } } : {}),
       ...(papel === 'admin' && m.alerta ? { alerta: m.alerta } : {}),
     };
@@ -70,7 +68,7 @@ export async function GET(req: Request) {
     loja: papel === 'comprador' ? vendedorPublico(order.stores).nome : (order.stores?.nome ?? 'Loja'),
     oficial: papel === 'comprador' && vendedorPublico(order.stores).oficial,
     entregue: ent ? !!ent.entregue[order.id] : null,
-    recursos: { lido: novas, anexos: novas },
+    recursos: { anexos: novas },
     messages: lista,
   }, { headers: { 'Cache-Control': 'private, no-store' } });
 }
@@ -112,7 +110,7 @@ export async function POST(req: Request) {
   await notificarMensagem(admin, { orderId, papel, remetenteId: user.id, texto: msg.texto });
 
   return NextResponse.json({
-    message: { ...msg, mine: true, lido: false, ...(anexo ? { anexo: { url: `/api/chat/anexo?id=${encodeURIComponent(msg.id)}`, nome: anexo.nome, tipo: anexo.tipo, tamanho: anexo.tamanho } } : {}) },
+    message: { ...msg, mine: true, ...(anexo ? { anexo: { url: `/api/chat/anexo?id=${encodeURIComponent(msg.id)}`, nome: anexo.nome, tipo: anexo.tipo, tamanho: anexo.tamanho } } : {}) },
     aviso: alerta ? 'Atenção: trocar telefone, WhatsApp ou redes sociais é proibido e pode suspender a conta. A mensagem foi enviada e registrada para a equipe de segurança.' : null,
   });
 }
