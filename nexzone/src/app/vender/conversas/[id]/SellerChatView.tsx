@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import OrderChat from '@/components/OrderChat';
 import { toast } from '@/lib/toast';
 import Icon from '@/components/Icon';
+import DialogoSite from '@/components/DialogoSite';
 
 // Textos para pedidos que NÃO podem ser entregues (mesma regra de /api/chat/deliver)
 const BLOQUEIO: Record<string, { titulo: string; texto: string }> = {
@@ -40,29 +41,26 @@ export default function SellerChatView({ orderId, status, podeEntregar, conteudo
   const [avisoPendente, setAvisoPendente] = useState(false);
 
   const [cancelando, setCancelando] = useState(false);
-  async function cancelarVenda() {
-    const motivo = prompt('Cancelar esta venda e devolver o dinheiro ao cliente?\n\nConte o motivo (o cliente vê na conversa):');
-    if (motivo === null) return;
+  const [dlg, setDlg] = useState<'cancelar' | 'entregue' | null>(null);
+  async function cancelarVenda(motivo: string) {
     if (motivo.trim().length < 5) { toast('Escreva o motivo em poucas palavras.', 'error'); return; }
-    if (!confirm('Confirmar o cancelamento? O valor desta venda sai do seu saldo e volta para o cliente. Não dá para desfazer.')) return;
     setCancelando(true);
     try {
       const r = await fetch('/api/chat/cancelar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ orderId, motivo }) });
       const d = await r.json().catch(() => ({}));
       if (!r.ok) { toast(d.error || 'Não foi possível cancelar.', 'error'); return; }
-      toast('Venda cancelada. O suporte devolve o valor ao cliente.', 'success'); setRefresh((x) => x + 1); router.refresh();
+      setDlg(null); toast('Venda cancelada. O suporte devolve o valor ao cliente.', 'success'); setRefresh((x) => x + 1); router.refresh();
     } catch { toast('Falha de conexão. Tente de novo.', 'error'); }
     finally { setCancelando(false); }
   }
 
   async function marcar() {
-    if (!confirm('Marcar este pedido como entregue? O cliente recebe um aviso para conferir.')) return;
     setMarcando(true);
     try {
       const r = await fetch('/api/chat/entregue', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ orderId }) });
       const d = await r.json().catch(() => ({}));
       if (!r.ok) { toast(d.error || 'Não foi possível marcar.', 'error'); return; }
-      setEntregueOk(true); setRefresh((x) => x + 1); router.refresh();
+      setDlg(null); setEntregueOk(true); setRefresh((x) => x + 1); router.refresh();
       toast('Pedido marcado como entregue. O cliente foi avisado.', 'success');
     } catch { toast('Falha de conexão. Tente de novo.', 'error'); }
     finally { setMarcando(false); }
@@ -102,6 +100,17 @@ export default function SellerChatView({ orderId, status, podeEntregar, conteudo
 
   return (
     <>
+      <DialogoSite aberto={dlg === 'cancelar'} perigo carregando={cancelando}
+        titulo="Cancelar venda e devolver ao cliente"
+        texto={<>O valor desta venda sai do seu saldo e volta para o cliente pelo suporte. <b>Não dá para desfazer.</b></>}
+        campo={{ rotulo: 'Motivo do cancelamento', placeholder: 'Ex.: o produto acabou e não consigo entregar', minimo: 5, dica: 'O cliente vê este motivo na conversa.' }}
+        confirmar="Cancelar venda" cancelar="Voltar"
+        onConfirmar={(m) => cancelarVenda(m)} onFechar={() => setDlg(null)} />
+      <DialogoSite aberto={dlg === 'entregue'} carregando={marcando}
+        titulo="Marcar como entregue?"
+        texto="O cliente recebe um aviso para conferir. Marque só depois que ele tiver recebido o produto."
+        confirmar="Marcar como entregue"
+        onConfirmar={() => marcar()} onFechar={() => setDlg(null)} />
       {bloqueio ? (
         <div className="card" role="status" style={{ marginBottom: 16, borderLeft: '3px solid var(--border)' }}>
           <strong style={{ fontFamily: 'Outfit', fontSize: 15 }}>{bloqueio.titulo}</strong>
@@ -121,14 +130,14 @@ export default function SellerChatView({ orderId, status, podeEntregar, conteudo
             </p>
           </div>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            {!entregueOk && sql25 && <button className="btn btn-pri btn-sm" onClick={marcar} disabled={marcando}><Icon name="check" size={15} /> {marcando ? 'Marcando…' : 'Marcar como entregue'}</button>}
+            {!entregueOk && sql25 && <button className="btn btn-pri btn-sm" onClick={() => setDlg('entregue')} disabled={marcando}><Icon name="check" size={15} /> {marcando ? 'Marcando…' : 'Marcar como entregue'}</button>}
             <button className="btn btn-ghost btn-sm" onClick={() => setAbrir((a) => !a)}>{abrir ? 'Fechar' : entregueOk ? 'Atualizar entrega' : 'Enviar entrega'}</button>
           </div>
         </div>
         {!sql25 && <p className="muted" style={{ fontSize: 12, margin: '8px 0 0' }}>O botão "Marcar como entregue" aparece depois que o SQL 25 for aplicado.</p>}
         <div style={{ borderTop: '1px solid var(--border)', marginTop: 12, paddingTop: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           <small className="muted" style={{ fontSize: 12 }}>Não vai conseguir entregar ou o cliente desistiu?</small>
-          <button type="button" onClick={cancelarVenda} disabled={cancelando} style={{ background: 'none', border: 0, color: 'var(--red)', fontWeight: 800, fontSize: 13, cursor: 'pointer', padding: 0 }}>{cancelando ? 'Cancelando…' : 'Cancelar venda e devolver ao cliente'}</button>
+          <button type="button" onClick={() => setDlg('cancelar')} disabled={cancelando} style={{ background: 'none', border: 0, color: 'var(--red)', fontWeight: 800, fontSize: 13, cursor: 'pointer', padding: 0 }}>{cancelando ? 'Cancelando…' : 'Cancelar venda e devolver ao cliente'}</button>
         </div>
 
         {avisoPendente && (
