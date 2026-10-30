@@ -61,6 +61,8 @@
     "../src/lib/push.ts",
     "../src/lib/recuperacaoVenda.ts",
     "../src/lib/notifPreferencias.ts",
-    "../src/lib/confianca.ts"
+    "../src/lib/confianca.ts",
+    "../src/lib/ajudaPedido.ts",
+    "../src/lib/entregaEmail.ts"
   ]
 }
