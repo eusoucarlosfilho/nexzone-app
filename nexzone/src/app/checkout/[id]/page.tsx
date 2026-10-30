@@ -78,7 +78,7 @@ export default async function CheckoutPage({ params }: { params: { id: string } 
   const garantiaDias = diasDeGarantia((p as any).garantia_dias);
   const cfgTaxas = await lerTaxas();
   // % da plataforma neste anúncio (0 se a loja é Fundadora ativa): o checkout usa para as travas de pontos e da 1ª compra
-  const comissaoPct = fund?.ativo ? 0 : pctDoPlano((p as any).plano, cfgTaxas);
+  const comissaoPct = fund?.ativo ? Math.min(camp.fundadorPct, pctDoPlano((p as any).plano, cfgTaxas)) : pctDoPlano((p as any).plano, cfgTaxas);
   const taxas = cfgTaxas; // taxa de serviço = tarifa do gateway + margem (calculada igual no cliente e no servidor)
   // Carrinho abandonado (SQL 19): quem já está logado e abriu o checkout entra na recuperação (o dono não)
   if (user?.email && (p as any).stores && user.id) {
