@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { estornarCashback } from '@/lib/campanhas-servidor';
+import { conferirPedido, conferirPendentes } from '@/lib/payments/conferirPix';
+
+export const maxDuration = 30;
 
 export async function POST(req: Request) {
   const supabase = createClient();
@@ -10,6 +13,23 @@ export async function POST(req: Request) {
   if (profile?.role !== 'admin') return NextResponse.json({ error: 'acesso negado' }, { status: 403 });
 
   const { id, action } = await req.json();
+  // Conferir o Pix direto na MisticPay (cliente diz que pagou e o pedido segue "Aguardando pagamento")
+  if (action === 'conferir') {
+    const r = await conferirPedido(createAdminClient(), String(id || ''));
+    const msg: Record<string, string> = {
+      liberado: 'Pix confirmado na MisticPay: pedido liberado agora.',
+      pendente: 'A MisticPay ainda mostra este Pix como NÃO pago.',
+      recusado: 'A MisticPay mostra este Pix como falho/recusado.',
+      ja_pago: 'Este pedido já não está pendente.',
+      sem_ref: 'Este pedido não tem código do gateway (o Pix não chegou a ser gerado).',
+      erro: 'Não foi possível consultar a MisticPay agora. Tente de novo em instantes.',
+    };
+    return NextResponse.json({ ok: r !== 'erro', resultado: r, mensagem: msg[r] }, { status: r === 'erro' ? 502 : 200 });
+  }
+  if (action === 'conferir_todos') {
+    const r = await conferirPendentes(createAdminClient(), { horas: 24 * 7, limite: 60, ms: 25000 });
+    return NextResponse.json({ ok: true, ...r });
+  }
   if (action !== 'reembolsar') return NextResponse.json({ error: 'ação inválida' }, { status: 400 });
 
   const admin = createAdminClient();
