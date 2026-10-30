@@ -39,6 +39,22 @@ export default function SellerChatView({ orderId, status, podeEntregar, conteudo
   const [refresh, setRefresh] = useState(0);
   const [avisoPendente, setAvisoPendente] = useState(false);
 
+  const [cancelando, setCancelando] = useState(false);
+  async function cancelarVenda() {
+    const motivo = prompt('Cancelar esta venda e devolver o dinheiro ao cliente?\n\nConte o motivo (o cliente vê na conversa):');
+    if (motivo === null) return;
+    if (motivo.trim().length < 5) { toast('Escreva o motivo em poucas palavras.', 'error'); return; }
+    if (!confirm('Confirmar o cancelamento? O valor desta venda sai do seu saldo e volta para o cliente. Não dá para desfazer.')) return;
+    setCancelando(true);
+    try {
+      const r = await fetch('/api/chat/cancelar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ orderId, motivo }) });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) { toast(d.error || 'Não foi possível cancelar.', 'error'); return; }
+      toast('Venda cancelada. O suporte devolve o valor ao cliente.', 'success'); setRefresh((x) => x + 1); router.refresh();
+    } catch { toast('Falha de conexão. Tente de novo.', 'error'); }
+    finally { setCancelando(false); }
+  }
+
   async function marcar() {
     if (!confirm('Marcar este pedido como entregue? O cliente recebe um aviso para conferir.')) return;
     setMarcando(true);
@@ -110,6 +126,10 @@ export default function SellerChatView({ orderId, status, podeEntregar, conteudo
           </div>
         </div>
         {!sql25 && <p className="muted" style={{ fontSize: 12, margin: '8px 0 0' }}>O botão "Marcar como entregue" aparece depois que o SQL 25 for aplicado.</p>}
+        <div style={{ borderTop: '1px solid var(--border)', marginTop: 12, paddingTop: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <small className="muted" style={{ fontSize: 12 }}>Não vai conseguir entregar ou o cliente desistiu?</small>
+          <button type="button" onClick={cancelarVenda} disabled={cancelando} style={{ background: 'none', border: 0, color: 'var(--red)', fontWeight: 800, fontSize: 13, cursor: 'pointer', padding: 0 }}>{cancelando ? 'Cancelando…' : 'Cancelar venda e devolver ao cliente'}</button>
+        </div>
 
         {avisoPendente && (
           <div role="alert" style={{ marginTop: 12, display: 'flex', gap: 8, alignItems: 'flex-start', background: 'var(--yellow-bg)', color: 'var(--yellow)', borderRadius: 12, padding: '10px 12px', fontSize: 12.5, fontWeight: 700, lineHeight: 1.45 }}>

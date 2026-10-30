@@ -1,6 +1,7 @@
 import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { entregasEfetivas } from '@/lib/conversas-servidor';
-import { mascararEmail, AVISO_SEGURANCA } from '@/lib/conversas';
+import { AVISO_SEGURANCA } from '@/lib/conversas';
+import { contatosDosCompradores } from '@/lib/clientesPedidos';
 import { redirect, notFound } from 'next/navigation';
 import Link from 'next/link';
 import SellerChatView from './SellerChatView';
@@ -19,7 +20,7 @@ export default async function ConversaPage({ params }: { params: { id: string } 
   if (!store) redirect('/vender');
 
   const { data: order } = await supabase.from('orders')
-    .select('id, total, status, created_at, entregue_em, comprador_email, conteudo_liberado, product_id, products(titulo, emoji, categoria, capa_url, tipo_anuncio)')
+    .select('id, total, status, created_at, entregue_em, comprador, conteudo_liberado, product_id, products(titulo, emoji, categoria, capa_url, tipo_anuncio)')
     .eq('id', params.id).eq('store_id', store.id).maybeSingle();
   if (!order) notFound();
 
@@ -32,6 +33,7 @@ export default async function ConversaPage({ params }: { params: { id: string } 
   // Entrega de verdade: o vendedor marca (o pagamento não marca mais sozinho)
   const ent = await entregasEfetivas(createAdminClient(), [{ id: (order as any).id, status, product_id: (order as any).product_id, conteudo_liberado: (order as any).conteudo_liberado, tipo_anuncio: p?.tipo_anuncio }]);
   const entregueOk = !!ent.entregue[(order as any).id];
+  const nomeCliente = (await contatosDosCompradores(createAdminClient(), [(order as any).comprador]).catch(() => ({} as Record<string, any>)))[(order as any).comprador]?.nome || 'Cliente';
   const SELO: Record<string, [string, string, string]> = {
     entregue: entregueOk ? ['Entregue', '#00875A', '#00875A22'] : ['A entregar', '#B7791F', '#B7791F22'],
     pago: entregueOk ? ['Entregue', '#00875A', '#00875A22'] : ['A entregar', '#B7791F', '#B7791F22'],
@@ -50,7 +52,7 @@ export default async function ConversaPage({ params }: { params: { id: string } 
         <ProductThumb capa_url={p?.capa_url} categoria={p?.categoria} titulo={p?.titulo} tamanho={46} raio={12} icone={22} style={{ background: 'var(--surface)' }} />
         <div style={{ flex: 1 }}>
           <strong style={{ fontFamily: 'Outfit' }}>{p?.titulo ?? 'Produto'}</strong>
-          <div className="muted" style={{ fontSize: 12 }}>Cliente {mascararEmail((order as any).comprador_email) || ''} · pedido #{String((order as any).id).slice(0, 8)} · {money((order as any).total)}</div>
+          <div className="muted" style={{ fontSize: 12 }}>{nomeCliente} · pedido #{String((order as any).id).slice(0, 8)} · {money((order as any).total)}</div>
         </div>
         <span style={{ fontSize: 11, fontWeight: 800, fontFamily: 'Outfit', padding: '4px 11px', borderRadius: 50, color: corTexto, background: corFundo }}>
           {rotulo}
@@ -58,7 +60,7 @@ export default async function ConversaPage({ params }: { params: { id: string } 
       </div>
 
       <p role="note" style={{ display: 'flex', gap: 8, alignItems: 'flex-start', background: '#FFF7E6', border: '1px solid #F5D58A', color: '#7A5200', borderRadius: 12, padding: '10px 12px', fontSize: 12.5, lineHeight: 1.45, margin: '0 0 14px' }}>
-        <Icon name="shield" size={15} style={{ marginTop: 1, flexShrink: 0 }} /><span>{AVISO_SEGURANCA} Os dados de contato do cliente ficam protegidos pela plataforma.</span>
+        <Icon name="shield" size={15} style={{ marginTop: 1, flexShrink: 0 }} /><span>{AVISO_SEGURANCA} O WhatsApp e o e-mail do cliente ficam protegidos pela plataforma. Mensagens com contato externo ficam retidas e o suporte é avisado.</span>
       </p>
       <SellerChatView orderId={(order as any).id} status={regularizar ? 'regularizacao' : status} podeEntregar={podeEntregar} conteudoAtual={(order as any).conteudo_liberado ?? ''}
         entregaConfirmada={entregueOk} confirmadaEm={ent.confirmadaEm[(order as any).id] ?? null} sql25={ent.sql25} />
