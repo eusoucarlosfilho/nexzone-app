@@ -47,13 +47,13 @@ export async function POST(req: Request) {
   if (b.acao === 'salvar') {
     const c = lerCampanhas({
       promo_primeira_compra: b.primeiraCompra, promo_primeira_compra_cartao: b.primeiraCompraCartao, fundador_ativo: b.fundadorAtivo, fundador_pct: b.fundadorPct,
-      fundador_vagas: b.fundadorVagas, fundador_dias: b.fundadorDias, fundador_teto: b.fundadorTeto, fundador_destaque_dias: b.fundadorDestaqueDias, cb_cashback_pct: b.cashbackPct,
+      fundador_vagas: b.fundadorVagas, fundador_dias: b.fundadorDias, fundador_teto: b.fundadorTeto, fundador_destaque_dias: b.fundadorDestaqueDias, cb_cashback_pct: b.cashbackPct, cb_teto_comissao_pct: b.cbTetoComissaoPct,
     });
     const agora = new Date().toISOString();
     const linhas = [
       ['promo_primeira_compra', c.primeiraCompra], ['promo_primeira_compra_cartao', c.primeiraCompraCartao], ['fundador_ativo', c.fundadorAtivo], ['fundador_pct', c.fundadorPct],
       ['fundador_vagas', c.fundadorVagas], ['fundador_dias', c.fundadorDias], ['fundador_teto', c.fundadorTeto], ['fundador_destaque_dias', c.fundadorDestaqueDias],
-      ['cb_cashback_pct', c.cashbackPct], ['cb_points_ativo', b.cbAtivo === true],
+      ['cb_cashback_pct', c.cashbackPct], ['cb_teto_comissao_pct', c.cbTetoComissaoPct], ['cb_points_ativo', b.cbAtivo === true],
     ].map(([key, value]) => ({ key, value, updated_at: agora }));
     const { error } = await admin.from('settings').upsert(linhas);
     return error ? NextResponse.json({ error: 'Não foi possível salvar.' }, { status: 500 }) : NextResponse.json({ ok: true, cfg: c });
