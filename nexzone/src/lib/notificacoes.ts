@@ -6,6 +6,9 @@
 import { sendEmail, layoutEmail, emailDoUsuario, esc, moneyBR, SITE_URL } from '@/lib/email';
 import { vendedorPublico } from '@/lib/vendedorPublico';
 import { avisarWhatsApp, janela10min, link as linkSite } from '@/lib/whatsapp/enviar';
+import { blocoEntregaHtml } from '@/lib/entregaEmail';
+import { entregaPeloVendedor, textoHoras, horasPrazo } from '@/lib/confianca';
+import { produtosComCurso } from '@/lib/curso-servidor';
 
 // ------------------------------------------------------------
 // Compra aprovada (comprador) + Nova venda (dono da loja)
@@ -14,7 +17,7 @@ import { avisarWhatsApp, janela10min, link as linkSite } from '@/lib/whatsapp/en
 export async function notificarCompraAprovada(admin: any, orderId: string) {
   try {
     const { data: o } = await admin.from('orders')
-      .select('id, comprador, store_id, total, valor_vendedor, bump_titulo, bumps, products(titulo), stores(nome, owner, ocultar_vendedor)')
+      .select('id, comprador, store_id, product_id, total, valor_vendedor, bump_titulo, bumps, conteudo_liberado, products(titulo, tipo_anuncio), stores(nome, owner, ocultar_vendedor)')
       .eq('id', orderId).maybeSingle();
     if (!o) return;
 
@@ -51,18 +54,32 @@ export async function notificarCompraAprovada(admin: any, orderId: string) {
     }
 
     if (emailComprador) {
+      // O produto vai DENTRO do e-mail (mensagem/link de entrega do vendedor), não só um link para o site
+      const manual = entregaPeloVendedor((o as any).products?.tipo_anuncio);
+      let temArquivo = false; let temCurso = false; let prazoH = 24;
+      try {
+        const [arq, curso, prazo] = await Promise.all([
+          admin.from('products').select('arquivo_path').eq('id', (o as any).product_id).maybeSingle(),
+          produtosComCurso(admin, [(o as any).product_id]),
+          admin.from('settings').select('value').eq('key', 'entrega_prazo_horas').maybeSingle(),
+        ]);
+        temArquivo = !!(arq.data as any)?.arquivo_path;
+        temCurso = curso.has((o as any).product_id);
+        prazoH = horasPrazo((prazo.data as any)?.value);
+      } catch { /* segue com o básico */ }
+      const entrega = blocoEntregaHtml({ conteudo: (o as any).conteudo_liberado ?? null, temArquivo, temCurso, manual, prazoTexto: textoHoras(prazoH), extras: titulosExtras });
       tarefas.push(sendEmail({
         to: emailComprador,
         tag: 'compra_aprovada',
-        subject: `Compra aprovada: ${titulo}`,
+        subject: `Compra confirmada: ${titulo}`,
         html: layoutEmail({
-          titulo: 'Sua compra foi aprovada!',
-          preheader: `Pagamento confirmado — ${titulo}`,
-          texto: `<p style="margin:0 0 12px 0;">Pagamento confirmado para <b>${esc(titulo)}</b>, vendido por ${esc(loja)}.${extraBump}</p>
-<p style="margin:0 0 12px 0;">Valor pago: <b>${moneyBR(total)}</b>.</p>
-<p style="margin:0;">Seu acesso já está liberado. Qualquer dúvida, fale com o vendedor pelo chat do pedido.</p>`,
-          botaoTexto: 'Acessar meu produto',
-          botaoUrl: `${SITE_URL}/pedido/${(o as any).id}`,
+          titulo: 'Obrigado pela compra! 🎉',
+          preheader: manual ? `Pagamento confirmado. O vendedor já foi avisado: ${titulo}` : `Seu acesso a ${titulo} está aqui dentro`,
+          texto: `<p style="margin:0 0 12px 0;">Pagamento confirmado para <b>${esc(titulo)}</b>, vendido por ${esc(loja)}. Valor pago: <b>${moneyBR(total)}</b>.</p>
+${entrega}
+<p style="margin:0;font-size:13px;color:#8A8A9A;">Guarde este e-mail. A compra também fica salva em Minhas compras, com o chat do vendedor e a garantia de 7 dias.</p>`,
+          botaoTexto: temCurso ? 'Entrar na área de membros' : manual ? 'Falar com o vendedor' : 'Ver meu pedido',
+          botaoUrl: temCurso ? `${SITE_URL}/curso/${(o as any).product_id}` : `${SITE_URL}/pedido/${(o as any).id}`,
         }),
       }));
     }
