@@ -28,7 +28,7 @@ const PASSOS = [
   ['1', 'Crie sua conta e sua loja', 'Cadastro grátis em segundos. Personalize com logo e banner.'],
   ['2', 'Anuncie', 'Conta, item, moeda, gift card, serviço ou produto digital. Defina preço, estoque e forma de entrega.'],
   ['3', 'Venda com segurança', 'O comprador paga no site; você entrega pelo chat do pedido ou automaticamente.'],
-  ['4', 'Receba via Pix', 'Depois do prazo de liberação o valor entra no seu saldo. 1 saque grátis por semana na sua chave Pix.'],
+  ['4', 'Receba via Pix', 'Depois do prazo de liberação o valor entra no seu saldo. 1 saque grátis por semana na sua chave Pix, a partir de R$ 50.'],
 ];
 
 const faq = (taxa: string) => [
@@ -51,7 +51,7 @@ export default async function SejaVendedorPage() {
     const camp = await lerCfgCampanhas();
     if (camp.fundadorAtivo) {
       const v = await vagasFundador(createAdminClient(), camp);
-      if (v.sql28) fundador = { restantes: v.restantes, total: v.total, dias: camp.fundadorDias, teto: camp.fundadorTeto, destaqueDias: camp.fundadorDestaqueDias };
+      if (v.sql28) fundador = { restantes: v.restantes, total: v.total, dias: camp.fundadorDias, teto: camp.fundadorTeto, destaqueDias: camp.fundadorDestaqueDias, pct: camp.fundadorPct };
     }
   } catch { /* sem SQL 28 */ }
   const taxa = String(cfg.planoBasico).replace('.', ',');
