@@ -860,3 +860,6 @@ button.ui-stat{text-align:left;cursor:pointer;font:inherit}
 
 /* botão da Sala de comando (só admin) */
 .nav-link.nav-admin{color:var(--orange-ink);font-weight:900}
+
+/* viewport-fit=cover (layout.tsx): o conteúdo não entra embaixo do entalhe do iPhone deitado */
+@supports (padding: env(safe-area-inset-left)) { body { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); } }

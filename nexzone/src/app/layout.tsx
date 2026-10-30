@@ -33,7 +33,8 @@ export async function generateMetadata(): Promise<Metadata> {
     },
   };
 }
-export const viewport: Viewport = { themeColor: '#FF6B00' };
+// viewportFit 'cover': libera env(safe-area-inset-bottom) para nada ficar atrás da barra do Safari/iPhone
+export const viewport: Viewport = { themeColor: '#FF6B00', viewportFit: 'cover' };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
