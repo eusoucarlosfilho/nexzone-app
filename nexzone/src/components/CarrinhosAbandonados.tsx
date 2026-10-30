@@ -9,7 +9,7 @@ import type { CarrinhoAbandonado } from '@/lib/clientesPedidos';
 // tema "loja" = painel do lojista (claro); "admin" = Sala de comando (usa as classes do admin).
 const money = (v: number | null) => (v == null ? '—' : 'R$ ' + Number(v).toFixed(2).replace('.', ','));
 
-export default function CarrinhosAbandonados({ itens, tema = 'loja', mostrarLoja = false, site = 'https://www.compreibarato.com.br' }: { itens: CarrinhoAbandonado[]; tema?: 'loja' | 'admin'; mostrarLoja?: boolean; site?: string }) {
+export default function CarrinhosAbandonados({ itens, tema = 'loja', mostrarLoja = false, site = 'https://www.compreibarato.com.br', privado = false }: { itens: CarrinhoAbandonado[]; tema?: 'loja' | 'admin'; mostrarLoja?: boolean; site?: string; privado?: boolean }) {
   const adm = tema === 'admin';
   const linkDe = (c: CarrinhoAbandonado) => `${site}/checkout/${c.product_id}?email=${encodeURIComponent(c.email)}&utm_source=recuperacao&utm_medium=whatsapp`;
   const msg = (c: CarrinhoAbandonado) => mensagemRecuperacao({ nome: c.nome, produto: c.titulo, loja: c.loja, link: linkDe(c) });
@@ -26,8 +26,7 @@ export default function CarrinhosAbandonados({ itens, tema = 'loja', mostrarLoja
   return (
     <div style={{ overflowX: 'auto' }}>
       <p style={{ fontSize: 13, color: sub, margin: adm ? '0 0 10px' : '14px 16px 6px' }}>
-        Preencheram nome e e-mail no checkout e saíram antes de gerar o Pix. O lembrete automático já vai para eles; o contato direto é o reforço.
-        WhatsApp só aparece para quem aceitou receber avisos.
+        Preencheram nome e e-mail no checkout e saíram antes de gerar o Pix. {privado ? 'O Comprei Barato manda os lembretes automáticos por você. Por segurança, o contato do cliente fica protegido pela plataforma.' : 'O lembrete automático já vai para eles; o contato direto é o reforço. WhatsApp só aparece para quem aceitou receber avisos.'}
       </p>
       <table className={adm ? 'adm-table' : undefined} style={adm ? undefined : { width: '100%', minWidth: 760, borderCollapse: 'collapse', fontSize: 13 }}>
         <thead><tr style={{ textAlign: 'left' }}>
@@ -44,11 +43,11 @@ export default function CarrinhosAbandonados({ itens, tema = 'loja', mostrarLoja
                 <td style={adm ? { whiteSpace: 'nowrap' } : { ...td, whiteSpace: 'nowrap', fontWeight: 800 }}>{money(c.preco)}</td>
                 <td style={adm ? undefined : td}><small style={{ color: sub }}>{c.lembretes.length ? c.lembretes.join(' · ') : 'nenhum ainda'}</small></td>
                 <td style={adm ? undefined : td}>
-                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                  {privado ? <small style={{ color: sub }}>Lembrete automático</small> : <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                     {zap && <a className={adm ? 'adm-btn ap' : undefined} style={wa} href={zap} target="_blank" rel="noreferrer"><Icon name="chat" size={14} /> WhatsApp</a>}
                     <a className={adm ? 'adm-btn rp' : undefined} style={bt} href={`mailto:${c.email}?subject=${encodeURIComponent('Sua compra no Comprei Barato')}&body=${encodeURIComponent(msg(c))}`}><Icon name="mail" size={14} /> E-mail</a>
                     <button type="button" className={adm ? 'adm-btn rp' : undefined} style={adm ? undefined : bt} onClick={() => copiar(c)}><Icon name="copy" size={14} /> Copiar</button>
-                  </div>
+                  </div>}
                 </td>
               </tr>
             );
