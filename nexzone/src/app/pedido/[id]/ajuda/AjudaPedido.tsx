@@ -8,8 +8,8 @@ import { OPCOES_AJUDA, motivoReembolsoDe, type OpcaoAjuda } from '@/lib/ajudaPed
 
 // Passo a passo: o que aconteceu → caminho mais rápido (vendedor) → suporte → reembolso.
 // O reembolso nunca fica escondido: "Ir direto para o reembolso" aparece sempre, e "Quero desistir" abre o formulário na hora.
-export default function AjudaPedido({ orderId, garantia, reclamacaoAberta, manual, reembolsado }: {
-  orderId: string; garantia: GarantiaInfo | null; reclamacaoAberta: boolean; manual: boolean; reembolsado: boolean;
+export default function AjudaPedido({ orderId, garantia, reclamacaoAberta, manual, reembolsado, liberaEm = null }: {
+  orderId: string; garantia: GarantiaInfo | null; reclamacaoAberta: boolean; manual: boolean; reembolsado: boolean; liberaEm?: string | null; // reclamação por problema só depois desta hora (vendedor tem 24 h)
 }) {
   const [op, setOp] = useState<OpcaoAjuda | 'reembolso' | null>(null);
   const [origem, setOrigem] = useState<OpcaoAjuda | null>(null); // o que a pessoa contou antes de ir para o reembolso
@@ -17,6 +17,8 @@ export default function AjudaPedido({ orderId, garantia, reclamacaoAberta, manua
   const temPedido = !!ultimo && ultimo.status !== 'cancelado';
   const opcao = OPCOES_AJUDA.find((o) => o.id === op) ?? null;
   const direto = op === 'desistir' || op === 'reembolso';
+  const esperando = !!liberaEm && new Date(liberaEm).getTime() > Date.now();
+  const quandoLibera = liberaEm ? new Date(liberaEm).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '';
 
   return (
     <div className="aj">
@@ -61,10 +63,12 @@ export default function AjudaPedido({ orderId, garantia, reclamacaoAberta, manua
           </span></div>
           <div className="aj-passo" style={{ marginTop: 14 }}><span className="aj-n">2</span><span style={{ flex: 1 }}>
             <b>Não resolveu? Chame o suporte.</b> <span className="muted">A equipe Comprei Barato entra na conversa e o pagamento fica retido enquanto isso.</span>
-            <div style={{ textAlign: 'left' }}><ComplaintBox orderId={orderId} aberta={reclamacaoAberta} /></div>
+            {esperando
+              ? <div className="muted" style={{ fontSize: 13, marginTop: 8, background: 'var(--soft)', borderRadius: 10, padding: '8px 10px' }}>⏳ O vendedor tem até 24 h para resolver. A reclamação libera em <b>{quandoLibera}</b>.</div>
+              : <div style={{ textAlign: 'left' }}><ComplaintBox orderId={orderId} aberta={reclamacaoAberta} /></div>}
           </span></div>
           <div className="aj-passo" style={{ marginTop: 14 }}><span className="aj-n">3</span><span style={{ flex: 1 }}>
-            <b>Prefere o dinheiro de volta?</b> <span className="muted">Você pode pedir o reembolso a qualquer momento dentro da garantia.</span>
+            <b>Prefere o dinheiro de volta?</b> <span className="muted">{esperando ? `Por problema no produto, o pedido libera em ${quandoLibera}. Se só desistiu da compra, pode pedir agora.` : 'Você pode pedir o reembolso a qualquer momento dentro da garantia.'}</span>
             <div style={{ marginTop: 8 }}><button type="button" className="aj-lnk" onClick={() => setOp('reembolso')}>Pedir reembolso</button></div>
           </span></div>
         </div>

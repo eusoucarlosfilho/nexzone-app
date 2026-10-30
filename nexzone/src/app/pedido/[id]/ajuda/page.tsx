@@ -5,6 +5,7 @@ import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { situacaoGarantia } from '@/lib/reembolso-servidor';
 import { entregaPeloVendedor } from '@/lib/confianca';
 import AjudaPedido from './AjudaPedido';
+import { liberacaoReclamacao } from '@/lib/conversas-servidor';
 import Icon from '@/components/Icon';
 
 export const dynamic = 'force-dynamic';
@@ -28,6 +29,7 @@ export default async function AjudaPedidoPage({ params }: { params: { id: string
   ]);
   const garantia = g && g.sql18 ? { dias: g.dias, ate: g.elegivel.ate ? g.elegivel.ate.toISOString() : null, pode: g.elegivel.pode, motivo: g.elegivel.pode ? null : g.elegivel.motivo, pedidos: g.pedidos } : null;
   const pago = order.status === 'pago' || order.status === 'entregue';
+  const lib = pago ? await liberacaoReclamacao(admin, order.id, null).catch(() => null) : null;
 
   return (
     <>
@@ -37,7 +39,7 @@ export default async function AjudaPedidoPage({ params }: { params: { id: string
         <h1 style={{ fontFamily: 'Outfit', fontWeight: 900, fontSize: 24, margin: '0 0 4px' }}>Ajuda com o pedido</h1>
         <p className="muted" style={{ margin: '0 0 18px', fontSize: 14 }}>{p?.titulo ?? 'Produto'} · pedido {String(order.id).slice(0, 8)}</p>
         {pago || order.status === 'reembolsado' ? (
-          <AjudaPedido orderId={order.id} garantia={garantia} reclamacaoAberta={!!cmp.data} manual={entregaPeloVendedor(p?.tipo_anuncio)} reembolsado={order.status === 'reembolsado'} />
+          <AjudaPedido orderId={order.id} garantia={garantia} reclamacaoAberta={!!cmp.data} manual={entregaPeloVendedor(p?.tipo_anuncio)} reembolsado={order.status === 'reembolsado'} liberaEm={lib && !lib.pode ? lib.liberaEm ?? null : null} />
         ) : (
           <div className="card">
             <p style={{ margin: 0 }}>Este pedido ainda não foi pago, então não há nada para reembolsar. Se pagou agora, a confirmação aparece no pedido em instantes.</p>
