@@ -98,7 +98,7 @@ export default function RecebimentosClient({ bal, pixKey, pixTipo, payouts }: an
 
       <div className="card" style={{ marginBottom: 20, textAlign: 'center' }}>
         <h3 style={{ fontFamily: 'Outfit', fontSize: 16, marginBottom: 6 }}>Solicitar saque</h3>
-        <p className="muted" style={{ fontSize: 13, marginBottom: 14 }}>Saque todo o seu saldo disponível ({money(bal.disponivel)}) para sua chave Pix. O primeiro saque de cada semana é grátis; os seguintes custam R$ 0,99.</p>
+        <p className="muted" style={{ fontSize: 13, marginBottom: 14 }}>Saque todo o seu saldo disponível ({money(bal.disponivel)}) para sua chave Pix. O primeiro saque de cada semana é grátis a partir de R$ 50; abaixo disso, e nos seguintes da semana, custa R$ 0,99.</p>
         <button className="btn btn-pri" onClick={saque} disabled={pending || bal.disponivel <= 0}>
           {pending ? 'Processando…' : `Sacar ${money(bal.disponivel)}`}
         </button>

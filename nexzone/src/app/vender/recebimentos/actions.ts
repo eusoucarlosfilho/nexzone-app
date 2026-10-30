@@ -48,9 +48,11 @@ export async function solicitarSaque() {
   const seteDias = new Date(Date.now() - 7 * 86400000).toISOString();
   const { count: naSemana } = await admin.from('payouts').select('id', { count: 'exact', head: true })
     .eq('store_id', store.id).neq('status', 'recusado').gte('created_at', seteDias);
-  const taxa = taxaDoSaque(naSemana ?? 0, await lerTaxas());
+  const cfgT = await lerTaxas();
+  // grátis só o 1º da semana E a partir do mínimo (abaixo dele a tarifa do Pix de saque come o valor)
+  const taxa = taxaDoSaque(naSemana ?? 0, cfgT, bal.disponivel);
   const valor = Math.floor((bal.disponivel - taxa) * 100) / 100;
-  if (valor <= 0) return { ok: false, error: `Saldo insuficiente para cobrir a taxa deste saque (${taxa.toFixed(2).replace('.', ',')}). O primeiro saque de cada semana é grátis.` };
+  if (valor <= 0) return { ok: false, error: `Saldo insuficiente para cobrir a taxa deste saque (${taxa.toFixed(2).replace('.', ',')}). O primeiro saque de cada semana é grátis a partir de R$ ${cfgT.saqueGratisMin.toFixed(2).replace('.', ',')}.` };
   const linhaSaque: any = { store_id: store.id, valor, status: 'solicitado', pix_key: store.pix_key, pix_tipo: store.pix_tipo };
   let { error: eSaque } = await admin.from('payouts').insert(taxa > 0 ? { ...linhaSaque, taxa_saque: taxa } : linhaSaque);
   if (eSaque && /taxa_saque/.test((eSaque as any).message || '')) ({ error: eSaque } = await admin.from('payouts').insert(linhaSaque)); // sem SQL 21
