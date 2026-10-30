@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { avisarProdutoModerado } from '@/lib/whatsapp/avisos';
+import { tornarFundador } from '@/lib/campanhas-servidor';
 
 export async function POST(req: Request) {
   const supabase = createClient();
@@ -24,6 +25,11 @@ export async function POST(req: Request) {
     if (status === 'ativo') await adm.from('products').update({ moderacao: null, moderacao_itens: [], moderacao_texto: null, moderacao_em: null }).eq('id', id).neq('moderacao', 'cancelado');
     await adm.from('product_moderacao').insert({ product_id: id, admin_id: user.id, acao: status === 'ativo' ? 'aprovar' : 'reprovar', itens: [], status_depois: status });
   } catch { /* sem SQL 14 */ }
+  // Lojista Fundador (SQL 28): 1º produto aprovado garante a vaga (enquanto houver) + destaque grátis nele
+  if (status === 'ativo') {
+    const { data: pr } = await createAdminClient().from('products').select('store_id').eq('id', id).maybeSingle();
+    if ((pr as any)?.store_id) await tornarFundador(createAdminClient(), (pr as any).store_id, String(id));
+  }
   await avisarProdutoModerado(String(id), status === 'ativo'); // WhatsApp (se ligado); nunca lança erro
   return NextResponse.json({ ok: true, status });
 }

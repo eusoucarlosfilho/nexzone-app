@@ -4,6 +4,9 @@ import Icon from '@/components/Icon';
 import { lerTaxas } from '@/lib/settings';
 import PlanosVendedor from '@/components/PlanosVendedor';
 import { TAXAS_PADRAO } from '@/lib/taxas';
+import { lerCfgCampanhas, vagasFundador } from '@/lib/campanhas-servidor';
+import { createAdminClient } from '@/lib/supabase/server';
+import FaixaFundador, { type DadosFundador } from '@/components/FaixaFundador';
 
 export const metadata = {
   title: 'Venda no Comprei Barato — contas, itens, gift cards e produtos digitais',
@@ -39,8 +42,18 @@ const faq = (taxa: string) => [
   ['Tem mensalidade ou fidelidade?', 'Não. Zero mensalidade e zero fidelidade. Você só paga a taxa do plano quando a venda é concluída.'],
 ];
 
+
 export default async function SejaVendedorPage() {
   const cfg = await lerTaxas().catch(() => TAXAS_PADRAO);
+  // Lojista Fundador (SQL 28): vagas reais
+  let fundador: DadosFundador | null = null;
+  try {
+    const camp = await lerCfgCampanhas();
+    if (camp.fundadorAtivo) {
+      const v = await vagasFundador(createAdminClient(), camp);
+      if (v.sql28) fundador = { restantes: v.restantes, total: v.total, dias: camp.fundadorDias, teto: camp.fundadorTeto, destaqueDias: camp.fundadorDestaqueDias };
+    }
+  } catch { /* sem SQL 28 */ }
   const taxa = String(cfg.planoBasico).replace('.', ',');
   const BENEFICIOS = beneficios(taxa);
   const FAQ = faq(taxa);
@@ -84,6 +97,8 @@ export default async function SejaVendedorPage() {
           <Link href="/produtos" className="btn btn-lg" style={{ background: 'rgba(255,255,255,.1)', color: '#fff', border: '1.5px solid rgba(255,255,255,.3)' }}>Ver o marketplace</Link>
         </div>
       </section>
+
+      <FaixaFundador d={fundador} cta="/login" />
 
       <section className="sv-sec">
         <h2 className="sv-h2">Por que vender no Comprei Barato</h2>

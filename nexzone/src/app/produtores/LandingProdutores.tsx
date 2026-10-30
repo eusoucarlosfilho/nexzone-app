@@ -1,5 +1,6 @@
 'use client';
 import PlanosVendedor from '@/components/PlanosVendedor';
+import FaixaFundador, { type DadosFundador } from '@/components/FaixaFundador';
 import type { ConfigTaxas } from '@/lib/taxas';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -43,7 +44,7 @@ const RECURSOS: [string, string, string][] = [
   ['growth', 'Painel e saque no Pix', 'Vendas por dia, mês ou período, Pix × cartão, e saque direto na sua chave Pix depois da verificação.'],
 ];
 
-export default function LandingProdutores({ pixel, taxas }: { pixel: string; taxas: ConfigTaxas }) {
+export default function LandingProdutores({ pixel, taxas, fundador = null }: { pixel: string; taxas: ConfigTaxas; fundador?: DadosFundador | null }) {
   const router = useRouter();
   const [est, setEst] = useState<Estado | null>(null);
   const [f1, setF1] = useState({ nome: '', whatsapp: '', email: '', instagram: '', site: '' });
@@ -225,6 +226,8 @@ export default function LandingProdutores({ pixel, taxas }: { pixel: string; tax
       </section>
 
       {/* ---------- números da oferta ---------- */}
+      <FaixaFundador d={fundador} cta="#cadastro" />
+
       <section className="rp-faixa">
         <div className="rp-wrap rp-faixa-in">
           <div><b>R$ 0</b><span>para anunciar</span></div>

@@ -4,6 +4,8 @@ import { awardPoints } from '@/lib/points';
 import { getGateway } from '@/lib/payments/gateway';
 import { lerTaxas } from '@/lib/settings';
 import { divisaoVendedor, taxaComprador, planoEfetivo } from '@/lib/taxas';
+import { lerCfgCampanhas, ehPrimeiraCompra, fundadorDaLoja } from '@/lib/campanhas-servidor';
+import { taxaComPromo, divisaoComFundador } from '@/lib/campanhas';
 import { listaDeBumps } from '@/lib/checkoutConfig';
 import { limparOrigem, limparCliques } from '@/lib/rastreioVenda';
 import { avisarWhatsApp, link } from '@/lib/whatsapp/enviar';
@@ -93,8 +95,12 @@ export async function POST(req: Request) {
   // Modelo de taxas (SQL 21): % do vendedor pelo plano do anúncio + taxa de serviço do comprador no Pix
   const cfgTaxas = await lerTaxas();
   const plano = planoEfetivo((product as any).plano, cfgTaxas);
-  const { pct: feePercent, taxa, valorVendedor } = divisaoVendedor(total, plano, cfgTaxas);
-  const taxaPix = taxaComprador('pix', total, cfgTaxas);
+  // Campanhas (SQL 28): Lojista Fundador (0% de comissão) e 1ª compra sem taxa de serviço no Pix
+  const adminCamp = createAdminClient();
+  const camp = await lerCfgCampanhas(adminCamp);
+  const [fund, primeira] = await Promise.all([fundadorDaLoja(adminCamp, product.store_id, camp), ehPrimeiraCompra(adminCamp, user.id)]);
+  const { pct: feePercent, taxa, valorVendedor } = divisaoComFundador(divisaoVendedor(total, plano, cfgTaxas), total, fund.ativo);
+  const taxaPix = taxaComPromo(taxaComprador('pix', total, cfgTaxas), 'pix', primeira, camp);
   const valorPix = +(total + taxaPix).toFixed(2);
 
   // Sem cupom: reaproveita pedido pendente; com cupom: cria novo (evita inconsistência de valor)

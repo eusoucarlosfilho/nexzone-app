@@ -9,12 +9,15 @@ import { avisarWhatsApp, janela10min, link as linkSite } from '@/lib/whatsapp/en
 import { blocoEntregaHtml } from '@/lib/entregaEmail';
 import { entregaPeloVendedor, textoHoras, horasPrazo } from '@/lib/confianca';
 import { produtosComCurso } from '@/lib/curso-servidor';
+import { concederCashback } from '@/lib/campanhas-servidor';
 
 // ------------------------------------------------------------
 // Compra aprovada (comprador) + Nova venda (dono da loja)
 // Chamado UMA vez por pedido, logo após o pedido virar 'entregue'.
 // ------------------------------------------------------------
 export async function notificarCompraAprovada(admin: any, orderId: string) {
+  // Cashback em CB Points (SQL 28): roda aqui porque esta função é chamada UMA vez por pedido pago
+  await concederCashback(admin, orderId);
   try {
     const { data: o } = await admin.from('orders')
       .select('id, comprador, store_id, product_id, total, valor_vendedor, bump_titulo, bumps, conteudo_liberado, products(titulo, tipo_anuncio), stores(nome, owner, ocultar_vendedor)')

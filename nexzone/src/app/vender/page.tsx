@@ -10,6 +10,9 @@ import { computeJourney } from '@/lib/journey';
 import StatCard from '@/components/ui/StatCard';
 import StatusBadge from '@/components/ui/StatusBadge';
 import PainelLoja from './PainelLoja';
+import CartaoFundador from '@/components/CartaoFundador';
+import { fundadorDaLoja, vagasFundador, lerCfgCampanhas } from '@/lib/campanhas-servidor';
+import { createAdminClient as adminFundador } from '@/lib/supabase/server';
 import type { VendaDash } from '@/lib/dashboardVendas';
 
 // Pedidos da loja (paginado). Tenta com a forma de pagamento (SQL 17); se a coluna não existir, segue sem ela.
@@ -66,6 +69,9 @@ export default async function VenderCockpit() {
   }));
   const nomesProdutos: Record<string, string> = Object.fromEntries(((prodRows ?? []) as any[]).map((p) => [p.id, p.titulo]));
   const bal = await calcBalance(supabase, store.id);
+  // Lojista Fundador (SQL 28)
+  const campCfg = await lerCfgCampanhas();
+  const [fundador, vagasF] = await Promise.all([fundadorDaLoja(adminFundador(), store.id, campCfg).catch(() => null), campCfg.fundadorAtivo ? vagasFundador(adminFundador(), campCfg).catch(() => null) : Promise.resolve(null)]);
 
   const now = new Date();
   const mesIni = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
@@ -125,6 +131,7 @@ export default async function VenderCockpit() {
       )}
 
       <AtivarCelular compacto />
+      {fundador && <CartaoFundador f={fundador} vagas={vagasF && vagasF.sql28 ? vagasF : null} />}
       <PainelLoja vendas={vendasDash} produtos={nomesProdutos} temForma={temForma} />
 
       <div className="card" style={{ marginBottom: 20 }}>

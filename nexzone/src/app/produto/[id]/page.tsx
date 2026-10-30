@@ -16,6 +16,8 @@ import { avaliacoesExibidas } from '@/lib/confianca';
 import { normalizarCheckout } from '@/lib/checkoutConfig';
 import { temPixel } from '@/lib/rastreioVenda';
 import PixelProduto from './PixelProduto';
+import { lerCfgCampanhas, fundadorDaLoja } from '@/lib/campanhas-servidor';
+import { pontosCashback, valorDosPontos, brlCurto } from '@/lib/campanhas';
 import { notFound } from 'next/navigation';
 import type { Product } from '@/lib/types';
 import type { Metadata } from 'next';
@@ -205,12 +207,18 @@ export default async function ProductPage({ params }: { params: { id: string } }
     { nome: String(p.titulo), url: `/produto/${p.id}` },
   ])).replace(/</g, '\\u003c');
 
+  // Campanhas (SQL 28): 1ª compra sem taxa, cashback e selo de Lojista Fundador
+  const camp = await lerCfgCampanhas();
+  const fund = vend.oficial ? null : await fundadorDaLoja(createAdminClient(), p.store_id, camp).catch(() => null);
+  const volta = camp.cbAtivo ? valorDosPontos(pontosCashback(Number(preco) || 0, camp.cashbackPct, camp.pontosPorReal), camp.pontosPorReal) : 0;
   const Confianca = (
     <ul className="pdp-trust">
       <li><Icon name="bolt" size={16} color="var(--orange-ink)" />{entregaManual ? 'Entrega pelo vendedor no chat do pedido' : 'Liberado após a confirmação do pagamento'}</li>
       <li><Icon name="check" size={16} color="var(--orange-ink)" />Dinheiro protegido: o vendedor só recebe depois do prazo</li>
       <li><Icon name="lock" size={16} color="var(--orange-ink)" />{cartao ? 'Pagamento via Pix ou cartão' : 'Pagamento via Pix'}</li>
       {garantia > 0 && <li><Icon name="shield" size={16} color="var(--orange-ink)" />Garantia de {garantia} {garantia === 1 ? 'dia' : 'dias'}</li>}
+      {camp.primeiraCompra && <li><Icon name="gift" size={16} color="var(--orange-ink)" />1ª compra sem taxa de serviço{camp.primeiraCompraCartao ? '' : ' no Pix'}</li>}
+      {volta >= 0.01 && <li><Icon name="bolt" size={16} color="var(--orange-ink)" />Ganhe {brlCurto(volta)} de volta em CB Points</li>}
     </ul>
   );
 
@@ -380,7 +388,7 @@ export default async function ProductPage({ params }: { params: { id: string } }
               <Link href={`/loja/${vend.slug}`} className="pdp-seller" style={{ textDecoration: 'none', color: 'inherit' }}>
                 <div className="av" aria-hidden="true">{(vend.nome || 'L').charAt(0).toUpperCase()}</div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <strong style={{ fontFamily: 'Outfit', display: 'inline-flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>{vend.nome} {vend.verificada && <span className="ui-badge ok" style={{ fontSize: 11, padding: '2px 8px' }}><Icon name="check" size={12} strokeWidth={2.6} /> Verificada</span>}</strong>
+                  <strong style={{ fontFamily: 'Outfit', display: 'inline-flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>{vend.nome} {vend.verificada && <span className="ui-badge ok" style={{ fontSize: 11, padding: '2px 8px' }}><Icon name="check" size={12} strokeWidth={2.6} /> Verificada</span>}{fund?.fundador && <span className="ui-badge" style={{ fontSize: 11, padding: '2px 8px', background: '#FFF1D6', color: '#9A5B00' }}>🏅 Fundador #{fund.numero}</span>}</strong>
                   <div className="muted" style={{ fontSize: 13, textTransform: 'capitalize' }}>Ver loja{vend.nivel ? ` · Nível ${vend.nivel}` : ''}</div>
                 </div>
                 <Icon name="chevronRight" size={20} color="var(--sub)" />

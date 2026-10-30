@@ -31,6 +31,7 @@ import ProdutoresInteressados from './ProdutoresInteressados';
 import SeoGoogle from './SeoGoogle';
 import TaxasPlanos from './TaxasPlanos';
 import DadosEmpresa from './DadosEmpresa';
+import CampanhasConfig from './CampanhasConfig';
 import FinanceiroPainel from './FinanceiroPainel';
 import RecuperacaoVendas from './RecuperacaoVendas';
 import { registrarContatoRecuperacao } from '@/lib/recuperacaoCliente';
@@ -978,6 +979,7 @@ export default function AdminDashboard({ painel, adminEmail, users, metrics, dai
             <p className="adm-sub">Planos do vendedor, taxa de serviço do comprador, prazos de liberação e o resto da operação — sem mexer no código.</p>
             <TaxasPlanos />
             <DadosEmpresa />
+            <CampanhasConfig />
             <SettingsForm settings={settings} />
             <SuporteConfig inicial={settings.suporte} />
           </>

@@ -5,6 +5,8 @@ import { TAXAS_PADRAO, type ConfigTaxas } from '@/lib/taxas';
 import { lerConfig } from '@/lib/recrutamento-servidor';
 import { TAXA_BASE } from '@/lib/recrutamento';
 import LandingProdutores from './LandingProdutores';
+import { lerCfgCampanhas, vagasFundador } from '@/lib/campanhas-servidor';
+import type { DadosFundador } from '@/components/FaixaFundador';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,6 +25,7 @@ export const metadata: Metadata = {
   },
 };
 
+
 export default async function ProdutoresPage() {
   let pixel = '';
   let taxas: ConfigTaxas = TAXAS_PADRAO;
@@ -31,5 +34,14 @@ export default async function ProdutoresPage() {
     pixel = cfg.pixel;
     taxas = t;
   } catch { /* página abre mesmo sem configuração */ }
-  return <LandingProdutores pixel={pixel} taxas={taxas} />;
+  // Lojista Fundador (SQL 28): vagas reais
+  let fundador: DadosFundador | null = null;
+  try {
+    const camp = await lerCfgCampanhas();
+    if (camp.fundadorAtivo) {
+      const v = await vagasFundador(createAdminClient(), camp);
+      if (v.sql28) fundador = { restantes: v.restantes, total: v.total, dias: camp.fundadorDias, teto: camp.fundadorTeto, destaqueDias: camp.fundadorDestaqueDias };
+    }
+  } catch { /* sem SQL 28 */ }
+  return <LandingProdutores pixel={pixel} taxas={taxas} fundador={fundador} />;
 }

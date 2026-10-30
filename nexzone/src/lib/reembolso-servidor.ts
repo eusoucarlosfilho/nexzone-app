@@ -1,6 +1,7 @@
 // Garantia e reembolso — leitura e regras no SERVIDOR (service_role).
 import { diasDeGarantia, podePedirReembolso, type Elegibilidade } from './garantia';
 import { semSql18 } from './curso-servidor';
+import { estornarCashback } from './campanhas-servidor';
 
 export type PedidoReembolso = { id: number; status: 'aberto' | 'aprovado' | 'recusado' | 'cancelado'; motivo: string; detalhe: string | null; resposta: string | null; created_at: string; decidido_em: string | null };
 
@@ -32,6 +33,7 @@ export async function marcarReembolsado(admin: any, orderId: string): Promise<{ 
   if (upd && upd.length) {
     const { data: prod } = await admin.from('products').select('vendas').eq('id', (order as any).product_id).maybeSingle();
     await admin.from('products').update({ vendas: Math.max(0, ((prod as any)?.vendas ?? 1) - 1) }).eq('id', (order as any).product_id);
+    await estornarCashback(admin, orderId);
   }
   return { ok: true };
 }

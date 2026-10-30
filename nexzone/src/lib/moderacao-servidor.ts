@@ -3,6 +3,7 @@
 import { efeitoModeracao, avisoParaVendedor, type PedidoModeracao } from './moderacao';
 import { sendEmail, layoutEmail, textoParaHtml, emailDoUsuario, SITE_URL } from './email';
 import { avisarProdutoModerado } from './whatsapp/avisos';
+import { tornarFundador } from './campanhas-servidor';
 
 export async function aplicarModeracao(admin: any, adminId: string, productId: string, pedido: PedidoModeracao):
   Promise<{ ok: true; status: string; moderacao: string | null } | { ok: false; erro: string; status?: number }> {
@@ -23,6 +24,9 @@ export async function aplicarModeracao(admin: any, adminId: string, productId: s
     const semSql = /moderacao/i.test(error.message || '');
     return { ok: false, erro: semSql ? 'A moderação ainda não foi ativada no banco (rode o SQL 14).' : 'Não foi possível salvar.', status: 500 };
   }
+
+  // Lojista Fundador (SQL 28): produto aprovado garante a vaga da loja (enquanto houver) + destaque grátis
+  if (ef.status === 'ativo' && (p as any).store_id) await tornarFundador(admin, (p as any).store_id, productId);
 
   // Histórico e alterações pendentes (a decisão encerra a revisão das edições — SQL 09)
   await Promise.allSettled([

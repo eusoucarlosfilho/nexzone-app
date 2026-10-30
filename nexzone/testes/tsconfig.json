@@ -66,6 +66,7 @@
     "../src/lib/entregaEmail.ts",
     "../src/lib/conversas.ts",
     "../src/lib/filaRecuperacao.ts",
-    "../src/lib/financeiro.ts"
+    "../src/lib/financeiro.ts",
+    "../src/lib/campanhas.ts"
   ]
 }

@@ -13,6 +13,7 @@ import { temPixel } from '@/lib/rastreioVenda';
 import { createAdminClient } from '@/lib/supabase/server';
 import { registrarCarrinho } from '@/lib/posVenda-servidor';
 import { lerEmpresa, statsVendedor } from '@/lib/confianca-servidor';
+import { lerCfgCampanhas, ehPrimeiraCompra, fundadorDaLoja } from '@/lib/campanhas-servidor';
 import { linhasVendedor, promessaEntrega } from '@/lib/confianca';
 import { diasDeGarantia } from '@/lib/garantia';
 import { RodapeConfianca, CSS_CONFIANCA } from '@/components/ConfiancaCheckout';
@@ -64,8 +65,14 @@ export default async function CheckoutPage({ params }: { params: { id: string } 
   const cartaoDisponivel = await stripeAvailable();
   // Confiança (sem SQL novo): números reais do vendedor, prazo de entrega e dados da empresa
   const [empresa, stats] = await Promise.all([lerEmpresa(), statsVendedor(loja.oficial ? null : (p as any).store_id)]);
+  // Campanhas (SQL 28): 1ª compra sem taxa, cashback em CB Points e selo de Lojista Fundador
+  const adminCamp = createAdminClient();
+  const camp = await lerCfgCampanhas(adminCamp);
+  const [primeira, fund] = await Promise.all([user ? ehPrimeiraCompra(adminCamp, user.id) : Promise.resolve(null), loja.oficial ? Promise.resolve(null) : fundadorDaLoja(adminCamp, (p as any).store_id, camp)]);
+  const promo = { ativo: camp.primeiraCompra, cartao: camp.primeiraCompraCartao, primeira };
+  const cashback = camp.cbAtivo && camp.cashbackPct > 0 ? { pct: camp.cashbackPct, pontosPorReal: camp.pontosPorReal } : null;
   const lv = linhasVendedor(stats, { oficial: loja.oficial, verificada: loja.verificada });
-  const vendedor = { nome: loja.nome || 'Loja', selo: lv.selo, linhas: loja.oficial ? ['Vendido e garantido pelo Comprei Barato'] : lv.linhas, nova: !loja.oficial && lv.nova, oficial: loja.oficial };
+  const vendedor = { nome: loja.nome || 'Loja', selo: lv.selo, linhas: loja.oficial ? ['Vendido e garantido pelo Comprei Barato'] : [...(fund?.fundador ? [`🏅 Lojista Fundador #${fund.numero}`] : []), ...lv.linhas], nova: !loja.oficial && lv.nova, oficial: loja.oficial };
   const entrega = promessaEntrega((p as any).tipo_anuncio, empresa.prazoManualHoras);
   const garantiaDias = diasDeGarantia((p as any).garantia_dias);
   const cfgTaxas = await lerTaxas();
@@ -116,6 +123,8 @@ export default async function CheckoutPage({ params }: { params: { id: string } 
               vendedor={vendedor}
               entrega={entrega}
               garantiaDias={garantiaDias}
+              promo={promo}
+              cashback={cashback}
             />
           }
         />

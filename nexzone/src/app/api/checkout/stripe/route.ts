@@ -3,6 +3,8 @@ import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { stripeAvailable, createCheckoutSession, STRIPE_MIN_BRL } from '@/lib/payments/stripe';
 import { lerTaxas } from '@/lib/settings';
 import { taxaComprador } from '@/lib/taxas';
+import { lerCfgCampanhas, ehPrimeiraCompra } from '@/lib/campanhas-servidor';
+import { taxaComPromo } from '@/lib/campanhas';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -39,7 +41,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Valor abaixo do mínimo para cartão. Pague com Pix.' }, { status: 400 });
   }
   // Taxa de serviço do cartão (paga pelo comprador, mostrada antes do pagamento). O webhook confere se cobre o total.
-  const taxaCartao = taxaComprador('cartao', total, await lerTaxas());
+  // 1ª compra sem taxa (SQL 28): no cartão só se o admin ligou "incluir cartão"
+  const taxaCartao = taxaComPromo(taxaComprador('cartao', total, await lerTaxas()), 'cartao', await ehPrimeiraCompra(admin, user.id), await lerCfgCampanhas(admin));
   const amountCents = Math.round((total + taxaCartao) * 100);
   const { error: eTaxa } = await admin.from('orders').update({ taxa_comprador_cartao: taxaCartao }).eq('id', orderId).eq('status', 'pendente');
   if (eTaxa && !/taxa_comprador/i.test(eTaxa.message || '')) console.error('[stripe] taxa do comprador:', eTaxa.message);

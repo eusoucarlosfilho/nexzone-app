@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient, createAdminClient } from '@/lib/supabase/server';
+import { estornarCashback } from '@/lib/campanhas-servidor';
 
 export async function POST(req: Request) {
   const supabase = createClient();
@@ -21,6 +22,7 @@ export async function POST(req: Request) {
   await admin.from('orders').update({ status: 'reembolsado' }).eq('id', id);
   const { data: prod } = await admin.from('products').select('vendas').eq('id', order.product_id).single();
   await admin.from('products').update({ vendas: Math.max(0, (prod?.vendas ?? 1) - 1) }).eq('id', order.product_id);
+  await estornarCashback(admin, String(id)); // o cashback da compra volta (SQL 28)
 
   return NextResponse.json({ ok: true, status: 'reembolsado' });
 }
