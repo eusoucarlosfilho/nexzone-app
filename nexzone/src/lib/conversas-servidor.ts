@@ -183,6 +183,24 @@ export async function avisarAdminsRetida(admin: Admin, orderId: string, titulo: 
   } catch (e: any) { console.error('[chat] aviso retida', e?.message || e); }
 }
 
+/** Aviso DISCRETO: e-mail ou outra rede no chat. A mensagem passou normal; o admin só confere. No máx. 1 aviso por pedido a cada 6 h. */
+export async function avisarAdminsAtencao(admin: Admin, orderId: string, titulo: string, papel: string) {
+  try {
+    const grupo = `atencao:${orderId}`;
+    const desde = new Date(Date.now() - 6 * 3600000).toISOString();
+    const { data: ja } = await admin.from('notificacoes').select('id').eq('grupo', grupo).gte('created_at', desde).limit(1);
+    if (ja && ja.length) return;
+    const { data: adms } = await admin.from('profiles').select('id').eq('role', 'admin');
+    const quem = papel === 'vendedor' ? 'O vendedor' : 'O cliente';
+    const linhas = ((adms ?? []) as any[]).map((a) => ({
+      user_id: a.id, tipo: 'aviso', titulo: 'Conferir conversa (e-mail ou rede)',
+      texto: `${quem} mandou e-mail ou rede social em "${String(titulo).slice(0, 100)}". A mensagem foi entregue; confira se é só a entrega do produto.`,
+      link: `/admin?aba=pedidos&chat=${orderId}`, grupo,
+    }));
+    if (linhas.length) await admin.from('notificacoes').insert(linhas);
+  } catch (e: any) { console.error('[chat] aviso atenção', e?.message || e); }
+}
+
 // ---------- Quando o cliente pode reclamar ----------
 /**
  * Reclamação por problema: só depois de 24 h do pagamento (o vendedor tem esse tempo para resolver),

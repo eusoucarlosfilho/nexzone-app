@@ -52,14 +52,25 @@ export function foiLida(criadaEm: string, vistoOutro: string | null | undefined)
 }
 
 // ---------- Contato externo ----------
-const PADROES_CONTATO: RegExp[] = [
-  /wa\.me\//i, /api\.whatsapp\.com/i, /chat\.whatsapp\.com/i, /\bt\.me\//i, /discord\.gg\//i, /instagram\.com\//i,
+// Dois níveis (decisão do Carlos, 30/10):
+//   RETER (rigoroso) — WhatsApp e número de telefone: a mensagem não chega à outra parte e o admin analisa.
+//   ATENÇÃO (discreto) — e-mail, "contato/ctt", Telegram, Instagram, Discord…: a mensagem PASSA normal
+//     (tem produto que é entregue por e-mail), ninguém vê aviso, e o admin recebe uma notificação para conferir.
+const PADROES_RETER: RegExp[] = [
+  /wa\.me\//i, /api\.whatsapp\.com/i, /chat\.whatsapp\.com/i, /whatsapp\.com\//i,
   // celular brasileiro: (DD) 9XXXX-XXXX, com ou sem +55, espaços, pontos ou traços
   /(?:\+?55[\s.-]?)?\(?\b[1-9]{2}\)?[\s.-]?9[\s.-]?\d{4}[\s.-]?\d{4}\b/,
 ];
+const PADROES_ATENCAO: RegExp[] = [
+  /[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/i,       // e-mail
+  /\bt\.me\//i, /discord\.gg\//i, /instagram\.com\//i, /facebook\.com\//i, /tiktok\.com\//i,
+];
+// para os testes antigos e quem importava
+const PADROES_CONTATO = PADROES_RETER;
 
 // Palavras proibidas (depois de normalizar: sem acento, minúsculas, letras soltas juntadas, 0→o, 3→e, 4→a, 1→i, 5→s, @→a)
-const PALAVRAS_CONTATO = /\b(whats?app\w*|whats\w*|wh?ats\w*|uats\w*|wats\w*|wpp\w*|wts|wpzap|zap|zaps|zapzap|zapp|zp|ctt|ctts|contato\w*|contatar|telefone\w*|celular\w*|telegram\w*|insta|instagram\w*|meu numero|meu num|me liga\w*|chama no|chama la|chama la fora|discord\w*|tiktok|facebook|fb)\b/;
+const PALAVRAS_RETER = /\b(whats?app\w*|whats\w*|wh?ats\w*|uats\w*|wats\w*|wpp\w*|wts|wpzap|zap|zaps|zapzap|zapp|zp)\b/;
+const PALAVRAS_ATENCAO = /\b(meu numero|me liga\w*|chama no|chama la fora|ctt|ctts|contato\w*|contatar|telegram\w*|insta|instagram\w*|discord\w*|tiktok|facebook|fb)\b/;
 
 /** Deixa o texto num formato só para conferir (ninguém vê): tira acento e truques como "w h a t s", "z.a.p", "c0ntat0". */
 export function normalizarParaFiltro(texto: string): string {
@@ -70,15 +81,24 @@ export function normalizarParaFiltro(texto: string): string {
   return t.replace(/[^a-z0-9\s]+/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
-/** A mensagem tenta passar contato para fora da plataforma? (fica retida para o admin analisar) */
-export function pareceContatoExterno(texto: string): boolean {
+export type NivelContato = 'reter' | 'atencao' | null;
+/** WhatsApp/telefone → 'reter'; e-mail e outras redes → 'atencao' (passa, admin confere); resto → null. */
+export function classificarContato(texto: string): NivelContato {
   const t = String(texto || '');
-  if (PADROES_CONTATO.some((r) => r.test(t))) return true;
-  return PALAVRAS_CONTATO.test(normalizarParaFiltro(t));
+  if (PADROES_CONTATO.some((r) => r.test(t))) return 'reter';
+  // o e-mail é conferido ANTES de normalizar (o "@" vira "a" na normalização)
+  const n = normalizarParaFiltro(t.replace(/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/gi, ' '));
+  if (PALAVRAS_RETER.test(n)) return 'reter';
+  if (PADROES_ATENCAO.some((r) => r.test(t)) || PALAVRAS_ATENCAO.test(n)) return 'atencao';
+  return null;
+}
+/** A mensagem fica RETIDA? (só WhatsApp e telefone) */
+export function pareceContatoExterno(texto: string): boolean {
+  return classificarContato(texto) === 'reter';
 }
 
 export const TEXTO_RETIDA = '🔒 Mensagem retida para análise do suporte.';
-export const AVISO_RETIDA = '⚠️ Uma mensagem foi retida e o suporte foi avisado. Trocar WhatsApp, telefone, e-mail ou redes sociais fora do Comprei Barato é proibido e pode suspender a conta.';
+export const AVISO_RETIDA = '⚠️ Uma mensagem foi retida e o suporte foi avisado. Passar WhatsApp ou telefone para negociar fora do Comprei Barato é proibido e pode suspender a conta.';
 
 // ---------- Reclamação, reembolso e fechamento do chat ----------
 /** Motivos que valem desde o primeiro minuto (direito de arrependimento). */
