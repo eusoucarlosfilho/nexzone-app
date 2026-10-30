@@ -21,7 +21,7 @@ export default function CrescimentoAdmin() {
   const [busy, setBusy] = useState('');
 
   const carregar = useCallback(async () => {
-    const r = await fetch('/api/admin/crescimento', { cache: 'no-store', credentials: 'include' });
+    const r = await fetch('/api/admin/crescimento-ofertas', { cache: 'no-store', credentials: 'include' });
     const j = await r.json().catch(() => null);
     if (!r.ok || !j) { toast('Falha ao carregar crescimento.', 'error'); return; }
     setD(j);
@@ -32,7 +32,7 @@ export default function CrescimentoAdmin() {
   async function post(corpo: any, ok: string) {
     setBusy(corpo.acao);
     try {
-      const r = await fetch('/api/admin/crescimento', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify(corpo) });
+      const r = await fetch('/api/admin/crescimento-ofertas', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify(corpo) });
       const j = await r.json().catch(() => ({}));
       if (!r.ok) { toast(j.error || 'Não foi possível.', 'error'); return null; }
       toast(ok, 'success'); await carregar(); return j;
@@ -63,7 +63,7 @@ export default function CrescimentoAdmin() {
       </div>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
         <button className="adm-btn ap" disabled={!!busy} onClick={() => post({ acao: 'salvar_bf', inicio: doCampo(f.inicio), fim: doCampo(f.fim), descontoMin: Number(f.descontoMin) }, 'Datas salvas.')}>Salvar Black Friday</button>
-        <a className="adm-btn rp" href="/api/admin/crescimento?csv=1" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}>Baixar lista de espera (CSV)</a>
+        <a className="adm-btn rp" href="/api/admin/crescimento-ofertas?csv=1" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}>Baixar lista de espera (CSV)</a>
         <button className="adm-btn rp" disabled={!!busy || d.bf.fase === 'antes' || d.bf.avisados >= d.bf.lista} onClick={avisar} title="Disponível quando a campanha começar">{busy === 'avisar' ? 'Enviando…' : 'Avisar a lista por e-mail (até 90)'}</button>
       </div>
       <small style={{ display: 'block', color: 'var(--sub)', fontSize: 12, marginTop: 6 }}>O preço da Black Friday entra no ar sozinho no horário de início e volta ao normal no fim (rotina de 1 em 1 minuto). O aviso por e-mail vai em lotes de 90 por causa do limite diário do Resend; o CSV tem os WhatsApps de quem aceitou receber.</small>
