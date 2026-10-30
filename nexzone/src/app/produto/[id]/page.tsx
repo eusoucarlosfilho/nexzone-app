@@ -31,7 +31,7 @@ import { PRODUTO_CARD, PRODUTO_PAGINA } from '@/lib/consultas';
 import { acharCategoria } from '@/lib/categorias';
 import { stripeAvailable } from '@/lib/payments/stripe';
 import { lerTaxas } from '@/lib/settings';
-import { TAXAS_PADRAO, TIPOS_ANUNCIO, planoEfetivo, brl as brlTaxa, pctTexto } from '@/lib/taxas';
+import { TAXAS_PADRAO, TIPOS_ANUNCIO, planoEfetivo } from '@/lib/taxas';
 import { tituloDoProduto, descricaoDoProduto, dadosTrilha, OG_PADRAO, MARCA } from '@/lib/seoSite';
 
 const money = (v: number) => 'R$ ' + v.toFixed(2).replace('.', ',');
@@ -230,7 +230,6 @@ export default async function ProductPage({ params }: { params: { id: string } }
       </div>
       {aviso && <div className={`pdp-stock ${aviso.nivel}`} role="status">{aviso.texto}</div>}
       <BuyButton productId={p.id} esgotado={esgotado} categoria={cat?.slug ?? null} />
-      <p className="pdp-taxa">+ taxa de serviço: {brlTaxa(taxas.compradorPix)} no Pix{cartao ? ` ou ${pctTexto(taxas.compradorCartaoPct)} + ${brlTaxa(taxas.compradorCartaoFixo)} no cartão` : ''}. Você vê o total antes de pagar.</p>
       {Confianca}
       <Link href="/como-funciona" className="pdp-como">Como funciona a compra<Icon name="chevronRight" size={14} /></Link>
       <ShareButton titulo={p.titulo} full />
@@ -258,7 +257,6 @@ export default async function ProductPage({ params }: { params: { id: string } }
         a.pdp-chip:hover{background:#FFE3CC}
         .pdp-chips{display:flex;flex-wrap:wrap;gap:8px}
         .pdp-chip.pdp-topo{gap:5px;background:linear-gradient(135deg,#FF6B00,#FFB067);color:#16162A}
-        .pdp-taxa{font-size:12.5px;color:var(--sub);margin:8px 0 0;line-height:1.45}
         .pdp-title{font-family:Outfit;font-size:clamp(26px,3vw,36px);font-weight:900;letter-spacing:-1px;margin:12px 0 8px;line-height:1.12;overflow-wrap:anywhere;}
         .pdp-meta{color:var(--sub);font-size:14px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
         .pdp-meta a{color:var(--orange-ink);font-weight:800}
