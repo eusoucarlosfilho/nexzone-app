@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getGateway } from '@/lib/payments/gateway';
+import { gatewayDoAviso } from '@/lib/payments/gateway';
 import { createAdminClient } from '@/lib/supabase/server';
 import { processarPedido, processarBoost, ORDER_FIELDS, BOOST_FIELDS } from '@/lib/payments/fulfill';
 import { gravarFormaPagamento } from '@/lib/payments/formaPagamento';
@@ -8,7 +8,8 @@ import { gravarFormaPagamento } from '@/lib/payments/formaPagamento';
 // A liberação (pedido e destaque) fica em src/lib/payments/fulfill.ts, compartilhada com o webhook da Stripe.
 export async function POST(req: Request) {
   const raw = await req.text();
-  const gw = await getGateway();
+  // MisticPay e Mercado Pago (Pix das vendas pequenas) chegam nesta mesma URL
+  const gw = await gatewayDoAviso(req, raw);
   const event = await gw.parseWebhook(req, raw);
   if (!event) return NextResponse.json({ ok: true });
 
@@ -25,7 +26,7 @@ export async function POST(req: Request) {
 
   // PEDIDO — por id (se veio) ou por gateway_ref (ex.: MisticPay, que só devolve o id dela)
   let oq = admin.from('orders').select(ORDER_FIELDS);
-  oq = event.orderId ? oq.eq('id', event.orderId) : oq.eq('gateway_ref', event.gatewayRef);
+  oq = event.orderId && /^[0-9a-f-]{36}$/i.test(event.orderId) ? oq.eq('id', event.orderId) : oq.eq('gateway_ref', event.gatewayRef);
   const { data: order } = await oq.maybeSingle();
   if (order) {
     const liberado = await processarPedido(admin, order, ev);
