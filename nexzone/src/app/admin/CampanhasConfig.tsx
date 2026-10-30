@@ -4,7 +4,7 @@ import { toast } from '@/lib/toast';
 
 // Admin › Configurações › Campanhas: 1ª compra sem taxa, Lojista Fundador e cashback em CB Points.
 type Dados = {
-  cfg: { primeiraCompra: boolean; primeiraCompraCartao: boolean; fundadorAtivo: boolean; fundadorVagas: number; fundadorDias: number; fundadorTeto: number; fundadorDestaqueDias: number; cashbackPct: number; cbAtivo: boolean; pontosPorReal: number };
+  cfg: { primeiraCompra: boolean; primeiraCompraCartao: boolean; fundadorAtivo: boolean; fundadorPct: number; fundadorVagas: number; fundadorDias: number; fundadorTeto: number; fundadorDestaqueDias: number; cashbackPct: number; cbAtivo: boolean; pontosPorReal: number };
   vagas: { usadas: number; total: number; restantes: number; sql28: boolean };
   fundadores: { id: string; nome: string; slug: string | null; fundador_numero: number; fundador_em: string; situacao: { ativo: boolean; ate: string | null; vendido: number; restante: number; motivoFim: string | null } }[];
   mes: { primeirasSemTaxa: number | null; cashbackPontos: number; cashbackReais: number };
@@ -23,7 +23,7 @@ export default function CampanhasConfig() {
       const r = await fetch('/api/admin/campanhas', { cache: 'no-store' });
       const j = await r.json(); if (!r.ok) throw new Error(j.error);
       setD(j);
-      setF({ ...j.cfg, fundadorTeto: String(j.cfg.fundadorTeto), fundadorVagas: String(j.cfg.fundadorVagas), fundadorDias: String(j.cfg.fundadorDias), fundadorDestaqueDias: String(j.cfg.fundadorDestaqueDias), cashbackPct: String(j.cfg.cashbackPct) });
+      setF({ ...j.cfg, fundadorTeto: String(j.cfg.fundadorTeto), fundadorPct: String(j.cfg.fundadorPct ?? 3), fundadorVagas: String(j.cfg.fundadorVagas), fundadorDias: String(j.cfg.fundadorDias), fundadorDestaqueDias: String(j.cfg.fundadorDestaqueDias), cashbackPct: String(j.cfg.cashbackPct) });
     } catch { /* card some sem quebrar a aba */ }
   }, []);
   useEffect(() => { carregar(); }, [carregar]);
@@ -64,9 +64,9 @@ export default function CampanhasConfig() {
       {f.primeiraCompra && chave('primeiraCompraCartao', 'Incluir o cartão', 'Mais caro: a plataforma absorve a tarifa da Stripe (~4%) na 1ª compra. Deixe desligado no começo.')}
 
       <h4 style={{ fontFamily: 'Outfit', margin: '16px 0 8px' }}>Lojista Fundador · {d.vagas.usadas} de {d.vagas.total} vagas usadas</h4>
-      {chave('fundadorAtivo', 'Programa ligado', 'A loja vira Fundadora quando o 1º produto é aprovado (até acabar as vagas). Ganha 0% de comissão no começo, selo para sempre e destaque grátis no anúncio.')}
+      {chave('fundadorAtivo', 'Programa ligado', 'A loja vira Fundadora quando o 1º produto é aprovado (até acabar as vagas). Paga comissão reduzida no começo, ganha selo para sempre e destaque grátis no anúncio. Com a margem da taxa de serviço, o pedido continua dando lucro.')}
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 12 }}>
-        {campo('fundadorVagas', 'Vagas')}{campo('fundadorDias', '0% por', 'dias')}{campo('fundadorTeto', 'ou até vender', 'R$')}{campo('fundadorDestaqueDias', 'Destaque grátis', 'dias')}
+        {campo('fundadorVagas', 'Vagas')}{campo('fundadorPct', 'Comissão do Fundador', '%')}{campo('fundadorDias', 'por', 'dias')}{campo('fundadorTeto', 'ou até vender', 'R$')}{campo('fundadorDestaqueDias', 'Destaque grátis', 'dias')}
       </div>
       <small style={{ display: 'block', color: 'var(--sub)', fontSize: 12, marginBottom: 12 }}>Teto 0 = sem limite de valor. O que vale é o que acontecer primeiro: fim do prazo ou teto de vendas.</small>
 
@@ -75,7 +75,7 @@ export default function CampanhasConfig() {
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 6 }}>{campo('cashbackPct', 'Cashback por compra', '% do valor')}</div>
       <small style={{ display: 'block', color: 'var(--sub)', fontSize: 12, marginBottom: 14 }}>Ex.: 5% numa compra de R$ 30 = R$ 1,50 em pontos ({d.cfg.pontosPorReal} pontos = R$ 1). Só custa quando o cliente volta e usa. Reembolso tira o cashback de volta.</small>
 
-      <button className="adm-btn ap" disabled={busy} onClick={() => post({ acao: 'salvar', ...f, fundadorVagas: n(f.fundadorVagas), fundadorDias: n(f.fundadorDias), fundadorTeto: n(f.fundadorTeto), fundadorDestaqueDias: n(f.fundadorDestaqueDias), cashbackPct: n(f.cashbackPct) }, 'Campanhas salvas.')}>{busy ? 'Salvando…' : 'Salvar campanhas'}</button>
+      <button className="adm-btn ap" disabled={busy} onClick={() => post({ acao: 'salvar', ...f, fundadorVagas: n(f.fundadorVagas), fundadorDias: n(f.fundadorDias), fundadorTeto: n(f.fundadorTeto), fundadorPct: n(f.fundadorPct), fundadorDestaqueDias: n(f.fundadorDestaqueDias), cashbackPct: n(f.cashbackPct) }, 'Campanhas salvas.')}>{busy ? 'Salvando…' : 'Salvar campanhas'}</button>
 
       {d.vagas.sql28 && (
         <div style={{ marginTop: 20, borderTop: '1px solid var(--bd2)', paddingTop: 14 }}>
@@ -85,14 +85,14 @@ export default function CampanhasConfig() {
             <button className="adm-btn rp" disabled={busy || loja.trim().length < 2} onClick={async () => { if (await post({ acao: 'adicionar', loja }, 'Loja adicionada.')) setLoja(''); }}>Adicionar à mão</button>
           </div>
           {d.fundadores.length ? (
-            <table className="adm-table"><thead><tr><th>#</th><th>Loja</th><th>Desde</th><th>0% de comissão</th><th></th></tr></thead><tbody>
+            <table className="adm-table"><thead><tr><th>#</th><th>Loja</th><th>Desde</th><th>Comissão reduzida</th><th></th></tr></thead><tbody>
               {d.fundadores.map((x) => (
                 <tr key={x.id}>
                   <td>{x.fundador_numero}</td>
                   <td>{x.slug ? <a href={`/loja/${x.slug}`} target="_blank" rel="noreferrer" style={{ color: 'var(--tx)' }}>{x.nome}</a> : x.nome}</td>
                   <td style={{ color: 'var(--sub)' }}>{dataBR(x.fundador_em)}</td>
                   <td>{x.situacao.ativo ? <span style={{ color: '#3DDC97', fontWeight: 800 }}>Ativo até {dataBR(x.situacao.ate)}{x.situacao.restante >= 0 ? ` · faltam ${brl(x.situacao.restante)}` : ''}</span> : <span style={{ color: 'var(--sub)' }}>Encerrado{x.situacao.motivoFim === 'teto' ? ' (teto)' : x.situacao.motivoFim === 'prazo' ? ' (prazo)' : ''} · vendeu {brl(x.situacao.vendido)}</span>}</td>
-                  <td><button className="adm-btn rp" disabled={busy} onClick={() => { if (confirm(`Tirar ${x.nome} dos Fundadores? Perde o selo e o 0% de comissão nas próximas vendas.`)) post({ acao: 'remover', storeId: x.id }, 'Removida dos Fundadores.'); }}>Remover</button></td>
+                  <td><button className="adm-btn rp" disabled={busy} onClick={() => { if (confirm(`Tirar ${x.nome} dos Fundadores? Perde o selo e a comissão reduzida nas próximas vendas.`)) post({ acao: 'remover', storeId: x.id }, 'Removida dos Fundadores.'); }}>Remover</button></td>
                 </tr>
               ))}
             </tbody></table>

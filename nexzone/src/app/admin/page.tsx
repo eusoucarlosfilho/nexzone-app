@@ -17,7 +17,7 @@ import { financeiroDoPedido } from '@/lib/financeiro';
 // Tenta ler a forma de pagamento (SQL 17); sem ela, segue sem.
 async function pedidosDoDashboard(admin: any): Promise<{ vendas: VendaDash[]; temForma: boolean }> {
   const cfgFin = await lerCfgFin(admin);
-  const base = 'id, status, total, taxa, valor_vendedor, created_at, entregue_em, store_id, product_id, comprador';
+  const base = 'id, status, total, taxa, valor_vendedor, created_at, entregue_em, store_id, product_id, comprador, gateway_ref';
   let temForma = true;
   let temTaxaComprador = true; // SQL 21
   const linhas: any[] = [];

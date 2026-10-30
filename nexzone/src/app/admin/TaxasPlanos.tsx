@@ -8,7 +8,8 @@ type Cfg = {
   planoBasico: number; planoDestaque: number; planoTopo: number; planosPagosAtivos: boolean; topoVagas: number;
   gwPixPct: number; gwPixFixo: number; gwCartaoPct: number; gwCartaoFixo: number;
   margemPixPct: number; margemPixFixo: number; margemCartaoPct: number; margemCartaoFixo: number;
-  liberaContaDias: number; liberaPadraoDias: number; liberaCartaoDias: number; saqueExtraTaxa: number;
+  liberaContaDias: number; liberaPadraoDias: number; liberaCartaoDias: number; saqueExtraTaxa: number; saqueGratisMin: number;
+  pixMpAte: number; gwPixMpPct: number; gwPixMpFixo: number; pixMpDisponivel: boolean;
 };
 type Linha = { total: number; destaque: number; topo: number };
 
@@ -49,7 +50,7 @@ export default function TaxasPlanos() {
   }, [f]);
 
   // simulação ao vivo com o que está digitado (sem salvar)
-  const simul: ConfigTaxas = { ...TAXAS_PADRAO, ...(cfg as any), ...Object.fromEntries(['gwPixPct', 'gwPixFixo', 'gwCartaoPct', 'gwCartaoFixo', 'margemPixPct', 'margemPixFixo', 'margemCartaoPct', 'margemCartaoFixo'].map((k) => [k, n(k)])) };
+  const simul: ConfigTaxas = { ...TAXAS_PADRAO, ...(cfg as any), ...Object.fromEntries(['gwPixPct', 'gwPixFixo', 'gwCartaoPct', 'gwCartaoFixo', 'margemPixPct', 'margemPixFixo', 'margemCartaoPct', 'margemCartaoFixo'].map((k) => [k, n(k)])), pixMpAte: n('pixMpAte'), gwPixMpPct: n('gwPixMpPct'), gwPixMpFixo: n('gwPixMpFixo') };
 
   async function salvar(extra: Partial<{ planosPagosAtivos: boolean }> = {}) {
     setSalvando(true);
@@ -122,6 +123,19 @@ export default function TaxasPlanos() {
         {campo('margemPixPct', 'Nossa margem no Pix (%)')}
         {campo('margemPixFixo', 'Nossa margem no Pix (R$)')}
       </div>
+      <div style={{ margin: '10px 0', padding: '12px 14px', borderRadius: 12, border: '1px solid var(--border)', background: cfg.pixMpDisponivel ? '#F2FBF6' : '#FFF8F0' }}>
+        <strong style={{ display: 'block', fontFamily: 'Outfit', fontSize: 14 }}>Pix das vendas pequenas pelo Mercado Pago</strong>
+        <small style={hint}>
+          {cfg.pixMpDisponivel
+            ? 'Token do Mercado Pago encontrado no servidor. Pedidos até o valor abaixo saem pelo Mercado Pago (% sem mínimo); acima, pela MisticPay. 0 = desligado.'
+            : 'Falta o token do Mercado Pago (PAYMENT_ACCESS_TOKEN) na Vercel. Enquanto ele não existir, todo Pix continua pela MisticPay, mesmo com valor abaixo.'}
+        </small>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 8 }}>
+          {campo('pixMpAte', 'Mercado Pago até (R$ do pedido)')}
+          {campo('gwPixMpPct', 'Mercado Pago (%)')}
+          {campo('gwPixMpFixo', 'Mercado Pago (R$ por Pix)')}
+        </div>
+      </div>
       <small style={hint}>Cartão: tarifa da Stripe</small>
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
         {campo('gwCartaoPct', 'Stripe (%)')}
@@ -150,8 +164,9 @@ export default function TaxasPlanos() {
         {campo('liberaPadraoDias', 'Demais tipos (dias)', '1')}
         {campo('liberaCartaoDias', 'Vendas no cartão (dias, mínimo)', '1')}
         {campo('saqueExtraTaxa', 'Saque extra na semana (R$)')}
+        {campo('saqueGratisMin', 'Saque grátis só a partir de (R$)')}
       </div>
-      <small style={hint}>O 1º saque de cada 7 dias é grátis. Reclamação aberta segura o saldo até ser resolvida. Cartão segura mais porque o estorno pode chegar semanas depois.</small>
+      <small style={hint}>O 1º saque de cada 7 dias é grátis a partir do valor acima; abaixo dele paga a taxa do saque extra (a tarifa do Pix de saque não come o valor). Reclamação aberta segura o saldo até ser resolvida. Cartão segura mais porque o estorno pode chegar semanas depois.</small>
       {n('liberaPadraoDias') < 7 && (
         <small style={{ ...hint, color: '#B45309', display: 'block', marginTop: 6 }}>
           O comprador tem 7 dias para desistir (CDC). Com {n('liberaPadraoDias')} dias, o vendedor pode sacar antes desse prazo — se houver reembolso depois disso, o valor sai do caixa da plataforma.

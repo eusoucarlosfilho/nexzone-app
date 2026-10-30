@@ -75,7 +75,7 @@ export default function Reembolsos({ onContagem }: { onContagem?: (n: number) =>
               <div style={{ marginTop: 12, display: 'grid', gap: 10 }}>
                 {decidindo.acao === 'aprovar' && (
                   <div style={{ fontSize: 13.5, background: '#FFB02E18', border: '1px solid #FFB02E55', borderRadius: 12, padding: '10px 12px' }}>
-                    <b>Antes de aprovar, devolva o dinheiro no gateway:</b> {p.forma === 'cartao' ? 'Stripe → Pagamentos → encontre o pagamento → Reembolsar.' : 'MisticPay → transação Pix' + (p.gateway_ref ? ` ${p.gateway_ref}` : '') + ' → Devolver.'} Aprovar aqui marca o pedido como reembolsado, encerra o acesso do comprador e tira o valor do saldo do vendedor.
+                    <b>Antes de aprovar, devolva o dinheiro no gateway:</b> {p.forma === 'cartao' ? 'Stripe → Pagamentos → encontre o pagamento → Reembolsar.' : String(p.gateway_ref || '').startsWith('mp:') ? `Mercado Pago → Atividade → pagamento ${String(p.gateway_ref).slice(3)} → Devolver dinheiro.` : 'MisticPay → transação Pix' + (p.gateway_ref ? ` ${p.gateway_ref}` : '') + ' → Devolver.'} Aprovar aqui marca o pedido como reembolsado, encerra o acesso do comprador e tira o valor do saldo do vendedor.
                     <label style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 8, fontWeight: 800, cursor: 'pointer' }}>
                       <input type="checkbox" checked={devolvido} onChange={(e) => setDevolvido(e.target.checked)} /> Já devolvi {brl(p.pago ?? p.total)} ao cliente
                     </label>
