@@ -17,6 +17,7 @@ export type VendaDash = {
   d: string;          // produto (product_id)
   u: string;          // comprador
   f: 'pix' | 'cartao' | null; // forma de pagamento (SQL 17); null = não identificado
+  g?: number;         // tarifa estimada do gateway (MisticPay/Stripe) que sai da receita
 };
 export type ExtraDash = { valor: number; em: string; status: string };
 
@@ -101,6 +102,7 @@ export const passaFiltro = (v: VendaDash, f: Filtro) =>
 
 export type Resumo = {
   faturamento: number; receita: number; repasse: number; vendas: number; ticket: number;
+  custoGateway: number; liquido: number;               // receita − tarifas do gateway (o que sobra de verdade)
   pix: { valor: number; qtd: number }; cartao: { valor: number; qtd: number }; semForma: { valor: number; qtd: number };
   pedidosCriados: number; conversao: number;          // pagos ÷ pedidos criados no período
   pendentes: { valor: number; qtd: number };           // pedidos do período ainda aguardando pagamento
@@ -110,7 +112,7 @@ export type Resumo = {
 
 export function resumir(vendas: VendaDash[], p: Periodo, f: Filtro): Resumo {
   const r: Resumo = {
-    faturamento: 0, receita: 0, repasse: 0, vendas: 0, ticket: 0,
+    faturamento: 0, receita: 0, repasse: 0, vendas: 0, ticket: 0, custoGateway: 0, liquido: 0,
     pix: { valor: 0, qtd: 0 }, cartao: { valor: 0, qtd: 0 }, semForma: { valor: 0, qtd: 0 },
     pedidosCriados: 0, conversao: 0, pendentes: { valor: 0, qtd: 0 }, reembolsos: { valor: 0, qtd: 0 },
     compradores: 0, compradoresNovos: 0,
@@ -130,7 +132,7 @@ export function resumir(vendas: VendaDash[], p: Periodo, f: Filtro): Resumo {
     }
     if (v.s === 'reembolsado' && dentro(dataVenda(v), p)) { r.reembolsos.qtd++; r.reembolsos.valor += v.v; }
     if (!pago(v.s) || !dentro(dataVenda(v), p)) continue;
-    r.vendas++; r.faturamento += v.v; r.receita += v.t; r.repasse += v.r;
+    r.vendas++; r.faturamento += v.v; r.receita += v.t; r.repasse += v.r; r.custoGateway += v.g || 0;
     const alvo = v.f === 'pix' ? r.pix : v.f === 'cartao' ? r.cartao : r.semForma;
     alvo.qtd++; alvo.valor += v.v;
     quem.add(v.u);
@@ -141,7 +143,8 @@ export function resumir(vendas: VendaDash[], p: Periodo, f: Filtro): Resumo {
   r.conversao = r.pedidosCriados ? pagosDosCriados / r.pedidosCriados : 0;
   r.compradores = quem.size;
   quem.forEach((u) => { const t = primeiraCompra.get(u); if (t !== undefined && t >= p.de.getTime() && t < p.ate.getTime()) r.compradoresNovos++; });
-  for (const k of ['faturamento', 'receita', 'repasse', 'ticket'] as const) r[k] = Math.round(r[k] * 100) / 100;
+  r.liquido = r.receita - r.custoGateway;
+  for (const k of ['faturamento', 'receita', 'repasse', 'ticket', 'custoGateway', 'liquido'] as const) r[k] = Math.round(r[k] * 100) / 100;
   return r;
 }
 

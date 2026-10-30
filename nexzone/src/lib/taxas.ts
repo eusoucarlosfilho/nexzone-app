@@ -136,6 +136,19 @@ export function taxaComprador(metodo: Metodo, total: number, cfg: ConfigTaxas): 
   return partesTaxaComprador(metodo, total, cfg).taxa;
 }
 
+// ---------- Travas contra prejuízo (promoções nunca deixam o pedido no negativo) ----------
+/** Custo do gateway quando o comprador NÃO paga taxa de serviço (1ª compra grátis): incide só sobre o pedido. */
+export function custoGatewaySemTaxa(metodo: Metodo, total: number, cfg: ConfigTaxas): number {
+  if (!(total > 0)) return 0;
+  const c = metodo === 'cartao';
+  return r2(total * (c ? cfg.gwCartaoPct : cfg.gwPixPct) / 100 + (c ? cfg.gwCartaoFixo : cfg.gwPixFixo));
+}
+/** A comissão que fica com a plataforma neste pedido cobre o custo do gateway? Só então dá para abrir mão da taxa do comprador. */
+export const comissaoCobreGateway = (metodo: Metodo, total: number, comissao: number, cfg: ConfigTaxas) =>
+  r2(comissao) + 1e-9 >= custoGatewaySemTaxa(metodo, total, cfg);
+/** Desconto máximo em CB Points sem prejuízo: no máximo a comissão da plataforma no pedido (quem paga os pontos é a plataforma). */
+export const maxDescontoPontos = (totalBruto: number, pctVendedor: number) => Math.max(0, Math.floor(Math.max(0, totalBruto) * pctVendedor) / 100);
+
 /** Frase curta com o exemplo da taxa num pedido (para landing, termos, ajuda). */
 export function exemploTaxaServico(cfg: ConfigTaxas, valor = 50, comCartao = true) {
   const pix = taxaComprador('pix', valor, cfg), cartao = taxaComprador('cartao', valor, cfg);

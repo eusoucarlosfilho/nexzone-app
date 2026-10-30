@@ -21,7 +21,7 @@ export type TipoCusto = 'avulso' | 'mensal' | 'anual';
 export type Custo = { id: number; descricao: string; categoria: Categoria; valor: number; tipo: TipoCusto; data: string; fim: string | null; pago_por: string | null; observacao: string | null; comprovante_nome?: string | null; tem_comprovante?: boolean };
 
 export type ConfigFin = { custoPixPct: number; custoPixEntrada: number; custoPixSaida: number; custoCartaoPct: number; custoCartaoFixo: number; aliquotaDas: number };
-export const CONFIG_FIN_PADRAO: ConfigFin = { custoPixPct: 0, custoPixEntrada: 0.5, custoPixSaida: 0, custoCartaoPct: 3.99, custoCartaoFixo: 0.39, aliquotaDas: 6 };
+export const CONFIG_FIN_PADRAO: ConfigFin = { custoPixPct: 0, custoPixEntrada: 0.5, custoPixSaida: 0.5, custoCartaoPct: 3.99, custoCartaoFixo: 0.39, aliquotaDas: 6 };
 
 const num = (v: unknown, def: number, min: number, max: number) => {
   if (v === null || v === undefined || v === '' || typeof v === 'boolean') return def;
@@ -207,4 +207,55 @@ export function csvMes(m: MesFin, custos: Custo[]): string {
     ['Resultado', 'Receita − custos − imposto', '', v(m.resultado), ''],
   ];
   return linhas.map((l) => l.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(';')).join('\n');
+}
+
+// ---------- Conferência das taxas, pedido a pedido (auditoria) ----------
+export type PedidoAuditoria = PedidoFin & { id: string; pct_vendedor: number | null; titulo?: string | null; loja?: string | null };
+export type Alerta = 'divisao' | 'acima_do_plano' | 'abaixo_do_plano' | 'prejuizo' | 'sem_taxa_comprador' | 'modelo_antigo';
+export const ROTULO_ALERTA: Record<Alerta, string> = {
+  divisao: 'Taxa + vendedor não fecha com o total',
+  acima_do_plano: 'Plataforma cobrou do vendedor MAIS que o % do plano',
+  abaixo_do_plano: 'Plataforma ficou com MENOS que o % do plano (pontos ou ajuste)',
+  prejuizo: 'Pedido deu prejuízo (tarifa do gateway maior que o que ficou)',
+  sem_taxa_comprador: 'Comprador não pagou taxa de serviço (1ª compra grátis ou pedido antigo)',
+  modelo_antigo: 'Pedido do modelo antigo (antes dos planos): sem % do plano gravado',
+};
+const GRAVES: Alerta[] = ['divisao', 'acima_do_plano', 'prejuizo'];
+
+/** Confere UM pedido pago: divisão, % do plano, taxa do comprador e se sobrou dinheiro depois do gateway. */
+export function auditarPedido(o: PedidoAuditoria, cfg: ConfigFin) {
+  const total = Number(o.total) || 0, taxa = Number(o.taxa) || 0, vend = Number(o.valor_vendedor) || 0;
+  const f = financeiroDoPedido({ ...o, forma_pagamento: o.forma_pagamento ?? 'pix' }, cfg);
+  const cartao = o.forma_pagamento === 'cartao';
+  const taxaComprador = cartao ? Number(o.taxa_comprador_cartao || 0) : Number(o.taxa_comprador_pix || 0);
+  const liquido = r2(taxa + taxaComprador - f.gateway);
+  const alertas: Alerta[] = [];
+  if (Math.abs(taxa + vend - total) > 0.011) alertas.push('divisao');
+  if (o.pct_vendedor === null || o.pct_vendedor === undefined) alertas.push('modelo_antigo');
+  else {
+    const esperada = r2(total * Number(o.pct_vendedor) / 100);
+    if (taxa > esperada + 0.011) alertas.push('acima_do_plano');
+    else if (taxa < esperada - 0.011) alertas.push('abaixo_do_plano');
+  }
+  if (!(taxaComprador > 0)) alertas.push('sem_taxa_comprador');
+  if (liquido < -0.005) alertas.push('prejuizo');
+  return {
+    id: o.id, data: o.entregue_em || o.created_at, titulo: o.titulo ?? null, loja: o.loja ?? null, forma: o.forma_pagamento ?? null,
+    total: r2(total), pct: o.pct_vendedor ?? null, taxa: r2(taxa), vendedor: r2(vend), taxaComprador: r2(taxaComprador),
+    gateway: f.gateway, liquido, alertas, grave: alertas.some((a) => GRAVES.includes(a)),
+  };
+}
+
+/** Confere todos os pedidos pagos e resume: quantos ok, quantos com alerta, totais. Graves primeiro. */
+export function auditarPedidos(pedidos: PedidoAuditoria[], cfg: ConfigFin) {
+  const linhas = pedidos.filter((o) => o.status === 'pago' || o.status === 'entregue').map((o) => auditarPedido(o, cfg));
+  const soma = (k: 'total' | 'taxa' | 'taxaComprador' | 'gateway' | 'liquido' | 'vendedor') => r2(linhas.reduce((a, l) => a + l[k], 0));
+  const porAlerta: Record<string, number> = {};
+  for (const l of linhas) for (const a of l.alertas) porAlerta[a] = (porAlerta[a] || 0) + 1;
+  linhas.sort((a, b) => Number(b.grave) - Number(a.grave) || (b.data > a.data ? 1 : -1));
+  return {
+    pedidos: linhas.length, graves: linhas.filter((l) => l.grave).length, porAlerta,
+    totais: { faturamento: soma('total'), vendedores: soma('vendedor'), comissao: soma('taxa'), taxaComprador: soma('taxaComprador'), gateway: soma('gateway'), liquido: soma('liquido') },
+    linhas,
+  };
 }

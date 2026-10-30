@@ -1,7 +1,7 @@
 // Financeiro da Sala de comando — leitura no SERVIDOR (service_role). Nunca importar em componente do navegador.
 import { randomUUID } from 'crypto';
 import { createAdminClient } from '@/lib/supabase/server';
-import { lerConfigFin, montarFinanceiro, ultimosMeses, custoFixoMensal, totalGasto, type Custo, type ConfigFin } from './financeiro';
+import { lerConfigFin, auditarPedidos, montarFinanceiro, ultimosMeses, custoFixoMensal, totalGasto, type Custo, type ConfigFin } from './financeiro';
 import { tipoPelosBytes, nomeSeguro } from './conversas';
 
 type Admin = ReturnType<typeof createAdminClient>;
@@ -9,7 +9,7 @@ export const BUCKET_FIN = 'financeiro';
 const TIPOS = ['image/png', 'image/jpeg', 'image/webp', 'application/pdf'];
 const EXT: Record<string, string> = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp', 'application/pdf': 'pdf' };
 const MAX = 10 * 1024 * 1024;
-const CHAVES_CFG = ['fin_custo_pix_entrada', 'fin_custo_pix_saida', 'fin_custo_cartao_pct', 'fin_custo_cartao_fixo', 'fin_aliquota_das'];
+const CHAVES_CFG = ['fin_custo_pix_pct', 'fin_custo_pix_entrada', 'fin_custo_pix_saida', 'fin_custo_cartao_pct', 'fin_custo_cartao_fixo', 'fin_aliquota_das'];
 
 export async function lerCfgFin(admin: Admin): Promise<ConfigFin> {
   const { data } = await admin.from('settings').select('key, value').in('key', CHAVES_CFG);
@@ -59,6 +59,29 @@ export async function painelFinanceiro(admin: Admin, qtdMeses = 12) {
   const custodia = Math.round((soma(vv.data as any[], 'valor_vendedor') - soma(pg.data as any[], 'valor')) * 100) / 100;
   const atual = meses[meses.length - 1];
   return { sql27, cfg, ...fin, custos, custodia, fixoMensal: custoFixoMensal(custos, atual), gastoTotal: totalGasto(custos, atual) };
+}
+
+/** Conferência das taxas, pedido a pedido (todos os pedidos pagos). Tolerante às colunas que faltarem. */
+export async function auditoriaTaxas(admin: Admin) {
+  const cfg = await lerCfgFin(admin);
+  const cols = ['id, status, total, taxa, valor_vendedor, created_at, entregue_em, products(titulo), stores(nome)', 'forma_pagamento', 'taxa_comprador_pix, taxa_comprador_cartao', 'pct_vendedor'];
+  let usar = [...cols];
+  let r: any = null;
+  for (let i = 0; i < 4; i++) {
+    r = await admin.from('orders').select(usar.join(', ')).in('status', ['pago', 'entregue']).order('created_at', { ascending: false }).limit(20000);
+    if (!r.error) break;
+    const msg = String(r.error.message || '');
+    const ix = usar.findIndex((c, k) => k > 0 && c.split(', ').some((x) => msg.includes(x)));
+    if (ix < 0) break;
+    usar.splice(ix, 1);
+  }
+  if (r?.error) throw new Error(r.error.message);
+  const pedidos = ((r.data ?? []) as any[]).map((o) => ({
+    ...o, forma_pagamento: o.forma_pagamento ?? null, pct_vendedor: o.pct_vendedor ?? null,
+    taxa_comprador_pix: o.taxa_comprador_pix ?? null, taxa_comprador_cartao: o.taxa_comprador_cartao ?? null,
+    titulo: o.products?.titulo ?? null, loja: o.stores?.nome ?? null,
+  }));
+  return { cfg, ...auditarPedidos(pedidos, cfg) };
 }
 
 // ---------- Comprovantes ----------
