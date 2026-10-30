@@ -9,7 +9,7 @@ import { toast } from '@/lib/toast';
 import ProductThumb from '@/components/ProductThumb';
 import Icon from '@/components/Icon';
 import { CartaoVendedor, PromessaEntrega, ProtecaoCompra, type VendedorCheckout, type EntregaCheckout } from '@/components/ConfiancaCheckout';
-import { taxaComprador, type ConfigTaxas } from '@/lib/taxas';
+import { taxaComprador, comissaoCobreGateway, maxDescontoPontos, type ConfigTaxas } from '@/lib/taxas';
 
 const money = (v: number) => 'R$ ' + Number(v).toFixed(2).replace('.', ',');
 
@@ -61,7 +61,7 @@ function Step({ n, label, active, done }: { n: number; label: string; active?: b
   );
 }
 
-export default function CheckoutClient({ productId, titulo, emoji, categoria, capa_url, loja, preco, cor, bumps = [], aceitaCupom, meusPontos = 0, perBrl = 100, cartaoDisponivel = false, convidado: convidadoInicial = false, emailLogado = null, rastreio = null, taxas = null, vendedor = null, entrega = null, garantiaDias = 7, promo = null, cashback = null }: any) {
+export default function CheckoutClient({ productId, titulo, emoji, categoria, capa_url, loja, preco, cor, bumps = [], aceitaCupom, meusPontos = 0, perBrl = 100, cartaoDisponivel = false, convidado: convidadoInicial = false, emailLogado = null, rastreio = null, taxas = null, vendedor = null, entrega = null, garantiaDias = 7, promo = null, cashback = null, comissaoPct = 0 }: any) {
   // Campanhas (SQL 28): promo = { ativo, cartao, primeira: true | false | null (convidado: ainda não sabemos) }; cashback = { pct, pontosPorReal }
   const v = vendedor as VendedorCheckout | null;
   const ent = entrega as EntregaCheckout | null;
@@ -121,9 +121,11 @@ export default function CheckoutClient({ productId, titulo, emoji, categoria, ca
   const [usarPontos, setUsarPontos] = useState(false);
   // valor máximo dos pontos, deixando ao menos R$1,00 para pagar via Pix
   const valorPontos = perBrl ? Math.floor((meusPontos / perBrl) * 100) / 100 : 0;
-  const descontoPontos = usarPontos ? Math.max(0, Math.min(valorPontos, +(totalBruto - 1).toFixed(2))) : 0;
+  // Trava (igual ao servidor): pontos no máximo até a comissão da plataforma no pedido
+  const tetoPontos = Math.max(0, Math.min(+(totalBruto - 1).toFixed(2), maxDescontoPontos(totalBruto, Number(comissaoPct) || 0)));
+  const descontoPontos = usarPontos ? Math.max(0, Math.min(valorPontos, tetoPontos)) : 0;
   const total = +(totalBruto - descontoPontos).toFixed(2);
-  const podeUsarPontos = meusPontos > 0 && valorPontos >= 0.01 && totalBruto > 1;
+  const podeUsarPontos = meusPontos > 0 && valorPontos >= 0.01 && totalBruto > 1 && tetoPontos >= 0.01;
   const accent = cor || 'var(--orange)';
 
   // Cartão só aparece se o Admin ligou (e as chaves existem) e o total cobre o mínimo da Stripe.
@@ -134,7 +136,9 @@ export default function CheckoutClient({ productId, titulo, emoji, categoria, ca
   // = tarifa do Pix/cartão + taxa da plataforma; a mesma conta do servidor (lib/taxas)
   const taxaNormal = taxas ? taxaComprador(metodoEfetivo, total, taxas as ConfigTaxas) : 0;
   // 1ª compra sem taxa: o servidor confere de novo ao gerar o Pix/cartão (mesma regra)
-  const promoVale = !!promo?.ativo && (metodoEfetivo === 'pix' || !!promo?.cartao);
+  // 1ª compra sem taxa: só quando a comissão do pedido cobre a tarifa do gateway (mesma trava do servidor)
+  const comissaoPedido = Math.max(0, Math.round(totalBruto * (Number(comissaoPct) || 0)) / 100 - descontoPontos);
+  const promoVale = !!promo?.ativo && (metodoEfetivo === 'pix' || !!promo?.cartao) && !!taxas && comissaoCobreGateway(metodoEfetivo, total, comissaoPedido, taxas as ConfigTaxas);
   const semTaxa = promoVale && promo?.primeira === true && taxaNormal > 0;
   const taxaServico = semTaxa ? 0 : taxaNormal;
   const pontosVolta = cashback && cashback.pct > 0 ? Math.floor(total * cashback.pct / 100 * (cashback.pontosPorReal || 100)) : 0;
@@ -318,7 +322,7 @@ export default function CheckoutClient({ productId, titulo, emoji, categoria, ca
           <input type="checkbox" checked={usarPontos} onChange={(e) => setUsarPontos(e.target.checked)} />
           <span style={{ flex: 1 }}>
             <strong style={{ fontFamily: 'Outfit', display: 'block', fontSize: 14 }}>Usar meus CB Points</strong>
-            <span className="muted" style={{ fontSize: 12.5 }}>Você tem <strong>{meusPontos}</strong> pontos (vale {money(valorPontos)}). Aplica até {money(Math.max(0, +(totalBruto - 1).toFixed(2)))} neste pedido.</span>
+            <span className="muted" style={{ fontSize: 12.5 }}>Você tem <strong>{meusPontos}</strong> pontos (vale {money(valorPontos)}). Aplica até {money(tetoPontos)} neste pedido.</span>
             <span className="muted" style={{ fontSize: 12, display: 'block', marginTop: 2 }}>Desconto para compras na plataforma. Não disponível para saque.</span>
           </span>
         </label>

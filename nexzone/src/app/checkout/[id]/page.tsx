@@ -17,6 +17,7 @@ import { lerCfgCampanhas, ehPrimeiraCompra, fundadorDaLoja } from '@/lib/campanh
 import { linhasVendedor, promessaEntrega } from '@/lib/confianca';
 import { diasDeGarantia } from '@/lib/garantia';
 import { RodapeConfianca, CSS_CONFIANCA } from '@/components/ConfiancaCheckout';
+import { pctDoPlano } from '@/lib/taxas';
 
 export const dynamic = 'force-dynamic';
 
@@ -27,7 +28,7 @@ export default async function CheckoutPage({ params }: { params: { id: string } 
 
   const { data } = await supabase.from('products')
     // Colunas explícitas: conteúdo de entrega e arquivo nunca são lidos com a chave do usuário (SQL 12)
-    .select('id, titulo, emoji, categoria, capa_url, preco, preco_promo, status, store_id, tipo_entrega, garantia_dias, checkout_config, aceita_cupom, tipo_anuncio, bumps, bump_product_id, bump_valor, stores(nome, logo_url, cor, ocultar_vendedor, status)')
+    .select('id, titulo, emoji, categoria, capa_url, preco, preco_promo, status, store_id, tipo_entrega, garantia_dias, checkout_config, aceita_cupom, tipo_anuncio, bumps, bump_product_id, bump_valor, plano, stores(nome, logo_url, cor, ocultar_vendedor, status)')
     .eq('id', params.id).eq('status', 'ativo').single();
   if (!data) notFound();
   const p = data as unknown as Product;
@@ -76,6 +77,8 @@ export default async function CheckoutPage({ params }: { params: { id: string } 
   const entrega = promessaEntrega((p as any).tipo_anuncio, empresa.prazoManualHoras);
   const garantiaDias = diasDeGarantia((p as any).garantia_dias);
   const cfgTaxas = await lerTaxas();
+  // % da plataforma neste anúncio (0 se a loja é Fundadora ativa): o checkout usa para as travas de pontos e da 1ª compra
+  const comissaoPct = fund?.ativo ? 0 : pctDoPlano((p as any).plano, cfgTaxas);
   const taxas = cfgTaxas; // taxa de serviço = tarifa do gateway + margem (calculada igual no cliente e no servidor)
   // Carrinho abandonado (SQL 19): quem já está logado e abriu o checkout entra na recuperação (o dono não)
   if (user?.email && (p as any).stores && user.id) {
@@ -124,6 +127,7 @@ export default async function CheckoutPage({ params }: { params: { id: string } 
               entrega={entrega}
               garantiaDias={garantiaDias}
               promo={promo}
+              comissaoPct={comissaoPct}
               cashback={cashback}
             />
           }
