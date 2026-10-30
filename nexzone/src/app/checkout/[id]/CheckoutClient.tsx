@@ -10,6 +10,7 @@ import ProductThumb from '@/components/ProductThumb';
 import Icon from '@/components/Icon';
 import { CartaoVendedor, PromessaEntrega, ProtecaoCompra, type VendedorCheckout, type EntregaCheckout } from '@/components/ConfiancaCheckout';
 import { taxaComprador, comissaoCobreGateway, maxDescontoPontos, type ConfigTaxas } from '@/lib/taxas';
+import { pontosCashbackControlado } from '@/lib/campanhas';
 
 const money = (v: number) => 'R$ ' + Number(v).toFixed(2).replace('.', ',');
 
@@ -141,8 +142,8 @@ export default function CheckoutClient({ productId, titulo, emoji, categoria, ca
   const promoVale = !!promo?.ativo && (metodoEfetivo === 'pix' || !!promo?.cartao) && !!taxas && comissaoCobreGateway(metodoEfetivo, total, comissaoPedido, taxas as ConfigTaxas);
   const semTaxa = promoVale && promo?.primeira === true && taxaNormal > 0;
   const taxaServico = semTaxa ? 0 : taxaNormal;
-  const pontosVolta = cashback && cashback.pct > 0 ? Math.floor(total * cashback.pct / 100 * (cashback.pontosPorReal || 100)) : 0;
-  const valorVolta = pontosVolta ? Math.floor((pontosVolta / (cashback.pontosPorReal || 100)) * 100) / 100 : 0;
+  // cashback controlado (igual ao servidor): o menor entre o % do valor e o teto da nossa comissão no pedido
+  const pontosVolta = cashback && cashback.pct > 0 ? pontosCashbackControlado(total, comissaoPedido, { cashbackPct: cashback.pct, cbTetoComissaoPct: Number(cashback.teto ?? 30) }, cashback.pontosPorReal || 100) : 0;
   const totalAPagar = Math.round((total + taxaServico) * 100) / 100;
 
   async function aplicarCupom(codigoLink?: string) {
@@ -314,7 +315,7 @@ export default function CheckoutClient({ productId, titulo, emoji, categoria, ca
         <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'Outfit', fontWeight: 900, fontSize: 20, marginTop: 8 }}>
           <span>Total</span><span>{money(totalAPagar)}</span>
         </div>
-        {valorVolta >= 0.01 && <p style={{ fontSize: 12.5, margin: '6px 0 0', color: 'var(--orange-ink)', fontWeight: 700 }}>⚡ Você ganha {money(valorVolta)} de volta em CB Points para usar na próxima compra.</p>}
+        {pontosVolta > 0 && <p style={{ fontSize: 12.5, margin: '6px 0 0', color: 'var(--orange-ink)', fontWeight: 700 }}>⚡ Você ganha {pontosVolta.toLocaleString('pt-BR')} CB Points para usar na próxima compra.</p>}
       </div>
 
       {podeUsarPontos && (
@@ -322,7 +323,7 @@ export default function CheckoutClient({ productId, titulo, emoji, categoria, ca
           <input type="checkbox" checked={usarPontos} onChange={(e) => setUsarPontos(e.target.checked)} />
           <span style={{ flex: 1 }}>
             <strong style={{ fontFamily: 'Outfit', display: 'block', fontSize: 14 }}>Usar meus CB Points</strong>
-            <span className="muted" style={{ fontSize: 12.5 }}>Você tem <strong>{meusPontos}</strong> pontos (vale {money(valorPontos)}). Aplica até {money(tetoPontos)} neste pedido.</span>
+            <span className="muted" style={{ fontSize: 12.5 }}>Você tem <strong>{Number(meusPontos).toLocaleString('pt-BR')}</strong> CB Points. O desconto aparece no resumo ao ativar.</span>
             <span className="muted" style={{ fontSize: 12, display: 'block', marginTop: 2 }}>Desconto para compras na plataforma. Não disponível para saque.</span>
           </span>
         </label>

@@ -71,7 +71,7 @@ export default async function CheckoutPage({ params }: { params: { id: string } 
   const camp = await lerCfgCampanhas(adminCamp);
   const [primeira, fund] = await Promise.all([user ? ehPrimeiraCompra(adminCamp, user.id) : Promise.resolve(null), loja.oficial ? Promise.resolve(null) : fundadorDaLoja(adminCamp, (p as any).store_id, camp)]);
   const promo = { ativo: camp.primeiraCompra, cartao: camp.primeiraCompraCartao, primeira };
-  const cashback = camp.cbAtivo && camp.cashbackPct > 0 ? { pct: camp.cashbackPct, pontosPorReal: camp.pontosPorReal } : null;
+  const cashback = camp.cbAtivo && camp.cashbackPct > 0 ? { pct: camp.cashbackPct, teto: camp.cbTetoComissaoPct, pontosPorReal: camp.pontosPorReal } : null;
   const lv = linhasVendedor(stats, { oficial: loja.oficial, verificada: loja.verificada });
   const vendedor = { nome: loja.nome || 'Loja', selo: lv.selo, linhas: loja.oficial ? ['Vendido e garantido pelo Comprei Barato'] : [...(fund?.fundador ? [`🏅 Lojista Fundador #${fund.numero}`] : []), ...lv.linhas], nova: !loja.oficial && lv.nova, oficial: loja.oficial };
   const entrega = promessaEntrega((p as any).tipo_anuncio, empresa.prazoManualHoras);
