@@ -9,6 +9,7 @@ import { toast } from '@/lib/toast';
 import ProductThumb from '@/components/ProductThumb';
 import Icon from '@/components/Icon';
 import { CartaoVendedor, PromessaEntrega, ProtecaoCompra, type VendedorCheckout, type EntregaCheckout } from '@/components/ConfiancaCheckout';
+import { taxaComprador, type ConfigTaxas } from '@/lib/taxas';
 
 const money = (v: number) => 'R$ ' + Number(v).toFixed(2).replace('.', ',');
 
@@ -60,7 +61,7 @@ function Step({ n, label, active, done }: { n: number; label: string; active?: b
   );
 }
 
-export default function CheckoutClient({ productId, titulo, emoji, categoria, capa_url, loja, preco, cor, bumps = [], aceitaCupom, meusPontos = 0, perBrl = 100, cartaoDisponivel = false, convidado: convidadoInicial = false, emailLogado = null, rastreio = null, taxas = { pix: 0, cartaoPct: 0, cartaoFixo: 0 }, vendedor = null, entrega = null, garantiaDias = 7, promo = null, cashback = null }: any) {
+export default function CheckoutClient({ productId, titulo, emoji, categoria, capa_url, loja, preco, cor, bumps = [], aceitaCupom, meusPontos = 0, perBrl = 100, cartaoDisponivel = false, convidado: convidadoInicial = false, emailLogado = null, rastreio = null, taxas = null, vendedor = null, entrega = null, garantiaDias = 7, promo = null, cashback = null }: any) {
   // Campanhas (SQL 28): promo = { ativo, cartao, primeira: true | false | null (convidado: ainda não sabemos) }; cashback = { pct, pontosPorReal }
   const v = vendedor as VendedorCheckout | null;
   const ent = entrega as EntregaCheckout | null;
@@ -130,9 +131,8 @@ export default function CheckoutClient({ productId, titulo, emoji, categoria, ca
   // Se o cartão sumir (ex.: cupom/pontos baixaram o total), volta para Pix.
   const metodoEfetivo: 'pix' | 'cartao' = mostrarCartao ? metodo : 'pix';
   // Taxa de serviço do meio de pagamento (paga pelo comprador; mostrada antes de pagar, como manda o CDC)
-  const taxaNormal = total <= 0 ? 0 : metodoEfetivo === 'cartao'
-    ? Math.round((total * Number(taxas.cartaoPct || 0) / 100 + Number(taxas.cartaoFixo || 0)) * 100) / 100
-    : Math.round(Number(taxas.pix || 0) * 100) / 100;
+  // = tarifa do Pix/cartão + taxa da plataforma; a mesma conta do servidor (lib/taxas)
+  const taxaNormal = taxas ? taxaComprador(metodoEfetivo, total, taxas as ConfigTaxas) : 0;
   // 1ª compra sem taxa: o servidor confere de novo ao gerar o Pix/cartão (mesma regra)
   const promoVale = !!promo?.ativo && (metodoEfetivo === 'pix' || !!promo?.cartao);
   const semTaxa = promoVale && promo?.primeira === true && taxaNormal > 0;
@@ -296,7 +296,7 @@ export default function CheckoutClient({ productId, titulo, emoji, categoria, ca
         )}
         {taxaServico > 0 && (
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, marginBottom: 6 }}>
-            <span className="muted">Taxa de serviço ({metodoEfetivo === 'cartao' ? 'cartão' : 'Pix'})</span><span>{money(taxaServico)}</span>
+            <span className="muted">Taxa de serviço ({metodoEfetivo === 'cartao' ? 'cartão' : 'Pix'})<small style={{ display: 'block', fontSize: 11.5 }}>Referente à tarifa do {metodoEfetivo === 'cartao' ? 'cartão' : 'Pix'} e ao serviço da plataforma</small></span><span>{money(taxaServico)}</span>
           </div>
         )}
         {semTaxa && (

@@ -76,7 +76,7 @@ export default async function CheckoutPage({ params }: { params: { id: string } 
   const entrega = promessaEntrega((p as any).tipo_anuncio, empresa.prazoManualHoras);
   const garantiaDias = diasDeGarantia((p as any).garantia_dias);
   const cfgTaxas = await lerTaxas();
-  const taxas = { pix: cfgTaxas.compradorPix, cartaoPct: cfgTaxas.compradorCartaoPct, cartaoFixo: cfgTaxas.compradorCartaoFixo };
+  const taxas = cfgTaxas; // taxa de serviço = tarifa do gateway + margem (calculada igual no cliente e no servidor)
   // Carrinho abandonado (SQL 19): quem já está logado e abriu o checkout entra na recuperação (o dono não)
   if (user?.email && (p as any).stores && user.id) {
     const { data: dono } = await supabase.from('stores').select('owner').eq('id', (p as any).store_id).maybeSingle();
