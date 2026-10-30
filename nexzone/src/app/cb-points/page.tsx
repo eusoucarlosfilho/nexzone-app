@@ -49,7 +49,7 @@ export default async function CBPointsPage() {
         <div className="card" style={{ background: 'var(--text)', color: '#fff', marginBottom: 16, border: 0 }}>
           <div style={{ fontSize: 13, fontWeight: 700, opacity: .9 }}>Seu saldo de pontos</div>
           <div style={{ fontFamily: 'Outfit', fontSize: 40, fontWeight: 900, letterSpacing: '-1px', lineHeight: 1.1 }}>{pontos.toLocaleString('pt-BR')}</div>
-          <div style={{ fontSize: 14, opacity: .92 }}>vale até <strong>{money(valor)}</strong> em descontos nas suas compras</div>
+          <div style={{ fontSize: 14, opacity: .92 }}>use como desconto no checkout das suas próximas compras</div>
         </div>
 
         <div style={{ marginBottom: 16 }}>
