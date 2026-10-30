@@ -36,5 +36,10 @@ t('trava 1ª compra: comissão de 5% em R$ 5,89 (0,29) NÃO cobre o Pix (0,50)',
 t('trava 1ª compra no cartão: Stripe 3,99% + 0,39', () => { assert.strictEqual(x.custoGatewaySemTaxa('cartao', 100, P), 4.38); assert.strictEqual(x.comissaoCobreGateway('cartao', 100, 5, P), true); assert.strictEqual(x.comissaoCobreGateway('cartao', 100, 4, P), false); });
 t('CB Points: desconto máximo = comissão do pedido', () => { assert.strictEqual(x.maxDescontoPontos(100, 5), 5); assert.strictEqual(x.maxDescontoPontos(5.89, 5), 0.29); assert.strictEqual(x.maxDescontoPontos(100, 0), 0); });
 
+t('rota do Pix: MP só com token E limite ligado', () => { const on = { ...P, pixMpAte: 50, pixMpDisponivel: true }; assert.strictEqual(x.rotaPix(10, P), 'misticpay'); assert.strictEqual(x.rotaPix(10, { ...P, pixMpAte: 50 }), 'misticpay'); assert.strictEqual(x.rotaPix(10, on), 'mp'); assert.strictEqual(x.rotaPix(50, on), 'mp'); assert.strictEqual(x.rotaPix(50.01, on), 'misticpay'); });
+t('taxa do comprador pelo MP (0,99% por dentro + 2%)', () => { const on = { ...P, pixMpAte: 50, pixMpDisponivel: true }; assert.strictEqual(x.taxaComprador('pix', 10, on), 0.31); assert.strictEqual(x.taxaComprador('pix', 5, on), 0.16); assert.strictEqual(x.taxaComprador('pix', 100, on), 2.5); const q = x.partesTaxaComprador('pix', 10, on); assert.ok(q.margem + 1e-9 >= 0.2); });
+t('trava 1ª compra com MP: 5% de R$ 5,89 cobre o Pix do MP', () => { const on = { ...P, pixMpAte: 50, pixMpDisponivel: true }; assert.strictEqual(x.comissaoCobreGateway('pix', 5.89, 0.29, on), true); });
+t('saque: grátis só a partir de R$ 50', () => { assert.strictEqual(x.taxaDoSaque(0, P, 49.99), 0.99); assert.strictEqual(x.taxaDoSaque(0, P, 50), 0); assert.strictEqual(x.taxaDoSaque(0, P), 0); assert.strictEqual(x.taxaDoSaque(1, P, 500), 0.99); });
+
 console.log(`\n${ok} ok, ${fail} falha(s)`);
 if (fail) process.exit(1);

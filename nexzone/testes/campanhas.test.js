@@ -30,6 +30,9 @@ t('fundador ativo: comissão zero, tudo para o vendedor', () => {
   const normal = { pct: 5, taxa: 1.5, valorVendedor: 28.5 };
   assert.deepStrictEqual(C.divisaoComFundador(normal, 30, true), { pct: 0, taxa: 0, valorVendedor: 30 });
   assert.deepStrictEqual(C.divisaoComFundador(normal, 30, false), normal);
+  assert.deepStrictEqual(C.divisaoComFundador(normal, 30, true, 3), { pct: 3, taxa: 0.9, valorVendedor: 29.1 });
+  assert.deepStrictEqual(C.divisaoComFundador(normal, 30, true, 20), normal); // nunca sobe acima do plano
+  assert.strictEqual(C.CAMPANHAS_PADRAO.fundadorPct, 3);
 });
 t('cashback: 5% de R$ 30 = 150 pontos = R$ 1,50', () => {
   assert.strictEqual(C.pontosCashback(30, 5, 100), 150);
