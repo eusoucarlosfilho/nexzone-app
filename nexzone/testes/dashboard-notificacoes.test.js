@@ -49,6 +49,11 @@ const vendas = [
 const P30 = D.periodoDoPreset('30d', agora);
 const todos = { loja: 'todas', forma: 'todas' };
 
+t('resumo: receita líquida = receita − tarifas do gateway', () => {
+  const vs = [V({ i: 'x1', c: dt(2026, 10, 20), f: 'pix', v: 100, t: 5.5, r: 95, g: 0.5 }), V({ i: 'x2', c: dt(2026, 10, 21), f: 'pix', v: 6, t: 0.3, r: 5.7, g: 0.5 })];
+  const r = D.resumir(vs, P30, todos);
+  assert.strictEqual(r.receita, 5.8); assert.strictEqual(r.custoGateway, 1); assert.strictEqual(r.liquido, 4.8);
+});
 t('resumo: faturamento, receita, Pix x cartão, não identificado', () => {
   const r = D.resumir(vendas, P30, todos);
   assert.strictEqual(r.vendas, 4);

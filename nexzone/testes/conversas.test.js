@@ -74,4 +74,32 @@ t('postback para o vendedor não leva o telefone do cliente', () => {
   assert.strictEqual(b.comprador.whatsapp, undefined); assert.strictEqual(b.comprador.email, 'a@b.com');
 });
 t('evento WhatsApp de pedido entregue', () => assert.ok(W.acharEvento('pedido_entregue').padrao.includes('{link}')));
+t('contato externo: palavras proibidas e disfarces', () => {
+  ['whatsapp', 'me chama no zap', 'qual teu wpp', 'passa teu ctt', 'meu contato', 'w h a t s', 'z.a.p', 'c0ntat0', 'uatsapp', 'WhAtS', 'me add no insta', 'telegram'].forEach((x) => assert.ok(C.pareceContatoExterno(x), x));
+  ['zapato', 'faz a partida', 'face id', 'número do pedido 123', 'conta entregue, confere'].forEach((x) => assert.ok(!C.pareceContatoExterno(x), x));
+});
+t('produto citado vira cartão', () => {
+  const id = '46ce7bf4-128b-40b7-8f41-2a4878eabfed';
+  assert.deepStrictEqual(C.produtosNaMensagem(`https://www.compreibarato.com.br/checkout/${id}`), [id]);
+  assert.deepStrictEqual(C.produtosNaMensagem(`olha https://compreibarato.com.br/produto/${id.toUpperCase()}?x=1 e ${'https://www.compreibarato.com.br/produto/' + id}`), [id]);
+  assert.deepStrictEqual(C.produtosNaMensagem('https://outrosite.com/produto/' + id), []);
+  assert.strictEqual(C.textoSemLinksDeProduto(`https://www.compreibarato.com.br/checkout/${id}`), '');
+  assert.strictEqual(C.textoSemLinksDeProduto(`Dá uma olhada neste produto: https://www.compreibarato.com.br/produto/${id}`), 'Dá uma olhada neste produto:');
+});
+t('reclamação: 24 h para o vendedor, exceto desistência ou entrega marcada', () => {
+  const agora = Date.parse('2026-10-30T12:00:00Z');
+  assert.strictEqual(C.podeReclamar({ pagoEm: '2026-10-30T10:00:00Z', entregue: false }, agora).pode, false);
+  assert.strictEqual(C.podeReclamar({ pagoEm: '2026-10-30T10:00:00Z', entregue: false }, agora).liberaEm, '2026-10-31T10:00:00.000Z');
+  assert.ok(C.podeReclamar({ pagoEm: '2026-10-30T10:00:00Z', entregue: false, motivo: 'arrependimento' }, agora).pode);
+  assert.ok(C.podeReclamar({ pagoEm: '2026-10-30T10:00:00Z', entregue: true }, agora).pode);
+  assert.ok(C.podeReclamar({ pagoEm: '2026-10-29T10:00:00Z', entregue: false }, agora).pode);
+});
+t('chat fecha no fim da garantia; reembolso/reclamação aberta mantém', () => {
+  const agora = Date.parse('2026-11-10T12:00:00Z');
+  const base = { status: 'entregue', fimGarantia: '2026-11-06T12:00:00Z', reembolsoAberto: false, reclamacaoAberta: false };
+  assert.ok(C.situacaoChat(base, agora).fechado);
+  assert.ok(!C.situacaoChat({ ...base, reclamacaoAberta: true }, agora).fechado);
+  assert.ok(!C.situacaoChat(base, Date.parse('2026-11-01T00:00:00Z')).fechado);
+  assert.ok(C.situacaoChat({ ...base, status: 'reembolsado', fimGarantia: null }, agora).fechado);
+});
 console.log(`conversas: ${ok} testes ok`);

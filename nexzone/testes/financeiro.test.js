@@ -73,4 +73,30 @@ t('meses e rótulo', () => {
   assert.deepStrictEqual(F.ultimosMeses(3, new Date('2026-01-15T12:00:00Z')), ['2025-11', '2025-12', '2026-01']);
   assert.strictEqual(F.rotuloCategoria('infraestrutura'), 'Infraestrutura');
 });
+
+t('auditoria: pedido certo (5% + taxa do Pix) passa sem alerta grave', () => {
+  const a = F.auditarPedido({ ...ped({}), id: 'a', pct_vendedor: 5 }, cfg);
+  assert.deepStrictEqual(a.alertas, []); assert.strictEqual(a.grave, false); assert.strictEqual(a.liquido, 5);
+});
+t('auditoria: divisão que não fecha é grave', () => {
+  const a = F.auditarPedido({ ...ped({ valor_vendedor: 96 }), id: 'a', pct_vendedor: 5 }, cfg);
+  assert.ok(a.alertas.includes('divisao')); assert.ok(a.grave);
+});
+t('auditoria: cobrou do vendedor acima do plano é grave', () => {
+  const a = F.auditarPedido({ ...ped({ taxa: 8, valor_vendedor: 92 }), id: 'a', pct_vendedor: 5 }, cfg);
+  assert.ok(a.alertas.includes('acima_do_plano')); assert.ok(a.grave);
+});
+t('auditoria: Fundador 0% + 1ª compra grátis = prejuízo (tarifa do Pix sem receita)', () => {
+  const a = F.auditarPedido({ ...ped({ total: 6, taxa: 0, valor_vendedor: 6, taxa_comprador_pix: 0 }), id: 'a', pct_vendedor: 0 }, cfg);
+  assert.ok(a.alertas.includes('prejuizo')); assert.ok(a.alertas.includes('sem_taxa_comprador')); assert.strictEqual(a.liquido, -0.5);
+});
+t('auditoria: pedido antigo sem % gravado é só aviso', () => {
+  const a = F.auditarPedido({ ...ped({ total: 10, taxa: 0.3, valor_vendedor: 9.7, forma_pagamento: null, taxa_comprador_pix: null }), id: 'a', pct_vendedor: null }, cfg);
+  assert.ok(a.alertas.includes('modelo_antigo')); assert.ok(a.alertas.includes('prejuizo'));
+});
+t('auditoria em lote: soma e põe os graves primeiro', () => {
+  const r = F.auditarPedidos([{ ...ped({}), id: 'ok', pct_vendedor: 5 }, { ...ped({ taxa: 8, valor_vendedor: 92 }), id: 'ruim', pct_vendedor: 5 }, { ...ped({ status: 'pendente' }), id: 'x', pct_vendedor: 5 }], cfg);
+  assert.strictEqual(r.pedidos, 2); assert.strictEqual(r.graves, 1); assert.strictEqual(r.linhas[0].id, 'ruim'); assert.strictEqual(r.totais.comissao, 13); assert.strictEqual(r.totais.liquido, 13);
+});
+t('saque Pix agora custa R$ 0,50 por padrão', () => assert.strictEqual(cfg.custoPixSaida, 0.5));
 console.log(`financeiro: ${ok} testes ok`);
