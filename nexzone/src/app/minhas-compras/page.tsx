@@ -49,7 +49,7 @@ export default async function MinhasComprasPage({ searchParams }: { searchParams
       <Nav />
       <div className="page">
         <h1>Minhas Compras</h1>
-        <p className="muted">Seus pedidos, downloads e acessos. Toque em um pedido para ver os detalhes.</p>
+        <p className="muted">Seus pedidos, acessos e downloads, com o chat do vendedor. O acesso também vai para o seu e-mail a cada compra. Problema com alguma? Abra o pedido e toque em <b>Preciso de ajuda</b>.</p>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
           <Link href="/favoritos" className="btn btn-ghost btn-sm"><Icon name="heart" size={16} /> Favoritos</Link>
           <Link href="/suporte" className="btn btn-ghost btn-sm"><Icon name="help" size={16} /> Ajuda e suporte</Link>
