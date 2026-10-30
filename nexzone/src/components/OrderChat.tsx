@@ -19,6 +19,8 @@ export default function OrderChat({ orderId, theme = 'light', readOnly = false, 
   const [texto, setTexto] = useState('');
   const [enviando, setEnviando] = useState(false);
   const [carregou, setCarregou] = useState(false);
+  const [contraparte, setContraparte] = useState<string>('');
+  const [meuPapel, setMeuPapel] = useState<string>('');
   const [lojaNome, setLojaNome] = useState<string | null>(null); // só vem preenchido quando a loja vende como Comprei Barato
   const [recursos, setRecursos] = useState<{ anexos: boolean; produtos?: boolean }>({ anexos: false });
   const [produtos, setProdutos] = useState<Record<string, Produto>>({});
@@ -50,6 +52,8 @@ export default function OrderChat({ orderId, theme = 'light', readOnly = false, 
       const d = await r.json();
       setMsgs((atual) => [...(d.messages || []), ...atual.filter((m) => m.enviando)]);
       setLojaNome(d.oficial ? (d.loja || null) : null);
+      if (d.contraparte) setContraparte(String(d.contraparte));
+      if (d.role) setMeuPapel(String(d.role));
       if (d.recursos) setRecursos(d.recursos);
       if (d.produtos) setProdutos(d.produtos);
       if (d.chat) setChat(d.chat);
@@ -153,7 +157,12 @@ export default function OrderChat({ orderId, theme = 'light', readOnly = false, 
     <div className="oc" style={{ border: `1px solid ${C.bd}`, borderRadius: 14, background: C.panel, ['--oc-panel' as any]: C.panel, ['--oc-bd' as any]: C.bd }}>
       <style dangerouslySetInnerHTML={{ __html: `
         .oc{position:relative}
-        .oc-aviso{display:flex;gap:8px;align-items:flex-start;padding:9px 14px;font-size:11.5px;line-height:1.45;border-bottom:1px solid var(--oc-bd);border-radius:14px 14px 0 0}
+        .oc-topo{display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:1px solid var(--oc-bd);border-radius:14px 14px 0 0}
+        .oc-av{width:36px;height:36px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;font-family:Outfit;font-weight:900;font-size:15px;color:#fff;background:linear-gradient(135deg,#FF6B00,#FF9A3C)}
+        .oc-topo b{display:block;font-family:Outfit;font-size:15px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        .oc-topo small{display:block;font-size:11.5px;line-height:1.3}
+        .oc-aviso{display:flex;gap:8px;align-items:flex-start;padding:9px 14px;font-size:11.5px;line-height:1.45;border-bottom:1px solid var(--oc-bd)}
+        .oc-aviso:first-child{border-radius:14px 14px 0 0}
         .oc-aviso button{background:none;border:0;padding:0;font:inherit;font-weight:800;text-decoration:underline;color:inherit;cursor:pointer}
         .oc-msgs{height:380px;min-height:180px;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
         .oc-bolha{max-width:78%}
@@ -190,6 +199,15 @@ export default function OrderChat({ orderId, theme = 'light', readOnly = false, 
           .oc-aviso.aberto .oc-curto{display:none}
         }
       ` }} />
+      {contraparte && (
+        <div className="oc-topo">
+          <span className="oc-av" aria-hidden="true">{contraparte.trim().charAt(0).toUpperCase() || '?'}</span>
+          <div style={{ minWidth: 0 }}>
+            <b>{contraparte}</b>
+            <small style={{ color: C.sub }}>{meuPapel === 'vendedor' ? 'Cliente' : meuPapel === 'comprador' ? 'Vendedor' : 'Cliente · loja'}</small>
+          </div>
+        </div>
+      )}
       <div className={`oc-aviso ${regra ? 'aberto' : ''}`} style={{ color: dark ? '#E9C46A' : '#7A5200', background: dark ? '#2A2416' : '#FFF7E6' }}>
         <Icon name="shield" size={14} style={{ marginTop: 1, flexShrink: 0 }} />
         <span>
@@ -250,6 +268,7 @@ export default function OrderChat({ orderId, theme = 'light', readOnly = false, 
               <div style={{ fontSize: 10, color: C.sub, margin: '3px 6px 0', display: 'flex', gap: 8 }}>
                 <span>{hora(m.created_at)}</span>{status(m)}
                 {moderator && m.alerta === 'contato_externo' && <span style={{ color: '#E5484D', fontWeight: 800 }}>⚠ possível contato externo</span>}
+                {moderator && m.alerta === 'atencao' && <span style={{ color: '#B45309', fontWeight: 800 }}>👁 e-mail/rede: conferir</span>}
               </div>
             </div>
           );
