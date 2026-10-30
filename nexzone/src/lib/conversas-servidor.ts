@@ -5,6 +5,9 @@ import { produtosComCurso } from '@/lib/curso-servidor';
 import { entregaPeloVendedor } from '@/lib/confianca';
 import { entregaEfetiva, BUCKET_CHAT, ANEXO_CHAT_MAX, ANEXO_CHAT_TIPOS, extDoTipo, validarAnexoChat, caminhoDoPedido, tipoPelosBytes, nomeSeguro } from '@/lib/conversas';
 import { avisarWhatsApp, link as linkSite } from '@/lib/whatsapp/enviar';
+import { situacaoGarantia } from '@/lib/reembolso-servidor';
+import { situacaoChat, podeReclamar, ESPERA_RECLAMACAO_H } from '@/lib/conversas';
+import { vendedorPublico } from '@/lib/vendedorPublico';
 
 type Admin = ReturnType<typeof createAdminClient>;
 export type Papel = 'comprador' | 'vendedor' | 'admin';
@@ -132,4 +135,91 @@ export async function confirmarAnexoChat(admin: Admin, orderId: string, path: un
 export async function linkAnexoChat(admin: Admin, path: string, nome: string, baixar: boolean): Promise<string | null> {
   const { data, error } = await admin.storage.from(BUCKET_CHAT).createSignedUrl(path, 300, baixar ? { download: nome } : undefined);
   return error ? null : (data as any)?.signedUrl ?? null;
+}
+
+// ---------- Fechamento do chat ----------
+/** Conversa aberta ou encerrada: fecha no fim da garantia (ou quando a venda é reembolsada); reembolso/reclamação aberta mantém aberta. */
+export async function estadoDoChat(admin: Admin, order: { id: string; status: string }): Promise<{ fechado: boolean; fechaEm: string | null }> {
+  try {
+    const [g, cmp] = await Promise.all([
+      situacaoGarantia(admin, order.id),
+      admin.from('complaints').select('id').eq('order_id', order.id).eq('status', 'aberta').limit(1),
+    ]);
+    if (!['pago', 'entregue', 'reembolsado', 'cancelado'].includes(order.status)) return { fechado: false, fechaEm: null };
+    return situacaoChat({
+      status: order.status,
+      fimGarantia: g?.elegivel.ate ? g.elegivel.ate.toISOString() : null,
+      reembolsoAberto: !!g?.pedidos.some((p) => p.status === 'aberto'),
+      reclamacaoAberta: !!(cmp.data && cmp.data.length),
+    });
+  } catch { return { fechado: false, fechaEm: null }; }
+}
+
+// ---------- Produtos citados no chat ----------
+export type CartaoProduto = { id: string; titulo: string; preco: number; precoDe: number | null; capa_url: string | null; ativo: boolean; loja: string };
+
+export async function cartoesDeProduto(admin: Admin, ids: string[]): Promise<Record<string, CartaoProduto>> {
+  if (!ids.length) return {};
+  const { data } = await admin.from('products').select('id, titulo, preco, preco_promo, capa_url, status, stores(nome, ocultar_vendedor, status)').in('id', ids.slice(0, 30));
+  const out: Record<string, CartaoProduto> = {};
+  for (const p of (data ?? []) as any[]) {
+    const promo = p.preco_promo != null && Number(p.preco_promo) < Number(p.preco);
+    out[p.id] = { id: p.id, titulo: p.titulo, preco: Number(promo ? p.preco_promo : p.preco), precoDe: promo ? Number(p.preco) : null, capa_url: p.capa_url ?? null, ativo: p.status === 'ativo', loja: vendedorPublico(p.stores).nome };
+  }
+  return out;
+}
+
+// ---------- Mensagem retida ----------
+export async function avisarAdminsRetida(admin: Admin, orderId: string, titulo: string, papel: string) {
+  try {
+    const { data: adms } = await admin.from('profiles').select('id').eq('role', 'admin');
+    const quem = papel === 'vendedor' ? 'O vendedor' : 'O cliente';
+    const linhas = ((adms ?? []) as any[]).map((a) => ({
+      user_id: a.id, tipo: 'aviso', titulo: 'Mensagem retida no chat',
+      texto: `${quem} tentou passar contato externo em "${String(titulo).slice(0, 100)}". Abra a conversa para analisar.`,
+      link: `/admin?aba=pedidos&chat=${orderId}`, grupo: `retida:${orderId}`,
+    }));
+    if (linhas.length) await admin.from('notificacoes').insert(linhas);
+  } catch (e: any) { console.error('[chat] aviso retida', e?.message || e); }
+}
+
+// ---------- Quando o cliente pode reclamar ----------
+/**
+ * Reclamação por problema: só depois de 24 h do pagamento (o vendedor tem esse tempo para resolver),
+ * a não ser que ele já tenha marcado como entregue. Desistir da compra vale desde o primeiro minuto.
+ * Depois da garantia não dá mais.
+ */
+export async function liberacaoReclamacao(admin: Admin, orderId: string, motivo: string | null): Promise<{ pode: boolean; erro?: string; liberaEm?: string | null }> {
+  const { data: o } = await admin.from('orders').select('id, status, created_at, entregue_em, product_id, conteudo_liberado, products(tipo_anuncio)').eq('id', orderId).maybeSingle();
+  if (!o) return { pode: false, erro: 'Pedido não encontrado.' };
+  const g = await situacaoGarantia(admin, orderId);
+  if (g?.elegivel.ate && g.elegivel.ate.getTime() < Date.now()) {
+    return { pode: false, erro: `A garantia terminou em ${g.elegivel.ate.toLocaleDateString('pt-BR')}. Depois disso não dá mais para reclamar desta compra.` };
+  }
+  const ent = await entregasEfetivas(admin, [{ id: (o as any).id, status: (o as any).status, product_id: (o as any).product_id, conteudo_liberado: (o as any).conteudo_liberado, tipo_anuncio: (o as any).products?.tipo_anuncio }]);
+  const r = podeReclamar({ pagoEm: (o as any).entregue_em || (o as any).created_at, entregue: !!ent.entregue[orderId], motivo });
+  if (!r.pode) {
+    const quando = r.liberaEm ? new Date(r.liberaEm).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '';
+    return { pode: false, liberaEm: r.liberaEm, erro: `O vendedor tem até ${ESPERA_RECLAMACAO_H} h para resolver. Fale com ele no chat do pedido; se não resolver, a reclamação libera em ${quando}.` };
+  }
+  return { pode: true };
+}
+
+// ---------- Vendedor cancela a venda ----------
+export async function cancelarPeloVendedor(admin: Admin, o: { id: string; comprador: string; status: string }, detalhe: string): Promise<{ ok: boolean; erro?: string; status?: number }> {
+  if (!['pago', 'entregue'].includes(o.status)) return { ok: false, erro: 'Só dá para cancelar uma venda paga.', status: 409 };
+  const g = await situacaoGarantia(admin, o.id);
+  if (g?.pedidos.some((p) => p.status === 'aberto')) return { ok: false, erro: 'Já existe um reembolso em andamento para esta venda.', status: 409 };
+  if (g?.elegivel.ate && g.elegivel.ate.getTime() < Date.now()) return { ok: false, erro: 'O prazo da garantia já terminou. Para devolver agora, fale com o suporte.', status: 409 };
+  const { error } = await admin.from('reembolso_pedidos').insert({ order_id: o.id, comprador: o.comprador, motivo: 'cancelado_vendedor', detalhe: detalhe.slice(0, 2000) || null, origem: 'vendedor' });
+  if (error) {
+    if (/origem|cancelado_vendedor|check/i.test(error.message || '')) return { ok: false, erro: 'Falta rodar o SQL 29 para o vendedor cancelar.', status: 503 };
+    if (/reembolso_um_aberto|duplicate/i.test(error.message || '')) return { ok: false, erro: 'Já existe um reembolso em andamento para esta venda.', status: 409 };
+    return { ok: false, erro: 'Não foi possível cancelar agora.', status: 500 };
+  }
+  await admin.from('order_messages').insert({
+    order_id: o.id, remetente: null, papel: 'sistema',
+    texto: `O vendedor cancelou esta venda${detalhe ? `: "${detalhe.slice(0, 300)}"` : ''}. O valor volta para o cliente pela mesma forma de pagamento (o suporte faz a devolução, normalmente em até 2 dias úteis).`,
+  });
+  return { ok: true };
 }

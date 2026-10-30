@@ -10,7 +10,7 @@ export const MOTIVOS: { id: string; rotulo: string }[] = [
   { id: 'arrependimento', rotulo: 'Me arrependi da compra' },
   { id: 'outro', rotulo: 'Outro motivo' },
 ];
-export const rotuloMotivo = (id: string) => MOTIVOS.find((m) => m.id === id)?.rotulo ?? 'Outro motivo';
+export const rotuloMotivo = (id: string) => (id === 'cancelado_vendedor' ? 'Vendedor cancelou a venda' : MOTIVOS.find((m) => m.id === id)?.rotulo ?? 'Outro motivo');
 
 /** Dias de garantia do produto (nunca menos que 7, no máximo 365) */
 export function diasDeGarantia(garantiaProduto: unknown): number {

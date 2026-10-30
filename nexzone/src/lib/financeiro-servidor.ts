@@ -19,6 +19,7 @@ export async function lerCfgFin(admin: Admin): Promise<ConfigFin> {
 export async function salvarCfgFin(admin: Admin, c: ConfigFin) {
   const agora = new Date().toISOString();
   const { error } = await admin.from('settings').upsert([
+    { key: 'fin_custo_pix_pct', value: c.custoPixPct, updated_at: agora },
     { key: 'fin_custo_pix_entrada', value: c.custoPixEntrada, updated_at: agora },
     { key: 'fin_custo_pix_saida', value: c.custoPixSaida, updated_at: agora },
     { key: 'fin_custo_cartao_pct', value: c.custoCartaoPct, updated_at: agora },

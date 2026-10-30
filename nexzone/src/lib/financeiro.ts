@@ -20,8 +20,8 @@ export const rotuloCategoria = (c: string) => CATEGORIAS.find((x) => x.id === c)
 export type TipoCusto = 'avulso' | 'mensal' | 'anual';
 export type Custo = { id: number; descricao: string; categoria: Categoria; valor: number; tipo: TipoCusto; data: string; fim: string | null; pago_por: string | null; observacao: string | null; comprovante_nome?: string | null; tem_comprovante?: boolean };
 
-export type ConfigFin = { custoPixEntrada: number; custoPixSaida: number; custoCartaoPct: number; custoCartaoFixo: number; aliquotaDas: number };
-export const CONFIG_FIN_PADRAO: ConfigFin = { custoPixEntrada: 0.5, custoPixSaida: 0, custoCartaoPct: 3.99, custoCartaoFixo: 0.39, aliquotaDas: 6 };
+export type ConfigFin = { custoPixPct: number; custoPixEntrada: number; custoPixSaida: number; custoCartaoPct: number; custoCartaoFixo: number; aliquotaDas: number };
+export const CONFIG_FIN_PADRAO: ConfigFin = { custoPixPct: 0, custoPixEntrada: 0.5, custoPixSaida: 0, custoCartaoPct: 3.99, custoCartaoFixo: 0.39, aliquotaDas: 6 };
 
 const num = (v: unknown, def: number, min: number, max: number) => {
   if (v === null || v === undefined || v === '' || typeof v === 'boolean') return def;
@@ -31,6 +31,7 @@ const num = (v: unknown, def: number, min: number, max: number) => {
 export function lerConfigFin(m: Record<string, unknown>): ConfigFin {
   const P = CONFIG_FIN_PADRAO;
   return {
+    custoPixPct: num(m.fin_custo_pix_pct, P.custoPixPct, 0, 30),
     custoPixEntrada: num(m.fin_custo_pix_entrada, P.custoPixEntrada, 0, 50),
     custoPixSaida: num(m.fin_custo_pix_saida, P.custoPixSaida, 0, 50),
     custoCartaoPct: num(m.fin_custo_cartao_pct, P.custoCartaoPct, 0, 30),
@@ -71,7 +72,7 @@ export function financeiroDoPedido(o: PedidoFin, cfg: ConfigFin) {
   const cartao = o.forma_pagamento === 'cartao';
   const taxaComprador = cartao ? Number(o.taxa_comprador_cartao || 0) : Number(o.taxa_comprador_pix || 0);
   const cobrado = Number(o.total) + taxaComprador;
-  const gateway = cartao ? cobrado * cfg.custoCartaoPct / 100 + cfg.custoCartaoFixo : cfg.custoPixEntrada;
+  const gateway = cartao ? cobrado * cfg.custoCartaoPct / 100 + cfg.custoCartaoFixo : cobrado * (cfg.custoPixPct || 0) / 100 + cfg.custoPixEntrada;
   const reemb = o.status === 'reembolsado';
   return {
     comissao: reemb ? 0 : Number(o.taxa || 0),

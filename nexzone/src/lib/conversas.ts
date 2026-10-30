@@ -53,17 +53,54 @@ export function foiLida(criadaEm: string, vistoOutro: string | null | undefined)
 
 // ---------- Contato externo ----------
 const PADROES_CONTATO: RegExp[] = [
-  /wa\.me\//i, /api\.whatsapp\.com/i, /chat\.whatsapp\.com/i, /\bt\.me\//i, /discord\.gg\//i,
-  /\b(whats\s?app|whats|wpp|zap|zapzap|telegram|telefone|celular|meu n[uú]mero|me liga|me chama no)\b/i,
-  /instagram\.com\//i,
+  /wa\.me\//i, /api\.whatsapp\.com/i, /chat\.whatsapp\.com/i, /\bt\.me\//i, /discord\.gg\//i, /instagram\.com\//i,
   // celular brasileiro: (DD) 9XXXX-XXXX, com ou sem +55, espaços, pontos ou traços
   /(?:\+?55[\s.-]?)?\(?\b[1-9]{2}\)?[\s.-]?9[\s.-]?\d{4}[\s.-]?\d{4}\b/,
 ];
 
-/** A mensagem parece passar contato para fora da plataforma? (não bloqueia: marca para o admin e avisa quem enviou) */
+// Palavras proibidas (depois de normalizar: sem acento, minúsculas, letras soltas juntadas, 0→o, 3→e, 4→a, 1→i, 5→s, @→a)
+const PALAVRAS_CONTATO = /\b(whats?app\w*|whats\w*|wh?ats\w*|uats\w*|wats\w*|wpp\w*|wts|wpzap|zap|zaps|zapzap|zapp|zp|ctt|ctts|contato\w*|contatar|telefone\w*|celular\w*|telegram\w*|insta|instagram\w*|meu numero|meu num|me liga\w*|chama no|chama la|chama la fora|discord\w*|tiktok|facebook|fb)\b/;
+
+/** Deixa o texto num formato só para conferir (ninguém vê): tira acento e truques como "w h a t s", "z.a.p", "c0ntat0". */
+export function normalizarParaFiltro(texto: string): string {
+  let t = String(texto || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+  t = t.replace(/0/g, 'o').replace(/3/g, 'e').replace(/4/g, 'a').replace(/1/g, 'i').replace(/5/g, 's').replace(/@/g, 'a').replace(/\$/g, 's');
+  // letras soltas separadas por espaço, ponto, traço ou asterisco viram uma palavra: "w h a t s" → "whats"
+  t = t.replace(/\b(?:[a-z][\s.\-_*|]{1,3}){2,}[a-z]\b/g, (m) => m.replace(/[\s.\-_*|]+/g, ''));
+  return t.replace(/[^a-z0-9\s]+/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+/** A mensagem tenta passar contato para fora da plataforma? (fica retida para o admin analisar) */
 export function pareceContatoExterno(texto: string): boolean {
   const t = String(texto || '');
-  return PADROES_CONTATO.some((r) => r.test(t));
+  if (PADROES_CONTATO.some((r) => r.test(t))) return true;
+  return PALAVRAS_CONTATO.test(normalizarParaFiltro(t));
+}
+
+export const TEXTO_RETIDA = '🔒 Mensagem retida para análise do suporte.';
+export const AVISO_RETIDA = '⚠️ Uma mensagem foi retida e o suporte foi avisado. Trocar WhatsApp, telefone, e-mail ou redes sociais fora do Comprei Barato é proibido e pode suspender a conta.';
+
+// ---------- Reclamação, reembolso e fechamento do chat ----------
+/** Motivos que valem desde o primeiro minuto (direito de arrependimento). */
+export const MOTIVOS_IMEDIATOS = ['arrependimento', 'comprei_sem_querer'];
+export const ESPERA_RECLAMACAO_H = 24;
+
+/** Reclamação por problema ("não recebi", "não funciona"...) só depois de 24 h, a não ser que o vendedor já tenha marcado como entregue. */
+export function podeReclamar(p: { pagoEm: string | null; entregue: boolean; motivo?: string | null }, agora = Date.now()): { pode: boolean; liberaEm: string | null } {
+  if (p.motivo && MOTIVOS_IMEDIATOS.includes(p.motivo)) return { pode: true, liberaEm: null };
+  if (p.entregue) return { pode: true, liberaEm: null };
+  const t = p.pagoEm ? new Date(p.pagoEm).getTime() : NaN;
+  if (!Number.isFinite(t)) return { pode: true, liberaEm: null };
+  const libera = t + ESPERA_RECLAMACAO_H * 3600000;
+  return agora >= libera ? { pode: true, liberaEm: null } : { pode: false, liberaEm: new Date(libera).toISOString() };
+}
+
+/** O chat fecha quando termina a garantia (ou na hora, se a venda foi reembolsada). Enquanto houver reembolso ou reclamação aberta, fica aberto. */
+export function situacaoChat(p: { status: string; fimGarantia: string | null; reembolsoAberto: boolean; reclamacaoAberta: boolean }, agora = Date.now()): { fechado: boolean; fechaEm: string | null } {
+  if (p.reembolsoAberto || p.reclamacaoAberta) return { fechado: false, fechaEm: null };
+  if (p.status === 'reembolsado' || p.status === 'cancelado') return { fechado: true, fechaEm: null };
+  if (!p.fimGarantia) return { fechado: false, fechaEm: null };
+  return { fechado: agora >= new Date(p.fimGarantia).getTime(), fechaEm: p.fimGarantia };
 }
 
 export const AVISO_SEGURANCA = 'Para a segurança de vocês, é proibido trocar telefone, WhatsApp, redes sociais ou combinar pagamento fora do Comprei Barato. Fora daqui não existe garantia, e a conta pode ser suspensa.';
@@ -113,3 +150,20 @@ export function nomeSeguro(n: unknown): string {
 }
 
 export const tamanhoLegivel = (b: number) => (b >= 1048576 ? `${(b / 1048576).toFixed(1).replace('.', ',')} MB` : `${Math.max(1, Math.round(b / 1024))} KB`);
+
+// ---------- Produto enviado no chat ----------
+const RE_PRODUTO = /https?:\/\/(?:www\.)?compreibarato\.com\.br\/(?:produto|checkout)\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})[^\s]*/gi;
+
+/** Ids de produtos do Comprei Barato citados por link na mensagem (/produto/<id> ou /checkout/<id>). */
+export function produtosNaMensagem(texto: string): string[] {
+  const out: string[] = [];
+  for (const m of String(texto || '').matchAll(RE_PRODUTO)) { const id = m[1].toLowerCase(); if (!out.includes(id)) out.push(id); }
+  return out.slice(0, 3);
+}
+
+/** Texto sem os links de produto (eles viram cartão). Vazio = a mensagem era só o link. */
+export function textoSemLinksDeProduto(texto: string): string {
+  return String(texto || '').replace(RE_PRODUTO, '').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+}
+
+export const linkDoProduto = (site: string, id: string) => `${site.replace(/\/+$/, '')}/produto/${id}`;

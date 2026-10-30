@@ -1,7 +1,11 @@
 // ============================================================
 // Modelo de taxas do marketplace (aprovado por Carlos e César em 28/10/2026). Funções puras.
 //   • Vendedor: plano por anúncio — Básico 5% · Destaque 8% · Topo 11% (mais visibilidade = taxa maior)
-//   • Comprador: taxa de serviço do meio de pagamento — Pix R$ 0,50 · cartão 5,99% + R$ 0,49
+//   • Comprador: TAXA DE SERVIÇO no checkout = custo do meio de pagamento + margem da plataforma
+//       Pix:    tarifa da MisticPay (% + R$) + nossa margem (% + R$)
+//       Cartão: tarifa da Stripe (3,99% + R$ 0,39) + nossa margem (% + R$)
+//     A vitrine e a página do produto mostram o PREÇO DO VENDEDOR; a taxa só entra no checkout.
+//     A tarifa do gateway incide sobre o valor COBRADO (pedido + taxa), então a conta é feita "por dentro".
 //   • Liberação do saldo por tipo de anúncio e meio de pagamento (contas 7 dias, demais 3, cartão 14)
 //   • Saque: 1 grátis por semana; os extras custam R$ 0,99
 // Todos os números vêm de settings (o admin muda sem código); estes são os padrões.
@@ -15,8 +19,10 @@ export type ConfigTaxas = {
   planoBasico: number; planoDestaque: number; planoTopo: number;   // % do vendedor
   planosPagosAtivos: boolean;                                       // lançamento: todos no Básico até o admin ligar
   topoVagas: number;                                                // vagas de Topo por categoria
-  compradorPix: number;                                             // R$ por pedido no Pix
-  compradorCartaoPct: number; compradorCartaoFixo: number;          // % + R$ no cartão
+  gwPixPct: number; gwPixFixo: number;                             // tarifa da MisticPay no Pix (% + R$)
+  gwCartaoPct: number; gwCartaoFixo: number;                       // tarifa da Stripe no cartão (% + R$)
+  margemPixPct: number; margemPixFixo: number;                     // nossa margem no Pix (% do pedido + R$)
+  margemCartaoPct: number; margemCartaoFixo: number;               // nossa margem no cartão (% do pedido + R$)
   liberaContaDias: number; liberaPadraoDias: number; liberaCartaoDias: number;
   saqueExtraTaxa: number;                                           // R$ por saque além do grátis da semana
 };
@@ -24,7 +30,8 @@ export type ConfigTaxas = {
 export const TAXAS_PADRAO: ConfigTaxas = {
   planoBasico: 5, planoDestaque: 8, planoTopo: 11,
   planosPagosAtivos: false, topoVagas: 3,
-  compradorPix: 0.5, compradorCartaoPct: 5.99, compradorCartaoFixo: 0.49,
+  gwPixPct: 0, gwPixFixo: 0.5, gwCartaoPct: 3.99, gwCartaoFixo: 0.39,
+  margemPixPct: 2, margemPixFixo: 0, margemCartaoPct: 2, margemCartaoFixo: 0.1,
   liberaContaDias: 7, liberaPadraoDias: 3, liberaCartaoDias: 14,
   saqueExtraTaxa: 0.99,
 };
@@ -60,6 +67,7 @@ const entre = (v: number, min: number, max: number) => Math.min(max, Math.max(mi
 export function lerConfigTaxas(m: Record<string, any> = {}): ConfigTaxas {
   const P = TAXAS_PADRAO;
   const pct = (k: string, d: number) => { const v = num(m[k], d); return v >= 0 && v <= 50 ? v : d; };
+  const pctGw = (k: string, d: number) => { const v = num(m[k], d); return v >= 0 && v <= 30 ? v : d; };
   const reais = (k: string, d: number) => { const v = num(m[k], d); return v >= 0 && v <= 20 ? v : d; };
   const dias = (k: string, d: number) => { const v = Math.round(num(m[k], d)); return v >= 0 && v <= 60 ? v : d; };
   const bool = (v: any, d: boolean) => (v === true || v === 'true' ? true : v === false || v === 'false' ? false : d);
@@ -69,9 +77,15 @@ export function lerConfigTaxas(m: Record<string, any> = {}): ConfigTaxas {
     planoTopo: pct('plano_topo_pct', P.planoTopo),
     planosPagosAtivos: bool(m.planos_pagos_ativos, P.planosPagosAtivos),
     topoVagas: entre(Math.round(num(m.topo_vagas_categoria, P.topoVagas)), 1, 50),
-    compradorPix: reais('taxa_comprador_pix', P.compradorPix),
-    compradorCartaoPct: pct('taxa_comprador_cartao_pct', P.compradorCartaoPct),
-    compradorCartaoFixo: reais('taxa_comprador_cartao_fixo', P.compradorCartaoFixo),
+    // tarifas do gateway: as MESMAS chaves do Financeiro (uma fonte só para o custo real)
+    gwPixPct: pctGw('fin_custo_pix_pct', P.gwPixPct),
+    gwPixFixo: reais('fin_custo_pix_entrada', P.gwPixFixo),
+    gwCartaoPct: pctGw('fin_custo_cartao_pct', P.gwCartaoPct),
+    gwCartaoFixo: reais('fin_custo_cartao_fixo', P.gwCartaoFixo),
+    margemPixPct: pct('margem_pix_pct', P.margemPixPct),
+    margemPixFixo: reais('margem_pix_fixo', P.margemPixFixo),
+    margemCartaoPct: pct('margem_cartao_pct', P.margemCartaoPct),
+    margemCartaoFixo: reais('margem_cartao_fixo', P.margemCartaoFixo),
     liberaContaDias: dias('liberacao_conta_dias', P.liberaContaDias),
     liberaPadraoDias: dias('liberacao_padrao_dias', P.liberaPadraoDias),
     liberaCartaoDias: dias('liberacao_cartao_dias', P.liberaCartaoDias),
@@ -98,10 +112,34 @@ export function divisaoVendedor(total: number, plano: unknown, cfg: ConfigTaxas)
   return { pct, taxa, valorVendedor: r2(Math.max(0, total) - taxa) };
 }
 
+/**
+ * Taxa de serviço do comprador = tarifa do gateway + nossa margem.
+ * A tarifa do gateway é cobrada sobre o valor TOTAL cobrado (pedido + taxa), por isso:
+ *   cobrado = (pedido + fixoGateway + margem) / (1 − %gateway)   →   taxa = cobrado − pedido
+ * Arredonda para CIMA no centavo, para a margem nunca ficar abaixo do configurado.
+ */
+export function partesTaxaComprador(metodo: Metodo, total: number, cfg: ConfigTaxas) {
+  if (!(total > 0)) return { taxa: 0, gateway: 0, margem: 0, cobrado: 0 };
+  const c = metodo === 'cartao';
+  const gPct = (c ? cfg.gwCartaoPct : cfg.gwPixPct) / 100;
+  const gFix = c ? cfg.gwCartaoFixo : cfg.gwPixFixo;
+  const margemAlvo = total * (c ? cfg.margemCartaoPct : cfg.margemPixPct) / 100 + (c ? cfg.margemCartaoFixo : cfg.margemPixFixo);
+  const bruto = (total + gFix + margemAlvo) / (1 - gPct) - total;
+  const taxa = Math.max(0, Math.ceil(bruto * 100 - 1e-6) / 100);
+  const cobrado = r2(total + taxa);
+  const gateway = r2(cobrado * gPct + gFix);
+  return { taxa, gateway, margem: r2(taxa - gateway), cobrado };
+}
+
 /** Taxa de serviço do comprador para o meio de pagamento escolhido. */
 export function taxaComprador(metodo: Metodo, total: number, cfg: ConfigTaxas): number {
-  if (total <= 0) return 0;
-  return metodo === 'cartao' ? r2(total * cfg.compradorCartaoPct / 100 + cfg.compradorCartaoFixo) : r2(cfg.compradorPix);
+  return partesTaxaComprador(metodo, total, cfg).taxa;
+}
+
+/** Frase curta com o exemplo da taxa num pedido (para landing, termos, ajuda). */
+export function exemploTaxaServico(cfg: ConfigTaxas, valor = 50, comCartao = true) {
+  const pix = taxaComprador('pix', valor, cfg), cartao = taxaComprador('cartao', valor, cfg);
+  return `num pedido de ${brl(valor)}, ${brl(pix)} no Pix${comCartao ? ` ou ${brl(cartao)} no cartão` : ''}`;
 }
 
 /** Total que o comprador paga no método (pedido + taxa de serviço). */
