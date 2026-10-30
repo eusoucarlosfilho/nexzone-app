@@ -5,7 +5,7 @@ import Footer from '@/components/Footer';
 import Icon from '@/components/Icon';
 import { stripeAvailable } from '@/lib/payments/stripe';
 import { lerTaxas } from '@/lib/settings';
-import { TAXAS_PADRAO, brl, pctTexto } from '@/lib/taxas';
+import { TAXAS_PADRAO, exemploTaxaServico } from '@/lib/taxas';
 
 export const dynamic = 'force-dynamic';
 export const metadata: Metadata = {
@@ -40,7 +40,7 @@ export default async function ComoFuncionaPage() {
             <span className="v3-etapa-n" aria-hidden="true">2</span>
             <div>
               <h2>Entre na sua conta e pague com {pagamento}</h2>
-              <p>Ao tocar em <b>Comprar</b>, você entra na sua conta (ou cria uma) e vai para o checkout. O pagamento é feito por {cartao ? 'Pix ou cartão' : 'Pix, com QR Code ou código copia e cola'}. O checkout mostra a taxa de serviço antes de pagar: {brl(t.compradorPix)} no Pix{cartao ? <> ou {pctTexto(t.compradorCartaoPct)} + {brl(t.compradorCartaoFixo)} no cartão</> : null}.</p>
+              <p>Ao tocar em <b>Comprar</b>, você entra na sua conta (ou cria uma) e vai para o checkout. O pagamento é feito por {cartao ? 'Pix ou cartão' : 'Pix, com QR Code ou código copia e cola'}. Os anúncios mostram o preço do vendedor; o checkout soma a taxa de serviço (tarifa do Pix ou do cartão) e mostra o total antes de pagar: {exemploTaxaServico(t, 50, cartao)}.</p>
             </div>
           </li>
           <li>
