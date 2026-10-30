@@ -39,8 +39,9 @@ t('lido: só quando a outra parte viu depois da mensagem', () => {
   assert.ok(C.foiLida('2026-10-30T10:00:00Z', '2026-10-30T10:00:05Z'));
 });
 t('contato externo: pega telefone, links e convites', () => {
-  ['me chama no zap', 'meu whats é 63 99999-0000', '(11) 98765-4321', '+55 63 9 9999 0000', 'https://wa.me/5563999990000', 't.me/fulano', 'chama no telegram', 'instagram.com/loja']
-    .forEach((x) => assert.ok(C.pareceContatoExterno(x), x));
+  ['me chama no zap', 'meu whats é 63 99999-0000', '(11) 98765-4321', '+55 63 9 9999 0000', 'https://wa.me/5563999990000']
+    .forEach((x) => assert.strictEqual(C.classificarContato(x), 'reter', x));
+  ['t.me/fulano', 'chama no telegram', 'instagram.com/loja'].forEach((x) => assert.strictEqual(C.classificarContato(x), 'atencao', x));
 });
 t('contato externo: não pega entrega normal de conta', () => {
   ['Login: joao@gmail.com Senha: abc123', 'ID do Free Fire: 123456789', 'Pedido 12345678', 'https://drive.google.com/abc', 'Obrigado pela compra!']
@@ -75,8 +76,11 @@ t('postback para o vendedor não leva o telefone do cliente', () => {
 });
 t('evento WhatsApp de pedido entregue', () => assert.ok(W.acharEvento('pedido_entregue').padrao.includes('{link}')));
 t('contato externo: palavras proibidas e disfarces', () => {
-  ['whatsapp', 'me chama no zap', 'qual teu wpp', 'passa teu ctt', 'meu contato', 'w h a t s', 'z.a.p', 'c0ntat0', 'uatsapp', 'WhAtS', 'me add no insta', 'telegram'].forEach((x) => assert.ok(C.pareceContatoExterno(x), x));
-  ['zapato', 'faz a partida', 'face id', 'número do pedido 123', 'conta entregue, confere'].forEach((x) => assert.ok(!C.pareceContatoExterno(x), x));
+  ['whatsapp', 'me chama no zap', 'qual teu wpp', 'w h a t s', 'z.a.p', 'uatsapp', 'WhAtS', 'w.p.p'].forEach((x) => assert.strictEqual(C.classificarContato(x), 'reter', x));
+  ['passa teu ctt', 'meu contato', 'c0ntat0', 'me add no insta', 'telegram', 'manda no email: fulano@gmail.com', 'otaviano@maxxspace.com ggluiz1@'].forEach((x) => assert.strictEqual(C.classificarContato(x), 'atencao', x));
+  ['zapato', 'faz a partida', 'face id', 'número do pedido 123', 'conta entregue, confere', 'Se solicitado um PIN no seu computador é a senha dele. Se aparecer USB ou algo do tipo clica em cancelar e em outras maneiras de entrar ai entra utilizando a senha', 'baixa o app no celular e entra com o telefone da conta', 'ok, falta agora so o da tv', 'o número do pedido é 123'].forEach((x) => assert.strictEqual(C.classificarContato(x), null, x));
+  // e-mail não é retido (tem produto entregue por e-mail), só avisa o admin
+  assert.strictEqual(C.pareceContatoExterno('Login: joao@gmail.com Senha: abc123'), false);
 });
 t('produto citado vira cartão', () => {
   const id = '46ce7bf4-128b-40b7-8f41-2a4878eabfed';
