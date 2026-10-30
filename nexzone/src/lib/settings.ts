@@ -1,6 +1,6 @@
 import { createAdminClient } from './supabase/server';
 import { PLANOS_DESTAQUE } from './boost';
-import { lerConfigTaxas, TAXAS_PADRAO, type ConfigTaxas } from './taxas';
+import { lerConfigTaxas, TAXAS_PADRAO, CHAVES_TAXAS, type ConfigTaxas } from './taxas';
 
 export type BoostPlan = { dias: number; valor: number; label: string };
 export type Settings = {
@@ -115,8 +115,10 @@ export async function cbPointsAtivo(): Promise<boolean> {
 export async function lerTaxas(): Promise<ConfigTaxas> {
   try {
     const admin = createAdminClient();
-    const { data } = await admin.from('settings').select('key, value').in('key', ['plano_basico_pct', 'plano_destaque_pct', 'plano_topo_pct', 'planos_pagos_ativos', 'topo_vagas_categoria', 'taxa_comprador_pix', 'taxa_comprador_cartao_pct', 'taxa_comprador_cartao_fixo', 'liberacao_conta_dias', 'liberacao_padrao_dias', 'liberacao_cartao_dias', 'saque_extra_taxa']);
-    return lerConfigTaxas(Object.fromEntries(((data ?? []) as any[]).map((r) => [r.key, r.value])));
+    const { data } = await admin.from('settings').select('key, value').in('key', [...CHAVES_TAXAS]);
+    const cfg = lerConfigTaxas(Object.fromEntries(((data ?? []) as any[]).map((r) => [r.key, r.value])));
+    // Pix pelo Mercado Pago só quando o token existe no servidor (sem ele, tudo segue pela MisticPay)
+    return { ...cfg, pixMpDisponivel: !!process.env.PAYMENT_ACCESS_TOKEN };
   } catch {
     return TAXAS_PADRAO;
   }

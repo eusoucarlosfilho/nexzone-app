@@ -9,7 +9,7 @@ export const BUCKET_FIN = 'financeiro';
 const TIPOS = ['image/png', 'image/jpeg', 'image/webp', 'application/pdf'];
 const EXT: Record<string, string> = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp', 'application/pdf': 'pdf' };
 const MAX = 10 * 1024 * 1024;
-const CHAVES_CFG = ['fin_custo_pix_pct', 'fin_custo_pix_entrada', 'fin_custo_pix_saida', 'fin_custo_cartao_pct', 'fin_custo_cartao_fixo', 'fin_aliquota_das'];
+const CHAVES_CFG = ['gw_pix_mp_pct', 'fin_custo_pix_pct', 'fin_custo_pix_entrada', 'fin_custo_pix_saida', 'fin_custo_cartao_pct', 'fin_custo_cartao_fixo', 'fin_aliquota_das'];
 
 export async function lerCfgFin(admin: Admin): Promise<ConfigFin> {
   const { data } = await admin.from('settings').select('key, value').in('key', CHAVES_CFG);
@@ -34,7 +34,7 @@ export async function painelFinanceiro(admin: Admin, qtdMeses = 12) {
   const meses = ultimosMeses(qtdMeses);
   const desde = `${meses[0]}-01T00:00:00Z`;
   // tolerante: sem SQL 17/21 algumas colunas não existem
-  let ped = await admin.from('orders').select('status, total, taxa, valor_vendedor, forma_pagamento, taxa_comprador_pix, taxa_comprador_cartao, created_at, entregue_em')
+  let ped = await admin.from('orders').select('status, total, taxa, valor_vendedor, forma_pagamento, taxa_comprador_pix, taxa_comprador_cartao, created_at, entregue_em, gateway_ref')
     .in('status', ['pago', 'entregue', 'reembolsado']).gte('created_at', desde).limit(20000);
   if (ped.error) ped = await admin.from('orders').select('status, total, taxa, valor_vendedor, created_at, entregue_em').in('status', ['pago', 'entregue', 'reembolsado']).gte('created_at', desde).limit(20000) as any;
   let saq = await admin.from('payouts').select('status, valor, taxa_saque, created_at, pago_em').gte('created_at', desde).limit(20000);
@@ -64,7 +64,7 @@ export async function painelFinanceiro(admin: Admin, qtdMeses = 12) {
 /** Conferência das taxas, pedido a pedido (todos os pedidos pagos). Tolerante às colunas que faltarem. */
 export async function auditoriaTaxas(admin: Admin) {
   const cfg = await lerCfgFin(admin);
-  const cols = ['id, status, total, taxa, valor_vendedor, created_at, entregue_em, products(titulo), stores(nome)', 'forma_pagamento', 'taxa_comprador_pix, taxa_comprador_cartao', 'pct_vendedor'];
+  const cols = ['id, status, total, taxa, valor_vendedor, created_at, entregue_em, gateway_ref, products(titulo), stores(nome)', 'forma_pagamento', 'taxa_comprador_pix, taxa_comprador_cartao', 'pct_vendedor'];
   let usar = [...cols];
   let r: any = null;
   for (let i = 0; i < 4; i++) {

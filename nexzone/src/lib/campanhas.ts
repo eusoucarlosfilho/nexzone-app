@@ -1,21 +1,21 @@
 // ============================================================
 // Campanhas (puro, testado em testes/campanhas.test.js):
 //   • 1ª compra sem taxa de serviço (Pix; cartão opcional)
-//   • Lojista Fundador: 0% de comissão por X dias ou até R$ Y vendidos, selo para sempre, destaque grátis
+//   • Lojista Fundador: comissão reduzida (padrão 3%, era 0%) por X dias ou até R$ Y vendidos, selo para sempre, destaque grátis
 //   • Cashback em CB Points: % do valor da compra volta como crédito para a próxima
 // ============================================================
 
 export type CfgCampanhas = {
   primeiraCompra: boolean; primeiraCompraCartao: boolean;
-  fundadorAtivo: boolean; fundadorVagas: number; fundadorDias: number; fundadorTeto: number; fundadorDestaqueDias: number;
+  fundadorAtivo: boolean; fundadorPct: number; fundadorVagas: number; fundadorDias: number; fundadorTeto: number; fundadorDestaqueDias: number;
   cashbackPct: number;
 };
 export const CAMPANHAS_PADRAO: CfgCampanhas = {
   primeiraCompra: true, primeiraCompraCartao: false,
-  fundadorAtivo: true, fundadorVagas: 50, fundadorDias: 30, fundadorTeto: 500, fundadorDestaqueDias: 7,
+  fundadorAtivo: true, fundadorPct: 3, fundadorVagas: 50, fundadorDias: 30, fundadorTeto: 500, fundadorDestaqueDias: 7,
   cashbackPct: 5,
 };
-export const CHAVES_CAMPANHAS = ['promo_primeira_compra', 'promo_primeira_compra_cartao', 'fundador_ativo', 'fundador_vagas', 'fundador_dias', 'fundador_teto', 'fundador_destaque_dias', 'cb_cashback_pct'] as const;
+export const CHAVES_CAMPANHAS = ['promo_primeira_compra', 'promo_primeira_compra_cartao', 'fundador_ativo', 'fundador_pct', 'fundador_vagas', 'fundador_dias', 'fundador_teto', 'fundador_destaque_dias', 'cb_cashback_pct'] as const;
 
 const bool = (v: unknown, def: boolean) => (v === true || v === 'true' || v === '"true"' ? true : v === false || v === 'false' || v === '"false"' ? false : def);
 const num = (v: unknown, def: number, min: number, max: number) => {
@@ -30,6 +30,7 @@ export function lerCampanhas(m: Record<string, unknown>): CfgCampanhas {
     primeiraCompra: bool(m.promo_primeira_compra, P.primeiraCompra),
     primeiraCompraCartao: bool(m.promo_primeira_compra_cartao, P.primeiraCompraCartao),
     fundadorAtivo: bool(m.fundador_ativo, P.fundadorAtivo),
+    fundadorPct: num(m.fundador_pct, P.fundadorPct, 0, 50),
     fundadorVagas: Math.round(num(m.fundador_vagas, P.fundadorVagas, 1, 1000)),
     fundadorDias: Math.round(num(m.fundador_dias, P.fundadorDias, 1, 365)),
     fundadorTeto: num(m.fundador_teto, P.fundadorTeto, 0, 1000000),
@@ -47,9 +48,9 @@ export function taxaComPromo(taxaNormal: number, forma: 'pix' | 'cartao', primei
 }
 
 // ---------- Lojista Fundador ----------
-export type SituacaoFundador = { fundador: boolean; numero: number | null; ativo: boolean; ate: string | null; vendido: number; restante: number; motivoFim: 'prazo' | 'teto' | 'desligado' | null };
+export type SituacaoFundador = { pct?: number; fundador: boolean; numero: number | null; ativo: boolean; ate: string | null; vendido: number; restante: number; motivoFim: 'prazo' | 'teto' | 'desligado' | null };
 
-/** 0% de comissão enquanto estiver no prazo E abaixo do teto de vendas (teto 0 = sem teto). O selo fica para sempre. */
+/** Comissão reduzida enquanto estiver no prazo E abaixo do teto de vendas (teto 0 = sem teto). O selo fica para sempre. */
 export function situacaoFundador(s: { fundador_em: string | null; fundador_numero: number | null }, vendido: number, cfg: CfgCampanhas, agora = Date.now()): SituacaoFundador {
   if (!s.fundador_numero || !s.fundador_em) return { fundador: false, numero: null, ativo: false, ate: null, vendido: 0, restante: 0, motivoFim: null };
   const ate = new Date(new Date(s.fundador_em).getTime() + cfg.fundadorDias * 86400000).toISOString();
@@ -57,16 +58,18 @@ export function situacaoFundador(s: { fundador_em: string | null; fundador_numer
   const abaixoDoTeto = cfg.fundadorTeto <= 0 || vendido < cfg.fundadorTeto;
   const ativo = cfg.fundadorAtivo && noPrazo && abaixoDoTeto;
   return {
-    fundador: true, numero: s.fundador_numero, ativo, ate, vendido: Math.round(vendido * 100) / 100,
+    pct: cfg.fundadorPct, fundador: true, numero: s.fundador_numero, ativo, ate, vendido: Math.round(vendido * 100) / 100,
     restante: cfg.fundadorTeto > 0 ? Math.max(0, Math.round((cfg.fundadorTeto - vendido) * 100) / 100) : -1, // -1 = sem teto
     motivoFim: ativo ? null : !cfg.fundadorAtivo ? 'desligado' : !noPrazo ? 'prazo' : 'teto',
   };
 }
 
-/** Divisão do pedido com o benefício do Fundador: comissão zero, tudo para o vendedor. */
-export function divisaoComFundador<T extends { pct: number; taxa: number; valorVendedor: number }>(normal: T, total: number, fundadorAtivo: boolean): T {
+/** Divisão do pedido com o benefício do Fundador: a comissão cai para `pct` (nunca sobe acima da do plano). */
+export function divisaoComFundador<T extends { pct: number; taxa: number; valorVendedor: number }>(normal: T, total: number, fundadorAtivo: boolean, pct = 0): T {
   if (!fundadorAtivo) return normal;
-  return { ...normal, pct: 0, taxa: 0, valorVendedor: Math.round(total * 100) / 100 };
+  const p = Math.max(0, Math.min(normal.pct, pct));
+  const taxa = Math.round(Math.max(0, total) * p) / 100;
+  return { ...normal, pct: p, taxa, valorVendedor: Math.round((Math.max(0, total) - taxa) * 100) / 100 };
 }
 
 // ---------- Cashback ----------

@@ -20,8 +20,8 @@ export const rotuloCategoria = (c: string) => CATEGORIAS.find((x) => x.id === c)
 export type TipoCusto = 'avulso' | 'mensal' | 'anual';
 export type Custo = { id: number; descricao: string; categoria: Categoria; valor: number; tipo: TipoCusto; data: string; fim: string | null; pago_por: string | null; observacao: string | null; comprovante_nome?: string | null; tem_comprovante?: boolean };
 
-export type ConfigFin = { custoPixPct: number; custoPixEntrada: number; custoPixSaida: number; custoCartaoPct: number; custoCartaoFixo: number; aliquotaDas: number };
-export const CONFIG_FIN_PADRAO: ConfigFin = { custoPixPct: 0, custoPixEntrada: 0.5, custoPixSaida: 0.5, custoCartaoPct: 3.99, custoCartaoFixo: 0.39, aliquotaDas: 6 };
+export type ConfigFin = { custoPixMpPct?: number; custoPixPct: number; custoPixEntrada: number; custoPixSaida: number; custoCartaoPct: number; custoCartaoFixo: number; aliquotaDas: number };
+export const CONFIG_FIN_PADRAO: ConfigFin = { custoPixMpPct: 0.99, custoPixPct: 0, custoPixEntrada: 0.5, custoPixSaida: 0.5, custoCartaoPct: 3.99, custoCartaoFixo: 0.39, aliquotaDas: 6 };
 
 const num = (v: unknown, def: number, min: number, max: number) => {
   if (v === null || v === undefined || v === '' || typeof v === 'boolean') return def;
@@ -31,6 +31,7 @@ const num = (v: unknown, def: number, min: number, max: number) => {
 export function lerConfigFin(m: Record<string, unknown>): ConfigFin {
   const P = CONFIG_FIN_PADRAO;
   return {
+    custoPixMpPct: num(m.gw_pix_mp_pct, P.custoPixMpPct!, 0, 30),
     custoPixPct: num(m.fin_custo_pix_pct, P.custoPixPct, 0, 30),
     custoPixEntrada: num(m.fin_custo_pix_entrada, P.custoPixEntrada, 0, 50),
     custoPixSaida: num(m.fin_custo_pix_saida, P.custoPixSaida, 0, 50),
@@ -63,7 +64,7 @@ export function valorNoMes(c: Pick<Custo, 'valor' | 'tipo' | 'data' | 'fim'>, me
   return mes.slice(5) === inicio.slice(5) ? Number(c.valor) : 0; // anual
 }
 
-export type PedidoFin = { status: string; total: number; taxa: number; valor_vendedor: number; forma_pagamento: string | null; taxa_comprador_pix: number | null; taxa_comprador_cartao: number | null; created_at: string; entregue_em: string | null };
+export type PedidoFin = { status: string; total: number; taxa: number; valor_vendedor: number; forma_pagamento: string | null; taxa_comprador_pix: number | null; taxa_comprador_cartao: number | null; created_at: string; entregue_em: string | null; gateway_ref?: string | null };
 export type SaqueFin = { status: string; valor: number; taxa_saque: number | null; created_at: string; pago_em: string | null };
 export type DestaqueFin = { status: string; valor: number; created_at: string; pago_em: string | null };
 
@@ -72,7 +73,8 @@ export function financeiroDoPedido(o: PedidoFin, cfg: ConfigFin) {
   const cartao = o.forma_pagamento === 'cartao';
   const taxaComprador = cartao ? Number(o.taxa_comprador_cartao || 0) : Number(o.taxa_comprador_pix || 0);
   const cobrado = Number(o.total) + taxaComprador;
-  const gateway = cartao ? cobrado * cfg.custoCartaoPct / 100 + cfg.custoCartaoFixo : cobrado * (cfg.custoPixPct || 0) / 100 + cfg.custoPixEntrada;
+  const gateway = cartao ? cobrado * cfg.custoCartaoPct / 100 + cfg.custoCartaoFixo : String(o.gateway_ref || '').startsWith('mp:') ? cobrado * (cfg.custoPixMpPct ?? 0.99) / 100 // Pix pelo Mercado Pago (% sem mínimo)
+    : cobrado * (cfg.custoPixPct || 0) / 100 + cfg.custoPixEntrada;
   const reemb = o.status === 'reembolsado';
   return {
     comissao: reemb ? 0 : Number(o.taxa || 0),

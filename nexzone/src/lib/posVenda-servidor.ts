@@ -1,6 +1,6 @@
 // Pós-venda (SQL 19) no SERVIDOR: oferta depois da compra e recuperação de carrinho.
 import { recuperacaoPausada } from './recuperacao-servidor';
-import { getGateway } from '@/lib/payments/gateway';
+import { criarPixRoteado } from '@/lib/payments/gateway';
 import { getSettings, lerTaxas } from '@/lib/settings';
 import { divisaoVendedor, taxaComprador, planoEfetivo } from './taxas';
 import { lerPosVenda, etapaAtual, ofertaNoPrazo, expiraEm, etapasCarrinho, linkRecuperacao, type PosVenda } from './posVenda';
@@ -88,11 +88,10 @@ export async function responderOferta(admin: any, p: { orderId: string; userId: 
   // Pix já gerado: o comprador cai direto na tela de pagamento (ou escolhe cartão lá)
   try {
     const { data: me } = await admin.from('profiles').select('nome').eq('id', p.userId).maybeSingle();
-    const gw = await getGateway();
-    const pay = await gw.createPixPayment({
+    const pay = await criarPixRoteado({
       orderId: (novo as any).id, amount: +(total + taxaPix).toFixed(2), sellerRecipientId: (prod as any).stores?.recipient_id ?? null,
       feePercent, description: (prod as any).titulo, payerEmail: p.email ?? undefined, payerName: (me as any)?.nome ?? undefined,
-    });
+    }, total, cfgTaxas);
     if (pay.status !== 'erro') {
       await admin.from('orders').update({ gateway_ref: pay.gatewayRef, pix_code: pay.pixCopiaECola ?? null, pix_qr: pay.pixQrBase64 ?? null }).eq('id', (novo as any).id);
     } else console.error('[oferta pós-compra] pix:', pay.error);
