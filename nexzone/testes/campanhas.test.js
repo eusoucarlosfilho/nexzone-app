@@ -6,7 +6,7 @@ const P = C.CAMPANHAS_PADRAO;
 t('padrões e leitura do banco (texto ou json)', () => {
   assert.deepStrictEqual(C.lerCampanhas({}), P);
   const c = C.lerCampanhas({ promo_primeira_compra: 'false', fundador_vagas: '"20"', fundador_teto: '0', cb_cashback_pct: 99, fundador_dias: true });
-  assert.strictEqual(c.primeiraCompra, false); assert.strictEqual(c.fundadorVagas, 20); assert.strictEqual(c.fundadorTeto, 0); assert.strictEqual(c.cashbackPct, 5); assert.strictEqual(c.fundadorDias, 30);
+  assert.strictEqual(c.primeiraCompra, false); assert.strictEqual(c.fundadorVagas, 20); assert.strictEqual(c.fundadorTeto, 0); assert.strictEqual(c.cashbackPct, 1); assert.strictEqual(c.fundadorDias, 30);
 });
 t('1ª compra: Pix sem taxa; cartão só se ligado; quem já comprou paga', () => {
   assert.strictEqual(C.taxaComPromo(0.5, 'pix', true, P), 0);
@@ -33,6 +33,13 @@ t('fundador ativo: comissão zero, tudo para o vendedor', () => {
   assert.deepStrictEqual(C.divisaoComFundador(normal, 30, true, 3), { pct: 3, taxa: 0.9, valorVendedor: 29.1 });
   assert.deepStrictEqual(C.divisaoComFundador(normal, 30, true, 20), normal); // nunca sobe acima do plano
   assert.strictEqual(C.CAMPANHAS_PADRAO.fundadorPct, 3);
+});
+t('cashback controlado: nunca passa do teto da nossa comissão', () => {
+  const cfg = { cashbackPct: 5, cbTetoComissaoPct: 30 };
+  assert.strictEqual(C.pontosCashbackControlado(30, 1.5, cfg, 100), 45);   // 5% daria 150; teto 30% de R$ 1,50 = 45 pontos
+  assert.strictEqual(C.pontosCashbackControlado(30, 1.5, { cashbackPct: 1, cbTetoComissaoPct: 30 }, 100), 30); // 1% = 30 pontos, abaixo do teto
+  assert.strictEqual(C.pontosCashbackControlado(30, 0, cfg, 100), 0);      // sem comissão (Fundador 0%), sem cashback
+  assert.strictEqual(C.CAMPANHAS_PADRAO.cashbackPct, 1); assert.strictEqual(C.CAMPANHAS_PADRAO.cbTetoComissaoPct, 30);
 });
 t('cashback: 5% de R$ 30 = 150 pontos = R$ 1,50', () => {
   assert.strictEqual(C.pontosCashback(30, 5, 100), 150);
