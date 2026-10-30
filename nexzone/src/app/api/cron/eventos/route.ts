@@ -4,6 +4,7 @@ import { processarEventos, lembrarPix } from '@/lib/eventosVenda-servidor';
 import { lembrarCarrinhos } from '@/lib/posVenda-servidor';
 import { minutosRecuperacao } from '@/lib/posVenda';
 import { pedirAvaliacoes } from '@/lib/confianca-servidor';
+import { conferirPendentes } from '@/lib/payments/conferirPix';
 
 // Sprint 2 — rotina de 1 em 1 minuto: envia compras para Meta/TikTok, postbacks e lembretes de Pix.
 // Chamada por um agendador externo (Supabase Cron ou cron-job.org) com ?key=<CRON_SECRET>
@@ -29,11 +30,13 @@ export async function GET(req: Request) {
     if (data) minutos = minutosRecuperacao((data as any).value);
     await admin.from('settings').upsert({ key: 'cron_eventos_em', value: new Date().toISOString(), updated_at: new Date().toISOString() });
   } catch { /* segue com o padrão */ }
+  // Primeiro confere na MisticPay os Pix pendentes (aviso perdido): quem pagou é liberado e NÃO recebe lembrete de Pix
+  const conferencia = await conferirPendentes(admin, { horas: 48, limite: 12, ms: 7000 }).catch(() => ({ conferidos: 0, liberados: [], erros: 0 }));
   const eventos = await processarEventos(admin, { limite: 40 }).catch((e) => ({ processados: 0, erro: String(e?.message || e) }));
   const lembretes = Date.now() - inicio < 18000 ? await lembrarPix(admin, minutos).catch(() => ({ enviados: 0 })) : { enviados: 0, adiado: true };
   // Fase B: carrinho abandonado (1 h e 24 h). Sem o SQL 19: não faz nada.
   const carrinhos = Date.now() - inicio < 22000 ? await lembrarCarrinhos(admin, minutos).catch(() => ({ enviados: 0 })) : { enviados: 0, adiado: true };
   // Pedido de avaliação (24–72 h depois da entrega), no máximo 10 por minuto
   const avaliacoes = Date.now() - inicio < 25000 ? await pedirAvaliacoes(admin, 10).catch(() => ({ enviados: 0 })) : { enviados: 0, adiado: true };
-  return NextResponse.json({ ok: true, eventos, lembretes, carrinhos, avaliacoes, ms: Date.now() - inicio }, { headers: { 'Cache-Control': 'no-store' } });
+  return NextResponse.json({ ok: true, conferencia, eventos, lembretes, carrinhos, avaliacoes, ms: Date.now() - inicio }, { headers: { 'Cache-Control': 'no-store' } });
 }
