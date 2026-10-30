@@ -64,6 +64,7 @@
     "../src/lib/confianca.ts",
     "../src/lib/ajudaPedido.ts",
     "../src/lib/entregaEmail.ts",
-    "../src/lib/conversas.ts"
+    "../src/lib/conversas.ts",
+    "../src/lib/filaRecuperacao.ts"
   ]
 }
