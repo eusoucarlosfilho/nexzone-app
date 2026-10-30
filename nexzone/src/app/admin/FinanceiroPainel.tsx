@@ -242,18 +242,18 @@ export default function FinanceiroPainel() {
         <div className="adm-card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <h3 className="adm-ct" style={{ margin: 0 }}>Ajustes das contas</h3>
-            <button type="button" className="fin-lk" onClick={() => setAjustes(ajustes ? null : { custoPixEntrada: String(p.cfg.custoPixEntrada), custoPixSaida: String(p.cfg.custoPixSaida), custoCartaoPct: String(p.cfg.custoCartaoPct), custoCartaoFixo: String(p.cfg.custoCartaoFixo), aliquotaDas: String(p.cfg.aliquotaDas) })}>{ajustes ? 'Fechar' : 'Editar'}</button>
+            <button type="button" className="fin-lk" onClick={() => setAjustes(ajustes ? null : { custoPixPct: String(p.cfg.custoPixPct ?? 0), custoPixEntrada: String(p.cfg.custoPixEntrada), custoPixSaida: String(p.cfg.custoPixSaida), custoCartaoPct: String(p.cfg.custoCartaoPct), custoCartaoFixo: String(p.cfg.custoCartaoFixo), aliquotaDas: String(p.cfg.aliquotaDas) })}>{ajustes ? 'Fechar' : 'Editar'}</button>
           </div>
           {!ajustes ? (
-            <p className="fin-aviso" style={{ marginTop: 8 }}>Pix recebido: {brl(p.cfg.custoPixEntrada)} · saque (Pix enviado): {brl(p.cfg.custoPixSaida)} · cartão: {String(p.cfg.custoCartaoPct).replace('.', ',')}% + {brl(p.cfg.custoCartaoFixo)} · DAS estimado: {String(p.cfg.aliquotaDas).replace('.', ',')}% da receita. Confira as tarifas no contrato da MisticPay e da Stripe e a alíquota com a contadora.</p>
+            <p className="fin-aviso" style={{ marginTop: 8 }}>Pix recebido: {(p.cfg.custoPixPct || 0) > 0 ? `${String(p.cfg.custoPixPct).replace('.', ',')}% + ` : ''}{brl(p.cfg.custoPixEntrada)} · saque (Pix enviado): {brl(p.cfg.custoPixSaida)} · cartão: {String(p.cfg.custoCartaoPct).replace('.', ',')}% + {brl(p.cfg.custoCartaoFixo)} · DAS estimado: {String(p.cfg.aliquotaDas).replace('.', ',')}% da receita. Confira as tarifas no contrato da MisticPay e da Stripe e a alíquota com a contadora.</p>
           ) : (
             <>
               <div className="fin-form" style={{ marginTop: 10 }}>
-                {([['custoPixEntrada', 'Tarifa por Pix recebido (R$)'], ['custoPixSaida', 'Tarifa por saque pago (R$)'], ['custoCartaoPct', 'Cartão (%)'], ['custoCartaoFixo', 'Cartão fixo (R$)'], ['aliquotaDas', 'Alíquota do DAS (%)']] as const).map(([k, l]) => (
+                {([['custoPixPct', 'Tarifa por Pix recebido (%)'], ['custoPixEntrada', 'Tarifa por Pix recebido (R$)'], ['custoPixSaida', 'Tarifa por saque pago (R$)'], ['custoCartaoPct', 'Cartão (%)'], ['custoCartaoFixo', 'Cartão fixo (R$)'], ['aliquotaDas', 'Alíquota do DAS (%)']] as const).map(([k, l]) => (
                   <div key={k}><label htmlFor={`aj-${k}`}>{l}</label><input id={`aj-${k}`} inputMode="decimal" value={ajustes[k]} onChange={(e) => setAjustes({ ...ajustes, [k]: e.target.value })} /></div>
                 ))}
               </div>
-              <button type="button" className="adm-btn ap" style={{ marginTop: 10 }} onClick={() => { const n = (x: string) => Number(String(x).replace(',', '.')); acao({ acao: 'ajustes', custoPixEntrada: n(ajustes.custoPixEntrada), custoPixSaida: n(ajustes.custoPixSaida), custoCartaoPct: n(ajustes.custoCartaoPct), custoCartaoFixo: n(ajustes.custoCartaoFixo), aliquotaDas: n(ajustes.aliquotaDas) }, 'Ajustes salvos.'); setAjustes(null); }}>Salvar ajustes</button>
+              <button type="button" className="adm-btn ap" style={{ marginTop: 10 }} onClick={() => { const n = (x: string) => Number(String(x).replace(',', '.')); acao({ acao: 'ajustes', custoPixPct: n(ajustes.custoPixPct), custoPixEntrada: n(ajustes.custoPixEntrada), custoPixSaida: n(ajustes.custoPixSaida), custoCartaoPct: n(ajustes.custoCartaoPct), custoCartaoFixo: n(ajustes.custoCartaoFixo), aliquotaDas: n(ajustes.aliquotaDas) }, 'Ajustes salvos.'); setAjustes(null); }}>Salvar ajustes</button>
             </>
           )}
         </div>

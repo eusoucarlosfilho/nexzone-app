@@ -68,6 +68,9 @@ export default function AdminDashboard({ painel, adminEmail, users, metrics, dai
       if (p) { setSuporteProtocolo(p.trim().toUpperCase()); setTab('suporte'); }
       const aba = new URLSearchParams(window.location.search).get('aba');
       if (aba && /^[a-z]{3,20}$/.test(aba)) setTab(aba);
+      // aviso de mensagem retida: abre a conversa direto (?chat=<pedido>)
+      const chat = new URLSearchParams(window.location.search).get('chat');
+      if (chat && /^[0-9a-f-]{36}$/i.test(chat)) setChatOrder(chat);
     } catch {}
   }, []);
 

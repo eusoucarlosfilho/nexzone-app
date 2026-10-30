@@ -60,7 +60,7 @@ export default function CampanhasConfig() {
       {!d.vagas.sql28 && <p style={{ color: '#F5B83D', fontSize: 13, fontWeight: 700 }}>Falta rodar o SQL 28 para o Lojista Fundador funcionar.</p>}
 
       <h4 style={{ fontFamily: 'Outfit', margin: '6px 0 8px' }}>1ª compra sem taxa</h4>
-      {chave('primeiraCompra', 'Ligada: a 1ª compra de cada cliente sai sem a taxa de serviço do Pix', 'Custa a taxa do Pix (R$ 0,50) por cliente novo. Aparece no anúncio, na página do produto e no checkout.')}
+      {chave('primeiraCompra', 'Ligada: a 1ª compra de cada cliente sai sem a taxa de serviço do Pix', 'Custa a taxa de serviço do Pix (tarifa da MisticPay + nossa margem) por cliente novo. Aparece no anúncio, na página do produto e no checkout.')}
       {f.primeiraCompra && chave('primeiraCompraCartao', 'Incluir o cartão', 'Mais caro: a plataforma absorve a tarifa da Stripe (~4%) na 1ª compra. Deixe desligado no começo.')}
 
       <h4 style={{ fontFamily: 'Outfit', margin: '16px 0 8px' }}>Lojista Fundador · {d.vagas.usadas} de {d.vagas.total} vagas usadas</h4>

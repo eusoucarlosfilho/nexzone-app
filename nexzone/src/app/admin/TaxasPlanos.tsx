@@ -1,11 +1,13 @@
 'use client';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from '@/lib/toast';
+import { partesTaxaComprador, TAXAS_PADRAO, type ConfigTaxas } from '@/lib/taxas';
 
 // Admin → Configurações → Planos e taxas (modelo aprovado: Básico 5% · Destaque 8% · Topo 11% + taxa de serviço do comprador).
 type Cfg = {
   planoBasico: number; planoDestaque: number; planoTopo: number; planosPagosAtivos: boolean; topoVagas: number;
-  compradorPix: number; compradorCartaoPct: number; compradorCartaoFixo: number;
+  gwPixPct: number; gwPixFixo: number; gwCartaoPct: number; gwCartaoFixo: number;
+  margemPixPct: number; margemPixFixo: number; margemCartaoPct: number; margemCartaoFixo: number;
   liberaContaDias: number; liberaPadraoDias: number; liberaCartaoDias: number; saqueExtraTaxa: number;
 };
 type Linha = { total: number; destaque: number; topo: number };
@@ -41,11 +43,13 @@ export default function TaxasPlanos() {
   const exemplo = useMemo(() => {
     const v = 50;
     return {
-      pix: n('compradorPix'), cartao: v * n('compradorCartaoPct') / 100 + n('compradorCartaoFixo'),
       basico: v * n('planoBasico') / 100, destaque: v * n('planoDestaque') / 100, topo: v * n('planoTopo') / 100,
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [f]);
+
+  // simulação ao vivo com o que está digitado (sem salvar)
+  const simul: ConfigTaxas = { ...TAXAS_PADRAO, ...(cfg as any), ...Object.fromEntries(['gwPixPct', 'gwPixFixo', 'gwCartaoPct', 'gwCartaoFixo', 'margemPixPct', 'margemPixFixo', 'margemCartaoPct', 'margemCartaoFixo'].map((k) => [k, n(k)])) };
 
   async function salvar(extra: Partial<{ planosPagosAtivos: boolean }> = {}) {
     setSalvando(true);
@@ -109,13 +113,36 @@ export default function TaxasPlanos() {
       </div>
       <small style={hint}>Numa venda de R$ 50: Básico cobra {brl(exemplo.basico)}, Destaque {brl(exemplo.destaque)}, Topo {brl(exemplo.topo)}. Trocar de plano não manda o anúncio para revisão.</small>
 
-      <label style={{ ...lbl, marginTop: 20 }}>Taxa de serviço do comprador</label>
+      <label style={{ ...lbl, marginTop: 20 }}>Taxa de serviço do comprador (entra só no checkout)</label>
+      <small style={{ ...hint, display: 'block', marginBottom: 8 }}>A vitrine e o anúncio mostram o preço do vendedor. No checkout soma: <b>tarifa do gateway + nossa margem</b>. A tarifa do gateway é calculada sobre o valor cobrado, então ela nunca come a margem.</small>
+      <small style={hint}>Pix: tarifa da MisticPay</small>
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-        {campo('compradorPix', 'Pix (R$ por pedido)')}
-        {campo('compradorCartaoPct', 'Cartão (%)')}
-        {campo('compradorCartaoFixo', 'Cartão (R$ fixo)')}
+        {campo('gwPixPct', 'MisticPay (%)')}
+        {campo('gwPixFixo', 'MisticPay (R$ por Pix)')}
+        {campo('margemPixPct', 'Nossa margem no Pix (%)')}
+        {campo('margemPixFixo', 'Nossa margem no Pix (R$)')}
       </div>
-      <small style={hint}>Aparece no checkout como &quot;Taxa de serviço&quot;. Num pedido de R$ 50 o comprador paga {brl(50 + exemplo.pix)} no Pix ou {brl(50 + exemplo.cartao)} no cartão. Mudar aqui vale para pedidos novos.</small>
+      <small style={hint}>Cartão: tarifa da Stripe</small>
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+        {campo('gwCartaoPct', 'Stripe (%)')}
+        {campo('gwCartaoFixo', 'Stripe (R$ por cobrança)')}
+        {campo('margemCartaoPct', 'Nossa margem no cartão (%)')}
+        {campo('margemCartaoFixo', 'Nossa margem no cartão (R$)')}
+      </div>
+      <div style={{ overflowX: 'auto', marginTop: 6 }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+          <thead><tr style={{ textAlign: 'left', color: 'var(--muted, #6B6B80)' }}><th style={{ padding: '6px 4px' }}>Pedido</th><th>Pix: taxa → total</th><th>Gateway / nossa</th><th>Cartão: taxa → total</th><th>Gateway / nossa</th></tr></thead>
+          <tbody>
+            {[10, 50, 100, 300].map((v) => { const px = partesTaxaComprador('pix', v, simul), ca = partesTaxaComprador('cartao', v, simul); return (
+              <tr key={v} style={{ borderTop: '1px solid var(--border)' }}>
+                <td style={{ padding: '6px 4px' }}><b>{brl(v)}</b></td>
+                <td>{brl(px.taxa)} → {brl(px.cobrado)}</td><td>{brl(px.gateway)} / <b style={{ color: '#0E9F6E' }}>{brl(px.margem)}</b></td>
+                <td>{brl(ca.taxa)} → {brl(ca.cobrado)}</td><td>{brl(ca.gateway)} / <b style={{ color: '#0E9F6E' }}>{brl(ca.margem)}</b></td>
+              </tr>); })}
+          </tbody>
+        </table>
+      </div>
+      <small style={hint}>As tarifas da MisticPay e da Stripe são as mesmas do Financeiro (mudar aqui muda lá). Confira no contrato de cada uma. Vale para pedidos novos. A taxa do vendedor (plano) continua à parte.</small>
 
       <label style={{ ...lbl, marginTop: 20 }}>Liberação do saldo e saques</label>
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
