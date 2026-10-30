@@ -2,7 +2,7 @@ import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import VendasClient from './VendasClient';
 import VendasPorOrigem from './VendasPorOrigem';
-import { contatosDosCompradores } from '@/lib/clientesPedidos';
+import { contatosDosCompradores, carrinhosAbandonados } from '@/lib/clientesPedidos';
 
 export const dynamic = 'force-dynamic';
 
@@ -29,6 +29,13 @@ export default async function VendasPage({ searchParams }: { searchParams?: { f?
   let clientes = {};
   try { clientes = await contatosDosCompradores(createAdminClient(), lista.map((v) => v.comprador)); } catch { clientes = {}; }
 
+  // Quem preencheu o checkout e saiu sem gerar o Pix (SQL 19), só dos produtos desta loja
+  let carrinhos: any[] = [];
+  try {
+    const { data: prods } = await supabase.from('products').select('id').eq('store_id', store.id).limit(1000);
+    carrinhos = await carrinhosAbandonados(createAdminClient(), { productIds: ((prods ?? []) as any[]).map((p) => p.id) });
+  } catch { carrinhos = []; }
+
   // Origem das vendas (SQL 15). Sem o SQL 15: o relatório mostra tudo como "Direto / sem rastreio".
   const { data: origens, error: oErr } = await supabase.from('orders')
     .select('id, origem').eq('store_id', store.id).in('status', ['pago', 'entregue']).limit(5000);
@@ -39,7 +46,7 @@ export default async function VendasPage({ searchParams }: { searchParams?: { f?
   const site = (process.env.NEXT_PUBLIC_SITE_URL || 'https://www.compreibarato.com.br').replace(/\/+$/, '');
   return (
     <>
-      <VendasClient vendas={lista} clientes={clientes} loja={(store as any).nome || ''} site={site} inicial={searchParams?.f === 'aguardando' ? 'aguardando' : 'vendas'} />
+      <VendasClient vendas={lista} clientes={clientes} loja={(store as any).nome || ''} site={site} inicial={searchParams?.f === 'aguardando' || searchParams?.f === 'abandonou' ? searchParams.f : 'vendas'} carrinhos={carrinhos} />
       <VendasPorOrigem vendas={comOrigem} />
     </>
   );

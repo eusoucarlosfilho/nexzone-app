@@ -4,16 +4,17 @@ import ProductThumb from '@/components/ProductThumb';
 import Icon from '@/components/Icon';
 import { toast } from '@/lib/toast';
 import { mensagemRecuperacao, linkWhatsapp, haQuanto, foneLegivel } from '@/lib/recuperacaoVenda';
+import CarrinhosAbandonados from '@/components/CarrinhosAbandonados';
 
 const money = (v: number) => 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',');
 const STATUS: Record<string, [string, string]> = {
   pago: ['act', 'Pago'], entregue: ['act', 'Entregue'], reembolsado: ['rej', 'Reembolsado'],
   pendente: ['rev', 'Aguardando pagamento'], cancelado: ['rej', 'Expirado'],
 };
-const FILTROS: [string, string][] = [['vendas', 'Vendas'], ['aguardando', 'Aguardando pagamento'], ['reembolsadas', 'Reembolsadas'], ['todas', 'Todas']];
+const FILTROS: [string, string][] = [['vendas', 'Vendas'], ['aguardando', 'Aguardando pagamento'], ['abandonou', 'Abandonou o checkout'], ['reembolsadas', 'Reembolsadas'], ['todas', 'Todas']];
 type Contato = { nome: string | null; whatsapp: string | null; avisos: boolean };
 
-export default function VendasClient({ vendas, clientes = {}, loja = '', site = 'https://www.compreibarato.com.br', inicial = 'vendas' }: { vendas: any[]; clientes?: Record<string, Contato>; loja?: string; site?: string; inicial?: string }) {
+export default function VendasClient({ vendas, clientes = {}, loja = '', site = 'https://www.compreibarato.com.br', inicial = 'vendas', carrinhos = [] }: { vendas: any[]; clientes?: Record<string, Contato>; loja?: string; site?: string; inicial?: string; carrinhos?: any[] }) {
   const [filtro, setFiltro] = useState(inicial);
   const [aberta, setAberta] = useState<string | null>(null);
   const [busca, setBusca] = useState('');
@@ -89,6 +90,13 @@ export default function VendasClient({ vendas, clientes = {}, loja = '', site = 
         <div className="sd-stat"><div className="ic"><Icon name="clock" size={20} /></div><b>{pendentes.length}</b><small>Aguardando pagamento ({money(totalPendente)})</small></div>
       </div>
 
+      {carrinhos.length > 0 && filtro !== 'abandonou' && (
+        <div className="vd-alerta">
+          <span><b>{carrinhos.length} {carrinhos.length === 1 ? 'pessoa preencheu o checkout e saiu' : 'pessoas preencheram o checkout e saíram'}</b> antes de gerar o Pix.</span>
+          <button className="vd-bt" onClick={() => setFiltro('abandonou')}><Icon name="chat" size={14} /> Ver e chamar</button>
+        </div>
+      )}
+
       {pendentes.length > 0 && filtro !== 'aguardando' && (
         <div className="vd-alerta">
           <span><b>{pendentes.length} {pendentes.length === 1 ? 'cliente começou a compra e não pagou' : 'clientes começaram a compra e não pagaram'}</b> ({money(totalPendente)}). Uma mensagem rápida costuma recuperar parte deles.</span>
@@ -102,7 +110,7 @@ export default function VendasClient({ vendas, clientes = {}, loja = '', site = 
             style={filtro === k
               ? { background: 'var(--soft)', color: 'var(--orange-ink)', border: '1px solid var(--orange)' }
               : { background: 'var(--surface)', color: 'var(--muted)', border: '1px solid var(--border)' }}>
-            {l}{k === 'aguardando' && pendentes.length ? ` (${pendentes.length})` : ''}
+            {l}{k === 'aguardando' && pendentes.length ? ` (${pendentes.length})` : ''}{k === 'abandonou' && carrinhos.length ? ` (${carrinhos.length})` : ''}
           </button>
         ))}
         <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar cliente, e-mail ou produto" aria-label="Buscar"
@@ -116,6 +124,7 @@ export default function VendasClient({ vendas, clientes = {}, loja = '', site = 
         </p>
       )}
 
+      {filtro === 'abandonou' ? <div className="card vd-tab" style={{ padding: 0 }}><CarrinhosAbandonados itens={carrinhos} site={site} /></div> : (
       <div className="card vd-tab" style={{ padding: 0 }}>
         {lista.length ? (
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
@@ -170,6 +179,7 @@ export default function VendasClient({ vendas, clientes = {}, loja = '', site = 
           </table>
         ) : <div style={{ padding: 28 }} className="muted">{filtro === 'aguardando' ? 'Nenhum pedido aguardando pagamento.' : 'Nenhuma venda nesse filtro ainda.'}</div>}
       </div>
+      )}
     </div>
   );
 }
