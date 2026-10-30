@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { stripeAvailable, createCheckoutSession, STRIPE_MIN_BRL } from '@/lib/payments/stripe';
 import { lerTaxas } from '@/lib/settings';
-import { taxaComprador } from '@/lib/taxas';
+import { taxaComprador, comissaoCobreGateway } from '@/lib/taxas';
 import { lerCfgCampanhas, ehPrimeiraCompra } from '@/lib/campanhas-servidor';
 import { taxaComPromo } from '@/lib/campanhas';
 
@@ -26,7 +26,7 @@ export async function POST(req: Request) {
 
   const admin = createAdminClient();
   const { data: order } = await admin.from('orders')
-    .select('id, status, total, comprador, products(titulo)')
+    .select('id, status, total, taxa, comprador, products(titulo)')
     .eq('id', orderId).maybeSingle();
 
   if (!order || (order as any).comprador !== user.id) {
@@ -42,7 +42,10 @@ export async function POST(req: Request) {
   }
   // Taxa de serviço do cartão (paga pelo comprador, mostrada antes do pagamento). O webhook confere se cobre o total.
   // 1ª compra sem taxa (SQL 28): no cartão só se o admin ligou "incluir cartão"
-  const taxaCartao = taxaComPromo(taxaComprador('cartao', total, await lerTaxas()), 'cartao', await ehPrimeiraCompra(admin, user.id), await lerCfgCampanhas(admin));
+  // Trava: a 1ª compra só sai sem taxa se a comissão do pedido cobrir a tarifa da Stripe (nunca vende no prejuízo)
+  const cfgT = await lerTaxas();
+  const promoCartao = (await ehPrimeiraCompra(admin, user.id)) && comissaoCobreGateway('cartao', total, Number((order as any).taxa) || 0, cfgT);
+  const taxaCartao = taxaComPromo(taxaComprador('cartao', total, cfgT), 'cartao', promoCartao, await lerCfgCampanhas(admin));
   const amountCents = Math.round((total + taxaCartao) * 100);
   const { error: eTaxa } = await admin.from('orders').update({ taxa_comprador_cartao: taxaCartao }).eq('id', orderId).eq('status', 'pendente');
   if (eTaxa && !/taxa_comprador/i.test(eTaxa.message || '')) console.error('[stripe] taxa do comprador:', eTaxa.message);
