@@ -13,7 +13,7 @@ const EXEMPLO = `{
   "pedido": { "id": "…", "status": "entregue", "total": 97, "moeda": "BRL", "criado_em": "…", "pago_em": "…" },
   "produto": { "id": "…", "titulo": "Nome do produto" },
   "itens_extras": [{ "id": "…", "titulo": "Order bump", "valor": 19.9 }],
-  "comprador": { "nome": "Ana Souza", "email": "ana@email.com", "whatsapp": "5511999999999" },
+  "comprador": { "nome": "Ana Souza", "email": "ana@email.com" },
   "origem": { "utm_source": "facebook", "utm_campaign": "black-friday" }
 }`;
 
