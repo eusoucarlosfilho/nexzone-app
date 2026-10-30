@@ -100,10 +100,10 @@ export default function OrderChat({ orderId, theme = 'light', readOnly = false, 
             onChange={(e) => setTexto(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); enviar(); } }}
             placeholder="Escreva uma mensagem…"
-            style={{ flex: 1, height: 42, borderRadius: 10, border: `1px solid ${C.bd}`, background: C.inputBg, color: C.tx, padding: '0 14px', fontSize: 14, outline: 'none' }}
+            style={{ flex: 1, minWidth: 0, height: 42, borderRadius: 10, border: `1px solid ${C.bd}`, background: C.inputBg, color: C.tx, padding: '0 14px', fontSize: 16, outline: 'none' }}
           />
           <button onClick={enviar} disabled={enviando || !texto.trim()}
-            style={{ height: 42, padding: '0 18px', borderRadius: 10, border: 'none', cursor: 'pointer', fontWeight: 800, fontFamily: 'Outfit', color: '#fff', background: 'linear-gradient(135deg,#FF6B00,#FF9A3C)', opacity: enviando || !texto.trim() ? 0.6 : 1 }}>
+            style={{ flex: 'none', height: 42, padding: '0 18px', borderRadius: 10, border: 'none', cursor: 'pointer', fontWeight: 800, fontFamily: 'Outfit', color: '#fff', background: 'linear-gradient(135deg,#FF6B00,#FF9A3C)', opacity: enviando || !texto.trim() ? 0.6 : 1 }}>
             {enviando ? '…' : 'Enviar'}
           </button>
         </div>

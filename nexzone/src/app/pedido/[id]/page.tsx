@@ -11,6 +11,9 @@ import { produtosComCurso } from '@/lib/curso-servidor';
 import { situacaoGarantia } from '@/lib/reembolso-servidor';
 import { lerTaxas } from '@/lib/settings';
 import { taxaComprador } from '@/lib/taxas';
+import { lerEmpresa } from '@/lib/confianca-servidor';
+import { promessaEntrega, linhaDoTempo } from '@/lib/confianca';
+import { CSS_CONFIANCA } from '@/components/ConfiancaCheckout';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,7 +23,7 @@ export default async function PedidoPage({ params, searchParams }: { params: { i
   if (!user) redirect(`/login?next=${encodeURIComponent(`/pedido/${params.id}`)}`);
 
   const { data: order } = await supabase.from('orders')
-    .select('id, status, total, pix_code, pix_qr, conteudo_liberado, bump_product_id, bump_titulo, bump_conteudo, bump_arquivo_path, bumps, product_id, products(titulo, emoji, categoria, capa_url, tipo_entrega)')
+    .select('id, status, total, created_at, entregue_em, pix_code, pix_qr, conteudo_liberado, bump_product_id, bump_titulo, bump_conteudo, bump_arquivo_path, bumps, product_id, products(titulo, emoji, categoria, capa_url, tipo_entrega, tipo_anuncio)')
     .eq('id', params.id).eq('comprador', user.id).single();
   if (!order) notFound();
 
@@ -60,10 +63,15 @@ export default async function PedidoPage({ params, searchParams }: { params: { i
   const taxaCartao = taxaComprador('cartao', Number(order.total), await lerTaxas());
   const { data: wp, error: wpErro } = await supabase.from('profiles').select('whatsapp').eq('id', user.id).maybeSingle();
   const mostrarConvite = !wpErro && !(wp as any)?.whatsapp;
+  // Confiança: prazo de entrega, contato do suporte e a linha do tempo do pedido
+  const empresa = await lerEmpresa();
+  const entrega = promessaEntrega(p?.tipo_anuncio, empresa.prazoManualHoras);
+  const etapas = linhaDoTempo({ status: order.status, created_at: (order as any).created_at, entregue_em: (order as any).entregue_em, garantia_ate: garantia?.ate ?? null });
   return (
     <>
       <Nav />
       <div className="page" style={{ maxWidth: 560 }}>
+        <style dangerouslySetInnerHTML={{ __html: CSS_CONFIANCA }} />
         <OrderView
           orderId={order.id}
           initialStatus={order.status}
@@ -88,6 +96,9 @@ export default async function PedidoPage({ params, searchParams }: { params: { i
           senhaPendente={senhaPendente}
           cursos={cursos}
           garantia={garantia}
+          entrega={entrega}
+          etapas={etapas}
+          suporteWhatsapp={empresa.whatsapp || null}
         />
         {mostrarConvite && <ConviteWhatsApp orderId={order.id} aviso={searchParams?.whats} />}
         {searchParams?.whats === 'ok' && <p className="muted" role="status" style={{ marginTop: 12, fontSize: 14 }}>Pronto! Você vai receber os avisos no WhatsApp.</p>}

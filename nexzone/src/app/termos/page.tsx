@@ -43,7 +43,7 @@ export default async function TermosPage() {
           <h2 style={h2}>6. Entrega e acesso</h2>
           <p>Gift cards, keys, códigos, arquivos e links são liberados automaticamente após a confirmação do pagamento. Contas, itens, moedas e serviços são entregues pelo Vendedor no chat do pedido, onde a conversa fica registrada. Na compra de uma conta, o Comprador deve trocar e-mail, senha e dados de recuperação assim que receber.</p>
 
-          <h2 style={h2}>7. Garantia e reembolso</h2>
+          <h2 id="reembolso" style={{ ...h2, scrollMarginTop: 80 }}>7. Garantia e reembolso</h2>
           <p>O Comprador tem direito a solicitar reembolso dentro do prazo de garantia informado no produto (em regra, 7 dias), conforme o Código de Defesa do Consumidor. Reembolsos aprovados são processados pelo mesmo meio de pagamento.</p>
 
           <h2 style={h2}>8. Condutas proibidas</h2>

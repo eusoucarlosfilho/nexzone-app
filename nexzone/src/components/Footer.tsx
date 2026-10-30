@@ -1,9 +1,13 @@
 import Link from 'next/link';
 import LinkRastreado from './v3/LinkRastreado';
 import { BotaoInstalarApp } from './AppInstalavel';
+import { lerEmpresa } from '@/lib/confianca-servidor';
+import { formatarCnpj, whatsappLegivel } from '@/lib/confianca';
 
 // supportEmail continua aceito por compatibilidade; o link "Suporte" abre a Central de Suporte (/suporte).
-export default function Footer(_props: { supportEmail?: string }) {
+export default async function Footer(_props: { supportEmail?: string }) {
+  const empresa = await lerEmpresa();
+  const linhaEmpresa = [empresa.razao, empresa.cnpj && `CNPJ ${formatarCnpj(empresa.cnpj)}`, empresa.cidade].filter(Boolean).join(' · ');
   return (
     <footer className="ftr-wrap">
       <div className="ftr">
@@ -34,6 +38,18 @@ export default function Footer(_props: { supportEmail?: string }) {
           </div>
         </nav>
       </div>
+      {(linhaEmpresa || empresa.whatsapp || empresa.email) && (
+        <div className="ftr" style={{ paddingTop: 0, fontSize: 12.5, color: 'var(--muted)', display: 'block' }}>
+          {linhaEmpresa && <div>{linhaEmpresa}</div>}
+          {(empresa.whatsapp || empresa.email) && (
+            <div style={{ marginTop: 2 }}>
+              {empresa.whatsapp && <a href={`https://wa.me/${empresa.whatsapp}`} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--sub)' }}>WhatsApp {whatsappLegivel(empresa.whatsapp)}</a>}
+              {empresa.whatsapp && empresa.email && ' · '}
+              {empresa.email && <a href={`mailto:${empresa.email}`} style={{ color: 'var(--sub)' }}>{empresa.email}</a>}
+            </div>
+          )}
+        </div>
+      )}
     </footer>
   );
 }

@@ -30,6 +30,7 @@ import Verificacoes from './Verificacoes';
 import ProdutoresInteressados from './ProdutoresInteressados';
 import SeoGoogle from './SeoGoogle';
 import TaxasPlanos from './TaxasPlanos';
+import DadosEmpresa from './DadosEmpresa';
 import RecuperacaoVendas from './RecuperacaoVendas';
 import CarrinhosAbandonados from '@/components/CarrinhosAbandonados';
 import AtivarCelular from '@/components/AtivarCelular';
@@ -963,6 +964,7 @@ export default function AdminDashboard({ painel, adminEmail, users, metrics, dai
             <h1 className="adm-h">Configurações</h1>
             <p className="adm-sub">Planos do vendedor, taxa de serviço do comprador, prazos de liberação e o resto da operação — sem mexer no código.</p>
             <TaxasPlanos />
+            <DadosEmpresa />
             <SettingsForm settings={settings} />
             <SuporteConfig inicial={settings.suporte} />
           </>

@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import IdentificacaoComprador, { type DadosComprador } from './IdentificacaoComprador';
 import { usePixels, dispararPixel, coletarOrigem, coletarCliques } from '@/components/PixelsVenda';
 import type { RastreioProduto } from '@/lib/rastreioVenda';
@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation';
 import { toast } from '@/lib/toast';
 import ProductThumb from '@/components/ProductThumb';
 import Icon from '@/components/Icon';
+import { CartaoVendedor, PromessaEntrega, ProtecaoCompra, type VendedorCheckout, type EntregaCheckout } from '@/components/ConfiancaCheckout';
 
 const money = (v: number) => 'R$ ' + Number(v).toFixed(2).replace('.', ',');
 
@@ -59,7 +60,9 @@ function Step({ n, label, active, done }: { n: number; label: string; active?: b
   );
 }
 
-export default function CheckoutClient({ productId, titulo, emoji, categoria, capa_url, loja, preco, cor, bumps = [], aceitaCupom, meusPontos = 0, perBrl = 100, cartaoDisponivel = false, convidado: convidadoInicial = false, emailLogado = null, rastreio = null, taxas = { pix: 0, cartaoPct: 0, cartaoFixo: 0 } }: any) {
+export default function CheckoutClient({ productId, titulo, emoji, categoria, capa_url, loja, preco, cor, bumps = [], aceitaCupom, meusPontos = 0, perBrl = 100, cartaoDisponivel = false, convidado: convidadoInicial = false, emailLogado = null, rastreio = null, taxas = { pix: 0, cartaoPct: 0, cartaoFixo: 0 }, vendedor = null, entrega = null, garantiaDias = 7 }: any) {
+  const v = vendedor as VendedorCheckout | null;
+  const ent = entrega as EntregaCheckout | null;
   // Checkout sem login (Sprint 1): quem não está logado preenche nome, e-mail e WhatsApp aqui mesmo
   const [convidado, setConvidado] = useState<boolean>(!!convidadoInicial);
   const [modoId, setModoId] = useState<'form' | 'existe'>('form');
@@ -95,6 +98,19 @@ export default function CheckoutClient({ productId, titulo, emoji, categoria, ca
   const [marcados, setMarcados] = useState<string[]>([]);
   const bumpsMarcados: any[] = (bumps as any[]).filter((b) => marcados.includes(b.id));
   const [erro, setErro] = useState('');
+  // Celular: barra fixa com o total enquanto o botão de pagar não está na tela
+  const botaoRef = useRef<HTMLButtonElement | null>(null);
+  const erroRef = useRef<HTMLDivElement | null>(null);
+  const idRef = useRef<HTMLDivElement | null>(null);
+  const [botaoNaTela, setBotaoNaTela] = useState(true);
+  useEffect(() => {
+    const el = botaoRef.current;
+    if (!el || typeof IntersectionObserver === 'undefined') return;
+    const io = new IntersectionObserver(([e]) => setBotaoNaTela(e.isIntersecting || e.boundingClientRect.top < 0), { threshold: 0.1 });
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+  useEffect(() => { if (erro) erroRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, [erro]);
   const [metodo, setMetodo] = useState<'pix' | 'cartao'>('pix');
 
   const subtotalProduto = aplicado ? aplicado.final : preco;
@@ -202,13 +218,13 @@ export default function CheckoutClient({ productId, titulo, emoji, categoria, ca
 
   return (
     <div className="card">
-      {/* Etapas */}
+      {/* Etapas: dados → pagamento → entrega */}
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 4, padding: '4px 0 18px', borderBottom: '1px solid var(--border)' }}>
-        <Step n={1} label="Revisar" active />
+        <Step n={1} label="Seus dados" active={convidado} done={!convidado} />
+        <div style={{ flex: 1, height: 2, background: convidado ? '#E4E4ED' : 'var(--green, #00B87A)', marginTop: 14 }} />
+        <Step n={2} label="Pagamento" active={!convidado} />
         <div style={{ flex: 1, height: 2, background: '#E4E4ED', marginTop: 14 }} />
-        <Step n={2} label="Pagar" />
-        <div style={{ flex: 1, height: 2, background: '#E4E4ED', marginTop: 14 }} />
-        <Step n={3} label="Receber" />
+        <Step n={3} label="Entrega" />
       </div>
 
       {/* Produto */}
@@ -220,7 +236,10 @@ export default function CheckoutClient({ productId, titulo, emoji, categoria, ca
         </div>
         <strong style={{ fontFamily: 'Outfit' }}>{money(preco)}</strong>
       </div>
+      {v && <CartaoVendedor v={v} />}
+      {ent && <PromessaEntrega e={ent} />}
 
+      <div ref={idRef} style={{ scrollMarginTop: 16 }} />
       {convidado ? (
         <IdentificacaoComprador dados={dados} onDados={setDados} modo={modoId} productId={productId} erros={errosId} accent={accent} onTrocarEmail={() => { setModoId('form'); setErro(''); }}
           onLogado={() => { setConvidado(false); setErro(''); toast('Pronto! Agora é só pagar.', 'success'); }} />
@@ -235,7 +254,7 @@ export default function CheckoutClient({ productId, titulo, emoji, categoria, ca
           <label style={{ fontSize: 13, fontWeight: 700, display: 'block', marginBottom: 8 }}>Tem um cupom?</label>
           <div style={{ display: 'flex', gap: 8 }}>
             <input value={cupom} onChange={(e) => setCupom(e.target.value.toUpperCase())} placeholder="CUPOM" disabled={!!aplicado}
-              style={{ flex: 1, height: 42, borderRadius: 10, border: '1px solid var(--border)', padding: '0 12px', fontSize: 14, textTransform: 'uppercase' }} />
+              style={{ flex: 1, minWidth: 0, height: 42, borderRadius: 10, border: '1px solid var(--border)', padding: '0 12px', fontSize: 16, textTransform: 'uppercase' }} />
             {aplicado
               ? <button className="btn btn-ghost btn-sm" onClick={() => { setAplicado(null); setCupom(''); }}>Remover</button>
               : <button className="btn btn-dark btn-sm" onClick={() => aplicarCupom()} disabled={checando}>{checando ? '…' : 'Aplicar'}</button>}
@@ -276,7 +295,6 @@ export default function CheckoutClient({ productId, titulo, emoji, categoria, ca
         <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'Outfit', fontWeight: 900, fontSize: 20, marginTop: 8 }}>
           <span>Total</span><span>{money(totalAPagar)}</span>
         </div>
-        <p className="muted" style={{ fontSize: 12, margin: '6px 0 0', display: 'flex', gap: 6, alignItems: 'flex-start' }}><Icon name="shield" size={13} /> Seu dinheiro fica protegido: o vendedor só recebe depois do prazo de garantia.</p>
       </div>
 
       {podeUsarPontos && (
@@ -299,7 +317,7 @@ export default function CheckoutClient({ productId, titulo, emoji, categoria, ca
             onSelect={() => !gerando && setMetodo('pix')}
             accent={accent}
             titulo="Pix"
-            subtitulo="Aprovação na hora · entrega imediata"
+            subtitulo={ent?.manual ? 'Aprovação na hora · o vendedor é avisado na hora' : 'Aprovação na hora · entrega imediata'}
             icone={
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={metodoEfetivo === 'pix' ? accent : 'var(--muted)'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M12 2 2 12l10 10 10-10z" /><path d="M7 12l5 5 5-5-5-5z" />
@@ -323,16 +341,30 @@ export default function CheckoutClient({ productId, titulo, emoji, categoria, ca
         </div>
       </div>
 
+      <ProtecaoCompra garantiaDias={Number(garantiaDias) || 7} manual={!!ent?.manual} />
+
       {erro && (
-        <div style={{ background: '#FDECEC', border: '1px solid #F5C2C2', color: '#C0392B', borderRadius: 10, padding: '10px 12px', fontSize: 13, margin: '14px 0', display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+        <div ref={erroRef} style={{ background: '#FDECEC', border: '1px solid #F5C2C2', color: '#C0392B', borderRadius: 10, padding: '10px 12px', fontSize: 13, margin: '14px 0', display: 'flex', alignItems: 'flex-start', gap: 8 }}>
           <Icon name="alert" size={16} style={{ marginTop: 1 }} /><span>{erro}</span>
         </div>
       )}
 
-      <button className="btn btn-pri" style={{ width: '100%', marginTop: 16, ...(cor ? { background: cor } : {}) }} onClick={pagar} disabled={gerando}>
+      <button ref={botaoRef} className="btn btn-pri" style={{ width: '100%', marginTop: 16, minHeight: 52, fontSize: 16, ...(cor ? { background: cor } : {}) }} onClick={pagar} disabled={gerando}>
         {gerando ? textoBotao : <><Icon name={metodoEfetivo === 'cartao' ? 'lock' : 'bolt'} size={18} /> {textoBotao}</>}
       </button>
-      <p className="muted" style={{ fontSize: 12, textAlign: 'center', marginTop: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}><Icon name="lock" size={13} /> Pagamento seguro · entrega imediata após o pagamento</p>
+      <p className="muted" style={{ fontSize: 12, textAlign: 'center', marginTop: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}><Icon name="lock" size={13} /> {ent?.manual ? 'Pagamento seguro · o vendedor só recebe depois da garantia' : 'Pagamento seguro · entrega na hora após o pagamento'}</p>
+
+      {/* Celular: total e atalho para pagar sempre à mão */}
+      {!botaoNaTela && (
+        <div className="ck-barra" role="region" aria-label="Pagar">
+          <span><small>Total</small><b>{money(totalAPagar)}</b></span>
+          <button type="button" className="btn btn-pri" style={cor ? { background: cor } : undefined} disabled={gerando}
+            onClick={() => { if (convidado) { idRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); return; } pagar(); }}>
+            {convidado ? 'Continuar' : metodoEfetivo === 'cartao' ? 'Pagar com cartão' : 'Pagar com Pix'}
+          </button>
+        </div>
+      )}
+      <style dangerouslySetInnerHTML={{ __html: `.ck-barra{display:none}@media (max-width:640px){.ck-barra{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:50;gap:12px;align-items:center;justify-content:space-between;background:#fff;border-top:1px solid var(--border);box-shadow:0 -6px 20px rgba(0,0,0,.08);padding:10px 16px calc(10px + env(safe-area-inset-bottom))}.ck-barra small{display:block;font-size:11px;color:var(--muted);font-weight:700}.ck-barra b{font-family:Outfit;font-size:19px;font-weight:900}.ck-barra .btn{flex:1;max-width:240px;min-height:48px}}` }} />
     </div>
   );
 }

@@ -13,6 +13,9 @@ import type { RastreioProduto } from '@/lib/rastreioVenda';
 import Link from 'next/link';
 import GarantiaReembolso, { type GarantiaInfo } from './GarantiaReembolso';
 import OfertaPosCompra from './OfertaPosCompra';
+import { LinhaDoTempo, PromessaEntrega, ProtecaoCompra, type EntregaCheckout } from '@/components/ConfiancaCheckout';
+import type { EtapaPedido } from '@/lib/confianca';
+import { whatsappLegivel } from '@/lib/confianca';
 
 const money = (v: number) => 'R$ ' + Number(v).toFixed(2).replace('.', ',');
 
@@ -40,7 +43,22 @@ type Props = {
   senhaPendente?: boolean;             // conta criada no checkout sem senha
   cursos?: { id: string; titulo: string }[]; // área de membros liberada por esta compra (SQL 18)
   garantia?: GarantiaInfo | null;            // garantia e reembolso pelo site (SQL 18)
+  entrega?: EntregaCheckout | null;          // prazo prometido (na hora ou pelo vendedor no chat)
+  etapas?: EtapaPedido[];                    // linha do tempo do pedido
+  suporteWhatsapp?: string | null;           // WhatsApp do suporte (Admin › Configurações)
 };
+
+// Ajusta a linha do tempo ao que acontece na tela: pagamento que acabou de cair (polling) e
+// entrega feita pelo vendedor no chat (o sistema não sabe quando ele entregou, então não marca como feita).
+function etapasVisiveis(etapas: EtapaPedido[], pago: boolean, manual: boolean): EtapaPedido[] {
+  let l = etapas.map((e) => ({ ...e }));
+  if (pago && !l[1].feito) l = l.map((e, i) => (i === 1 ? { ...e, rotulo: 'Pagamento confirmado', feito: true, atual: false } : i === 2 ? { ...e, atual: true } : e));
+  if (pago && manual) {
+    l[2] = { ...l[2], rotulo: 'Entrega no chat', feito: false, atual: true, quando: null };
+    l[3] = { ...l[3], atual: false };
+  }
+  return l;
+}
 
 export default function OrderView(props: Props) {
   const [status, setStatus] = useState(props.initialStatus);
@@ -56,6 +74,15 @@ export default function OrderView(props: Props) {
   const [coment, setComent] = useState('');
   const [msg, setMsg] = useState('');
   const [pending, start] = useTransition();
+  const [copiado, setCopiado] = useState(false);
+  async function copiarPix() {
+    try { await navigator.clipboard.writeText(props.pixCode || ''); }
+    catch {
+      // navegador sem permissão: seleciona o texto para copiar manualmente
+      const el = document.getElementById('ov-pix-code'); if (el) { const r = document.createRange(); r.selectNodeContents(el); const sel = window.getSelection(); sel?.removeAllRanges(); sel?.addRange(r); }
+    }
+    setCopiado(true); setTimeout(() => setCopiado(false), 2500);
+  }
 
   // Cartão (Stripe Checkout): o servidor cria a sessão e devolve a URL hospedada pela Stripe.
   const [cartaoBusy, setCartaoBusy] = useState(false);
@@ -118,11 +145,15 @@ export default function OrderView(props: Props) {
         )}
       </div>
 
+      {props.etapas && status !== 'reembolsado' && status !== 'cancelado' && (
+        <LinhaDoTempo etapas={etapasVisiveis(props.etapas, pago, !!props.entrega?.manual)} />
+      )}
       {pago ? (
         <div style={{ paddingTop: 18 }}>
           <div style={{ textAlign: 'center' }}>
             <div style={{ fontFamily: 'Outfit', fontWeight: 800, color: 'var(--green)', fontSize: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}><Icon name="checkCircle" size={22} /> Pagamento confirmado!</div>
-            <p className="muted" style={{ margin: '6px 0 14px' }}>Seu produto está liberado.</p>
+            <p className="muted" style={{ margin: '6px 0 14px' }}>{props.entrega?.manual ? 'O vendedor já foi avisado e entrega pelo chat abaixo.' : 'Seu produto está liberado.'}</p>
+            {props.entrega?.manual && <div style={{ textAlign: 'left', marginBottom: 14 }}><PromessaEntrega e={props.entrega} /></div>}
             {(props.cursos ?? []).length > 0 && (
               <div style={{ display: 'grid', gap: 8, marginBottom: 14 }}>
                 {(props.cursos ?? []).map((c, i) => (
@@ -136,7 +167,7 @@ export default function OrderView(props: Props) {
               ? <a className="btn btn-pri" href={`/api/download?order=${props.orderId}`}><Icon name="download" size={18} /> Baixar produto</a>
               : conteudo && ehSoLink(conteudo)
                 ? <a className="btn btn-pri" href={String(conteudo).trim()} target="_blank" rel="noopener noreferrer">Acessar produto</a>
-                : !conteudo && <p className="muted" style={{ fontSize: 13 }}>O vendedor ainda não cadastrou o conteúdo de entrega deste produto.</p>}
+                : !conteudo && !props.entrega?.manual && <p className="muted" style={{ fontSize: 13 }}>O vendedor ainda não cadastrou o conteúdo de entrega deste produto.</p>}
             {/* Mensagem pós-compra do vendedor, com a formatação (negrito, listas, links) */}
             {conteudo && !ehSoLink(conteudo) && (
               <div style={{ textAlign: 'left', marginTop: props.temArquivo ? 16 : 0, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 14, padding: '14px 16px', fontSize: 14.5 }}>
@@ -177,12 +208,13 @@ export default function OrderView(props: Props) {
             </div>
           )}
 
-          <div style={{ borderTop: '1px solid var(--border)', marginTop: 22, paddingTop: 18 }}>
+          <div id="avaliar" style={{ borderTop: '1px solid var(--border)', marginTop: 22, paddingTop: 18, scrollMarginTop: 80 }}>
             {avaliado ? (
               <p style={{ textAlign: 'center', color: 'var(--green)', fontWeight: 700, fontFamily: 'Outfit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}><Icon name="star" size={16} style={{ fill: 'currentColor' }} /> Obrigado pela sua avaliação!</p>
             ) : (
               <div style={{ textAlign: 'center' }}>
-                <strong style={{ fontFamily: 'Outfit', display: 'block', marginBottom: 10 }}>Avalie sua compra</strong>
+                <strong style={{ fontFamily: 'Outfit', display: 'block', marginBottom: 4 }}>Avalie sua compra</strong>
+                <p className="muted" style={{ fontSize: 12.5, margin: '0 auto 10px', maxWidth: 360 }}>Sua avaliação aparece no anúncio como &quot;Comprador verificado&quot; e ajuda outros gamers a comprar com segurança.</p>
                 <div style={{ marginBottom: 10, cursor: 'pointer', userSelect: 'none', display: 'flex', justifyContent: 'center' }}>
                   {[1, 2, 3, 4, 5].map((n) => (
                     <span key={n} onClick={() => setNota(n)} onMouseEnter={() => setHover(n)} onMouseLeave={() => setHover(0)}
@@ -229,16 +261,32 @@ export default function OrderView(props: Props) {
           {props.pixQr && <img alt="QR Pix" src={`data:image/png;base64,${props.pixQr}`} style={{ width: 200, height: 200 }} />}
           {props.pixCode && (
             <>
-              <div className="muted" style={{ wordBreak: 'break-all', fontSize: 12, margin: '8px 0' }}>{props.pixCode}</div>
-              <button className="btn btn-ghost btn-sm" onClick={() => navigator.clipboard.writeText(props.pixCode!)}>Copiar código Pix</button>
+              <button className="btn btn-pri" style={{ width: '100%', maxWidth: 360, minHeight: 52, fontSize: 16, margin: '6px auto 0', display: 'flex' }} onClick={copiarPix} aria-live="polite">
+                <Icon name={copiado ? 'check' : 'copy'} size={18} /> {copiado ? 'Código copiado!' : 'Copiar código Pix'}
+              </button>
+              <div id="ov-pix-code" className="muted" style={{ wordBreak: 'break-all', fontSize: 11.5, margin: '10px auto 0', maxWidth: 360, maxHeight: 54, overflow: 'auto', background: 'var(--surface)', border: '1px dashed var(--border)', borderRadius: 10, padding: '8px 10px', userSelect: 'all' }}>{props.pixCode}</div>
+              <ol className="ov-como">
+                <li><b>1</b><span>Abra o app do seu banco e escolha <b>Pix › Copia e cola</b></span></li>
+                <li><b>2</b><span>Cole o código e confira o valor de {money(props.total + (props.taxaPix || 0))}</span></li>
+                <li><b>3</b><span>Pronto: a confirmação aparece aqui sozinha e chega no seu WhatsApp</span></li>
+              </ol>
             </>
           )}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 16, color: 'var(--green, #00B87A)', fontWeight: 700, fontFamily: 'Outfit', fontSize: 13 }}>
             <span style={{ width: 9, height: 9, borderRadius: '50%', background: 'var(--green, #00B87A)', display: 'inline-block', animation: 'pulsePix 1.4s ease-in-out infinite' }} />
-            Confirmamos seu pagamento automaticamente
+            Aguardando o pagamento · confirmação automática
           </div>
-          <p className="muted" style={{ fontSize: 12, marginTop: 6, maxWidth: 320, marginLeft: 'auto', marginRight: 'auto' }}>
-            Transação 100% segura via Pix. Assim que o pagamento for identificado, a confirmação aparece aqui sozinha — não precisa enviar comprovante.
+          <p className="muted" style={{ fontSize: 12, marginTop: 6, maxWidth: 340, marginLeft: 'auto', marginRight: 'auto' }}>
+            Não precisa enviar comprovante. Pode fechar esta página: o pedido fica salvo em Minhas compras.
+          </p>
+          <div style={{ textAlign: 'left' }}>
+            <ProtecaoCompra garantiaDias={props.garantia?.dias || 7} manual={!!props.entrega?.manual} />
+          </div>
+          <p className="muted" style={{ fontSize: 12.5, marginTop: 12 }}>
+            Dúvida antes de pagar?{' '}
+            {props.suporteWhatsapp
+              ? <a href={`https://wa.me/${props.suporteWhatsapp}?text=${encodeURIComponent('Oi! Tenho uma dúvida sobre o pedido ' + props.orderId.slice(0, 8))}`} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--green)', fontWeight: 800 }}>Chame o suporte no WhatsApp {whatsappLegivel(props.suporteWhatsapp)}</a>
+              : <Link href="/suporte" style={{ color: 'var(--orange-ink)', fontWeight: 800 }}>Fale com o suporte</Link>}
           </p>
           {props.cartaoDisponivel && (
             <div style={{ borderTop: '1px solid var(--border)', marginTop: 20, paddingTop: 18 }}>
@@ -254,7 +302,7 @@ export default function OrderView(props: Props) {
               {cartaoErro && <p role="alert" style={{ color: 'var(--red)', fontSize: 13, marginTop: 6 }}>{cartaoErro}</p>}
             </div>
           )}
-          <style dangerouslySetInnerHTML={{ __html: `@keyframes pulsePix{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.8)}}@keyframes spinCartao{to{transform:rotate(360deg)}}.ov-valor{margin:4px 0 12px}.ov-valor b{display:block;font-family:Outfit;font-size:26px;font-weight:900}.ov-valor small{color:var(--muted);font-size:12.5px;font-weight:700}` }} />
+          <style dangerouslySetInnerHTML={{ __html: `@keyframes pulsePix{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.8)}}@keyframes spinCartao{to{transform:rotate(360deg)}}.ov-como{list-style:none;padding:0;margin:14px auto 0;max-width:360px;display:grid;gap:8px;text-align:left;font-size:13px;color:var(--sub)}.ov-como li{display:flex;gap:10px;align-items:flex-start;line-height:1.45}.ov-como li>b:first-child{width:22px;height:22px;border-radius:50%;flex:none;background:var(--soft);color:var(--orange-ink);font-family:Outfit;display:flex;align-items:center;justify-content:center;font-size:12px}.ov-valor{margin:4px 0 12px}.ov-valor b{display:block;font-family:Outfit;font-size:26px;font-weight:900}.ov-valor small{color:var(--muted);font-size:12.5px;font-weight:700}` }} />
         </div>
       )}
     </div>

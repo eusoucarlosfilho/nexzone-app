@@ -3,7 +3,8 @@ import { useEffect } from 'react';
 import type { RastreioProduto } from '@/lib/rastreioVenda';
 import { origemGuardada } from '@/lib/rastreio-cliente';
 
-// Pixels do VENDEDOR (Meta, TikTok, Google) no checkout e na página do pedido.
+// Pixels do VENDEDOR (Meta, TikTok, Google) na página do produto, no checkout e na página do pedido.
+// Sempre os pixels DO PRODUTO (cada produto tem o seu público), nunca um pixel no site inteiro.
 // Os IDs já chegam validados (só números/códigos), então nada de texto livre vira script.
 declare global {
   interface Window { fbq?: any; _fbq?: any; ttq?: any; dataLayer?: any[]; gtag?: (...a: any[]) => void; __cbPix?: Record<string, boolean>; }
@@ -71,7 +72,7 @@ export function usePixels(r: RastreioProduto | null | undefined) {
   }, [r]);
 }
 
-export type EventoVenda = 'InitiateCheckout' | 'AddPaymentInfo' | 'Purchase';
+export type EventoVenda = 'ViewContent' | 'InitiateCheckout' | 'AddPaymentInfo' | 'Purchase';
 
 /** Dispara o evento nos pixels carregados. Purchase usa o id do pedido para não duplicar. */
 export function dispararPixel(r: RastreioProduto | null | undefined, evento: EventoVenda, d: { valor: number; produtoId: string; titulo: string; pedidoId?: string }) {
@@ -89,7 +90,7 @@ export function dispararPixel(r: RastreioProduto | null | undefined, evento: Eve
         d.pedidoId ? { event_id: `${evento}-${d.pedidoId}` } : undefined);
     }
     if (w.gtag && (r.ga4 || r.adsId)) {
-      const nome = evento === 'Purchase' ? 'purchase' : evento === 'InitiateCheckout' ? 'begin_checkout' : 'add_payment_info';
+      const nome = evento === 'Purchase' ? 'purchase' : evento === 'InitiateCheckout' ? 'begin_checkout' : evento === 'ViewContent' ? 'view_item' : 'add_payment_info';
       w.gtag('event', nome, { currency: 'BRL', value: valor, ...(d.pedidoId ? { transaction_id: d.pedidoId } : {}), items: [{ item_id: d.produtoId, item_name: d.titulo, price: valor, quantity: 1 }] });
       if (evento === 'Purchase' && r.adsId && r.adsLabel) {
         w.gtag('event', 'conversion', { send_to: `${r.adsId}/${r.adsLabel}`, value: valor, currency: 'BRL', transaction_id: d.pedidoId || '' });

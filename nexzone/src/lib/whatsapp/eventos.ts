@@ -27,6 +27,8 @@ export const EVENTOS: DefEvento[] = [
     padrao: 'Oi, {nome}! Você deixou {produto} no carrinho. 🛒\nTermine em menos de 1 minuto: {link}' },
   { chave: 'carrinho_24h', rotulo: 'Carrinho abandonado (24 h)', para: 'comprador', grupo: 'Compras e vendas', variaveis: ['nome', 'produto', 'cupom', 'link'],
     padrao: 'Oi, {nome}! Ainda pensando em {produto}? Seu acesso sai na hora depois do pagamento: {link}' },
+  { chave: 'pedir_avaliacao', rotulo: 'Pedido de avaliação (1 a 3 dias depois da entrega)', para: 'comprador', grupo: 'Compras e vendas', variaveis: ['nome', 'produto', 'pedido', 'link'],
+    padrao: 'Oi, {nome}! Deu tudo certo com {produto}? ⭐\nSua avaliação leva 1 minuto e ajuda outros gamers a comprar com segurança: {link}\n\nSe algo não saiu como esperado, fale com o vendedor no mesmo link.' },
   { chave: 'nova_venda', rotulo: 'Nova venda (vendedor)', para: 'vendedor', grupo: 'Compras e vendas', variaveis: ['nome', 'produto', 'valor', 'pedido', 'link'],
     padrao: 'Nova venda na sua loja! 🎉\n{produto} — {valor}\nVeja os detalhes: {link}' },
   { chave: 'nova_mensagem', rotulo: 'Nova mensagem no chat do pedido', para: 'usuario', grupo: 'Mensagens', variaveis: ['nome', 'produto', 'pedido', 'link'],

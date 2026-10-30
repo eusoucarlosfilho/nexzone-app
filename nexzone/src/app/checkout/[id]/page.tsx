@@ -1,6 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
 import { notFound } from 'next/navigation';
-import Link from 'next/link';
 import CheckoutClient from './CheckoutClient';
 import { lerTaxas } from '@/lib/settings';
 import CheckoutBlocos from '@/components/CheckoutBlocos';
@@ -13,6 +12,10 @@ import { vendedorPublico } from '@/lib/vendedorPublico';
 import { temPixel } from '@/lib/rastreioVenda';
 import { createAdminClient } from '@/lib/supabase/server';
 import { registrarCarrinho } from '@/lib/posVenda-servidor';
+import { lerEmpresa, statsVendedor } from '@/lib/confianca-servidor';
+import { linhasVendedor, promessaEntrega } from '@/lib/confianca';
+import { diasDeGarantia } from '@/lib/garantia';
+import { RodapeConfianca, CSS_CONFIANCA } from '@/components/ConfiancaCheckout';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,7 +26,7 @@ export default async function CheckoutPage({ params }: { params: { id: string } 
 
   const { data } = await supabase.from('products')
     // Colunas explícitas: conteúdo de entrega e arquivo nunca são lidos com a chave do usuário (SQL 12)
-    .select('id, titulo, emoji, categoria, capa_url, preco, preco_promo, status, store_id, tipo_entrega, garantia_dias, checkout_config, aceita_cupom, bumps, bump_product_id, bump_valor, stores(nome, logo_url, cor, ocultar_vendedor)')
+    .select('id, titulo, emoji, categoria, capa_url, preco, preco_promo, status, store_id, tipo_entrega, garantia_dias, checkout_config, aceita_cupom, tipo_anuncio, bumps, bump_product_id, bump_valor, stores(nome, logo_url, cor, ocultar_vendedor, status)')
     .eq('id', params.id).eq('status', 'ativo').single();
   if (!data) notFound();
   const p = data as unknown as Product;
@@ -59,6 +62,12 @@ export default async function CheckoutPage({ params }: { params: { id: string } 
     meusPontos = Number((prof as any)?.cb_points ?? 0);
   }
   const cartaoDisponivel = await stripeAvailable();
+  // Confiança (sem SQL novo): números reais do vendedor, prazo de entrega e dados da empresa
+  const [empresa, stats] = await Promise.all([lerEmpresa(), statsVendedor(loja.oficial ? null : (p as any).store_id)]);
+  const lv = linhasVendedor(stats, { oficial: loja.oficial, verificada: loja.verificada });
+  const vendedor = { nome: loja.nome || 'Loja', selo: lv.selo, linhas: loja.oficial ? ['Vendido e garantido pelo Comprei Barato'] : lv.linhas, nova: !loja.oficial && lv.nova, oficial: loja.oficial };
+  const entrega = promessaEntrega((p as any).tipo_anuncio, empresa.prazoManualHoras);
+  const garantiaDias = diasDeGarantia((p as any).garantia_dias);
   const cfgTaxas = await lerTaxas();
   const taxas = { pix: cfgTaxas.compradorPix, cartaoPct: cfgTaxas.compradorCartaoPct, cartaoFixo: cfgTaxas.compradorCartaoFixo };
   // Carrinho abandonado (SQL 19): quem já está logado e abriu o checkout entra na recuperação (o dono não)
@@ -69,6 +78,7 @@ export default async function CheckoutPage({ params }: { params: { id: string } 
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--surface)' }}>
+      <style dangerouslySetInnerHTML={{ __html: CSS_CONFIANCA }} />
       <header style={{ background: '#fff', borderBottom: '1px solid var(--border)', padding: '14px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <div style={{ width: 36, height: 36, borderRadius: 10, background: loja.logo_url ? `${loja.oficial ? '#fff ' : ''}url(${loja.logo_url}) center/${loja.oficial ? 'contain no-repeat' : 'cover'}` : `linear-gradient(135deg, ${cor}, #FF9A3C)`, ...(loja.oficial ? { border: '1px solid var(--border)' } : {}), display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontFamily: 'Outfit', fontWeight: 900 }}>
@@ -76,7 +86,7 @@ export default async function CheckoutPage({ params }: { params: { id: string } 
           </div>
           <strong style={{ fontFamily: 'Outfit' }}>{loja.nome || 'Loja'}</strong>
         </div>
-        <span className="muted" style={{ fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}><Icon name="lock" size={14} /> Pagamento seguro</span>
+        <span className="muted" style={{ fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}><Icon name="lock" size={14} /> Compra garantida</span>
       </header>
 
       <div className="page" style={{ maxWidth: 520 }}>
@@ -103,16 +113,13 @@ export default async function CheckoutPage({ params }: { params: { id: string } 
               convidado={!user}
               emailLogado={user?.email ?? null}
               rastreio={temPixel(cfg.rastreio) ? cfg.rastreio : null}
+              vendedor={vendedor}
+              entrega={entrega}
+              garantiaDias={garantiaDias}
             />
           }
         />
-        <div style={{ textAlign: 'center', marginTop: 22 }}>
-          <span className="muted" style={{ fontSize: 12 }}>
-            Pagamento processado com segurança via Comprei Barato ·{' '}
-            <Link href="/termos" style={{ color: 'var(--sub)' }}>Termos</Link> ·{' '}
-            <Link href="/privacidade" style={{ color: 'var(--sub)' }}>Privacidade</Link>
-          </span>
-        </div>
+        <RodapeConfianca empresa={empresa} cartao={cartaoDisponivel} />
       </div>
     </div>
   );

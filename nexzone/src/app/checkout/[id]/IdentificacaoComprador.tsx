@@ -43,7 +43,7 @@ export default function IdentificacaoComprador({ dados, onDados, modo, onLogado,
         .idc h3{font-family:'Outfit';font-size:16px;font-weight:800;margin:0 0 2px;display:flex;align-items:center;gap:8px;}
         .idc .fg{margin:10px 0 0;}
         .idc label{font-size:13px;font-weight:700;display:block;margin-bottom:5px;}
-        .idc input[type=text],.idc input[type=email],.idc input[type=tel],.idc input[type=password]{width:100%;height:46px;border-radius:12px;border:1.5px solid var(--border);padding:0 14px;font-size:15px;background:#fff;}
+        .idc input[type=text],.idc input[type=email],.idc input[type=tel],.idc input[type=password]{width:100%;height:46px;border-radius:12px;border:1.5px solid var(--border);padding:0 14px;font-size:16px;background:#fff;}
         .idc input:focus{outline:none;border-color:${accent};box-shadow:0 0 0 3px rgba(255,107,0,.12);}
         .idc .err{color:var(--red);font-size:12.5px;margin-top:4px;}
         .idc .chk{display:flex;gap:8px;align-items:flex-start;font-size:12.5px;color:var(--sub);margin-top:10px;cursor:pointer;}

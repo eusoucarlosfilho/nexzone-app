@@ -12,6 +12,10 @@ import { createClient, createAdminClient } from '@/lib/supabase/server';
 import ConteudoCurso from './ConteudoCurso';
 import { diasDeGarantia } from '@/lib/garantia';
 import { avisoEstoque, extrasDe, EXTRAS_VAZIO, manuaisDe, contadoresExibidos } from '@/lib/estoque';
+import { avaliacoesExibidas } from '@/lib/confianca';
+import { normalizarCheckout } from '@/lib/checkoutConfig';
+import { temPixel } from '@/lib/rastreioVenda';
+import PixelProduto from './PixelProduto';
 import { notFound } from 'next/navigation';
 import type { Product } from '@/lib/types';
 import type { Metadata } from 'next';
@@ -138,8 +142,10 @@ export default async function ProductPage({ params }: { params: { id: string } }
   const autoAvaliacoes = notas.length;
   const autoMedia = autoAvaliacoes ? notas.reduce((s, v) => s + v, 0) / autoAvaliacoes : 0;
   const exib = contadoresExibidos({ vendas: Number(p.vendas) || 0, avaliacoes: autoAvaliacoes, media: autoMedia }, manuais);
-  const qtdAvaliacoes = exib.avaliacoes;
-  const media = qtdAvaliacoes > 0 && exib.media > 0 ? exib.media : 0;
+  // Honestidade: contador de avaliações só aparece se houver avaliação real escrita na lista
+  const avHonesta = avaliacoesExibidas({ avaliacoes: exib.avaliacoes, media: exib.media }, reviews.filter((r) => String(r.comentario || '').trim()).length);
+  const qtdAvaliacoes = avHonesta.avaliacoes;
+  const media = qtdAvaliacoes > 0 && avHonesta.media > 0 ? avHonesta.media : 0;
   const vendas = exib.vendas;
   const extras = extrasMapa[p.id] ?? EXTRAS_VAZIO;
   const aviso = esgotadoPausado ? avisoEstoque(0) : avisoEstoque(extras.estoque);
@@ -151,6 +157,13 @@ export default async function ProductPage({ params }: { params: { id: string } }
   // Recomendações: ofertas de parceiros só completam as vagas que os nativos não preencheram
   const mixRec = daCategoria.length < 4 ? await configMix() : null;
   const parceirasRec = mixRec?.ativo && p.categoria ? visiveis(await ofertasAtivas({ categoria: p.categoria, limite: 8 }), mixRec).slice(0, 4 - daCategoria.length) : [];
+  // Pixel por produto: o mesmo pixel configurado no checkout deste produto também roda aqui
+  let pixel: any = null;
+  try {
+    const { data: cc } = await supabase.from('products').select('checkout_config').eq('id', p.id).maybeSingle();
+    const r = normalizarCheckout((cc as any)?.checkout_config).rastreio;
+    if (temPixel(r)) pixel = r;
+  } catch { /* sem pixel */ }
   const user = userRes.data.user;
   const perguntas = (perguntasRes.data ?? []) as any[];
 
@@ -223,6 +236,7 @@ export default async function ProductPage({ params }: { params: { id: string } }
   return (
     <>
       <Nav />
+      {pixel && <PixelProduto rastreio={pixel} produtoId={p.id} titulo={p.titulo} valor={Number(preco) || 0} />}
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdHtml }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: trilhaHtml }} />
       <style dangerouslySetInnerHTML={{ __html: `
