@@ -79,4 +79,34 @@ t('texto do canal', () => {
   assert.ok(s.includes('De R$ 100,00 por R$ 60,00 (−40%)')); assert.ok(s.endsWith('https://x/p/1'));
   assert.ok(C.textoOfertaCanal({ titulo: 'Y', preco: 10, preco_promo: null, link: 'l' }).includes('Por R$ 10,00'));
 });
+t('tema black: auto liga 30 dias antes, durante vira black, depois desliga', () => {
+  const cfg = { inicio: '2026-11-27T00:00:00-03:00', fim: '2026-11-30T23:59:59-03:00', descontoMin: 10 };
+  const em = (s) => Date.parse(s);
+  assert.deepStrictEqual(C.temaBlack('auto', cfg, em('2026-10-20T12:00:00-03:00')), { ativo: false, fase: null });
+  assert.deepStrictEqual(C.temaBlack('auto', cfg, em('2026-10-30T12:00:00-03:00')), { ativo: true, fase: 'esquenta' });
+  assert.deepStrictEqual(C.temaBlack('auto', cfg, em('2026-11-28T12:00:00-03:00')), { ativo: true, fase: 'black' });
+  assert.deepStrictEqual(C.temaBlack('auto', cfg, em('2026-12-01T00:00:01-03:00')), { ativo: false, fase: null });
+  assert.deepStrictEqual(C.temaBlack('ligado', cfg, em('2026-10-01T12:00:00-03:00')), { ativo: true, fase: 'esquenta' });
+  assert.deepStrictEqual(C.temaBlack('ligado', cfg, em('2026-12-02T12:00:00-03:00')), { ativo: false, fase: null });
+  assert.deepStrictEqual(C.temaBlack('desligado', cfg, em('2026-11-28T12:00:00-03:00')), { ativo: false, fase: null });
+});
+t('modo do tema: valores estranhos viram auto', () => {
+  assert.strictEqual(C.lerModoTema('"ligado"'), 'ligado');
+  assert.strictEqual(C.lerModoTema('desligado'), 'desligado');
+  assert.strictEqual(C.lerModoTema(null), 'auto');
+  assert.strictEqual(C.lerModoTema('xyz'), 'auto');
+});
+t('ordenar por desconto: só desconto real, maior primeiro', () => {
+  const l = C.ordenarPorDesconto([
+    { id: 'a', preco: 100, preco_promo: 90 }, { id: 'b', preco: 100, preco_promo: 50 },
+    { id: 'c', preco: 100, preco_promo: null }, { id: 'd', preco: 100, preco_promo: 120 }, { id: 'e', preco: 10, preco_promo: 7 },
+  ]);
+  assert.deepStrictEqual(l.map((x) => x.id), ['b', 'e', 'a']);
+  assert.deepStrictEqual(C.ordenarPorDesconto([{ id: 'a', preco: 100, preco_promo: 95 }], 10), []);
+});
+t('texto de compartilhar a Black Friday', () => {
+  const s = C.textoCompartilharBF({ inicio: '2026-11-27T00:00:00-03:00', fim: '2026-11-30T23:59:59-03:00', descontoMin: 10 }, 'https://www.compreibarato.com.br/');
+  assert.ok(s.includes('de 27/11 a 30/11'));
+  assert.ok(s.includes('https://www.compreibarato.com.br/black-friday?utm_source=whatsapp'));
+});
 console.log(`crescimento: ${ok} testes ok`);

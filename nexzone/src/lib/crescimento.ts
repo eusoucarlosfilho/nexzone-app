@@ -159,3 +159,38 @@ export function textoOfertaCanal(o: { titulo: string; preco: number; preco_promo
     `👉 ${o.link}`,
   ].join('\n');
 }
+
+// ---------- 4. Tema Black (Black November) ----------
+// O site inteiro entra no clima da Black Friday: faixa com contagem em todas as páginas, cores, selo BLACK
+// nos descontos e vitrines da campanha. "auto" liga sozinho 30 dias antes do início e desliga no fim.
+export type ModoTema = 'auto' | 'ligado' | 'desligado';
+export const ESQUENTA_DIAS = 30;
+export const lerModoTema = (v: unknown): ModoTema => {
+  const s = String(v ?? '').replace(/"/g, '').trim();
+  return s === 'ligado' || s === 'desligado' ? s : 'auto';
+};
+export type FaseTema = 'esquenta' | 'black';
+export function temaBlack(modo: ModoTema, cfg: CfgBF, agora = Date.now()): { ativo: boolean; fase: FaseTema | null } {
+  const off = { ativo: false, fase: null };
+  if (modo === 'desligado') return off;
+  const f = faseBF(cfg, agora);
+  if (f === 'depois') return off;
+  if (f === 'durante') return { ativo: true, fase: 'black' };
+  if (modo === 'ligado' || agora >= Date.parse(cfg.inicio) - ESQUENTA_DIAS * 86400000) return { ativo: true, fase: 'esquenta' };
+  return off;
+}
+
+/** Só descontos reais (promo menor que o preço), do maior para o menor; mínimo em %. */
+export function ordenarPorDesconto<T extends { preco: number; preco_promo: number | null }>(lista: T[], minimoPct = 1): T[] {
+  return lista
+    .map((p) => ({ p, d: descontoDe({ preco: Number(p.preco), preco_promo: p.preco_promo == null ? null : Number(p.preco_promo) }) }))
+    .filter((x) => x.d >= minimoPct)
+    .sort((a, b) => b.d - a.d)
+    .map((x) => x.p);
+}
+
+/** Texto para compartilhar a Black Friday no WhatsApp (o link leva UTM para medir). */
+export function textoCompartilharBF(cfg: CfgBF, site: string): string {
+  const d = (s: string) => new Date(s).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', timeZone: 'America/Sao_Paulo' });
+  return `🔥 Black Friday Gamer no Comprei Barato: contas, skins, moedas e gift cards com desconto de verdade, de ${d(cfg.inicio)} a ${d(cfg.fim)}. Entra na lista pra ser avisado: ${site.replace(/\/+$/, '')}/black-friday?utm_source=whatsapp&utm_medium=compartilhar&utm_campaign=black-friday`;
+}

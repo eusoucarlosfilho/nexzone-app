@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient, createAdminClient } from '@/lib/supabase/server';
-import { CAMPANHA_BF, faseBF, lerCfgBF, hojeBR, textoOfertaCanal } from '@/lib/crescimento';
-import { cfgBF, cfgCanais, ofertaDoDia, avisarListaEspera, postarTelegram, linkOferta } from '@/lib/crescimento-servidor';
+import { CAMPANHA_BF, faseBF, lerCfgBF, hojeBR, textoOfertaCanal, lerModoTema, temaBlack } from '@/lib/crescimento';
+import { cfgBF, cfgCanais, ofertaDoDia, avisarListaEspera, postarTelegram, linkOferta, limparCacheTema } from '@/lib/crescimento-servidor';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 30;
@@ -37,8 +37,11 @@ export async function GET(req: Request) {
     admin.from('campanha_produtos').select('id', { count: 'exact', head: true }).eq('campanha', CAMPANHA_BF),
   ]);
   const p = oferta?.produto;
+  const { data: tm } = await admin.from('settings').select('value').eq('key', 'tema_black').maybeSingle();
+  const modo = lerModoTema((tm as any)?.value);
   return NextResponse.json({
     sql30: !tot.error,
+    tema: { modo, ...temaBlack(modo, bf) },
     bf: { ...bf, fase: faseBF(bf), lista: tot.count ?? 0, avisados: avis.count ?? 0, inscritos: insc.count ?? 0 },
     canais: { whatsapp: canais.whatsapp, telegram: canais.telegram, telegramToken: canais.telegramToken, telegramChat: canais.telegramChat, hora: canais.hora, postadoHoje: canais.postado === hojeBR().dia, manualHoje: canais.manual?.dia === hojeBR().dia },
     oferta: p ? { id: p.id, titulo: p.titulo, preco: Number(p.preco), preco_promo: p.preco_promo == null ? null : Number(p.preco_promo), link: linkOferta(p.id),
@@ -53,7 +56,15 @@ export async function POST(req: Request) {
 
   if (b.acao === 'salvar_bf') {
     const c = lerCfgBF({ bf_inicio: b.inicio, bf_fim: b.fim, bf_desconto_min: b.descontoMin });
-    return (await salvar(admin, [['bf_inicio', c.inicio], ['bf_fim', c.fim], ['bf_desconto_min', c.descontoMin]])) ? NextResponse.json({ ok: true, bf: c }) : NextResponse.json({ error: 'Não foi possível salvar.' }, { status: 500 });
+    const ok = await salvar(admin, [['bf_inicio', c.inicio], ['bf_fim', c.fim], ['bf_desconto_min', c.descontoMin]]);
+    if (ok) limparCacheTema();
+    return ok ? NextResponse.json({ ok: true, bf: c }) : NextResponse.json({ error: 'Não foi possível salvar.' }, { status: 500 });
+  }
+  if (b.acao === 'salvar_tema') {
+    const modo = lerModoTema(b.modo);
+    const ok = await salvar(admin, [['tema_black', modo]]);
+    if (ok) limparCacheTema();
+    return ok ? NextResponse.json({ ok: true, modo }) : NextResponse.json({ error: 'Não foi possível salvar.' }, { status: 500 });
   }
   if (b.acao === 'avisar') {
     const r = await avisarListaEspera(admin, 90);

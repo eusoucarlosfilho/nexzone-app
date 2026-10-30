@@ -24,7 +24,7 @@ import { dadosWebSite, dadosOrganizacao, jsonLd } from '@/lib/seoSite';
 import { lerSeoConfig } from '@/lib/seo-servidor';
 import OfertaDoDiaCard from '@/components/OfertaDoDiaCard';
 import Contagem from '@/components/Contagem';
-import { ofertaDoDia, cfgCanais, cfgBF, listarJogos } from '@/lib/crescimento-servidor';
+import { ofertaDoDia, cfgCanais, cfgBF, listarJogos, lerTemaBlack, ofertasAntecipadas, painelBF } from '@/lib/crescimento-servidor';
 import { faseBF } from '@/lib/crescimento';
 
 export const metadata: Metadata = { alternates: { canonical: '/' } };
@@ -85,6 +85,12 @@ export default async function Home() {
     ofertaDoDia().catch(() => null), cfgCanais().catch(() => null), cfgBF().catch(() => null), listarJogos().then((l) => l.slice(0, 12)).catch(() => []),
   ]);
   const fase = bf ? faseBF(bf) : 'depois';
+  // Tema Black (Black November): bloco da campanha no topo + vitrine de descontos reais
+  const tema = await lerTemaBlack();
+  const vitrineBlack: Product[] = !tema.ativo ? []
+    : tema.fase === 'black' ? await painelBF().then((r) => r.produtos.slice(0, 8)).catch(() => [])
+    : await ofertasAntecipadas(8);
+  const diaBR = (s: string) => new Date(s).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', timeZone: 'America/Sao_Paulo' });
   const vistos = new Set<string>();
   const destaques = produtosPublicos([...doPlano, ...((destRes.data ?? []) as unknown as Product[])].filter((x) => (vistos.has(x.id) ? false : (vistos.add(x.id), true))).slice(0, 12));
   const maisVendidos = produtosPublicos(altaRes.data as Product[] | null);
@@ -136,7 +142,41 @@ export default async function Home() {
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(dadosOrganizacao(seo?.perfis ?? [], support_email || null)) }} />
       <Nav />
       <main>
-        {bf && fase !== 'depois' && (
+        {tema.ativo && (
+          <section className="bfh" aria-labelledby="bfh-t">
+            <div className="bfh-in">
+              <div>
+                <span className="bfh-tag">{tema.fase === 'black' ? '● AO VIVO' : 'BLACK NOVEMBER'} · {diaBR(tema.cfg.inicio)} A {diaBR(tema.cfg.fim)}</span>
+                {tema.fase === 'black' ? (
+                  <h2 id="bfh-t">A Black Friday Gamer <span>está no ar.</span></h2>
+                ) : (
+                  <h2 id="bfh-t">O mês mais barato do ano <span>é aqui.</span></h2>
+                )}
+                <p>
+                  {tema.fase === 'black'
+                    ? `Contas, skins, moedas e gift cards com pelo menos ${tema.cfg.descontoMin}% de desconto em cima do preço de antes. Pix na hora e dinheiro protegido até a entrega.`
+                    : `Contas, skins, moedas e gift cards com pelo menos ${tema.cfg.descontoMin}% de desconto de verdade: ninguém pode subir o preço antes para fingir promoção. Entre na lista e seja avisado no minuto em que abrir.`}
+                </p>
+                <div className="bfh-relogio">
+                  <small>{tema.fase === 'black' ? 'Termina em' : 'Começa em'}</small>
+                  <Contagem alvo={Date.parse(tema.fase === 'black' ? tema.cfg.fim : tema.cfg.inicio)} rotuloFim={tema.fase === 'black' ? 'Encerrada' : 'Começou!'} className="t" />
+                </div>
+                <div className="bfh-btns">
+                  <Link href="/black-friday?utm_source=site&utm_medium=home" className="btn btn-pri btn-lg">
+                    {tema.fase === 'black' ? 'Ver as ofertas' : 'Quero ser avisado'}
+                  </Link>
+                  {vitrineBlack.length > 0 && <a href="#ofertas-black" className="btn btn-ghost btn-lg">{tema.fase === 'black' ? 'Mais descontos' : 'Ofertas antecipadas'}</a>}
+                </div>
+              </div>
+              <div className="bfh-cards">
+                <Link href="/black-friday?utm_source=site&utm_medium=home_card" className="bfh-card"><span className="bfh-n">1</span><span><b>{tema.fase === 'black' ? 'Ofertas no ar agora' : 'Lista VIP da Black'}</b><small>{tema.fase === 'black' ? 'Os maiores descontos primeiro, até o último minuto.' : 'Aviso por e-mail e WhatsApp no minuto em que abrir.'}</small></span></Link>
+                <a href="#ofertas-black" className="bfh-card"><span className="bfh-n">%</span><span><b>{tema.fase === 'black' ? `Mínimo de ${tema.cfg.descontoMin}% OFF` : 'Esquenta: já com desconto'}</b><small>{tema.fase === 'black' ? 'Desconto calculado sobre o preço de antes da campanha.' : 'Anúncios que já baixaram o preço hoje.'}</small></span></a>
+                <LinkRastreado href="/vender/black-friday" className="bfh-card" evento="vendedor_cta" dados={{ origem: 'home' }}><span className="bfh-n">$</span><span><b>Vende aqui? Entre na Black</b><small>Escolha o preço da campanha. O site coloca no ar e tira sozinho.</small></span></LinkRastreado>
+              </div>
+            </div>
+          </section>
+        )}
+        {!tema.ativo && bf && fase !== 'depois' && (
           <Link href="/black-friday" className="bf-faixa" style={{ display: 'block', background: '#0E0E1A', color: '#fff', textDecoration: 'none' }}>
             <div className="c" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, padding: '10px var(--gut)', flexWrap: 'wrap', fontSize: 14 }}>
               <b style={{ fontFamily: 'Outfit', color: '#FF9A3C' }}>BLACK FRIDAY GAMER</b>
@@ -203,6 +243,14 @@ export default async function Home() {
           </div></section>
         )}
 
+        {tema.ativo && vitrineBlack.length > 0 && (
+          <section className="nz" id="ofertas-black" aria-labelledby="h-bfv" style={{ scrollMarginTop: 120 }}><div className="c"><div className="bfv">
+            <div className="v3-st"><div><div className="slabel">{tema.fase === 'black' ? 'Black Friday Gamer' : 'Esquenta Black'}</div><h2 id="h-bfv">{tema.fase === 'black' ? 'Os maiores descontos da Black' : 'Já com desconto hoje'}</h2></div><Link href="/black-friday" className="v3-st-l">Ver tudo<Icon name="chevronRight" size={16} /></Link></div>
+            <p className="v3-st-sub">{tema.fase === 'black' ? 'Ordenados pelo maior desconto. Preço da campanha válido até o fim da Black.' : 'Não precisa esperar: estes anúncios já estão com preço promocional. Maior desconto primeiro.'}</p>
+            <div className="pg">{vitrineBlack.map((p) => <ProductCard key={p.id} p={p} origem="home" />)}</div>
+          </div></div></section>
+        )}
+
         {jogosTop.length > 0 && (
           <section className="nz" aria-labelledby="h-jg"><div className="c">
             <div className="v3-st"><div><div className="slabel">Por jogo</div><h2 id="h-jg">Jogos populares</h2></div><Link href="/jogos" className="v3-st-l">Ver todos<Icon name="chevronRight" size={16} /></Link></div>
@@ -261,10 +309,10 @@ export default async function Home() {
         <section className="nz"><div className="c">
           <div className="band">
             <div style={{ maxWidth: 620 }}>
-              <h2>Tem conta, skin, gold ou gift card parado? Venda aqui.</h2>
-              <p>Anúncio grátis, sem mensalidade. Você paga a partir de {String(taxa).replace('.', ',')}% só quando vender e saca por Pix.</p>
+              <h2>{tema.ativo ? 'A Black Friday é o maior pico de vendas do ano. Esteja dentro.' : 'Tem conta, skin, gold ou gift card parado? Venda aqui.'}</h2>
+              <p>Anúncio grátis, sem mensalidade. Você paga a partir de {String(taxa).replace('.', ',')}% só quando vender e saca por Pix.{tema.ativo ? ' Inscreva seus produtos na Black Friday Gamer e apareça para quem está pronto para comprar.' : ''}</p>
             </div>
-            <LinkRastreado href="/seja-vendedor" className="btn btn-pri btn-lg" evento="vendedor_cta" dados={{ origem: 'home' }}>Criar minha loja grátis</LinkRastreado>
+            <LinkRastreado href={tema.ativo ? '/vender/black-friday' : '/seja-vendedor'} className="btn btn-pri btn-lg" evento="vendedor_cta" dados={{ origem: 'home' }}>{tema.ativo ? 'Inscrever na Black Friday' : 'Criar minha loja grátis'}</LinkRastreado>
           </div>
         </div></section>
       </main>

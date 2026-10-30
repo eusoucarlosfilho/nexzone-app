@@ -863,3 +863,84 @@ button.ui-stat{text-align:left;cursor:pointer;font:inherit}
 
 /* viewport-fit=cover (layout.tsx): o conteúdo não entra embaixo do entalhe do iPhone deitado */
 @supports (padding: env(safe-area-inset-left)) { body { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); } }
+
+/* ============================================================
+   TEMA BLACK (Black November) — ligado por html[data-tema="black"]
+   Admin › Configurações › Crescimento › Tema Black (auto / ligado / desligado)
+   ============================================================ */
+@keyframes bfx-brilho{0%{background-position:-160% 0}100%{background-position:260% 0}}
+@keyframes bfx-pulso{0%,100%{box-shadow:0 0 0 0 rgba(255,107,0,.55)}50%{box-shadow:0 0 0 6px rgba(255,107,0,0)}}
+
+/* faixa global com contagem */
+.bfx{display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;background:#000;color:#fff;padding:9px var(--gut);font-size:13.5px;font-weight:800;text-align:center;line-height:1.3;position:relative;overflow:hidden;border-bottom:2px solid var(--orange)}
+.bfx:before{content:'';position:absolute;inset:0;background:linear-gradient(100deg,transparent 30%,rgba(255,154,60,.22) 50%,transparent 70%);background-size:60% 100%;background-repeat:no-repeat;animation:bfx-brilho 4.5s linear infinite;pointer-events:none}
+.bfx>*{position:relative}
+.bfx-tag{background:var(--orange);color:#000;font-family:'Outfit';font-weight:900;font-size:11px;letter-spacing:1.2px;border-radius:999px;padding:3px 9px;animation:bfx-pulso 2s ease-in-out infinite}
+.bfx-black .bfx-tag{background:#fff}
+.bfx-t{font-family:'Outfit';font-weight:900;letter-spacing:.6px;color:var(--orange2)}
+.bfx-q{opacity:.8;font-weight:700}
+.bfx-c{font-family:'Outfit';font-weight:900;font-size:15px;color:#fff;min-width:96px;text-align:left}
+.bfx-cta{text-decoration:underline;text-underline-offset:3px;color:#FFB273}
+.bfx:hover .bfx-cta{color:#fff}
+@media(max-width:640px){.bfx{gap:6px 8px;font-size:12.5px;padding:8px 12px}.bfx-q{display:none}.bfx-c{min-width:0;font-size:14px}.bfx-t{font-size:12.5px}}
+
+html[data-tema="black"] .topbar{background:#0B0B0B;border-bottom:1px solid #1E1E1E}
+html[data-tema="black"] nav.nz:after{content:'';position:absolute;left:0;right:0;bottom:-1px;height:3px;background:linear-gradient(90deg,#000 0%,var(--orange) 35%,var(--orange2) 65%,#000 100%)}
+html[data-tema="black"] .nav-black{display:inline-flex}
+.nav-black{display:none;align-items:center;gap:6px;background:#000;color:#fff;border-radius:999px;padding:7px 13px;font-family:'Outfit';font-weight:900;font-size:13px;letter-spacing:.4px;white-space:nowrap;border:1.5px solid #000;transition:all .2s var(--ease)}
+.nav-black i{font-style:normal;color:var(--orange2)}
+.nav-black:hover{background:var(--orange);color:#000;border-color:var(--orange)}
+.nav-black:hover i{color:#000}
+@media(max-width:1100px){.nav-black{display:none!important}}
+
+/* selo BLACK em todo desconto real */
+html[data-tema="black"] .pc .badge.off{background:#000;color:var(--orange2);border:1px solid rgba(255,154,60,.55)}
+html[data-tema="black"] .pc .badge.off:before{content:'BLACK ';color:#fff;font-weight:900;margin-right:2px}
+
+/* topo da home e carrossel no preto */
+html[data-tema="black"] section.nz.car-topo{background:#000;padding-bottom:20px}
+html[data-tema="black"] .car-topo+.v3-hero{margin-top:0}
+html[data-tema="black"] .car{background:#111;box-shadow:0 0 0 1px #262626}
+html[data-tema="black"] .v3-hero{background:#000 radial-gradient(60% 80% at 100% 0%,rgba(255,107,0,.28),transparent 70%);border-bottom:3px solid var(--orange);color:#fff}
+html[data-tema="black"] .v3-eyebrow{color:var(--orange2)}
+html[data-tema="black"] .v3-h1 .g{color:var(--orange2)}
+html[data-tema="black"] .v3-sub{color:#C9C9D6}
+html[data-tema="black"] .v3-selos{color:#E6E6EE}
+html[data-tema="black"] .v3-selos svg{color:var(--orange2)}
+html[data-tema="black"] .v3-nums small{color:#A9A9BA}
+html[data-tema="black"] .v3-cats-hd h2{color:#fff}
+html[data-tema="black"] .v3-cats-hd a{color:var(--orange2)}
+html[data-tema="black"] .v3-busca{border-color:#000}
+html[data-tema="black"] .band{background:#000;box-shadow:0 0 0 2px var(--orange) inset}
+html[data-tema="black"] ::selection{background:#000;color:var(--orange2)}
+
+/* bloco da Black na home */
+.bfh{background:#000;color:#fff;position:relative;overflow:hidden}
+.bfh:before{content:'BLACK';position:absolute;right:-30px;bottom:-60px;font-family:'Outfit';font-weight:900;font-size:clamp(120px,22vw,300px);letter-spacing:-8px;line-height:1;color:transparent;-webkit-text-stroke:2px rgba(255,107,0,.22);pointer-events:none}
+.bfh-in{max-width:var(--wrap);margin:0 auto;padding:40px var(--gut) 36px;position:relative;display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:32px;align-items:center}
+.bfh-tag{display:inline-flex;align-items:center;gap:8px;background:var(--orange);color:#000;font-family:'Outfit';font-weight:900;font-size:12px;letter-spacing:1.4px;border-radius:999px;padding:6px 12px}
+.bfh h2{font-family:'Outfit';font-weight:900;font-size:clamp(34px,5.4vw,66px);line-height:.98;letter-spacing:-2px;margin:14px 0 12px}
+.bfh h2 span{color:var(--orange)}
+.bfh p{color:#C9C9D6;font-size:16.5px;max-width:560px}
+.bfh-relogio{display:flex;align-items:baseline;gap:10px;margin:20px 0 18px;flex-wrap:wrap}
+.bfh-relogio small{font-size:13px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#A9A9BA}
+.bfh-relogio .t{font-family:'Outfit';font-weight:900;font-size:clamp(28px,3.6vw,42px);color:var(--orange2)}
+.bfh-btns{display:flex;gap:10px;flex-wrap:wrap}
+.bfh-btns .btn-ghost{background:transparent;color:#fff;border-color:#3A3A3A}
+.bfh-btns .btn-ghost:hover{border-color:var(--orange);color:var(--orange2)}
+.bfh-cards{display:grid;gap:10px}
+.bfh-card{display:flex;gap:14px;align-items:center;background:#111;border:1px solid #262626;border-radius:18px;padding:14px 16px;color:#fff;transition:border-color .2s,transform .2s var(--ease)}
+.bfh-card:hover{border-color:var(--orange);transform:translateX(4px)}
+.bfh-card b{font-family:'Outfit';font-size:16px;display:block;line-height:1.2}
+.bfh-card small{color:#A9A9BA;font-size:13px;font-weight:700;display:block;margin-top:2px}
+.bfh-n{flex:none;width:44px;height:44px;border-radius:12px;background:var(--orange);color:#000;display:flex;align-items:center;justify-content:center;font-family:'Outfit';font-weight:900;font-size:18px}
+@media(max-width:860px){.bfh-in{grid-template-columns:minmax(0,1fr);gap:20px;padding:28px var(--gut)}.bfh h2{letter-spacing:-1.2px}}
+
+/* vitrine "Esquenta Black / Ofertas da Black" */
+.bfv{background:#000;border-radius:28px;padding:28px;color:#fff}
+.bfv .v3-st h2{color:#fff}
+.bfv .slabel{color:var(--orange2)}
+.bfv .v3-st-l{color:var(--orange2)}
+.bfv .v3-st-sub{color:#A9A9BA}
+@media(max-width:640px){.bfv{padding:18px;border-radius:20px;margin:0 calc(var(--gut) * -1);border-radius:0}}
+html[data-tema="black"] .v3-cat{color:var(--text)}

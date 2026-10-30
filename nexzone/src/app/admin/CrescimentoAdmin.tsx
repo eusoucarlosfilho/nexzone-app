@@ -5,6 +5,7 @@ import { toast } from '@/lib/toast';
 // Admin › Configurações › Crescimento: Black Friday Gamer, oferta do dia e canais de ofertas.
 type Dados = {
   sql30: boolean;
+  tema: { modo: 'auto' | 'ligado' | 'desligado'; ativo: boolean; fase: 'esquenta' | 'black' | null };
   bf: { inicio: string; fim: string; descontoMin: number; fase: 'antes' | 'durante' | 'depois'; lista: number; avisados: number; inscritos: number };
   canais: { whatsapp: string; telegram: string; telegramToken: boolean; telegramChat: string; hora: number; postadoHoje: boolean; manualHoje: boolean };
   oferta: { id: string; titulo: string; preco: number; preco_promo: number | null; link: string; texto: string } | null;
@@ -54,7 +55,15 @@ export default function CrescimentoAdmin() {
       <h3 className="adm-ct" style={{ marginTop: 0 }}>Crescimento: Black Friday, oferta do dia e canais</h3>
       {!d.sql30 && <p style={{ color: '#B45309', fontWeight: 700, fontSize: 13.5 }}>Falta rodar o SQL 30 para a lista de espera e a inscrição da Black Friday.</p>}
 
-      <h4 style={{ fontFamily: 'Outfit', margin: '10px 0 6px' }}>Black Friday Gamer · {fase}</h4>
+      <h4 style={{ fontFamily: 'Outfit', margin: '10px 0 6px' }}>Tema Black do site · {d.tema.ativo ? (d.tema.fase === 'black' ? 'LIGADO (Black ao vivo)' : 'LIGADO (Esquenta Black)') : 'desligado'}</h4>
+      <p style={{ fontSize: 13.5, margin: '0 0 8px', color: 'var(--sub)' }}>Faixa preta com contagem em todas as páginas, botão BLACK FRIDAY no menu, topo da home no preto, selo BLACK nos descontos e vitrine &quot;Esquenta Black&quot;. No automático, liga 30 dias antes do início e desliga sozinho quando a Black termina.</p>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        {([['auto', 'Automático'], ['ligado', 'Ligado agora'], ['desligado', 'Desligado']] as const).map(([m, rot]) => (
+          <button key={m} className={`adm-btn ${d.tema.modo === m ? 'ap' : 'rp'}`} disabled={!!busy || d.tema.modo === m} onClick={() => post({ acao: 'salvar_tema', modo: m }, 'Tema salvo. O site atualiza em até 1 minuto.')}>{d.tema.modo === m ? '✓ ' : ''}{rot}</button>
+        ))}
+      </div>
+
+      <h4 style={{ fontFamily: 'Outfit', margin: '22px 0 6px' }}>Black Friday Gamer · {fase}</h4>
       <p style={{ fontSize: 13.5, margin: '0 0 10px' }}><b>{d.bf.lista}</b> na lista de espera ({d.bf.avisados} já avisados) · <b>{d.bf.inscritos}</b> produtos inscritos pelos vendedores · página <a href="/black-friday" target="_blank" rel="noreferrer">/black-friday</a></p>
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
         {c('inicio', 'Começa (horário de Brasília)', { type: 'datetime-local' })}

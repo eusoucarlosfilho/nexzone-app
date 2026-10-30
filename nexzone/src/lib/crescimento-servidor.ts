@@ -5,9 +5,11 @@ import { PRODUTO_CARD } from '@/lib/consultas';
 import { produtosPublicos } from '@/lib/vendedorPublico';
 import type { Product } from '@/lib/types';
 import { sendBatch, layoutEmail, SITE_URL } from '@/lib/email';
+import { unstable_cache, revalidateTag } from 'next/cache';
 import {
   agruparJogos, slugJogo, tipoPorSlug, CAMPANHA_BF, lerCfgBF, faseBF, escolherOferta, hojeBR, textoOfertaCanal,
-  type JogoResumo, type CfgBF,
+  lerModoTema, temaBlack, ordenarPorDesconto,
+  type JogoResumo, type CfgBF, type ModoTema, type FaseTema,
 } from './crescimento';
 
 type Admin = ReturnType<typeof createAdminClient>;
@@ -214,4 +216,33 @@ export async function rotinaCrescimento(admin: Admin) {
     }
   } catch { telegram = 'erro'; }
   return { bf, telegram };
+}
+
+// ---------- 4. Tema Black (Black November) ----------
+// Lido em TODAS as páginas (layout): cache de 60 s, limpo na hora quando o admin muda o tema ou as datas.
+const lerCfgTema = unstable_cache(async () => {
+  const m = await lerSettings(createAdminClient(), ['tema_black', 'bf_inicio', 'bf_fim', 'bf_desconto_min']);
+  return { modo: lerModoTema(m.tema_black), cfg: lerCfgBF(m) };
+}, ['tema-black'], { revalidate: 60, tags: ['tema-black'] });
+export const limparCacheTema = () => { try { revalidateTag('tema-black'); } catch { /* fora de requisição */ } };
+
+export type TemaAtual = { modo: ModoTema; cfg: CfgBF; ativo: boolean; fase: FaseTema | null };
+export async function lerTemaBlack(): Promise<TemaAtual> {
+  try {
+    const { modo, cfg } = await lerCfgTema();
+    return { modo, cfg, ...temaBlack(modo, cfg) };
+  } catch {
+    const cfg = lerCfgBF({});
+    return { modo: 'auto', cfg, ...temaBlack('auto', cfg) };
+  }
+}
+
+/** Esquenta Black: anúncios que JÁ estão com desconto real hoje (maior % primeiro). */
+export async function ofertasAntecipadas(limite = 8, minimoPct = 5): Promise<Product[]> {
+  try {
+    const { data, error } = await createClient().from('products').select(PRODUTO_CARD).eq('status', 'ativo').not('preco_promo', 'is', null).limit(300);
+    if (error) return [];
+    const lista = produtosPublicos(data as unknown as Product[] | null);
+    return ordenarPorDesconto(lista.map((p) => ({ ...p, preco: Number(p.preco), preco_promo: p.preco_promo == null ? null : Number(p.preco_promo) })), minimoPct).slice(0, limite);
+  } catch { return []; }
 }

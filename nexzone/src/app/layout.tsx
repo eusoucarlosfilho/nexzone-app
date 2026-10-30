@@ -9,6 +9,8 @@ import { FavoritesProvider } from '@/lib/favorites';
 import { RegistrarApp } from '@/components/AppInstalavel';
 import { MARCA, SITE, OG_PADRAO } from '@/lib/seoSite';
 import { lerSeoConfig } from '@/lib/seo-servidor';
+import FaixaBlack from '@/components/FaixaBlack';
+import { lerTemaBlack } from '@/lib/crescimento-servidor';
 
 // SEO global: endereço base, nome da marca, imagem padrão de compartilhamento e verificação do Google/Bing
 // (os códigos são colados pelo admin em Admin → SEO e Google).
@@ -34,16 +36,22 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 // viewportFit 'cover': libera env(safe-area-inset-bottom) para nada ficar atrás da barra do Safari/iPhone
-export const viewport: Viewport = { themeColor: '#FF6B00', viewportFit: 'cover' };
+// Tema Black ligado: barra do navegador do celular fica preta.
+export async function generateViewport(): Promise<Viewport> {
+  const tema = await lerTemaBlack();
+  return { themeColor: tema.ativo ? '#000000' : '#FF6B00', viewportFit: 'cover' };
+}
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const tema = await lerTemaBlack();
+  const alvo = Date.parse(tema.fase === 'black' ? tema.cfg.fim : tema.cfg.inicio);
   return (
-    <html lang="pt-BR">
+    <html lang="pt-BR" data-tema={tema.ativo ? 'black' : undefined}>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800;900&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet" />
       </head>
-      <body><FavoritesProvider><NoticeBanner />{children}</FavoritesProvider><Toaster /><BuyerNotifier /><SiteTracker /><OrigemCadastro /><RegistrarApp /></body>
+      <body><FavoritesProvider><NoticeBanner />{tema.ativo && tema.fase && <FaixaBlack fase={tema.fase} alvo={alvo} />}{children}</FavoritesProvider><Toaster /><BuyerNotifier /><SiteTracker /><OrigemCadastro /><RegistrarApp /></body>
     </html>
   );
 }
