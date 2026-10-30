@@ -249,6 +249,26 @@ export default function AdminDashboard({ painel, adminEmail, users, metrics, dai
     } finally { setBusy(null); }
   }
 
+  // Cliente diz que pagou e o pedido segue pendente: consulta o Pix direto na MisticPay e libera se caiu
+  async function conferirPix(id?: string) {
+    setBusy(id || 'todos');
+    try {
+      const r = await fetch('/api/admin/order-status', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        credentials: 'include', body: JSON.stringify(id ? { id, action: 'conferir' } : { action: 'conferir_todos' }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (id) {
+        if (d.resultado === 'liberado') setOrderList((l: any[]) => l.map((o) => o.id === id ? { ...o, status: 'entregue' } : o));
+        toast(d.mensagem || d.error || 'Falha ao conferir.', d.resultado === 'liberado' ? 'success' : r.ok ? 'info' : 'error');
+      } else {
+        const lib: string[] = d.liberados || [];
+        if (lib.length) setOrderList((l: any[]) => l.map((o) => lib.includes(o.id) ? { ...o, status: 'entregue' } : o));
+        toast(r.ok ? `${d.conferidos || 0} Pix conferidos na MisticPay · ${lib.length} liberados${d.erros ? ` · ${d.erros} sem resposta` : ''}.` : (d.error || 'Falha ao conferir.'), lib.length ? 'success' : 'info');
+      }
+    } finally { setBusy(null); }
+  }
+
   async function reembolsar(id: string) {
     if (!confirm('Confirmar reembolso? Marque como reembolsado SOMENTE após estornar o valor no Mercado Pago.')) return;
     setBusy(id);
@@ -501,6 +521,10 @@ export default function AdminDashboard({ painel, adminEmail, users, metrics, dai
             <h1 className="adm-h">Pedidos</h1>
             <p className="adm-sub">Todos os pedidos da plataforma.</p>
             <RecuperacaoVendas />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', margin: '0 0 10px' }}>
+              <button className="adm-btn rp" disabled={busy === 'todos'} onClick={() => conferirPix()}>{busy === 'todos' ? 'Conferindo na MisticPay…' : 'Conferir Pix pendentes na MisticPay'}</button>
+              <small style={{ color: 'var(--sub)' }}>Libera quem pagou e ficou &quot;Aguardando pagamento&quot; (aviso do gateway perdido). Últimos 7 dias. A rotina de 1 em 1 minuto já faz isso sozinha nas últimas 48 h.</small>
+            </div>
             <div className="adm-filters">
               {['todos', 'pendente', 'abandonou', 'pago', 'entregue', 'reembolsado'].map((f) => (
                 <button key={f} className={`adm-fb ${orderFilter === f ? 'on' : ''}`} onClick={() => setOrderFilter(f)}>
@@ -531,6 +555,7 @@ export default function AdminDashboard({ painel, adminEmail, users, metrics, dai
                             return wa ? <a className="adm-btn ap" href={wa} target="_blank" rel="noreferrer" onClick={() => registrarContatoRecuperacao(chave, 'whatsapp')} style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}>WhatsApp</a>
                               : o.comprador_email ? <a className="adm-btn rp" href={`mailto:${o.comprador_email}?subject=${encodeURIComponent('Sua compra no Comprei Barato')}&body=${encodeURIComponent(msg)}`} onClick={() => registrarContatoRecuperacao(chave, 'email')} style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}>E-mail</a> : null;
                           })()}
+                          {o.status === 'pendente' && <button className="adm-btn rp" disabled={busy === o.id} onClick={() => conferirPix(o.id)}>{busy === o.id ? 'Conferindo…' : 'Conferir Pix'}</button>}
                           <button className="adm-btn rp" onClick={() => setChatOrder(o.id)}>Conversa</button>
                           {(o.status === 'pago' || o.status === 'entregue') && <button className="adm-btn rp" disabled={busy === o.id} onClick={() => reembolsar(o.id)}>Reembolsar</button>}
                         </td>

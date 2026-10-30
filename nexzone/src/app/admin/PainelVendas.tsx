@@ -187,8 +187,8 @@ export default function PainelVendas({ vendas, destaques, saques, cadastros, loj
           <Delta atual={r.faturamento} anterior={ra.faturamento} /><em>antes: {brl(ra.faturamento)}</em>
         </div>
         <div className="pv-k">
-          <small>Sua receita (comissão {String(comissao).replace('.', ',')}%)</small><b>{brl(r.receita)}</b>
-          <Delta atual={r.receita} anterior={ra.receita} /><em>+ destaques: {brl(dados.dest.valor)}</em>
+          <small>Sua receita líquida (taxas − MisticPay/Stripe)</small><b style={r.liquido < 0 ? { color: '#C81E1E' } : undefined}>{brl(r.liquido)}</b>
+          <Delta atual={r.liquido} anterior={ra.liquido} /><em>bruta {brl(r.receita)} − tarifas {brl(r.custoGateway)}{dados.dest.valor ? ` · + destaques ${brl(dados.dest.valor)}` : ''}</em>
         </div>
         <div className="pv-k">
           <small>Vendas pagas</small><b>{num(r.vendas)}</b>
@@ -297,7 +297,7 @@ export default function PainelVendas({ vendas, destaques, saques, cadastros, loj
                   <div className="pv-rk">
                     <div className="pv-rk-l"><b>{nomes.lojas[x.id] ?? 'Loja removida'}</b><strong>{brl(x.faturamento)}</strong></div>
                     <div className="pv-trilha"><i style={{ width: `${(x.faturamento / dados.lojas[0].faturamento) * 100}%` }} /></div>
-                    <small>{num(x.vendas)} venda{x.vendas === 1 ? '' : 's'} · ticket {brl(x.ticket)} · {pct(x.parte)} do total · comissão {brl(x.receita)}</small>
+                    <small>{num(x.vendas)} venda{x.vendas === 1 ? '' : 's'} · ticket {brl(x.ticket)} · {pct(x.parte)} do total · receita {brl(x.receita)}</small>
                   </div>
                 </li>
               ))}

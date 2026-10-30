@@ -1,6 +1,7 @@
 'use client';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from '@/lib/toast';
+import ConferenciaTaxas from './ConferenciaTaxas';
 import { createClient } from '@/lib/supabase/client';
 import { CATEGORIAS, rotuloCategoria, valorNoMes, csvMes, type Custo, type MesFin, type ConfigFin } from '@/lib/financeiro';
 
@@ -258,6 +259,7 @@ export default function FinanceiroPainel() {
           )}
         </div>
       </div>
+      <ConferenciaTaxas />
     </div>
   );
 }

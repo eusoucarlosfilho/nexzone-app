@@ -10,10 +10,13 @@ import { galeriaDe } from '@/lib/galeria';
 import { numerosReais, vendasRecentes } from '@/lib/provaSocial';
 import { adminSeguro } from '@/lib/ofertas/adminSeguro';
 import type { VendaDash, ExtraDash } from '@/lib/dashboardVendas';
+import { lerCfgFin } from '@/lib/financeiro-servidor';
+import { financeiroDoPedido } from '@/lib/financeiro';
 
 // Dashboard: TODOS os pedidos (em páginas de 1000, o limite do Supabase), só com os campos dos cálculos.
 // Tenta ler a forma de pagamento (SQL 17); sem ela, segue sem.
 async function pedidosDoDashboard(admin: any): Promise<{ vendas: VendaDash[]; temForma: boolean }> {
+  const cfgFin = await lerCfgFin(admin);
   const base = 'id, status, total, taxa, valor_vendedor, created_at, entregue_em, store_id, product_id, comprador';
   let temForma = true;
   let temTaxaComprador = true; // SQL 21
@@ -40,6 +43,8 @@ async function pedidosDoDashboard(admin: any): Promise<{ vendas: VendaDash[]; te
       i: o.id, s: o.status, v: n(o.total),
       // receita da plataforma = taxa do plano do vendedor + taxa de serviço que o comprador pagou no método usado
       t: n(Number(o.taxa || 0) + (o.forma_pagamento === 'cartao' ? Number(o.taxa_comprador_cartao || 0) : o.forma_pagamento === 'pix' ? Number(o.taxa_comprador_pix || 0) : 0)), r: n(o.valor_vendedor), c: o.created_at, p: o.entregue_em ?? null,
+      // tarifa do gateway que sai da receita (mesma conta do Financeiro; sem forma registrada = Pix)
+      g: o.status === 'pago' || o.status === 'entregue' || o.status === 'reembolsado' ? financeiroDoPedido({ ...o, forma_pagamento: o.forma_pagamento ?? 'pix' }, cfgFin).gateway : 0,
       l: o.store_id, d: o.product_id, u: o.comprador, f: o.forma_pagamento === 'pix' || o.forma_pagamento === 'cartao' ? o.forma_pagamento : null,
     })),
   };
