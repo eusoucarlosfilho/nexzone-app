@@ -31,6 +31,7 @@ import ProdutoresInteressados from './ProdutoresInteressados';
 import SeoGoogle from './SeoGoogle';
 import TaxasPlanos from './TaxasPlanos';
 import DadosEmpresa from './DadosEmpresa';
+import FinanceiroPainel from './FinanceiroPainel';
 import RecuperacaoVendas from './RecuperacaoVendas';
 import { registrarContatoRecuperacao } from '@/lib/recuperacaoCliente';
 import { chaveRecuperacao } from '@/lib/filaRecuperacao';
@@ -269,6 +270,7 @@ export default function AdminDashboard({ painel, adminEmail, users, metrics, dai
     ['vendedores', 'store', 'Usuários', metrics.lojasPendentes],
     ['produtos', 'package', 'Produtos', 0],
     ['saques', 'money', 'Saques', metrics.saquesPendentes],
+    ['financeiro', 'wallet', 'Financeiro', 0],
     ['destaques', 'star', 'Destaques', metrics.destaquesAtivos],
     ['crescimento', 'growth', 'Crescimento', 0],
     ['seo', 'search', 'SEO e Google', 0],
@@ -960,6 +962,14 @@ export default function AdminDashboard({ painel, adminEmail, users, metrics, dai
 
         {tab === 'suporte' && (
           <SupportTab protocoloInicial={suporteProtocolo} onVerPedidos={() => irPara('pedidos', 0)} />
+        )}
+
+        {tab === 'financeiro' && (
+          <>
+            <h1 className="adm-h">Financeiro</h1>
+            <p className="adm-sub">Quanto a plataforma fatura (só o que é dela), quanto custa e quanto sobra. O dinheiro dos vendedores aparece separado.</p>
+            <FinanceiroPainel />
+          </>
         )}
 
         {tab === 'config' && (
