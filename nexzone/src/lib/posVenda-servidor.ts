@@ -1,4 +1,5 @@
 // Pós-venda (SQL 19) no SERVIDOR: oferta depois da compra e recuperação de carrinho.
+import { recuperacaoPausada } from './recuperacao-servidor';
 import { getGateway } from '@/lib/payments/gateway';
 import { getSettings, lerTaxas } from '@/lib/settings';
 import { divisaoVendedor, taxaComprador, planoEfetivo } from './taxas';
@@ -168,6 +169,8 @@ export async function lembrarCarrinhos(admin: any, minutos = 60): Promise<{ envi
       const filtro = (q: any) => (c.user_id ? q.eq('comprador', c.user_id) : q.eq('comprador_email', c.email));
       const { data: pedidos } = await filtro(admin.from('orders').select('id, status, created_at').eq('product_id', c.product_id)).gte('created_at', new Date(new Date(c.atualizado_em).getTime() - 5 * 60000).toISOString()).limit(5);
       if (((pedidos ?? []) as any[]).length) { await admin.from('carrinhos_abandonados').update({ [e.coluna]: new Date().toISOString() }).eq('id', c.id); continue; }
+      // Admin marcou "Desistiu" na fila de recuperação (SQL 26): marca a etapa e não envia
+      if (await recuperacaoPausada(admin, c.email, c.user_id, c.product_id)) { await admin.from('carrinhos_abandonados').update({ [e.coluna]: new Date().toISOString() }).eq('id', c.id); continue; }
       // trava: marca antes de enviar (não envia em dobro)
       const { data: marcado } = await admin.from('carrinhos_abandonados').update({ [e.coluna]: new Date().toISOString() }).eq('id', c.id).is(e.coluna, null).select('id');
       if (!marcado?.length) continue;

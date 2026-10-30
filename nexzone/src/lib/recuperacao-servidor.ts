@@ -9,6 +9,8 @@ import { avisarWhatsApp, link } from './whatsapp/enviar';
 import { sendEmail, layoutEmail, emailDoUsuario, moneyBR, esc, SITE_URL } from './email';
 import { linkRecuperacao } from './posVenda';
 import { carregarPosVenda } from './posVenda-servidor';
+import { montarFila, chaveRecuperacao, type ItemFila, type Canal } from './filaRecuperacao';
+import { contatosDosCompradores } from './clientesPedidos';
 
 /** Limita a busca a uma loja (painel do vendedor). storeId filtra os pedidos; productIds, os carrinhos. */
 export type Escopo = { storeId?: string; productIds?: string[] };
@@ -68,11 +70,14 @@ export async function carrinhosAntigos(admin: any, dias = 7, escopo: Escopo = {}
 /** Envia para os antigos, no máximo `limite` por vez, com intervalo entre um e outro. */
 export async function recuperarAntigos(admin: any, { dias = 7, limite = 12, intervaloMs = 2000, escopo = {} as Escopo } = {}) {
   let enviados = 0, pulados = 0;
+  // Não manda para quem desistiu nem para quem alguém já chamou à mão nas últimas 24 h (SQL 26)
+  const pausados = await chavesPausadas(admin, 24);
   const inicio = Date.now();
   const noPrazo = () => Date.now() - inicio < 45000; // a função da Vercel tem 60 s
 
   for (const o of await pedidosAntigos(admin, dias, escopo)) {
     if (enviados >= limite || !noPrazo()) break;
+    if (pausados.has(chaveRecuperacao(o.comprador_email, o.comprador, o.product_id))) { pulados++; continue; }
     if (await jaComprou(admin, o.comprador, o.comprador_email, o.product_id)) { pulados++; continue; }
     const { error: trava } = await admin.from('lembretes_pix').insert({ order_id: o.id, etapa: 'retro' });
     if (trava) { pulados++; continue; }
@@ -95,6 +100,7 @@ export async function recuperarAntigos(admin: any, { dias = 7, limite = 12, inte
 
   for (const c of await carrinhosAntigos(admin, dias, escopo)) {
     if (enviados >= limite || !noPrazo()) break;
+    if (pausados.has(chaveRecuperacao(c.email, c.user_id, c.product_id))) { pulados++; continue; }
     if (await jaComprou(admin, c.user_id, c.email, c.product_id)) { pulados++; await admin.from('carrinhos_abandonados').update({ lembrete_24h: new Date().toISOString() }).eq('id', c.id); continue; }
     const { data: marcado } = await admin.from('carrinhos_abandonados').update({ lembrete_24h: new Date().toISOString() }).eq('id', c.id).is('lembrete_24h', null).select('id');
     if (!marcado?.length) { pulados++; continue; }
@@ -114,6 +120,99 @@ export async function recuperarAntigos(admin: any, { dias = 7, limite = 12, inte
     await espera(intervaloMs);
   }
 
-  const restantes = (await pedidosAntigos(admin, dias, escopo)).length + (await carrinhosAntigos(admin, dias, escopo)).length;
+  const el = await antigosElegiveis(admin, dias, escopo);
+  const restantes = el.pedidos.length + el.carrinhos.length;
   return { enviados, pulados, restantes };
+}
+
+// ============================================================
+// Fila de recuperação (SQL 26): uma linha por pessoa + produto, com o histórico de tudo que já saiu.
+// ============================================================
+
+const EVENTOS_RECUP = ['pix_gerado', 'pix_lembrete', 'pix_lembrete_24h', 'carrinho_1h', 'carrinho_24h'];
+
+/** Clientes pausados: marcados como "Desistiu" (+ contatados à mão nas últimas `horasManual` h, se pedido). */
+export async function chavesPausadas(admin: any, horasManual = 0): Promise<Set<string>> {
+  const out = new Set<string>();
+  try {
+    const { data } = await admin.from('recuperacao_situacao').select('chave').eq('situacao', 'desistiu').limit(5000);
+    ((data ?? []) as any[]).forEach((r) => out.add(r.chave));
+    if (horasManual > 0) {
+      const { data: m } = await admin.from('recuperacao_contatos').select('chave').gte('created_at', new Date(Date.now() - horasManual * 3600000).toISOString()).limit(5000);
+      ((m ?? []) as any[]).forEach((r) => out.add(r.chave));
+    }
+  } catch { /* sem SQL 26 */ }
+  return out;
+}
+
+/** Cliente marcou "Desistiu"? (os lembretes automáticos param para ele) */
+export async function recuperacaoPausada(admin: any, email: string | null | undefined, userId: string | null | undefined, productId: string): Promise<boolean> {
+  try {
+    const { data, error } = await admin.from('recuperacao_situacao').select('chave').eq('chave', chaveRecuperacao(email, userId, productId)).maybeSingle();
+    return !error && !!data;
+  } catch { return false; }
+}
+
+export async function filaDeRecuperacao(admin: any, dias = 7): Promise<{ itens: ItemFila[]; sql26: boolean }> {
+  const desde = new Date(Date.now() - dias * DIA).toISOString();
+  const [pixR, cartR] = await Promise.all([
+    admin.from('orders').select('id, comprador, comprador_email, product_id, total, created_at, products(titulo, stores(nome))')
+      .eq('status', 'pendente').not('pix_code', 'is', null).gte('created_at', desde).order('created_at', { ascending: false }).limit(400),
+    admin.from('carrinhos_abandonados').select('id, product_id, user_id, email, nome, criado_em, atualizado_em, lembrete_1h, lembrete_24h, products(titulo, preco, preco_promo, status, stores(nome))')
+      .is('convertido_em', null).gte('atualizado_em', desde).order('atualizado_em', { ascending: false }).limit(400),
+  ]);
+  const pixRaw = ((pixR.data ?? []) as any[]);
+  const cartRaw = ((cartR.error ? [] : cartR.data ?? []) as any[]).filter((c) => c.products?.status === 'ativo');
+
+  // Quem pagou (ou gerou Pix, no caso do carrinho) do mesmo produto depois sai da fila
+  const prods = Array.from(new Set([...pixRaw, ...cartRaw].map((x) => x.product_id)));
+  const { data: depois } = prods.length
+    ? await admin.from('orders').select('comprador, comprador_email, product_id, status, created_at').in('product_id', prods).in('status', ['pendente', 'pago', 'entregue']).gte('created_at', desde).limit(5000)
+    : { data: [] };
+  const ords = (depois ?? []) as any[];
+  const mesmo = (o: any, user: string | null, email: string | null, prod: string) => o.product_id === prod
+    && ((user && o.comprador === user) || (email && String(o.comprador_email || '').toLowerCase() === String(email).toLowerCase()));
+  const pix = pixRaw.filter((p) => !ords.some((o) => ['pago', 'entregue'].includes(o.status) && mesmo(o, p.comprador, p.comprador_email, p.product_id) && o.created_at >= p.created_at));
+  const carrinhos = cartRaw.filter((c) => !ords.some((o) => mesmo(o, c.user_id, c.email, c.product_id) && new Date(o.created_at).getTime() >= new Date(c.atualizado_em).getTime() - 10 * 60000));
+
+  const userIds = Array.from(new Set([...pix.map((p) => p.comprador), ...carrinhos.map((c) => c.user_id)].filter(Boolean)));
+  const [logs, lembretes, manuais, desist, contatos] = await Promise.all([
+    userIds.length ? admin.from('whatsapp_log').select('evento, chave, status, created_at, enviado_em').in('user_id', userIds.slice(0, 500)).in('evento', EVENTOS_RECUP).gte('created_at', desde).limit(3000) : Promise.resolve({ data: [] }),
+    pix.length ? admin.from('lembretes_pix').select('order_id, etapa, enviado_em, canais').in('order_id', pix.map((p) => p.id).slice(0, 400)) : Promise.resolve({ data: [] }),
+    admin.from('recuperacao_contatos').select('chave, canal, por_nome, created_at').gte('created_at', desde).order('created_at', { ascending: true }).limit(3000),
+    admin.from('recuperacao_situacao').select('chave').eq('situacao', 'desistiu').limit(5000),
+    contatosDosCompradores(admin, userIds as string[]),
+  ]);
+  const sql26 = !(manuais as any).error;
+  const itens = montarFila({
+    pix: pix.map((p) => ({ id: p.id, comprador: p.comprador, comprador_email: p.comprador_email, product_id: p.product_id, total: Number(p.total), created_at: p.created_at, titulo: p.products?.titulo || 'Produto', loja: p.products?.stores?.nome ?? null })),
+    carrinhos: carrinhos.map((c) => ({ id: c.id, product_id: c.product_id, user_id: c.user_id, email: c.email, nome: c.nome, atualizado_em: c.atualizado_em, titulo: c.products?.titulo || 'Produto', loja: c.products?.stores?.nome ?? null, preco: c.products?.preco_promo ?? c.products?.preco ?? null, lembrete_1h: c.lembrete_1h, lembrete_24h: c.lembrete_24h })),
+    logs: (((logs as any).data ?? []) as any[]),
+    lembretes: (((lembretes as any).data ?? []) as any[]),
+    manuais: sql26 ? (((manuais as any).data ?? []) as any[]) : [],
+    desistiu: new Set((((desist as any).error ? [] : (desist as any).data ?? []) as any[]).map((r) => r.chave)),
+    contatos,
+  });
+  return { itens, sql26 };
+}
+
+export async function registrarContato(admin: any, chave: string, canal: Canal, por: { id: string; nome: string | null }) {
+  const { error } = await admin.from('recuperacao_contatos').insert({ chave: chave.slice(0, 200), canal, por: por.id, por_nome: (por.nome || 'Admin').slice(0, 80) });
+  return !error;
+}
+
+export async function marcarSituacao(admin: any, chave: string, desistiu: boolean, por: { id: string; nome: string | null }) {
+  const r = desistiu
+    ? await admin.from('recuperacao_situacao').upsert({ chave: chave.slice(0, 200), situacao: 'desistiu', por: por.id, por_nome: (por.nome || 'Admin').slice(0, 80), atualizado_em: new Date().toISOString() })
+    : await admin.from('recuperacao_situacao').delete().eq('chave', chave);
+  return !r.error;
+}
+
+/** Antigos que o botão "Chamar quem ficou para trás" vai chamar (sem quem desistiu ou já foi chamado à mão nas últimas 24 h). */
+export async function antigosElegiveis(admin: any, dias = 7, escopo: Escopo = {}) {
+  const [pedidos, carrinhos, pausados] = await Promise.all([pedidosAntigos(admin, dias, escopo), carrinhosAntigos(admin, dias, escopo), chavesPausadas(admin, 24)]);
+  return {
+    pedidos: pedidos.filter((o: any) => !pausados.has(chaveRecuperacao(o.comprador_email, o.comprador, o.product_id))),
+    carrinhos: carrinhos.filter((c: any) => !pausados.has(chaveRecuperacao(c.email, c.user_id, c.product_id))),
+  };
 }

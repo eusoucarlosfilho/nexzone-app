@@ -3,6 +3,7 @@
 // Chamado pela rotina /api/cron/eventos (a cada minuto) e pela página do pedido quando o pagamento aparece.
 // Nunca altera pedido, valor ou entrega: só LÊ o pedido e avisa Meta, TikTok, o sistema do vendedor e o comprador.
 // ============================================================
+import { recuperacaoPausada } from './recuperacao-servidor';
 import { lookup } from 'dns/promises';
 import { decifrar } from './whatsapp/config';
 import { ipPrivado } from './ofertas/puxarDados';
@@ -166,7 +167,7 @@ export async function lembrarPix(admin: any, minutos = 15): Promise<{ enviados: 
   let enviados = 0;
   for (const e of etapas) {
     const { data: pedidos, error } = await admin.from('orders')
-      .select('id, comprador, product_id, total, created_at, products(titulo)')
+      .select('id, comprador, comprador_email, product_id, total, created_at, products(titulo)')
       .eq('status', 'pendente').not('pix_code', 'is', null)
       .gte('created_at', new Date(agora - e.de * 60000).toISOString())
       .lte('created_at', new Date(agora - e.ate * 60000).toISOString())
@@ -177,6 +178,8 @@ export async function lembrarPix(admin: any, minutos = 15): Promise<{ enviados: 
       const { count } = await admin.from('orders').select('id', { count: 'exact', head: true })
         .eq('comprador', o.comprador).eq('product_id', o.product_id).in('status', ['pago', 'entregue']);
       if ((count ?? 0) > 0) continue;
+      // Admin marcou "Desistiu" na fila de recuperação (SQL 26): não incomoda mais
+      if (await recuperacaoPausada(admin, o.comprador_email, o.comprador, o.product_id)) continue;
       // Trava: um lembrete por etapa por pedido
       const { error: travaErr } = await admin.from('lembretes_pix').insert({ order_id: o.id, etapa: e.etapa });
       if (travaErr) continue;
