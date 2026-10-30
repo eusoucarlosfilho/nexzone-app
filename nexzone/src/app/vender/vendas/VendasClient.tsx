@@ -15,7 +15,7 @@ const STATUS: Record<string, [string, string]> = {
 const FILTROS: [string, string][] = [['vendas', 'Vendas'], ['aguardando', 'Aguardando pagamento'], ['abandonou', 'Abandonou o checkout'], ['reembolsadas', 'Reembolsadas'], ['todas', 'Todas']];
 type Contato = { nome: string | null; whatsapp: string | null; avisos: boolean };
 
-export default function VendasClient({ vendas, clientes = {}, loja = '', site = 'https://www.compreibarato.com.br', inicial = 'vendas', carrinhos = [] }: { vendas: any[]; clientes?: Record<string, Contato>; loja?: string; site?: string; inicial?: string; carrinhos?: any[] }) {
+export default function VendasClient({ vendas, clientes = {}, loja = '', site = 'https://www.compreibarato.com.br', inicial = 'vendas', carrinhos = [], privado = false }: { vendas: any[]; clientes?: Record<string, Contato>; loja?: string; site?: string; inicial?: string; carrinhos?: any[]; privado?: boolean }) {
   const [filtro, setFiltro] = useState(inicial);
   const [aberta, setAberta] = useState<string | null>(null);
   const [busca, setBusca] = useState('');
@@ -109,12 +109,11 @@ export default function VendasClient({ vendas, clientes = {}, loja = '', site = 
 
       {filtro === 'aguardando' && (
         <p className="muted" style={{ fontSize: 13, margin: '0 0 12px' }}>
-          Quem gerou o Pix ou abriu o checkout e não pagou. O site já manda lembrete automático quando a recuperação está ligada em Checkout do produto; o contato direto aqui é o reforço.
-          O WhatsApp só aparece para clientes que aceitaram receber avisos.
+          Quem gerou o Pix e não pagou. {privado ? 'O Comprei Barato manda os lembretes automáticos por WhatsApp e e-mail por você. Por segurança, o contato do cliente fica protegido pela plataforma.' : 'O site já manda lembrete automático; o contato direto aqui é o reforço. O WhatsApp só aparece para clientes que aceitaram receber avisos.'}
         </p>
       )}
 
-      {filtro === 'abandonou' ? <div className="card vd-tab" style={{ padding: 0 }}><CarrinhosAbandonados itens={carrinhos} site={site} /></div> : (
+      {filtro === 'abandonou' ? <div className="card vd-tab" style={{ padding: 0 }}><CarrinhosAbandonados itens={carrinhos} site={site} privado={privado} /></div> : (
       <div className="card vd-tab" style={{ padding: 0 }}>
         {lista.length ? (
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
@@ -140,7 +139,7 @@ export default function VendasClient({ vendas, clientes = {}, loja = '', site = 
                       <td style={td}><span className={`pill ${st[0]}`}>{st[1]}</span></td>
                       <td style={{ ...td, textAlign: 'right', whiteSpace: 'nowrap', fontFamily: 'Outfit', fontWeight: 800, color: pend ? 'var(--text)' : 'var(--green)' }}>{money(pend ? v.total : v.valor_vendedor)}</td>
                       <td style={td} onClick={(e) => pend && e.stopPropagation()}>
-                        {pend ? (
+                        {pend && privado ? <small className="muted">Lembrete automático</small> : pend ? (
                           <div className="vd-acoes">
                             {wa && <a className="vd-wa" href={wa} target="_blank" rel="noreferrer"><Icon name="chat" size={14} /> WhatsApp</a>}
                             {v.comprador_email && <a className="vd-bt" href={`mailto:${v.comprador_email}?subject=${encodeURIComponent('Sua compra no Comprei Barato')}&body=${encodeURIComponent(mensagem(v))}`}><Icon name="mail" size={14} /> E-mail</a>}

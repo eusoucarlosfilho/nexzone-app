@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import VendasClient from './VendasClient';
 import VendasPorOrigem from './VendasPorOrigem';
 import { contatosDosCompradores, carrinhosAbandonados } from '@/lib/clientesPedidos';
+import { mascararEmail } from '@/lib/conversas';
 
 export const dynamic = 'force-dynamic';
 
@@ -28,12 +29,17 @@ export default async function VendasPage({ searchParams }: { searchParams?: { f?
   const lista = (vendas ?? []) as any[];
   let clientes = {};
   try { clientes = await contatosDosCompradores(createAdminClient(), lista.map((v) => v.comprador)); } catch { clientes = {}; }
+  // Privacidade: o vendedor NÃO recebe telefone nem e-mail completo do cliente (contato só pela plataforma).
+  // Isto é cortado aqui no servidor, para os dados nunca chegarem ao navegador do vendedor.
+  clientes = Object.fromEntries(Object.entries(clientes as Record<string, any>).map(([k, c]) => [k, { nome: c?.nome ?? null, whatsapp: null, avisos: false }]));
+  for (const v of lista) v.comprador_email = mascararEmail(v.comprador_email);
 
   // Quem preencheu o checkout e saiu sem gerar o Pix (SQL 19), só dos produtos desta loja
   let carrinhos: any[] = [];
   try {
     const { data: prods } = await supabase.from('products').select('id').eq('store_id', store.id).limit(1000);
     carrinhos = await carrinhosAbandonados(createAdminClient(), { productIds: ((prods ?? []) as any[]).map((p) => p.id) });
+    carrinhos = carrinhos.map((c: any) => ({ ...c, email: mascararEmail(c.email), whatsapp: null, avisos: false }));
   } catch { carrinhos = []; }
 
   // Origem das vendas (SQL 15). Sem o SQL 15: o relatório mostra tudo como "Direto / sem rastreio".
@@ -46,7 +52,7 @@ export default async function VendasPage({ searchParams }: { searchParams?: { f?
   const site = (process.env.NEXT_PUBLIC_SITE_URL || 'https://www.compreibarato.com.br').replace(/\/+$/, '');
   return (
     <>
-      <VendasClient vendas={lista} clientes={clientes} loja={(store as any).nome || ''} site={site} inicial={searchParams?.f === 'aguardando' || searchParams?.f === 'abandonou' ? searchParams.f : 'vendas'} carrinhos={carrinhos} />
+      <VendasClient vendas={lista} clientes={clientes} loja={(store as any).nome || ''} site={site} inicial={searchParams?.f === 'aguardando' || searchParams?.f === 'abandonou' ? searchParams.f : 'vendas'} carrinhos={carrinhos} privado />
       <VendasPorOrigem vendas={comOrigem} />
     </>
   );
