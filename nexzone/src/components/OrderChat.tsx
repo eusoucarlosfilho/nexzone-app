@@ -7,7 +7,7 @@ import { createClient } from '@/lib/supabase/client';
 import { AVISO_SEGURANCA, BUCKET_CHAT, ANEXO_CHAT_TIPOS, validarAnexoChat, tamanhoLegivel } from '@/lib/conversas';
 
 type Anexo = { url: string; nome: string; tipo: string; tamanho: number };
-type Msg = { id: string; papel: string; texto: string; created_at: string; mine: boolean; lido?: boolean; anexo?: Anexo; alerta?: string; enviando?: boolean };
+type Msg = { id: string; papel: string; texto: string; created_at: string; mine: boolean; anexo?: Anexo; alerta?: string; enviando?: boolean };
 
 const hora = (s: string) => new Date(s).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 
@@ -17,9 +17,13 @@ export default function OrderChat({ orderId, theme = 'light', readOnly = false, 
   const [enviando, setEnviando] = useState(false);
   const [carregou, setCarregou] = useState(false);
   const [lojaNome, setLojaNome] = useState<string | null>(null); // só vem preenchido quando a loja vende como Comprei Barato
-  const [recursos, setRecursos] = useState<{ lido: boolean; anexos: boolean }>({ lido: false, anexos: false });
+  const [recursos, setRecursos] = useState<{ anexos: boolean }>({ anexos: false });
   const [anexo, setAnexo] = useState<File | null>(null);
   const fimRef = useRef<HTMLDivElement | null>(null);
+  const boxRef = useRef<HTMLDivElement | null>(null);
+  const campoRef = useRef<HTMLTextAreaElement | null>(null);
+  const pertoDoFim = useRef(true);
+  const [regra, setRegra] = useState(false);
   const arqRef = useRef<HTMLInputElement | null>(null);
 
   const dark = theme === 'dark';
@@ -50,7 +54,19 @@ export default function OrderChat({ orderId, theme = 'light', readOnly = false, 
     return () => clearInterval(t);
   }, [carregar]);
 
-  useEffect(() => { fimRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }, [msgs.length]);
+  // Rola só a caixa de mensagens (nunca a página inteira) e só se a pessoa já estava perto do fim
+  useEffect(() => {
+    const b = boxRef.current;
+    if (b && pertoDoFim.current) b.scrollTop = b.scrollHeight;
+  }, [msgs.length]);
+  const aoRolar = () => { const b = boxRef.current; if (b) pertoDoFim.current = b.scrollHeight - b.scrollTop - b.clientHeight < 80; };
+  // Campo cresce até 4 linhas
+  useEffect(() => {
+    const c = campoRef.current; if (!c) return;
+    c.style.height = 'auto'; c.style.height = `${Math.min(c.scrollHeight, 112)}px`;
+  }, [texto]);
+  // Celular: ao abrir o teclado, mantém o campo visível acima dele
+  const aoFocar = () => { setTimeout(() => campoRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }), 300); };
 
   function escolher(f: File | null) {
     if (!f) return;
@@ -73,6 +89,7 @@ export default function OrderChat({ orderId, theme = 'light', readOnly = false, 
     const f = anexo;
     if ((!t && !f) || enviando) return;
     setEnviando(true);
+    pertoDoFim.current = true;
     const tempId = `tmp-${Date.now()}`;
     setMsgs((m) => [...m, { id: tempId, papel: 'eu', texto: t || `📎 ${f?.name}`, created_at: new Date().toISOString(), mine: true, enviando: true }]);
     setTexto(''); setAnexo(null);
@@ -97,18 +114,46 @@ export default function OrderChat({ orderId, theme = 'light', readOnly = false, 
   const status = (m: Msg) => {
     if (!m.mine || moderator) return null;
     if (m.enviando) return <span>Enviando…</span>;
-    if (!recursos.lido || m.lido === undefined) return null;
-    return m.lido
-      ? <span style={{ color: '#1F8FFF', fontWeight: 800 }} title="A outra pessoa já viu">✓✓ Lido</span>
-      : <span title="Entregue na conversa">✓ Enviado</span>;
+    return <span title="Mensagem enviada">✓ Enviado</span>;
   };
 
   return (
-    <div style={{ border: `1px solid ${C.bd}`, borderRadius: 14, overflow: 'hidden', background: C.panel }}>
-      <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start', padding: '9px 14px', fontSize: 11.5, lineHeight: 1.45, color: dark ? '#E9C46A' : '#7A5200', background: dark ? '#2A2416' : '#FFF7E6', borderBottom: `1px solid ${C.bd}` }}>
-        <Icon name="shield" size={14} style={{ marginTop: 1, flexShrink: 0 }} /><span>{AVISO_SEGURANCA}</span>
+    <div className="oc" style={{ border: `1px solid ${C.bd}`, borderRadius: 14, background: C.panel, ['--oc-panel' as any]: C.panel, ['--oc-bd' as any]: C.bd }}>
+      <style dangerouslySetInnerHTML={{ __html: `
+        .oc{position:relative}
+        .oc-aviso{display:flex;gap:8px;align-items:flex-start;padding:9px 14px;font-size:11.5px;line-height:1.45;border-bottom:1px solid var(--oc-bd);border-radius:14px 14px 0 0}
+        .oc-aviso button{background:none;border:0;padding:0;font:inherit;font-weight:800;text-decoration:underline;color:inherit;cursor:pointer}
+        .oc-msgs{height:380px;min-height:180px;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+        .oc-bolha{max-width:78%}
+        .oc-comp{border-top:1px solid var(--oc-bd);padding:10px 12px;background:var(--oc-panel);border-radius:0 0 14px 14px}
+        .oc-campo{flex:1;min-width:0;min-height:44px;max-height:112px;resize:none;border-radius:12px;padding:11px 14px;font-size:16px;line-height:1.35;outline:none;font-family:inherit;display:block}
+        .oc-env{flex:none;height:44px;padding:0 18px;border-radius:12px;border:none;cursor:pointer;font-weight:800;font-family:Outfit;color:#fff;background:linear-gradient(135deg,#FF6B00,#FF9A3C);display:inline-flex;align-items:center;justify-content:center;gap:6px}
+        .oc-env .ic{display:none}
+        .oc-clip{flex:none;width:44px;height:44px;border-radius:12px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center}
+        .oc-curto{display:none}
+        @media(max-width:640px){
+          .oc-msgs{height:min(56dvh,460px);padding:12px}
+          .oc-bolha{max-width:86%}
+          .oc-bolha img{max-width:200px!important;max-height:200px!important}
+          .oc-comp{position:sticky;bottom:0;z-index:5;padding:8px 10px calc(8px + env(safe-area-inset-bottom));box-shadow:0 -6px 18px rgba(22,22,42,.06)}
+          .oc-env{width:44px;padding:0;border-radius:50%}
+          .oc-env .tx{display:none}
+          .oc-env .ic{display:block}
+          .oc-clip{border-radius:50%}
+          .oc-longo{display:none}
+          .oc-curto{display:inline}
+          .oc-aviso.aberto .oc-longo{display:inline}
+          .oc-aviso.aberto .oc-curto{display:none}
+        }
+      ` }} />
+      <div className={`oc-aviso ${regra ? 'aberto' : ''}`} style={{ color: dark ? '#E9C46A' : '#7A5200', background: dark ? '#2A2416' : '#FFF7E6' }}>
+        <Icon name="shield" size={14} style={{ marginTop: 1, flexShrink: 0 }} />
+        <span>
+          <span className="oc-longo">{AVISO_SEGURANCA}</span>
+          <span className="oc-curto">Não troque telefone, WhatsApp ou redes aqui: fora da plataforma não há garantia. <button type="button" onClick={() => setRegra(true)}>Ver regra</button></span>
+        </span>
       </div>
-      <div style={{ maxHeight: 380, minHeight: 180, overflowY: 'auto', padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div ref={boxRef} className="oc-msgs" onScroll={aoRolar}>
         {!carregou && <p style={{ color: C.sub, fontSize: 13, textAlign: 'center', margin: 'auto' }}>Carregando conversa…</p>}
         {carregou && msgs.length === 0 && <p style={{ color: C.sub, fontSize: 13, textAlign: 'center', margin: 'auto' }}>Nenhuma mensagem ainda. Diga olá!</p>}
         {msgs.map((m) => {
@@ -129,7 +174,7 @@ export default function OrderChat({ orderId, theme = 'light', readOnly = false, 
           return (
             <div key={m.id} style={{ display: 'flex', flexDirection: 'column', alignItems: own ? 'flex-end' : 'flex-start', opacity: m.enviando ? 0.7 : 1 }}>
               <div style={{ fontSize: 10, color: C.sub, margin: '0 6px 3px', fontWeight: 700 }}>{label}</div>
-              <div style={{ background: bg, color: col, padding: m.anexo && img ? 6 : '9px 13px', borderRadius: own ? '14px 14px 4px 14px' : '14px 14px 14px 4px', maxWidth: '78%', fontSize: 14, lineHeight: 1.4, wordBreak: 'break-word', outline: m.alerta ? '2px solid #E5484D' : undefined }}>
+              <div className="oc-bolha" style={{ background: bg, color: col, padding: m.anexo && img ? 6 : '9px 13px', borderRadius: own ? '14px 14px 4px 14px' : '14px 14px 14px 4px', fontSize: 14, lineHeight: 1.4, wordBreak: 'break-word', outline: m.alerta ? '2px solid #E5484D' : undefined }}>
                 {m.anexo && (img ? (
                   <a href={m.anexo.url} target="_blank" rel="noopener noreferrer"><img src={m.anexo.url} alt={m.anexo.nome} loading="lazy" style={{ display: 'block', maxWidth: 240, maxHeight: 240, borderRadius: 10, objectFit: 'cover' }} /></a>
                 ) : (
@@ -150,7 +195,7 @@ export default function OrderChat({ orderId, theme = 'light', readOnly = false, 
       </div>
 
       {!readOnly && (
-        <div style={{ borderTop: `1px solid ${C.bd}`, padding: 12 }}>
+        <div className="oc-comp">
           {anexo && (
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 12.5, color: C.tx, background: dark ? '#1C1C28' : '#F4F4F8', borderRadius: 10, padding: '7px 10px', marginBottom: 8 }}>
               <Icon name={anexo.type.startsWith('image/') ? 'image' : 'file'} size={16} />
@@ -158,26 +203,32 @@ export default function OrderChat({ orderId, theme = 'light', readOnly = false, 
               <button type="button" onClick={() => setAnexo(null)} aria-label="Remover anexo" style={{ background: 'none', border: 0, cursor: 'pointer', color: C.sub, display: 'inline-flex' }}><Icon name="x" size={16} /></button>
             </div>
           )}
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
             {recursos.anexos && (
               <>
                 <input ref={arqRef} type="file" accept={ANEXO_CHAT_TIPOS.join(',')} style={{ display: 'none' }} onChange={(e) => { escolher(e.target.files?.[0] ?? null); e.target.value = ''; }} />
-                <button type="button" onClick={() => arqRef.current?.click()} disabled={enviando} aria-label="Anexar imagem ou PDF" title="Anexar imagem ou PDF (até 10 MB)"
-                  style={{ flex: 'none', width: 42, height: 42, borderRadius: 10, border: `1px solid ${C.bd}`, background: C.inputBg, color: C.sub, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                <button type="button" className="oc-clip" onClick={() => arqRef.current?.click()} disabled={enviando} aria-label="Anexar imagem ou PDF" title="Anexar imagem ou PDF (até 10 MB)"
+                  style={{ border: `1px solid ${C.bd}`, background: C.inputBg, color: C.sub }}>
                   <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" /></svg>
                 </button>
               </>
             )}
-            <input
+            <textarea
+              ref={campoRef}
+              rows={1}
               value={texto}
               onChange={(e) => setTexto(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); enviar(); } }}
+              onFocus={aoFocar}
+              onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey && !(e.nativeEvent as any).isComposing) { e.preventDefault(); enviar(); } }}
               placeholder={anexo ? 'Escreva algo sobre o anexo (opcional)…' : 'Escreva uma mensagem…'}
-              style={{ flex: 1, minWidth: 0, height: 42, borderRadius: 10, border: `1px solid ${C.bd}`, background: C.inputBg, color: C.tx, padding: '0 14px', fontSize: 16, outline: 'none' }}
+              aria-label="Mensagem"
+              className="oc-campo"
+              style={{ border: `1px solid ${C.bd}`, background: C.inputBg, color: C.tx }}
             />
-            <button onClick={enviar} disabled={enviando || (!texto.trim() && !anexo)}
-              style={{ flex: 'none', height: 42, padding: '0 18px', borderRadius: 10, border: 'none', cursor: 'pointer', fontWeight: 800, fontFamily: 'Outfit', color: '#fff', background: 'linear-gradient(135deg,#FF6B00,#FF9A3C)', opacity: enviando || (!texto.trim() && !anexo) ? 0.6 : 1 }}>
-              {enviando ? '…' : 'Enviar'}
+            <button type="button" className="oc-env" onClick={enviar} disabled={enviando || (!texto.trim() && !anexo)} aria-label="Enviar"
+              style={{ opacity: enviando || (!texto.trim() && !anexo) ? 0.6 : 1 }}>
+              <span className="tx">{enviando ? '…' : 'Enviar'}</span>
+              <svg className="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M22 2 11 13" /><path d="M22 2 15 22 11 13 2 9z" /></svg>
             </button>
           </div>
         </div>
