@@ -16,12 +16,13 @@ export const dynamic = 'force-dynamic';
 const COLUNAS_LISTA = 'id, titulo, categoria, preco, preco_promo, status, capa_url, destaque_ate, vendas, nota, created_at';
 const POR_PAGINA = 10;
 
+// Padrão: do MAIS vendido ao menos vendido (empate: o mais novo primeiro)
 const ORDENS: Record<string, { col: string; asc: boolean }> = {
+  vendas: { col: 'vendas', asc: false },
   recentes: { col: 'created_at', asc: false },
   antigos: { col: 'created_at', asc: true },
   preco_menor: { col: 'preco', asc: true },
   preco_maior: { col: 'preco', asc: false },
-  vendas: { col: 'vendas', asc: false },
   nota: { col: 'nota', asc: false },
 };
 const FILTROS = ['todos', 'ativo', 'em_revisao', 'parados', 'destaque'] as const;
@@ -49,7 +50,7 @@ export default async function ProdutosPage({ searchParams }: { searchParams: SP 
   const planosModelo = { pcts: { basico: tx.planoBasico, destaque: tx.planoDestaque, topo: tx.planoTopo }, ativos: tx.planosPagosAtivos };
 
   const filtro = (FILTROS as readonly string[]).includes(searchParams.status || '') ? (searchParams.status as string) : 'todos';
-  const ordemKey = searchParams.ordem && ORDENS[searchParams.ordem] ? searchParams.ordem : 'recentes';
+  const ordemKey = searchParams.ordem && ORDENS[searchParams.ordem] ? searchParams.ordem : 'vendas';
   const ordem = ORDENS[ordemKey];
   const termo = termoBusca(searchParams.q);
   const cat = (searchParams.cat || '').slice(0, 80);
@@ -88,7 +89,9 @@ export default async function ProdutosPage({ searchParams }: { searchParams: SP 
     if (filtro === 'destaque') q = q.gt('destaque_ate', agoraIso);
     if (termo) q = q.ilike('titulo', `%${termo}%`);
     if (cat) q = q.eq('categoria', cat);
-    q = q.order(ordem.col, { ascending: ordem.asc }).order('id', { ascending: true });
+    q = q.order(ordem.col, { ascending: ordem.asc, nullsFirst: false });
+    if (ordem.col === 'vendas') q = q.order('created_at', { ascending: false });
+    q = q.order('id', { ascending: true });
     const de = (pagina - 1) * POR_PAGINA;
     const { data, count } = await q.range(de, de + POR_PAGINA - 1);
     produtos = (data ?? []) as any[];

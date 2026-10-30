@@ -62,7 +62,7 @@ export default function ProductManager({ products, total, pagina, porPagina, sta
     if (novo.q) sp.set('q', novo.q);
     if (novo.status && novo.status !== 'todos') sp.set('status', novo.status);
     if (novo.cat) sp.set('cat', novo.cat);
-    if (novo.ordem && novo.ordem !== 'recentes') sp.set('ordem', novo.ordem);
+    if (novo.ordem && novo.ordem !== 'vendas') sp.set('ordem', novo.ordem);
     if (novo.page && novo.page !== '1') sp.set('page', novo.page);
     const s = sp.toString();
     setEditar(null);
@@ -175,11 +175,11 @@ export default function ProductManager({ products, total, pagina, porPagina, sta
             </label>
             <label><span className="sr-only">Ordenar</span>
               <select value={filtros.ordem} onChange={(e) => irPara({ ordem: e.target.value })}>
+                <option value="vendas">Mais vendidos</option>
                 <option value="recentes">Mais recentes</option>
                 <option value="antigos">Mais antigos</option>
                 <option value="preco_menor">Menor preço</option>
                 <option value="preco_maior">Maior preço</option>
-                <option value="vendas">Mais vendas registradas</option>
                 <option value="nota">Melhor avaliados</option>
               </select>
             </label>
