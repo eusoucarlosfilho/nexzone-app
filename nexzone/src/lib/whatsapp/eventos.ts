@@ -14,7 +14,7 @@ export type DefEvento = {
 
 export const EVENTOS: DefEvento[] = [
   { chave: 'compra_aprovada', rotulo: 'Compra aprovada (acesso liberado)', para: 'comprador', grupo: 'Compras e vendas', variaveis: ['nome', 'produto', 'valor', 'pedido', 'link'],
-    padrao: 'Olá, {nome}! Pagamento confirmado ✅\n{produto} — {valor}\nSeu acesso já está liberado: {link}\n\nPrecisa de ajuda com a entrega? Fale direto com o vendedor no chat do pedido, no mesmo link.' },
+    padrao: 'Olá, {nome}! Pagamento confirmado ✅ Obrigado pela compra!\n{produto} — {valor}\nEnviamos os detalhes e o acesso para o seu e-mail. Também ficam salvos no seu pedido: {link}\n\nPrecisa de ajuda com a entrega? Fale direto com o vendedor no chat do pedido, no mesmo link.' },
   { chave: 'pix_gerado', rotulo: 'Pix gerado: link e código para pagar (na hora)', para: 'comprador', grupo: 'Compras e vendas', variaveis: ['nome', 'produto', 'valor', 'pedido', 'link', 'pix'],
     padrao: 'Oi, {nome}! Você está a um passo de garantir {produto} ({valor}). 🎮\nPara terminar, pague o Pix pelo link: {link}\n\nOu copie o código Pix abaixo e cole no app do seu banco:' },
   { chave: 'pix_codigo', rotulo: 'Código Pix copia e cola (mensagem só com o código, logo depois da anterior)', para: 'comprador', grupo: 'Compras e vendas', variaveis: ['pix'],
