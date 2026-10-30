@@ -4,7 +4,7 @@ import { toast } from '@/lib/toast';
 
 // Admin › Configurações › Campanhas: 1ª compra sem taxa, Lojista Fundador e cashback em CB Points.
 type Dados = {
-  cfg: { primeiraCompra: boolean; primeiraCompraCartao: boolean; fundadorAtivo: boolean; fundadorPct: number; fundadorVagas: number; fundadorDias: number; fundadorTeto: number; fundadorDestaqueDias: number; cashbackPct: number; cbAtivo: boolean; pontosPorReal: number };
+  cfg: { primeiraCompra: boolean; primeiraCompraCartao: boolean; fundadorAtivo: boolean; fundadorPct: number; fundadorVagas: number; fundadorDias: number; fundadorTeto: number; fundadorDestaqueDias: number; cashbackPct: number; cbTetoComissaoPct: number; cbAtivo: boolean; pontosPorReal: number };
   vagas: { usadas: number; total: number; restantes: number; sql28: boolean };
   fundadores: { id: string; nome: string; slug: string | null; fundador_numero: number; fundador_em: string; situacao: { ativo: boolean; ate: string | null; vendido: number; restante: number; motivoFim: string | null } }[];
   mes: { primeirasSemTaxa: number | null; cashbackPontos: number; cashbackReais: number };
@@ -23,7 +23,7 @@ export default function CampanhasConfig() {
       const r = await fetch('/api/admin/campanhas', { cache: 'no-store' });
       const j = await r.json(); if (!r.ok) throw new Error(j.error);
       setD(j);
-      setF({ ...j.cfg, fundadorTeto: String(j.cfg.fundadorTeto), fundadorPct: String(j.cfg.fundadorPct ?? 3), fundadorVagas: String(j.cfg.fundadorVagas), fundadorDias: String(j.cfg.fundadorDias), fundadorDestaqueDias: String(j.cfg.fundadorDestaqueDias), cashbackPct: String(j.cfg.cashbackPct) });
+      setF({ ...j.cfg, fundadorTeto: String(j.cfg.fundadorTeto), fundadorPct: String(j.cfg.fundadorPct ?? 3), fundadorVagas: String(j.cfg.fundadorVagas), fundadorDias: String(j.cfg.fundadorDias), fundadorDestaqueDias: String(j.cfg.fundadorDestaqueDias), cashbackPct: String(j.cfg.cashbackPct), cbTetoComissaoPct: String(j.cfg.cbTetoComissaoPct ?? 30) });
     } catch { /* card some sem quebrar a aba */ }
   }, []);
   useEffect(() => { carregar(); }, [carregar]);
@@ -72,10 +72,10 @@ export default function CampanhasConfig() {
 
       <h4 style={{ fontFamily: 'Outfit', margin: '16px 0 8px' }}>Cashback em CB Points</h4>
       {chave('cbAtivo', 'Programa CB Points ligado', 'Liga o CB Points no site inteiro (menu, checkout e página /cb-points). É o mesmo botão das Configurações gerais.')}
-      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 6 }}>{campo('cashbackPct', 'Cashback por compra', '% do valor')}</div>
-      <small style={{ display: 'block', color: 'var(--sub)', fontSize: 12, marginBottom: 14 }}>Ex.: 5% numa compra de R$ 30 = R$ 1,50 em pontos ({d.cfg.pontosPorReal} pontos = R$ 1). Só custa quando o cliente volta e usa. Reembolso tira o cashback de volta.</small>
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 6 }}>{campo('cashbackPct', 'Cashback por compra', '% do valor')}{campo('cbTetoComissaoPct', 'Teto do cashback', '% da nossa comissão')}</div>
+      <small style={{ display: 'block', color: 'var(--sub)', fontSize: 12, marginBottom: 14 }}>Controlado: o cliente ganha o MENOR entre o % do valor e o teto (% da comissão que a plataforma ganhou no pedido). Ex.: compra de R$ 30 com 5% de comissão = R$ 1,50 nossos; teto de 30% = no máximo R$ 0,45 em pontos. O cashback sai de dentro do nosso lucro, nunca vira prejuízo. Reembolso tira o cashback de volta.</small>
 
-      <button className="adm-btn ap" disabled={busy} onClick={() => post({ acao: 'salvar', ...f, fundadorVagas: n(f.fundadorVagas), fundadorDias: n(f.fundadorDias), fundadorTeto: n(f.fundadorTeto), fundadorPct: n(f.fundadorPct), fundadorDestaqueDias: n(f.fundadorDestaqueDias), cashbackPct: n(f.cashbackPct) }, 'Campanhas salvas.')}>{busy ? 'Salvando…' : 'Salvar campanhas'}</button>
+      <button className="adm-btn ap" disabled={busy} onClick={() => post({ acao: 'salvar', ...f, fundadorVagas: n(f.fundadorVagas), fundadorDias: n(f.fundadorDias), fundadorTeto: n(f.fundadorTeto), fundadorPct: n(f.fundadorPct), fundadorDestaqueDias: n(f.fundadorDestaqueDias), cashbackPct: n(f.cashbackPct), cbTetoComissaoPct: n(f.cbTetoComissaoPct) }, 'Campanhas salvas.')}>{busy ? 'Salvando…' : 'Salvar campanhas'}</button>
 
       {d.vagas.sql28 && (
         <div style={{ marginTop: 20, borderTop: '1px solid var(--bd2)', paddingTop: 14 }}>
