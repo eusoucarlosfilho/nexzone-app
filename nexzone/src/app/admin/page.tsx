@@ -1,5 +1,5 @@
 import { createClient, createAdminClient } from '@/lib/supabase/server';
-import { contatosDosCompradores } from '@/lib/clientesPedidos';
+import { contatosDosCompradores, carrinhosAbandonados } from '@/lib/clientesPedidos';
 import { redirect } from 'next/navigation';
 import AdminDashboard from './AdminDashboard';
 import { resumirAlteracoes } from '@/lib/edicoes';
@@ -106,6 +106,8 @@ export default async function AdminPage() {
     const contatos = await contatosDosCompradores(admin, orders.map((o) => o.comprador));
     orders.forEach((o) => { o.cliente = contatos[o.comprador] ?? null; });
   } catch { /* sem contato: a aba segue com o e-mail */ }
+  let carrinhos: any[] = [];
+  try { carrinhos = await carrinhosAbandonados(admin); } catch { carrinhos = []; }
   const products = (productsRes.data ?? []) as any[];
 
   // Fotos dos produtos na fila de aprovação (lidas à parte: o painel não quebra se a migração 0006 ainda não rodou)
@@ -378,5 +380,5 @@ export default async function AdminPage() {
     produtoresNovos,
   };
 
-  return <AdminDashboard painel={painel} adminEmail={user.email} users={users} metrics={metrics} daily={daily} orders={orders} products={products} stores={stores} payouts={payouts} boosts={boosts} settings={settings} growth={growth} sellers={sellers} complaints={complaints} alerts={alerts} />;
+  return <AdminDashboard painel={painel} adminEmail={user.email} users={users} metrics={metrics} daily={daily} orders={orders} products={products} stores={stores} payouts={payouts} boosts={boosts} settings={settings} growth={growth} sellers={sellers} complaints={complaints} alerts={alerts} carrinhos={carrinhos} />;
 }

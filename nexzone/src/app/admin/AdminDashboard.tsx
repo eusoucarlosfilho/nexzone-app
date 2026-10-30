@@ -31,6 +31,7 @@ import ProdutoresInteressados from './ProdutoresInteressados';
 import SeoGoogle from './SeoGoogle';
 import TaxasPlanos from './TaxasPlanos';
 import RecuperacaoVendas from './RecuperacaoVendas';
+import CarrinhosAbandonados from '@/components/CarrinhosAbandonados';
 import AtivarCelular from '@/components/AtivarCelular';
 
 const money = (v: number) => 'R$ ' + Number(v).toFixed(2).replace('.', ',');
@@ -48,7 +49,7 @@ const STATUS: Record<string, [string, string]> = {
   pausado: ['#8A8AA0', 'Pausado'],
 };
 
-export default function AdminDashboard({ painel, adminEmail, users, metrics, daily, orders, products, stores, payouts, boosts, settings, growth, sellers, complaints, alerts }: any) {
+export default function AdminDashboard({ painel, adminEmail, users, metrics, daily, orders, products, stores, payouts, boosts, settings, growth, sellers, complaints, alerts, carrinhos = [] }: any) {
   const [tab, setTab] = useState('cockpit');
   // celular e tablet: o menu lateral fica escondido e abre pelo botão Menu
   const [menuAberto, setMenuAberto] = useState(false);
@@ -492,12 +493,13 @@ export default function AdminDashboard({ painel, adminEmail, users, metrics, dai
             <p className="adm-sub">Todos os pedidos da plataforma.</p>
             <RecuperacaoVendas />
             <div className="adm-filters">
-              {['todos', 'pendente', 'pago', 'entregue', 'reembolsado'].map((f) => (
+              {['todos', 'pendente', 'abandonou', 'pago', 'entregue', 'reembolsado'].map((f) => (
                 <button key={f} className={`adm-fb ${orderFilter === f ? 'on' : ''}`} onClick={() => setOrderFilter(f)}>
-                  {f === 'todos' ? 'Todos' : (STATUS[f]?.[1] ?? f)}
+                  {f === 'todos' ? 'Todos' : f === 'abandonou' ? `Abandonou o checkout${carrinhos.length ? ` (${carrinhos.length})` : ''}` : (STATUS[f]?.[1] ?? f)}
                 </button>
               ))}
             </div>
+            {orderFilter === 'abandonou' ? <div className="adm-card"><CarrinhosAbandonados itens={carrinhos} tema="admin" mostrarLoja /></div> : (
             <div className="adm-card">
               {filteredOrders.length ? (
                 <table className="adm-table">
@@ -528,6 +530,7 @@ export default function AdminDashboard({ painel, adminEmail, users, metrics, dai
                 </table>
               ) : <div className="adm-empty">Nenhum pedido com esse status.</div>}
             </div>
+            )}
           </>
         )}
 
