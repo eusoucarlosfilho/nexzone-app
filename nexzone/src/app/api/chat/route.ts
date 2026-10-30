@@ -1,30 +1,13 @@
 import { NextResponse } from 'next/server';
-import { createClient, createAdminClient } from '@/lib/supabase/server';
+import { createClient } from '@/lib/supabase/server';
 import { verificarEscalonamento } from '@/lib/escalonamento';
 import { notificarMensagem } from '@/lib/notificacoes';
 import { vendedorPublico } from '@/lib/vendedorPublico';
+import { autorizarPedido, registrarVisto, vistoDe, confirmarAnexoChat, entregasEfetivas } from '@/lib/conversas-servidor';
+import { AVISO_SEGURANCA, foiLida, pareceContatoExterno } from '@/lib/conversas';
 
-// Descobre o papel do usuário em relação ao pedido e devolve dados do pedido.
-async function autorizar(orderId: string, userId: string) {
-  const admin = createAdminClient();
-  const { data: order } = await admin.from('orders')
-    .select('id, comprador, store_id, status, conteudo_liberado, products(titulo, emoji), stores(nome, ocultar_vendedor)')
-    .eq('id', orderId).maybeSingle();
-  if (!order) return { erro: 'pedido não encontrado' as const };
-
-  const { data: prof } = await admin.from('profiles').select('role').eq('id', userId).maybeSingle();
-  const isAdmin = prof?.role === 'admin';
-
-  let papel: 'comprador' | 'vendedor' | 'admin' | null = null;
-  if ((order as any).comprador === userId) papel = 'comprador';
-  else {
-    const { data: store } = await admin.from('stores').select('id').eq('id', (order as any).store_id).eq('owner', userId).maybeSingle();
-    if (store) papel = 'vendedor';
-    else if (isAdmin) papel = 'admin';
-  }
-  if (!papel) return { erro: 'sem acesso' as const };
-  return { order, papel, admin };
-}
+const COLS_NOVAS = 'id, papel, texto, remetente, created_at, anexo_path, anexo_nome, anexo_tipo, anexo_tamanho, alerta';
+const COLS_ANTIGAS = 'id, papel, texto, remetente, created_at';
 
 export async function GET(req: Request) {
   const supabase = createClient();
@@ -34,53 +17,62 @@ export async function GET(req: Request) {
   const orderId = new URL(req.url).searchParams.get('orderId');
   if (!orderId) return NextResponse.json({ error: 'sem orderId' }, { status: 400 });
 
-  const auth = await autorizar(orderId, user.id);
+  const auth = await autorizarPedido(orderId, user.id);
   if ('erro' in auth) return NextResponse.json({ error: auth.erro }, { status: auth.erro === 'sem acesso' ? 403 : 404 });
-  const { order, papel, admin } = auth;
+  const { order, papel, admin, dono } = auth;
 
-  // Mensagem de sistema automática (uma vez) quando o pedido já foi pago
-  const pago = ['pago', 'entregue'].includes((order as any).status);
+  // Mensagens automáticas (uma vez) quando o pedido já foi pago
+  const pago = ['pago', 'entregue'].includes(order.status);
   const { data: existentes } = await admin.from('order_messages').select('id').eq('order_id', orderId).limit(1);
   if (pago && (!existentes || existentes.length === 0)) {
-    const prod: any = (order as any).products;
-    await admin.from('order_messages').insert({
-      order_id: orderId, remetente: null, papel: 'sistema',
-      texto: `Pagamento confirmado para "${prod?.titulo ?? 'o produto'}". O vendedor já foi avisado da sua compra e é notificado a cada mensagem que você envia aqui. A partir de agora vocês podem conversar por aqui — o vendedor entrega o produto e tira as dúvidas nesta conversa.`,
-    });
-    // Mensagem pós-compra do vendedor (padrão da loja ou personalizada do anúncio), enviada em nome dele
-    const pos = String((order as any).conteudo_liberado ?? '').trim();
+    const prod: any = order.products;
+    await admin.from('order_messages').insert([
+      { order_id: orderId, remetente: null, papel: 'sistema', texto: `Pagamento confirmado para "${prod?.titulo ?? 'o produto'}". O vendedor já foi avisado e é notificado a cada mensagem que você envia aqui. É por esta conversa que ele entrega o produto e tira as dúvidas.` },
+      { order_id: orderId, remetente: null, papel: 'sistema', texto: `🔒 ${AVISO_SEGURANCA}` },
+    ]);
+    // Mensagem pós-compra do vendedor (padrão da loja ou do anúncio), em nome dele. NÃO marca o pedido como entregue.
+    const pos = String(order.conteudo_liberado ?? '').trim();
     if (pos) {
-      try {
-        const { data: loja } = await admin.from('stores').select('owner').eq('id', (order as any).store_id).maybeSingle();
-        await admin.from('order_messages').insert({
-          order_id: orderId, remetente: (loja as any)?.owner ?? null, papel: 'vendedor', texto: pos.slice(0, 2000),
-        });
-      } catch { /* a conversa segue mesmo se falhar */ }
+      try { await admin.from('order_messages').insert({ order_id: orderId, remetente: dono, papel: 'vendedor', texto: pos.slice(0, 2000) }); } catch { /* segue */ }
     }
   }
 
-  const { data: msgs } = await admin.from('order_messages')
-    .select('id, papel, texto, remetente, created_at')
-    .eq('order_id', orderId).order('created_at', { ascending: true });
+  let novas = true;
+  let r = await admin.from('order_messages').select(COLS_NOVAS).eq('order_id', orderId).order('created_at', { ascending: true });
+  if (r.error) { novas = false; r = await admin.from('order_messages').select(COLS_ANTIGAS).eq('order_id', orderId).order('created_at', { ascending: true }) as any; }
+  const msgs = (r.data ?? []) as any[];
 
-  // Verifica (sem travar a resposta) se o vendedor passou do prazo sem responder
+  // "Lido": registra que esta pessoa viu e lê até quando a OUTRA parte viu (o admin olhando não conta)
+  if (papel !== 'admin') await registrarVisto(admin, orderId, user.id);
+  const outro = papel === 'comprador' ? dono : papel === 'vendedor' ? order.comprador : null;
+  const vistoOutro = novas ? await vistoDe(admin, orderId, outro) : null;
+
   verificarEscalonamento(admin, orderId).catch(() => {});
 
-  const lista = (msgs ?? []).map((m: any) => ({
-    id: m.id, papel: m.papel, texto: m.texto, created_at: m.created_at,
-    mine: m.remetente === user.id,
-  }));
+  const lista = msgs.map((m) => {
+    const mine = m.remetente === user.id;
+    return {
+      id: m.id, papel: m.papel, texto: m.texto, created_at: m.created_at, mine,
+      ...(mine && novas && papel !== 'admin' ? { lido: foiLida(m.created_at, vistoOutro) } : {}),
+      ...(m.anexo_path ? { anexo: { url: `/api/chat/anexo?id=${encodeURIComponent(m.id)}`, nome: m.anexo_nome || 'anexo', tipo: m.anexo_tipo || '', tamanho: Number(m.anexo_tamanho) || 0 } } : {}),
+      ...(papel === 'admin' && m.alerta ? { alerta: m.alerta } : {}),
+    };
+  });
+
+  // Situação da entrega só para o painel do vendedor/admin (o comprador vê na página do pedido)
+  const ent = papel === 'comprador' ? null : await entregasEfetivas(admin, [{ id: order.id, status: order.status, product_id: order.product_id, conteudo_liberado: order.conteudo_liberado, tipo_anuncio: order.products?.tipo_anuncio }]);
 
   return NextResponse.json({
     role: papel,
-    status: (order as any).status,
-    conteudo: (order as any).conteudo_liberado ?? null,
-    produto: { titulo: (order as any).products?.titulo ?? 'Produto', emoji: (order as any).products?.emoji ?? '\uD83D\uDCE6' },
-    // O comprador vê "Comprei Barato" quando a loja vende oculta; vendedor e admin veem o nome real.
-    loja: papel === 'comprador' ? vendedorPublico((order as any).stores).nome : ((order as any).stores?.nome ?? 'Loja'),
-    oficial: papel === 'comprador' && vendedorPublico((order as any).stores).oficial,
+    status: order.status,
+    conteudo: order.conteudo_liberado ?? null,
+    produto: { titulo: order.products?.titulo ?? 'Produto', emoji: order.products?.emoji ?? '📦' },
+    loja: papel === 'comprador' ? vendedorPublico(order.stores).nome : (order.stores?.nome ?? 'Loja'),
+    oficial: papel === 'comprador' && vendedorPublico(order.stores).oficial,
+    entregue: ent ? !!ent.entregue[order.id] : null,
+    recursos: { lido: novas, anexos: novas },
     messages: lista,
-  });
+  }, { headers: { 'Cache-Control': 'private, no-store' } });
 }
 
 export async function POST(req: Request) {
@@ -88,21 +80,39 @@ export async function POST(req: Request) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'não autenticado' }, { status: 401 });
 
-  const { orderId, texto } = await req.json();
-  if (!orderId || !texto || !String(texto).trim()) return NextResponse.json({ error: 'mensagem vazia' }, { status: 400 });
+  let b: any = {};
+  try { b = await req.json(); } catch {}
+  const orderId = String(b.orderId || '');
+  let texto = String(b.texto ?? '').trim().slice(0, 2000);
+  if (!orderId || (!texto && !b.anexo)) return NextResponse.json({ error: 'mensagem vazia' }, { status: 400 });
 
-  const auth = await autorizar(orderId, user.id);
+  const auth = await autorizarPedido(orderId, user.id);
   if ('erro' in auth) return NextResponse.json({ error: auth.erro }, { status: auth.erro === 'sem acesso' ? 403 : 404 });
   const { papel, admin } = auth;
 
-  const { data: msg, error } = await admin.from('order_messages').insert({
-    order_id: orderId, remetente: user.id, papel, texto: String(texto).trim().slice(0, 2000),
-  }).select('id, papel, texto, created_at').single();
-  if (error || !msg) return NextResponse.json({ error: 'falha ao enviar' }, { status: 500 });
+  let anexo: { path: string; nome: string; tipo: string; tamanho: number } | null = null;
+  if (b.anexo) {
+    const c = await confirmarAnexoChat(admin, orderId, b.anexo.path, b.anexo.nome);
+    if (!c.ok) return NextResponse.json({ error: c.error }, { status: 400 });
+    anexo = c;
+    if (!texto) texto = `📎 ${c.nome}`;
+  }
 
-  // Avisa a outra parte por e-mail (máx. 1 a cada 15 min por pedido + destinatário).
-  // Nunca lança erro: falha de e-mail não impede a mensagem.
-  await notificarMensagem(admin, { orderId, papel, remetenteId: user.id, texto: (msg as any).texto });
+  // Contato externo: não bloqueia (entrega de conta usa e-mail e números), mas marca para o admin e avisa quem enviou
+  const alerta = papel !== 'admin' && pareceContatoExterno(texto) ? 'contato_externo' : null;
 
-  return NextResponse.json({ message: { ...msg, mine: true } });
+  const linha: any = { order_id: orderId, remetente: user.id, papel, texto };
+  if (anexo) Object.assign(linha, { anexo_path: anexo.path, anexo_nome: anexo.nome, anexo_tipo: anexo.tipo, anexo_tamanho: anexo.tamanho });
+  if (alerta) linha.alerta = alerta;
+  let ins = await admin.from('order_messages').insert(linha).select('id, papel, texto, created_at').single();
+  if (ins.error && alerta && !anexo) { delete linha.alerta; ins = await admin.from('order_messages').insert(linha).select('id, papel, texto, created_at').single(); } // sem SQL 25
+  if (ins.error || !ins.data) return NextResponse.json({ error: anexo ? 'Falta ativar os anexos (SQL 25).' : 'falha ao enviar' }, { status: 500 });
+  const msg: any = ins.data;
+
+  await notificarMensagem(admin, { orderId, papel, remetenteId: user.id, texto: msg.texto });
+
+  return NextResponse.json({
+    message: { ...msg, mine: true, lido: false, ...(anexo ? { anexo: { url: `/api/chat/anexo?id=${encodeURIComponent(msg.id)}`, nome: anexo.nome, tipo: anexo.tipo, tamanho: anexo.tamanho } } : {}) },
+    aviso: alerta ? 'Atenção: trocar telefone, WhatsApp ou redes sociais é proibido e pode suspender a conta. A mensagem foi enviada e registrada para a equipe de segurança.' : null,
+  });
 }
