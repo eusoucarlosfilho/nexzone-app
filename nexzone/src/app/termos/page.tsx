@@ -2,7 +2,7 @@ import Nav from '@/components/Nav';
 import Icon from '@/components/Icon';
 import { AVISO_JOGOS } from '@/lib/categorias';
 import { lerTaxas } from '@/lib/settings';
-import { TAXAS_PADRAO, brl, pctTexto } from '@/lib/taxas';
+import { TAXAS_PADRAO, brl, pctTexto, exemploTaxaServico } from '@/lib/taxas';
 
 export const dynamic = 'force-dynamic';
 
@@ -36,7 +36,7 @@ export default async function TermosPage() {
           <h2 style={h2}>5. Pagamentos, taxas e repasses</h2>
           <p>Os pagamentos são processados por provedores parceiros: Pix pela MisticPay e cartão pela Stripe. O Comprador paga no site e o valor fica retido pela Plataforma até o fim do prazo de liberação.</p>
           <p><b>Taxa do Vendedor (por plano do anúncio):</b> Básico {pctTexto(t.planoBasico)}, Destaque {pctTexto(t.planoDestaque)} e Topo {pctTexto(t.planoTopo)} sobre o valor de cada venda concluída. O plano escolhido no anúncio no momento da compra é o que vale para aquele pedido. Os planos Destaque e Topo dão mais visibilidade na vitrine e na busca, mas não garantem vendas. As vagas do plano Topo são limitadas por categoria.</p>
-          <p><b>Taxa de serviço do Comprador:</b> {brl(t.compradorPix)} por pedido no Pix e {pctTexto(t.compradorCartaoPct)} + {brl(t.compradorCartaoFixo)} no cartão, exibida no checkout antes do pagamento. Ela remunera o processamento do pagamento e a intermediação, e é devolvida junto em caso de reembolso integral aprovado pela Plataforma.</p>
+          <p><b>Preço e taxa de serviço do Comprador:</b> o preço exibido nos anúncios é o definido pelo Vendedor. No checkout, antes do pagamento, é acrescida e discriminada a taxa de serviço do meio de pagamento escolhido, composta pela tarifa do processamento (Pix ou cartão) e pela tarifa de intermediação da Plataforma, calculada sobre o valor do pedido (por exemplo, {exemploTaxaServico(t)}). O valor total é sempre mostrado antes da confirmação. Ela remunera o processamento do pagamento e a intermediação, e é devolvida junto em caso de reembolso integral aprovado pela Plataforma.</p>
           <p><b>Liberação do saldo ao Vendedor</b>, contada a partir da entrega e se não houver reclamação aberta: contas de jogo, {t.liberaContaDias} dias; demais anúncios, {t.liberaPadraoDias} dias; vendas pagas com cartão, no mínimo {t.liberaCartaoDias} dias. Reclamações, contestações e estornos podem segurar o valor até a resolução, e valores reembolsados depois da liberação podem ser descontados do saldo futuro do Vendedor.</p>
           <p><b>Saques:</b> feitos para a chave Pix do titular verificado. O primeiro saque de cada período de 7 dias é gratuito; os demais custam {brl(t.saqueExtraTaxa)} cada. As taxas podem ser alteradas com aviso prévio na Plataforma, sem efeito sobre pedidos já pagos.</p>
 
