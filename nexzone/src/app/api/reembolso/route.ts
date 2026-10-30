@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { MOTIVOS, rotuloMotivo } from '@/lib/garantia';
 import { situacaoGarantia } from '@/lib/reembolso-servidor';
+import { liberacaoReclamacao } from '@/lib/conversas-servidor';
 
 export const dynamic = 'force-dynamic';
 
@@ -37,6 +38,9 @@ export async function POST(req: Request) {
 
   const motivo = MOTIVOS.some((m) => m.id === b.motivo) ? String(b.motivo) : '';
   if (!motivo) return NextResponse.json({ error: 'Escolha o motivo.' }, { status: 400 });
+  // Problema (não recebi, não funciona...): o vendedor tem 24 h para resolver. Desistir da compra vale na hora.
+  const lib = await liberacaoReclamacao(admin, orderId, motivo);
+  if (!lib.pode) return NextResponse.json({ error: lib.erro, liberaEm: lib.liberaEm ?? null }, { status: 409 });
   const detalhe = String(b.detalhe ?? '').trim().slice(0, 2000);
   if (['nao_era_o_esperado', 'problema_tecnico', 'outro'].includes(motivo) && detalhe.length < 10) {
     return NextResponse.json({ error: 'Conte em poucas palavras o que aconteceu (isso ajuda a resolver mais rápido).' }, { status: 400 });
