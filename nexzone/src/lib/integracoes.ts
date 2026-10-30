@@ -102,7 +102,8 @@ export function corpoPostback(d: DadosVenda) {
     pedido: { id: d.pedidoId, status: d.status, total: Math.round(d.total * 100) / 100, moeda: 'BRL', criado_em: d.criadoEm, pago_em: d.pagoEm ?? null },
     produto: { id: d.produto.id, titulo: d.produto.titulo },
     itens_extras: d.bumps.map((b) => ({ id: b.product_id, titulo: b.titulo, valor: b.valor })),
-    comprador: { nome: d.comprador.nome, email: d.comprador.email, whatsapp: d.comprador.whatsapp },
+    // Telefone do cliente não vai para o vendedor (contato só pela plataforma). O e-mail segue: libera acesso em áreas de membros externas.
+    comprador: { nome: d.comprador.nome, email: d.comprador.email },
     origem: d.origem ?? {},
   };
 }
