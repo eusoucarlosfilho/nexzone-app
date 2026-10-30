@@ -99,6 +99,8 @@ export default async function PedidoPage({ params, searchParams }: { params: { i
           entrega={entrega}
           etapas={etapas}
           suporteWhatsapp={empresa.whatsapp || null}
+          compradorEmail={user.email ?? null}
+          compradorNome={String(md.nome || md.full_name || md.name || '').trim().split(/\s+/)[0]?.replace(/[<>]/g, '').slice(0, 30) || null}
         />
         {mostrarConvite && <ConviteWhatsApp orderId={order.id} aviso={searchParams?.whats} />}
         {searchParams?.whats === 'ok' && <p className="muted" role="status" style={{ marginTop: 12, fontSize: 14 }}>Pronto! Você vai receber os avisos no WhatsApp.</p>}

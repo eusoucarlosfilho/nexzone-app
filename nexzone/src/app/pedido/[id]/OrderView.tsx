@@ -4,7 +4,6 @@ import TextoFormatado from '@/components/TextoFormatado';
 import { ehSoLink } from '@/lib/textoFormatado';
 import { enviarAvaliacao } from './actions';
 import OrderChat from '@/components/OrderChat';
-import ComplaintBox from './ComplaintBox';
 import ProductThumb from '@/components/ProductThumb';
 import Icon from '@/components/Icon';
 import type { ExtraPedido } from '@/lib/extrasPedido';
@@ -46,6 +45,8 @@ type Props = {
   entrega?: EntregaCheckout | null;          // prazo prometido (na hora ou pelo vendedor no chat)
   etapas?: EtapaPedido[];                    // linha do tempo do pedido
   suporteWhatsapp?: string | null;           // WhatsApp do suporte (Admin › Configurações)
+  compradorEmail?: string | null;            // para onde foi o e-mail com o acesso
+  compradorNome?: string | null;
 };
 
 // Ajusta a linha do tempo ao que acontece na tela: pagamento que acabou de cair (polling) e
@@ -58,6 +59,28 @@ function etapasVisiveis(etapas: EtapaPedido[], pago: boolean, manual: boolean): 
     l[3] = { ...l[3], atual: false };
   }
   return l;
+}
+
+// Rodapé da compra paga: garantia (informativa), situação de um pedido de ajuda/reembolso e o caminho para a Central de ajuda.
+// O botão de reembolso NÃO fica aqui: fica em /pedido/[id]/ajuda, sempre acessível dentro da garantia (CDC art. 49).
+function RodapePedido({ orderId, garantia, reclamacaoAberta }: { orderId: string; garantia: GarantiaInfo | null; reclamacaoAberta: boolean }) {
+  const ultimo = garantia?.pedidos?.[0];
+  const reembolsoAberto = ultimo?.status === 'aberto';
+  return (
+    <div className="ov-rod">
+      {(reembolsoAberto || reclamacaoAberta) && (
+        <div className="ov-aviso" role="status">
+          <Icon name="alert" size={15} />
+          <span>{reembolsoAberto ? 'Seu pedido de reembolso está em análise.' : 'Sua solicitação de ajuda está com o suporte.'} <Link href={`/pedido/${orderId}/ajuda`}>Acompanhar</Link></span>
+        </div>
+      )}
+      <div className="ov-gar"><Icon name="shield" size={16} color="var(--green)" /> Compra protegida pela garantia de {garantia?.dias || 7} dias</div>
+      <div className="ov-lks">
+        <Link href="/minhas-compras">Minhas compras</Link>
+        <Link href={`/pedido/${orderId}/ajuda`}>Preciso de ajuda com este pedido</Link>
+      </div>
+    </div>
+  );
 }
 
 export default function OrderView(props: Props) {
@@ -75,6 +98,9 @@ export default function OrderView(props: Props) {
   const [msg, setMsg] = useState('');
   const [pending, start] = useTransition();
   const [copiado, setCopiado] = useState(false);
+  // Entrega pelo vendedor: o formulário de avaliação só aparece 1 h depois do pagamento (antes, a pessoa ainda nem recebeu)
+  const pagoEm = props.etapas?.[2]?.quando ? new Date(props.etapas[2].quando).getTime() : NaN;
+  const podeAvaliar = !props.entrega?.manual || avaliado || (Number.isFinite(pagoEm) && Date.now() - pagoEm > 3600000);
   async function copiarPix() {
     try { await navigator.clipboard.writeText(props.pixCode || ''); }
     catch {
@@ -132,6 +158,7 @@ export default function OrderView(props: Props) {
 
   return (
     <>
+    <style dangerouslySetInnerHTML={{ __html: `@keyframes pulsePix{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.8)}}@keyframes spinCartao{to{transform:rotate(360deg)}}.ov-obg{font-size:44px;line-height:1;margin:4px 0 8px}.ov-rod{border-top:1px solid var(--border);margin-top:22px;padding-top:16px;text-align:center;font-size:13px}.ov-gar{display:flex;gap:6px;align-items:center;justify-content:center;color:var(--sub);font-weight:700}.ov-lks{display:flex;gap:6px 18px;justify-content:center;flex-wrap:wrap;margin-top:8px}.ov-lks a{color:var(--sub);text-decoration:underline}.ov-aviso{display:flex;gap:8px;align-items:flex-start;text-align:left;background:#FFF7E6;border:1px solid #F5D58A;border-radius:10px;padding:10px 12px;color:#7A5200;margin-bottom:12px}.ov-aviso a{color:#7A5200;font-weight:800}.ov-como{list-style:none;padding:0;margin:14px auto 0;max-width:360px;display:grid;gap:8px;text-align:left;font-size:13px;color:var(--sub)}.ov-como li{display:flex;gap:10px;align-items:flex-start;line-height:1.45}.ov-como li>b:first-child{width:22px;height:22px;border-radius:50%;flex:none;background:var(--soft);color:var(--orange-ink);font-family:Outfit;display:flex;align-items:center;justify-content:center;font-size:12px}.ov-valor{margin:4px 0 12px}.ov-valor b{display:block;font-family:Outfit;font-size:26px;font-weight:900}.ov-valor small{color:var(--muted);font-size:12.5px;font-weight:700}` }} />
     <OfertaPosCompra orderId={props.orderId} pago={pago} onTemOferta={setTemOferta} />
     <div className="card">
       <div className="li" style={{ padding: '0 0 16px', borderBottom: '1px solid var(--border)' }}>
@@ -151,8 +178,13 @@ export default function OrderView(props: Props) {
       {pago ? (
         <div style={{ paddingTop: 18 }}>
           <div style={{ textAlign: 'center' }}>
-            <div style={{ fontFamily: 'Outfit', fontWeight: 800, color: 'var(--green)', fontSize: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}><Icon name="checkCircle" size={22} /> Pagamento confirmado!</div>
-            <p className="muted" style={{ margin: '6px 0 14px' }}>{props.entrega?.manual ? 'O vendedor já foi avisado e entrega pelo chat abaixo.' : 'Seu produto está liberado.'}</p>
+            <div className="ov-obg" aria-hidden="true">🎉</div>
+            <h1 style={{ fontFamily: 'Outfit', fontWeight: 900, fontSize: 24, lineHeight: 1.2, margin: '0 0 6px' }}>Obrigado pela compra{props.compradorNome ? `, ${props.compradorNome}` : ''}!</h1>
+            <div style={{ color: 'var(--green)', fontWeight: 800, fontFamily: 'Outfit', fontSize: 14.5, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}><Icon name="checkCircle" size={17} /> Pagamento confirmado</div>
+            <p className="muted" style={{ margin: '10px auto 16px', maxWidth: 400, fontSize: 14 }}>
+              {props.entrega?.manual ? 'O vendedor já foi avisado e entrega pelo chat abaixo. ' : 'Seu acesso já está liberado aqui embaixo. '}
+              Enviamos os detalhes da compra{props.entrega?.manual ? '' : ' e o acesso'} para {props.compradorEmail ? <b style={{ color: 'var(--text)' }}>{props.compradorEmail}</b> : 'o seu e-mail'}. Ela também fica salva em <Link href="/minhas-compras" style={{ color: 'var(--orange-ink)', fontWeight: 800 }}>Minhas compras</Link>.
+            </p>
             {props.entrega?.manual && <div style={{ textAlign: 'left', marginBottom: 14 }}><PromessaEntrega e={props.entrega} /></div>}
             {(props.cursos ?? []).length > 0 && (
               <div style={{ display: 'grid', gap: 8, marginBottom: 14 }}>
@@ -177,19 +209,6 @@ export default function OrderView(props: Props) {
             )}
           </div>
 
-          <div style={{ borderTop: '1px solid var(--border)', marginTop: 22, paddingTop: 18 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-              <strong style={{ fontFamily: 'Outfit', fontSize: 15 }}>Conversa com o vendedor</strong>
-            </div>
-            <p className="muted" style={{ fontSize: 12.5, marginBottom: 12 }}>
-              Pagamento confirmado! Fale com o vendedor por aqui — é por esta conversa que ele entrega o produto e tira suas dúvidas. Você também pode pedir ajuda do suporte por aqui.
-            </p>
-            <OrderChat orderId={props.orderId} theme="light" />
-            <ComplaintBox orderId={props.orderId} aberta={!!props.reclamacaoAberta} />
-          </div>
-
-          {props.garantia && <GarantiaReembolso orderId={props.orderId} g={props.garantia} />}
-
           {extras.length > 0 && (
             <div style={{ borderTop: '1px solid var(--border)', marginTop: 22, paddingTop: 18, textAlign: 'center' }}>
               <div className="slabel" style={{ color: 'var(--green)' }}>{extras.length === 1 ? 'Item extra incluído' : `${extras.length} itens extras incluídos`}</div>
@@ -208,8 +227,20 @@ export default function OrderView(props: Props) {
             </div>
           )}
 
+          <div id="chat" style={{ borderTop: '1px solid var(--border)', marginTop: 22, paddingTop: 18, scrollMarginTop: 80 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+              <strong style={{ fontFamily: 'Outfit', fontSize: 15 }}>Conversa com o vendedor</strong>
+            </div>
+            <p className="muted" style={{ fontSize: 12.5, marginBottom: 12 }}>
+              {props.entrega?.manual ? 'É por aqui que o vendedor entrega o produto. Você recebe um aviso por e-mail e WhatsApp quando ele responder.' : 'Dúvida sobre o produto? Fale com o vendedor por aqui.'}
+            </p>
+            <OrderChat orderId={props.orderId} theme="light" />
+          </div>
+
           <div id="avaliar" style={{ borderTop: '1px solid var(--border)', marginTop: 22, paddingTop: 18, scrollMarginTop: 80 }}>
-            {avaliado ? (
+            {!podeAvaliar ? (
+              <p className="muted" style={{ textAlign: 'center', fontSize: 13, margin: 0 }}><Icon name="star" size={14} /> Depois de receber pelo chat, volte aqui para avaliar a compra.</p>
+            ) : avaliado ? (
               <p style={{ textAlign: 'center', color: 'var(--green)', fontWeight: 700, fontFamily: 'Outfit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}><Icon name="star" size={16} style={{ fill: 'currentColor' }} /> Obrigado pela sua avaliação!</p>
             ) : (
               <div style={{ textAlign: 'center' }}>
@@ -231,6 +262,8 @@ export default function OrderView(props: Props) {
               </div>
             )}
           </div>
+
+          <RodapePedido orderId={props.orderId} garantia={props.garantia ?? null} reclamacaoAberta={!!props.reclamacaoAberta} />
         </div>
       ) : status === 'reembolsado' || status === 'cancelado' ? (
         <div style={{ textAlign: 'center', paddingTop: 18 }}>
@@ -302,7 +335,6 @@ export default function OrderView(props: Props) {
               {cartaoErro && <p role="alert" style={{ color: 'var(--red)', fontSize: 13, marginTop: 6 }}>{cartaoErro}</p>}
             </div>
           )}
-          <style dangerouslySetInnerHTML={{ __html: `@keyframes pulsePix{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.8)}}@keyframes spinCartao{to{transform:rotate(360deg)}}.ov-como{list-style:none;padding:0;margin:14px auto 0;max-width:360px;display:grid;gap:8px;text-align:left;font-size:13px;color:var(--sub)}.ov-como li{display:flex;gap:10px;align-items:flex-start;line-height:1.45}.ov-como li>b:first-child{width:22px;height:22px;border-radius:50%;flex:none;background:var(--soft);color:var(--orange-ink);font-family:Outfit;display:flex;align-items:center;justify-content:center;font-size:12px}.ov-valor{margin:4px 0 12px}.ov-valor b{display:block;font-family:Outfit;font-size:26px;font-weight:900}.ov-valor small{color:var(--muted);font-size:12.5px;font-weight:700}` }} />
         </div>
       )}
     </div>

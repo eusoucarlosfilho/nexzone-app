@@ -16,9 +16,9 @@ export type GarantiaInfo = {
 const dataBR = (s: string) => new Date(s).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long' });
 
 // Garantia na página do pedido: prazo, botão "Pedir reembolso" e o andamento do pedido.
-export default function GarantiaReembolso({ orderId, g }: { orderId: string; g: GarantiaInfo }) {
-  const [abrir, setAbrir] = useState(false);
-  const [motivo, setMotivo] = useState('');
+export default function GarantiaReembolso({ orderId, g, abertoInicial = false, motivoInicial = '', semBorda = false }: { orderId: string; g: GarantiaInfo; abertoInicial?: boolean; motivoInicial?: string; semBorda?: boolean }) {
+  const [abrir, setAbrir] = useState(abertoInicial);
+  const [motivo, setMotivo] = useState(motivoInicial);
   const [detalhe, setDetalhe] = useState('');
   const [busy, setBusy] = useState(false);
   const router = useRouter();
@@ -37,9 +37,10 @@ export default function GarantiaReembolso({ orderId, g }: { orderId: string; g: 
   }
 
   return (
-    <div className="gr">
+    <div className={`gr${semBorda ? ' gr-sb' : ''}`}>
       <style dangerouslySetInnerHTML={{ __html: `
         .gr{border-top:1px solid var(--border);margin-top:22px;padding-top:18px}
+        .gr.gr-sb{border-top:0;margin-top:0;padding-top:0}
         .gr-h{display:flex;gap:10px;align-items:flex-start}
         .gr-ic{width:36px;height:36px;border-radius:11px;background:var(--green-bg);color:var(--green);display:flex;align-items:center;justify-content:center;flex:none}
         .gr-h b{font-family:'Outfit';font-size:15px;display:block}
@@ -76,7 +77,7 @@ export default function GarantiaReembolso({ orderId, g }: { orderId: string; g: 
       )}
       {g.pode && abrir && (
         <div className="gr-form">
-          <p className="muted" style={{ margin: 0, fontSize: 13 }}>Antes, vale tentar falar com o vendedor pela conversa acima: muitos problemas se resolvem na hora. Se preferir o reembolso, escolha o motivo:</p>
+          <p className="muted" style={{ margin: 0, fontSize: 13 }}>Escolha o motivo. O pedido fica registrado agora, dentro da garantia, e o valor fica retido até a equipe decidir (normalmente em até 2 dias úteis). Nesse tempo o vendedor ainda pode resolver com você.</p>
           <div role="radiogroup" aria-label="Motivo" style={{ display: 'grid', gap: 6 }}>
             {MOTIVOS.map((m) => (
               <label key={m.id} className={`op ${motivo === m.id ? 'on' : ''}`}><input type="radio" name="motivo" checked={motivo === m.id} onChange={() => setMotivo(m.id)} /> {m.rotulo}</label>
