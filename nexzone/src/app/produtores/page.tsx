@@ -40,7 +40,7 @@ export default async function ProdutoresPage() {
     const camp = await lerCfgCampanhas();
     if (camp.fundadorAtivo) {
       const v = await vagasFundador(createAdminClient(), camp);
-      if (v.sql28) fundador = { restantes: v.restantes, total: v.total, dias: camp.fundadorDias, teto: camp.fundadorTeto, destaqueDias: camp.fundadorDestaqueDias };
+      if (v.sql28) fundador = { restantes: v.restantes, total: v.total, dias: camp.fundadorDias, teto: camp.fundadorTeto, destaqueDias: camp.fundadorDestaqueDias, pct: camp.fundadorPct };
     }
   } catch { /* sem SQL 28 */ }
   return <LandingProdutores pixel={pixel} taxas={taxas} fundador={fundador} />;
