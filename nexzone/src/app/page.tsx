@@ -22,6 +22,10 @@ import { CATEGORIAS, contarPorCategoria, acharCategoria } from '@/lib/categorias
 import type { Metadata } from 'next';
 import { dadosWebSite, dadosOrganizacao, jsonLd } from '@/lib/seoSite';
 import { lerSeoConfig } from '@/lib/seo-servidor';
+import OfertaDoDiaCard from '@/components/OfertaDoDiaCard';
+import Contagem from '@/components/Contagem';
+import { ofertaDoDia, cfgCanais, cfgBF, listarJogos } from '@/lib/crescimento-servidor';
+import { faseBF } from '@/lib/crescimento';
 
 export const metadata: Metadata = { alternates: { canonical: '/' } };
 
@@ -76,6 +80,11 @@ export default async function Home() {
       }
     } catch { /* sem SQL 21 */ }
   }
+  // Crescimento: oferta do dia, canais, Black Friday e jogos com anúncio (cada um falha sozinho, sem derrubar a home)
+  const [oferta, canais, bf, jogosTop] = await Promise.all([
+    ofertaDoDia().catch(() => null), cfgCanais().catch(() => null), cfgBF().catch(() => null), listarJogos().then((l) => l.slice(0, 12)).catch(() => []),
+  ]);
+  const fase = bf ? faseBF(bf) : 'depois';
   const vistos = new Set<string>();
   const destaques = produtosPublicos([...doPlano, ...((destRes.data ?? []) as unknown as Product[])].filter((x) => (vistos.has(x.id) ? false : (vistos.add(x.id), true))).slice(0, 12));
   const maisVendidos = produtosPublicos(altaRes.data as Product[] | null);
@@ -127,6 +136,16 @@ export default async function Home() {
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(dadosOrganizacao(seo?.perfis ?? [], support_email || null)) }} />
       <Nav />
       <main>
+        {bf && fase !== 'depois' && (
+          <Link href="/black-friday" className="bf-faixa" style={{ display: 'block', background: '#0E0E1A', color: '#fff', textDecoration: 'none' }}>
+            <div className="c" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, padding: '10px var(--gut)', flexWrap: 'wrap', fontSize: 14 }}>
+              <b style={{ fontFamily: 'Outfit', color: '#FF9A3C' }}>BLACK FRIDAY GAMER</b>
+              <span>{fase === 'antes' ? 'começa em' : 'termina em'}</span>
+              <Contagem alvo={Date.parse(fase === 'antes' ? bf.inicio : bf.fim)} style={{ fontFamily: 'Outfit', fontWeight: 900 }} />
+              <span style={{ textDecoration: 'underline' }}>{fase === 'antes' ? 'Entrar na lista' : 'Ver ofertas'}</span>
+            </div>
+          </Link>
+        )}
         {itensDestaque.length > 0 && (
           <section className="nz car-topo" aria-label="Produtos em destaque"><div className="c">
             <Carousel items={itensDestaque} />
@@ -177,6 +196,21 @@ export default async function Home() {
             )}
           </div>
         </section>
+
+        {oferta && (
+          <section className="nz" aria-label="Oferta do dia"><div className="c">
+            <OfertaDoDiaCard p={oferta.produto} fim={oferta.fim} canais={{ whatsapp: canais?.whatsapp || '', telegram: canais?.telegram || '' }} />
+          </div></section>
+        )}
+
+        {jogosTop.length > 0 && (
+          <section className="nz" aria-labelledby="h-jg"><div className="c">
+            <div className="v3-st"><div><div className="slabel">Por jogo</div><h2 id="h-jg">Jogos populares</h2></div><Link href="/jogos" className="v3-st-l">Ver todos<Icon name="chevronRight" size={16} /></Link></div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {jogosTop.map((j) => <Link key={j.slug} href={`/jogo/${j.slug}`} className="chip">{j.nome} <small className="muted">· {j.qtd}</small></Link>)}
+            </div>
+          </div></section>
+        )}
 
         {vazio ? (
           <section className="nz"><div className="c">

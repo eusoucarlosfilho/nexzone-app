@@ -5,6 +5,7 @@ import { lembrarCarrinhos } from '@/lib/posVenda-servidor';
 import { minutosRecuperacao } from '@/lib/posVenda';
 import { pedirAvaliacoes } from '@/lib/confianca-servidor';
 import { conferirPendentes } from '@/lib/payments/conferirPix';
+import { rotinaCrescimento } from '@/lib/crescimento-servidor';
 
 // Sprint 2 — rotina de 1 em 1 minuto: envia compras para Meta/TikTok, postbacks e lembretes de Pix.
 // Chamada por um agendador externo (Supabase Cron ou cron-job.org) com ?key=<CRON_SECRET>
@@ -38,5 +39,7 @@ export async function GET(req: Request) {
   const carrinhos = Date.now() - inicio < 22000 ? await lembrarCarrinhos(admin, minutos).catch(() => ({ enviados: 0 })) : { enviados: 0, adiado: true };
   // Pedido de avaliação (24–72 h depois da entrega), no máximo 10 por minuto
   const avaliacoes = Date.now() - inicio < 25000 ? await pedirAvaliacoes(admin, 10).catch(() => ({ enviados: 0 })) : { enviados: 0, adiado: true };
-  return NextResponse.json({ ok: true, conferencia, eventos, lembretes, carrinhos, avaliacoes, ms: Date.now() - inicio }, { headers: { 'Cache-Control': 'no-store' } });
+  // Black Friday (aplica/desfaz preços na hora) + post da oferta do dia no Telegram
+  const crescimento = Date.now() - inicio < 26000 ? await rotinaCrescimento(admin).catch(() => null) : null;
+  return NextResponse.json({ ok: true, conferencia, crescimento, eventos, lembretes, carrinhos, avaliacoes, ms: Date.now() - inicio }, { headers: { 'Cache-Control': 'no-store' } });
 }

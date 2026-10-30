@@ -19,6 +19,9 @@ export default async function Footer(_props: { supportEmail?: string }) {
           <div>
             <b>Comprar</b>
             <Link href="/produtos">Explorar produtos</Link>
+            <Link href="/jogos">Jogos</Link>
+            <Link href="/oferta-do-dia">Oferta do dia</Link>
+            <Link href="/black-friday">Black Friday Gamer</Link>
             <Link href="/minhas-compras">Minhas compras</Link>
             <Link href="/favoritos">Favoritos</Link>
             <Link href="/notificacoes">Notificações</Link>

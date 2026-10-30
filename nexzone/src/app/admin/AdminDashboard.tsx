@@ -32,6 +32,7 @@ import SeoGoogle from './SeoGoogle';
 import TaxasPlanos from './TaxasPlanos';
 import DadosEmpresa from './DadosEmpresa';
 import CampanhasConfig from './CampanhasConfig';
+import CrescimentoAdmin from './CrescimentoAdmin';
 import FinanceiroPainel from './FinanceiroPainel';
 import RecuperacaoVendas from './RecuperacaoVendas';
 import { registrarContatoRecuperacao } from '@/lib/recuperacaoCliente';
@@ -1008,6 +1009,7 @@ export default function AdminDashboard({ painel, adminEmail, users, metrics, dai
             <TaxasPlanos />
             <DadosEmpresa />
             <CampanhasConfig />
+            <CrescimentoAdmin />
             <SettingsForm settings={settings} />
             <SuporteConfig inicial={settings.suporte} />
           </>

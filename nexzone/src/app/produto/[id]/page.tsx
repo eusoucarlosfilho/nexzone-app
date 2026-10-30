@@ -18,6 +18,7 @@ import { temPixel } from '@/lib/rastreioVenda';
 import PixelProduto from './PixelProduto';
 import { lerCfgCampanhas, fundadorDaLoja } from '@/lib/campanhas-servidor';
 import { pontosCashbackControlado } from '@/lib/campanhas';
+import { slugJogo } from '@/lib/crescimento';
 import { notFound } from 'next/navigation';
 import type { Product } from '@/lib/types';
 import type { Metadata } from 'next';
@@ -320,7 +321,7 @@ export default async function ProductPage({ params }: { params: { id: string } }
             : <div className="pdp-hero"><CategoryCover cat={p.categoria} size={96} /></div>}
           <div className="pdp-chips">
             {cat ? <Link href={`/categoria/${cat.slug}`} className="pdp-chip">{cat.nome}</Link> : p.categoria && <span className="pdp-chip">{p.categoria}</span>}
-            {jogo && <Link href={`/produtos?q=${encodeURIComponent(jogo)}`} className="pdp-chip">{jogo}</Link>}
+            {jogo && <Link href={`/jogo/${slugJogo(jogo)}`} className="pdp-chip">{jogo}</Link>}
             {tipoInfo && tipoInfo.id !== 'digital' && <span className="pdp-chip">{tipoInfo.nome}</span>}
             {ehTopo && <span className="pdp-chip pdp-topo"><Icon name="trophy" size={13} /> Topo</span>}
           </div>
