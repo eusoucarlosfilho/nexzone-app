@@ -32,6 +32,8 @@ import SeoGoogle from './SeoGoogle';
 import TaxasPlanos from './TaxasPlanos';
 import DadosEmpresa from './DadosEmpresa';
 import RecuperacaoVendas from './RecuperacaoVendas';
+import { registrarContatoRecuperacao } from '@/lib/recuperacaoCliente';
+import { chaveRecuperacao } from '@/lib/filaRecuperacao';
 import CarrinhosAbandonados from '@/components/CarrinhosAbandonados';
 import AtivarCelular from '@/components/AtivarCelular';
 
@@ -500,7 +502,7 @@ export default function AdminDashboard({ painel, adminEmail, users, metrics, dai
                 </button>
               ))}
             </div>
-            {orderFilter === 'abandonou' ? <div className="adm-card"><CarrinhosAbandonados itens={carrinhos} tema="admin" mostrarLoja /></div> : (
+            {orderFilter === 'abandonou' ? <div className="adm-card"><CarrinhosAbandonados itens={carrinhos} tema="admin" mostrarLoja registrar /></div> : (
             <div className="adm-card">
               {filteredOrders.length ? (
                 <table className="adm-table">
@@ -519,8 +521,9 @@ export default function AdminDashboard({ painel, adminEmail, users, metrics, dai
                           {o.status === 'pendente' && (() => {
                             const msg = mensagemRecuperacao({ nome: o.cliente?.nome, produto: o.products?.titulo || 'o produto', loja: o.stores?.nome, link: `https://www.compreibarato.com.br/checkout/${o.product_id}` });
                             const wa = o.cliente?.avisos ? linkWhatsapp(o.cliente?.whatsapp, msg) : null;
-                            return wa ? <a className="adm-btn ap" href={wa} target="_blank" rel="noreferrer" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}>WhatsApp</a>
-                              : o.comprador_email ? <a className="adm-btn rp" href={`mailto:${o.comprador_email}?subject=${encodeURIComponent('Sua compra no Comprei Barato')}&body=${encodeURIComponent(msg)}`} style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}>E-mail</a> : null;
+                            const chave = chaveRecuperacao(o.comprador_email, o.comprador, o.product_id);
+                            return wa ? <a className="adm-btn ap" href={wa} target="_blank" rel="noreferrer" onClick={() => registrarContatoRecuperacao(chave, 'whatsapp')} style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}>WhatsApp</a>
+                              : o.comprador_email ? <a className="adm-btn rp" href={`mailto:${o.comprador_email}?subject=${encodeURIComponent('Sua compra no Comprei Barato')}&body=${encodeURIComponent(msg)}`} onClick={() => registrarContatoRecuperacao(chave, 'email')} style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}>E-mail</a> : null;
                           })()}
                           <button className="adm-btn rp" onClick={() => setChatOrder(o.id)}>Conversa</button>
                           {(o.status === 'pago' || o.status === 'entregue') && <button className="adm-btn rp" disabled={busy === o.id} onClick={() => reembolsar(o.id)}>Reembolsar</button>}

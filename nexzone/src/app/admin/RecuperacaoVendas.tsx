@@ -1,10 +1,12 @@
 'use client';
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from '@/lib/toast';
+import FilaRecuperacao from './FilaRecuperacao';
+import type { ItemFila } from '@/lib/filaRecuperacao';
 
 // Admin › Pedidos: o robô de recuperação (lembretes automáticos) e o botão para chamar quem ficou para trás.
-// Fica recolhido num botão que mostra quantos há para recuperar; clicou, abre o painel completo.
-type Status = { sql24: boolean; minutos: number; roboEm: string | null; whatsapp: { ativo: boolean; conectado: boolean }; antigos: { pedidos: number; carrinhos: number }; lembretes24h: number };
+// Fica recolhido num botão que mostra quantos há para recuperar; clicou, abre o painel completo com a fila (histórico por cliente).
+type Status = { sql24: boolean; minutos: number; roboEm: string | null; whatsapp: { ativo: boolean; conectado: boolean }; antigos: { pedidos: number; carrinhos: number }; lembretes24h: number; fila?: ItemFila[]; sql26?: boolean; proximos?: { quem: string; produto: string }[] };
 
 const ha = (iso: string | null) => {
   if (!iso) return null;
@@ -18,12 +20,13 @@ export default function RecuperacaoVendas() {
   const [enviando, setEnviando] = useState(false);
   const [salvando, setSalvando] = useState(false);
   const [aberto, setAberto] = useState(false);
+  const [versao, setVersao] = useState(0);
 
   const carregar = useCallback(async () => {
     try {
-      const r = await fetch('/api/admin/recuperacao', { cache: 'no-store' });
+      const r = await fetch('/api/admin/recuperacao?fila=1', { cache: 'no-store' });
       const j = await r.json(); if (!r.ok) throw new Error(j.error);
-      setS(j); setMin(String(j.minutos));
+      setS(j); setMin(String(j.minutos)); setVersao((v) => v + 1);
     } catch { /* card some sem quebrar a aba */ }
   }, []);
   useEffect(() => { carregar(); }, [carregar]);
@@ -39,7 +42,8 @@ export default function RecuperacaoVendas() {
 
   async function antigos() {
     const total = (s?.antigos.pedidos || 0) + (s?.antigos.carrinhos || 0);
-    if (!confirm(`Mandar lembrete para até 12 dos ${total} clientes que ficaram para trás nos últimos 7 dias? Sai pelo WhatsApp conectado (só quem aceitou avisos) e por e-mail.`)) return;
+    const nomes = (s?.proximos || []).map((p) => `• ${p.quem} (${p.produto})`).join('\n');
+    if (!confirm(`Mandar lembrete para ${Math.min(12, total)} de ${total} clientes que ficaram para trás nos últimos 7 dias?\n\n${nomes}\n\nQuem desistiu ou foi chamado à mão nas últimas 24 h fica de fora. Sai pelo WhatsApp conectado (só quem aceitou avisos) e por e-mail.`)) return;
     setEnviando(true);
     try {
       const r = await fetch('/api/admin/recuperacao', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ acao: 'antigos' }) });
@@ -53,11 +57,13 @@ export default function RecuperacaoVendas() {
   if (!s) return null;
   const roboOk = s.sql24 && s.roboEm && Date.now() - new Date(s.roboEm).getTime() < 10 * 60000;
   const antigosTotal = s.antigos.pedidos + s.antigos.carrinhos;
+  // com a fila carregada, conta quem ainda está para chamar (sem quem desistiu ou já foi contatado)
+  const paraChamar = s.fila ? s.fila.filter((i) => i.situacao === 'novo' || i.situacao === 'lembrado').length : antigosTotal;
   const ponto = (ok: boolean) => <span style={{ display: 'inline-block', width: 9, height: 9, borderRadius: '50%', background: ok ? '#3DDC97' : '#FF5C5C', marginRight: 7 }} />;
 
   const alerta = !roboOk || !(s.whatsapp.ativo && s.whatsapp.conectado);
   return (
-    <div className="adm-card" style={{ marginBottom: 18, padding: aberto ? 22 : 0, overflow: 'hidden' }}>
+    <div className="adm-card" id="recuperacao" style={{ marginBottom: 18, padding: aberto ? 22 : 0, overflow: 'hidden', scrollMarginTop: 80 }}>
       <style dangerouslySetInnerHTML={{ __html: `
         .rv-top{width:100%;display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:none;border:0;color:var(--tx);cursor:pointer;text-align:left;font-family:inherit}
         .rv-top:hover .rv-tit{color:var(--or2)}
@@ -71,11 +77,11 @@ export default function RecuperacaoVendas() {
       ` }} />
       <button type="button" className="rv-top" onClick={() => setAberto(!aberto)} aria-expanded={aberto} style={{ padding: aberto ? '0 0 14px' : '16px 22px' }}>
         <span className="rv-tit">Recuperação de vendas</span>
-        {antigosTotal > 0
-          ? <span className="rv-qt">{antigosTotal} para recuperar</span>
+        {paraChamar > 0
+          ? <span className="rv-qt">{paraChamar} para recuperar</span>
           : <span className="rv-ok">{ponto(true)}Ninguém para trás nos últimos 7 dias</span>}
         {alerta && <span className="rv-av">⚠ {!roboOk ? 'Robô parado' : 'WhatsApp desconectado'}</span>}
-        <span className="rv-sv">{aberto ? 'Fechar ▲' : antigosTotal ? 'Abrir e chamar ▼' : 'Ver detalhes ▼'}</span>
+        <span className="rv-sv">{aberto ? 'Fechar ▲' : paraChamar ? 'Abrir e chamar ▼' : 'Ver detalhes ▼'}</span>
       </button>
       {aberto && <>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))', gap: 10, fontSize: 13.5, marginBottom: 14 }}>
@@ -96,7 +102,8 @@ export default function RecuperacaoVendas() {
           {enviando ? 'Enviando… (até 1 min)' : antigosTotal ? `Chamar quem ficou para trás (${antigosTotal})` : 'Ninguém para trás nos últimos 7 dias'}
         </button>
       </div>
-      {antigosTotal > 0 && <small style={{ display: 'block', marginTop: 8, color: 'var(--sub)' }}>{s.antigos.pedidos} Pix não pagos e {s.antigos.carrinhos} carrinhos dos últimos 7 dias. Vai de 12 em 12, com intervalo, para não bloquearem o número.</small>}
+      {antigosTotal > 0 && <small style={{ display: 'block', marginTop: 8, color: 'var(--sub)' }}>{s.antigos.pedidos} Pix não pagos e {s.antigos.carrinhos} carrinhos dos últimos 7 dias. Vai de 12 em 12, com intervalo, para não bloquearem o número. Quem desistiu ou já foi chamado à mão nas últimas 24 h fica de fora.</small>}
+      {s.fila && <FilaRecuperacao key={versao} itens={s.fila} sql26={!!s.sql26} onMudou={carregar} />}
       <small style={{ display: 'block', marginTop: 8, color: 'var(--sub)' }}>Cada vendedor também tem este painel em Vendas, só com os clientes da loja dele. Aqui você vê a plataforma inteira para acompanhar e ajudar quando precisar.</small>
       </>}
     </div>
