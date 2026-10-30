@@ -23,7 +23,9 @@ const CAMPOS: [string, string, number, number][] = [
   ['gwPixPct', 'fin_custo_pix_pct', 0, 30], ['gwPixFixo', 'fin_custo_pix_entrada', 0, 20], ['gwCartaoPct', 'fin_custo_cartao_pct', 0, 30], ['gwCartaoFixo', 'fin_custo_cartao_fixo', 0, 20],
   ['margemPixPct', 'margem_pix_pct', 0, 50], ['margemPixFixo', 'margem_pix_fixo', 0, 20], ['margemCartaoPct', 'margem_cartao_pct', 0, 50], ['margemCartaoFixo', 'margem_cartao_fixo', 0, 20],
   ['liberaContaDias', 'liberacao_conta_dias', 0, 60], ['liberaPadraoDias', 'liberacao_padrao_dias', 0, 60], ['liberaCartaoDias', 'liberacao_cartao_dias', 0, 60],
-  ['saqueExtraTaxa', 'saque_extra_taxa', 0, 20],
+  ['saqueExtraTaxa', 'saque_extra_taxa', 0, 20], ['saqueGratisMin', 'saque_gratis_min', 0, 1000],
+  // roteamento do Pix: até este valor pelo Mercado Pago (0 = desligado)
+  ['pixMpAte', 'pix_mp_ate', 0, 100000], ['gwPixMpPct', 'gw_pix_mp_pct', 0, 30], ['gwPixMpFixo', 'gw_pix_mp_fixo', 0, 20],
 ];
 
 export async function GET() {
