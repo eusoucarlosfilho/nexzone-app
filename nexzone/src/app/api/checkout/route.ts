@@ -3,7 +3,7 @@ import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { awardPoints } from '@/lib/points';
 import { getGateway } from '@/lib/payments/gateway';
 import { lerTaxas } from '@/lib/settings';
-import { divisaoVendedor, taxaComprador, planoEfetivo } from '@/lib/taxas';
+import { divisaoVendedor, taxaComprador, planoEfetivo, comissaoCobreGateway, maxDescontoPontos } from '@/lib/taxas';
 import { lerCfgCampanhas, ehPrimeiraCompra, fundadorDaLoja } from '@/lib/campanhas-servidor';
 import { taxaComPromo, divisaoComFundador } from '@/lib/campanhas';
 import { listaDeBumps } from '@/lib/checkoutConfig';
@@ -78,7 +78,20 @@ export async function POST(req: Request) {
 
   const totalBruto = Math.max(0, +(precoBase - desconto + bumpValor).toFixed(2));
 
+  // Modelo de taxas (SQL 21): % do vendedor pelo plano do anúncio + taxa de serviço do comprador no Pix
+  // A divisão vendedor × plataforma é feita sobre o valor CHEIO (antes dos CB Points): os pontos são
+  // custeados pela comissão da plataforma, nunca pelo vendedor.
+  const cfgTaxas = await lerTaxas();
+  const plano = planoEfetivo((product as any).plano, cfgTaxas);
+  // Campanhas (SQL 28): Lojista Fundador (0% de comissão) e 1ª compra sem taxa de serviço no Pix
+  const adminCamp = createAdminClient();
+  const camp = await lerCfgCampanhas(adminCamp);
+  const [fund, primeira] = await Promise.all([fundadorDaLoja(adminCamp, product.store_id, camp), ehPrimeiraCompra(adminCamp, user.id)]);
+  const cheia = divisaoComFundador(divisaoVendedor(totalBruto, plano, cfgTaxas), totalBruto, fund.ativo);
+  const feePercent = cheia.pct;
+
   // Desconto por CB Points (calculado no servidor, deixando ao menos R$1,00 para o Pix)
+  // Trava: nunca maior que a comissão da plataforma no pedido (senão a plataforma paga para vender)
   let descontoPontos = 0; let pontosGastos = 0;
   if (usarPontos) {
     const adminP = createAdminClient();
@@ -87,20 +100,18 @@ export async function POST(req: Request) {
     const { data: cfgP } = await adminP.from('settings').select('value').eq('key', 'cb_points_per_brl').maybeSingle();
     const perBrl = Number((cfgP as any)?.value) || 100;
     const valorPontos = Math.floor((meusPontos / perBrl) * 100) / 100;
-    descontoPontos = Math.max(0, Math.min(valorPontos, +(totalBruto - 1).toFixed(2)));
+    descontoPontos = Math.max(0, Math.min(valorPontos, +(totalBruto - 1).toFixed(2), cheia.taxa, maxDescontoPontos(totalBruto, feePercent)));
     pontosGastos = Math.round(descontoPontos * perBrl);
   }
 
   const total = Math.max(0, +(totalBruto - descontoPontos).toFixed(2));
-  // Modelo de taxas (SQL 21): % do vendedor pelo plano do anúncio + taxa de serviço do comprador no Pix
-  const cfgTaxas = await lerTaxas();
-  const plano = planoEfetivo((product as any).plano, cfgTaxas);
-  // Campanhas (SQL 28): Lojista Fundador (0% de comissão) e 1ª compra sem taxa de serviço no Pix
-  const adminCamp = createAdminClient();
-  const camp = await lerCfgCampanhas(adminCamp);
-  const [fund, primeira] = await Promise.all([fundadorDaLoja(adminCamp, product.store_id, camp), ehPrimeiraCompra(adminCamp, user.id)]);
-  const { pct: feePercent, taxa, valorVendedor } = divisaoComFundador(divisaoVendedor(total, plano, cfgTaxas), total, fund.ativo);
-  const taxaPix = taxaComPromo(taxaComprador('pix', total, cfgTaxas), 'pix', primeira, camp);
+  // Vendedor recebe a parte dele do valor cheio; a plataforma fica com a comissão menos os pontos.
+  // Sempre vale: total = taxa + valor_vendedor.
+  const valorVendedor = cheia.valorVendedor;
+  const taxa = Math.max(0, +(total - valorVendedor).toFixed(2));
+  // 1ª compra sem taxa: só quando a comissão do pedido cobre a tarifa do gateway (nunca vende no prejuízo)
+  const promoPix = primeira && comissaoCobreGateway('pix', total, taxa, cfgTaxas);
+  const taxaPix = taxaComPromo(taxaComprador('pix', total, cfgTaxas), 'pix', promoPix, camp);
   const valorPix = +(total + taxaPix).toFixed(2);
 
   // Sem cupom: reaproveita pedido pendente; com cupom: cria novo (evita inconsistência de valor)
