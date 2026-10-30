@@ -3,7 +3,7 @@
 // fica "Aguardando pagamento" para sempre (e ainda recebe lembrete de Pix).
 // Usado: pela página do pedido (enquanto o cliente espera), pela rotina de 1 em 1 minuto e pelo admin.
 // USO EXCLUSIVO NO SERVIDOR (client admin). Nunca lança erro. A liberação é a MESMA do webhook (fulfill.ts).
-import { getGateway, type PaymentGateway } from './gateway';
+import { gatewayDaRef, type PaymentGateway } from './gateway';
 import { processarPedido, ORDER_FIELDS } from './fulfill';
 import { gravarFormaPagamento } from './formaPagamento';
 
@@ -23,8 +23,9 @@ export async function conferirPedido(admin: any, orderOrId: any, gw?: PaymentGat
     if (order.status !== 'pendente') return 'ja_pago';
     const ref = String(order.gateway_ref || '');
     if (!ref || ref.startsWith('dev_')) return 'sem_ref';
-    const g = gw ?? (await getGateway());
-    const ev = await g.checkPayment(ref);
+    // pela referência: "mp:<id>" consulta o Mercado Pago; o resto, o gateway padrão
+    const alvo = ref.startsWith('mp:') || !gw ? await gatewayDaRef(ref) : { gw, ref };
+    const ev = await alvo.gw.checkPayment(alvo.ref);
     if (!ev) return 'erro';
     if (ev.status === 'recusado') return 'recusado';
     if (ev.status !== 'pago') return 'pendente';
@@ -55,7 +56,7 @@ export async function conferirPendentes(admin: any, opt: { horas?: number; limit
       .order('created_at', { ascending: false }).limit(limite);
     const lista = (data ?? []) as any[];
     if (!lista.length) return r;
-    const gw = await getGateway();
+    const gw = (await gatewayDaRef('')).gw;
     for (const o of lista) {
       if (Date.now() - inicio > ms) break;
       const x = await conferirPedido(admin, o, gw);

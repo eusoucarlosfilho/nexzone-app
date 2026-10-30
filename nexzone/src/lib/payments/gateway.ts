@@ -1,4 +1,5 @@
 import { getPaymentConfig } from './config';
+import { rotaPix, type ConfigTaxas } from '../taxas';
 
 export interface CreatePaymentInput {
   orderId: string;
@@ -207,19 +208,14 @@ class MercadoPagoGateway implements PaymentGateway {
     };
   }
 
-  async parseWebhook(_req: Request, rawBody: string): Promise<WebhookEvent | null> {
+  async parseWebhook(req: Request, rawBody: string): Promise<WebhookEvent | null> {
     try {
-      const body = JSON.parse(rawBody);
-      const id = body?.data?.id;
+      let id: any = null;
+      try { id = JSON.parse(rawBody)?.data?.id; } catch { /* corpo vazio: vem pela URL */ }
+      if (!id) id = new URL(req.url).searchParams.get('data.id') || new URL(req.url).searchParams.get('id');
       if (!id) return null;
-      const r = await fetch(`https://api.mercadopago.com/v1/payments/${id}`, {
-        headers: { Authorization: `Bearer ${this.token}` },
-      });
-      const p = await r.json();
-      const map: Record<string, WebhookEvent['status']> = {
-        approved: 'pago', rejected: 'recusado', refunded: 'estornado', pending: 'pendente',
-      };
-      return { gatewayRef: String(id), status: map[p.status] || 'pendente', orderId: p.external_reference };
+      // status e valor SEMPRE da consulta à API (o aviso não é assinado)
+      return await this.checkPayment(String(id));
     } catch { return null; }
   }
 
@@ -234,6 +230,46 @@ class MercadoPagoGateway implements PaymentGateway {
       return { gatewayRef: String(ref), status: map[p.status] || 'pendente', orderId: p.external_reference, amount: isNaN(value) ? undefined : value };
     } catch { return null; }
   }
+}
+
+/** Aviso do Mercado Pago? (o da MisticPay traz transactionId; o do MP traz data.id / type=payment) */
+export function pareceAvisoMercadoPago(req: Request, rawBody: string): boolean {
+  try {
+    const u = new URL(req.url);
+    if (u.searchParams.get('type') === 'payment' || u.searchParams.get('topic') === 'payment' || u.searchParams.get('data.id')) return true;
+    const b = JSON.parse(rawBody || '{}');
+    return !!b?.data?.id && !b?.transactionId;
+  } catch { return false; }
+}
+
+export const PREFIXO_MP = 'mp:';
+
+/**
+ * Cria o Pix pelo gateway da ROTA (estudo de taxas): Mercado Pago até o limite configurado
+ * (0,99% sem mínimo, melhor para ticket baixo), o gateway padrão (MisticPay) acima disso.
+ * O gatewayRef do Mercado Pago volta com o prefixo "mp:" para a conferência saber onde consultar.
+ * Se o Mercado Pago falhar, cai no padrão: o comprador nunca fica sem Pix.
+ */
+export async function criarPixRoteado(input: CreatePaymentInput, total: number, cfg: ConfigTaxas): Promise<CreatePaymentResult & { rota: 'mp' | 'padrao' }> {
+  if (rotaPix(total, cfg) === 'mp') {
+    const r = await new MercadoPagoGateway().createPixPayment({ ...input, sellerRecipientId: null });
+    if (r.status !== 'erro' && r.gatewayRef && !r.gatewayRef.startsWith('dev_')) return { ...r, gatewayRef: PREFIXO_MP + r.gatewayRef, rota: 'mp' };
+    console.error('[pix] Mercado Pago falhou, gerando pelo gateway padrão:', r.error);
+  }
+  const r = await (await getGateway()).createPixPayment(input);
+  return { ...r, rota: 'padrao' };
+}
+
+/** Gateway e referência para CONSULTAR um Pix já criado (pelo prefixo da referência). */
+export async function gatewayDaRef(gatewayRef: string): Promise<{ gw: PaymentGateway; ref: string }> {
+  if (gatewayRef.startsWith(PREFIXO_MP)) return { gw: new MercadoPagoGateway(), ref: gatewayRef.slice(PREFIXO_MP.length) };
+  return { gw: await getGateway(), ref: gatewayRef };
+}
+
+/** Gateway para ler um aviso (webhook): Mercado Pago quando o aviso é dele, senão o padrão. */
+export async function gatewayDoAviso(req: Request, rawBody: string): Promise<PaymentGateway> {
+  if (pareceAvisoMercadoPago(req, rawBody)) return new MercadoPagoGateway();
+  return getGateway();
 }
 
 /**
