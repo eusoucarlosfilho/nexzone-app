@@ -23,6 +23,9 @@ export interface WebhookEvent {
   status: 'pago' | 'recusado' | 'estornado' | 'pendente';
   orderId?: string;
   amount?: number; // valor confirmado pelo gateway (quando disponível)
+  estado?: string; // estado bruto no gateway (ex.: COMPLETO, DEVOLVIDO, DEVOLVIDO_PARCIAL)
+  /** Aviso de devolução (reembolso feito no painel da MisticPay ou pelo banco) */
+  devolucao?: { status: string; valor: number | null; ref: string | null; em: string | null; parcial: boolean };
 }
 export interface PaymentGateway {
   createPixPayment(input: CreatePaymentInput): Promise<CreatePaymentResult>;
@@ -123,7 +126,21 @@ class MisticPayGateway implements PaymentGateway {
 
       // A MisticPay não assina o webhook: qualquer um pode chamar esta URL.
       // Por isso o status e o valor vêm da consulta à API, nunca do corpo recebido.
-      return await this.checkPayment(ref);
+      const ev = await this.checkPayment(ref);
+      if (!ev) return null;
+      // Devolução (reembolso): o ESTADO vem da consulta (DEVOLVIDO); do corpo só os detalhes (valor, id da devolução)
+      const rf = b?.refund;
+      if (rf || ev.estado === 'DEVOLVIDO' || ev.estado === 'DEVOLVIDO_PARCIAL') {
+        const recusado = String(rf?.status || '').toUpperCase() === 'RECUSADO';
+        ev.devolucao = {
+          status: recusado ? 'RECUSADO' : ev.estado === 'DEVOLVIDO' || ev.estado === 'DEVOLVIDO_PARCIAL' ? 'CONCLUIDO' : String(rf?.status || ''),
+          valor: Number.isFinite(Number(rf?.refundedValue)) ? Number(rf.refundedValue) : null,
+          ref: rf?.refundId ? String(rf.refundId) : b?.e2e ? String(b.e2e) : null,
+          em: rf?.refundedAt ? String(rf.refundedAt) : null,
+          parcial: ev.estado === 'DEVOLVIDO_PARCIAL',
+        };
+      }
+      return ev;
     } catch {
       return null;
     }
@@ -146,10 +163,10 @@ class MisticPayGateway implements PaymentGateway {
 
       const s = String(tx.transactionState || tx.status || '').toUpperCase();
       const map: Record<string, WebhookEvent['status']> = {
-        COMPLETO: 'pago', FALHA: 'recusado', PENDENTE: 'pendente',
+        COMPLETO: 'pago', FALHA: 'recusado', PENDENTE: 'pendente', DEVOLVIDO: 'estornado', // DEVOLVIDO_PARCIAL: só avisa o admin
       };
       const value = Number(tx.value);
-      return { gatewayRef: ref, status: map[s] || 'pendente', amount: isNaN(value) ? undefined : value };
+      return { gatewayRef: ref, status: map[s] || 'pendente', amount: isNaN(value) ? undefined : value, estado: s };
     } catch {
       return null;
     }
