@@ -58,7 +58,7 @@ export default function TorpedosForm({ settings }: any) {
         <div style={{ marginBottom: 12 }}>
           <label style={lbl}>SMS — Token</label>
           <input type="password" value={smsToken} onChange={(e) => setSmsToken(e.target.value)}
-            placeholder={tokenSet ? '•••••••• (já salvo — deixe em branco para manter)' : 'token do provedor'} style={inp} autoComplete="off" />
+            placeholder={tokenSet ? '•••••••• (já salvo — deixe em branco para manter)' : 'token do provedor'} style={inp} autoComplete="new-password" />
         </div>
         <div>
           <label style={lbl}>SMS — Remetente (opcional)</label>

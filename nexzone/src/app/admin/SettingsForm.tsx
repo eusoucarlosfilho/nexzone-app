@@ -195,7 +195,7 @@ export default function SettingsForm({ settings }: any) {
             <label style={lbl}>MisticPay — Client Secret (cs)</label>
             <input type="password" value={cs} onChange={(e) => setCs(e.target.value)}
               placeholder={csSet ? '•••••••••• (já cadastrado — deixe em branco para manter)' : 'seu_client_secret'}
-              style={inp} autoComplete="off" />
+              style={inp} autoComplete="new-password" />
             <small style={hint}>
               {csSet
                 ? 'Secret já cadastrado. Só preencha se quiser substituí-lo.'
@@ -238,7 +238,7 @@ export default function SettingsForm({ settings }: any) {
         <label style={lbl}>Importação por IA — chave da DeepSeek</label>
         <input type="password" value={deepseek} onChange={(e) => setDeepseek(e.target.value)}
           placeholder={dsSet ? '•••••••••• (já configurada — deixe em branco para manter)' : 'sk-... (cole a chave da DeepSeek)'}
-          style={inp} autoComplete="off" />
+          style={inp} autoComplete="new-password" />
         <small style={hint}>
           {dsSet
             ? 'Chave já configurada. Só preencha se quiser substituí-la.'
