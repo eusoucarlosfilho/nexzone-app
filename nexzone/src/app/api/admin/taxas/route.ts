@@ -19,7 +19,9 @@ async function soAdmin() {
 const CAMPOS: [string, string, number, number][] = [
   ['planoBasico', 'plano_basico_pct', 0, 50], ['planoDestaque', 'plano_destaque_pct', 0, 50], ['planoTopo', 'plano_topo_pct', 0, 50],
   ['topoVagas', 'topo_vagas_categoria', 1, 50],
-  ['compradorPix', 'taxa_comprador_pix', 0, 20], ['compradorCartaoPct', 'taxa_comprador_cartao_pct', 0, 50], ['compradorCartaoFixo', 'taxa_comprador_cartao_fixo', 0, 20],
+  // taxa de serviço do comprador = tarifa do gateway (mesmas chaves do Financeiro) + nossa margem
+  ['gwPixPct', 'fin_custo_pix_pct', 0, 30], ['gwPixFixo', 'fin_custo_pix_entrada', 0, 20], ['gwCartaoPct', 'fin_custo_cartao_pct', 0, 30], ['gwCartaoFixo', 'fin_custo_cartao_fixo', 0, 20],
+  ['margemPixPct', 'margem_pix_pct', 0, 50], ['margemPixFixo', 'margem_pix_fixo', 0, 20], ['margemCartaoPct', 'margem_cartao_pct', 0, 50], ['margemCartaoFixo', 'margem_cartao_fixo', 0, 20],
   ['liberaContaDias', 'liberacao_conta_dias', 0, 60], ['liberaPadraoDias', 'liberacao_padrao_dias', 0, 60], ['liberaCartaoDias', 'liberacao_cartao_dias', 0, 60],
   ['saqueExtraTaxa', 'saque_extra_taxa', 0, 20],
 ];
