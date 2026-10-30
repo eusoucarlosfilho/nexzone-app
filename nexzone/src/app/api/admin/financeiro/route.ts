@@ -45,7 +45,7 @@ export async function POST(req: Request) {
     return 'error' in r ? NextResponse.json({ error: r.error }, { status: 400 }) : NextResponse.json({ ...r, bucket: BUCKET_FIN });
   }
   if (b.acao === 'ajustes') {
-    const cfg = lerConfigFin({ fin_custo_pix_entrada: b.custoPixEntrada, fin_custo_pix_saida: b.custoPixSaida, fin_custo_cartao_pct: b.custoCartaoPct, fin_custo_cartao_fixo: b.custoCartaoFixo, fin_aliquota_das: b.aliquotaDas });
+    const cfg = lerConfigFin({ fin_custo_pix_pct: b.custoPixPct, fin_custo_pix_entrada: b.custoPixEntrada, fin_custo_pix_saida: b.custoPixSaida, fin_custo_cartao_pct: b.custoCartaoPct, fin_custo_cartao_fixo: b.custoCartaoFixo, fin_aliquota_das: b.aliquotaDas });
     return (await salvarCfgFin(admin, cfg)) ? NextResponse.json({ ok: true, cfg }) : NextResponse.json({ error: 'Não foi possível salvar.' }, { status: 500 });
   }
   if (b.acao === 'criar' || b.acao === 'editar') {
