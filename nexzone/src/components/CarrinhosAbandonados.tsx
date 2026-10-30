@@ -4,17 +4,20 @@ import Icon from './Icon';
 import ProductThumb from './ProductThumb';
 import { mensagemRecuperacao, linkWhatsapp, haQuanto, foneLegivel } from '@/lib/recuperacaoVenda';
 import type { CarrinhoAbandonado } from '@/lib/clientesPedidos';
+import { registrarContatoRecuperacao } from '@/lib/recuperacaoCliente';
+import { chaveRecuperacao } from '@/lib/filaRecuperacao';
 
 // Lista de quem preencheu os dados no checkout e saiu sem gerar o Pix, com contato e mensagem pronta.
 // tema "loja" = painel do lojista (claro); "admin" = Sala de comando (usa as classes do admin).
 const money = (v: number | null) => (v == null ? '—' : 'R$ ' + Number(v).toFixed(2).replace('.', ','));
 
-export default function CarrinhosAbandonados({ itens, tema = 'loja', mostrarLoja = false, site = 'https://www.compreibarato.com.br', privado = false }: { itens: CarrinhoAbandonado[]; tema?: 'loja' | 'admin'; mostrarLoja?: boolean; site?: string; privado?: boolean }) {
+export default function CarrinhosAbandonados({ itens, tema = 'loja', mostrarLoja = false, site = 'https://www.compreibarato.com.br', privado = false, registrar = false }: { itens: CarrinhoAbandonado[]; tema?: 'loja' | 'admin'; mostrarLoja?: boolean; site?: string; privado?: boolean; registrar?: boolean }) {
+  const reg = (c: CarrinhoAbandonado, canal: 'whatsapp' | 'email' | 'copiar') => { if (registrar) registrarContatoRecuperacao(chaveRecuperacao(c.email, c.user_id, c.product_id), canal); };
   const adm = tema === 'admin';
   const linkDe = (c: CarrinhoAbandonado) => `${site}/checkout/${c.product_id}?email=${encodeURIComponent(c.email)}&utm_source=recuperacao&utm_medium=whatsapp`;
   const msg = (c: CarrinhoAbandonado) => mensagemRecuperacao({ nome: c.nome, produto: c.titulo, loja: c.loja, link: linkDe(c) });
   async function copiar(c: CarrinhoAbandonado) {
-    try { await navigator.clipboard.writeText(msg(c)); toast('Mensagem copiada.', 'success'); } catch { toast('Não deu para copiar neste navegador.', 'error'); }
+    try { await navigator.clipboard.writeText(msg(c)); reg(c, 'copiar'); toast('Mensagem copiada.', 'success'); } catch { toast('Não deu para copiar neste navegador.', 'error'); }
   }
   const sub = adm ? 'var(--sub)' : 'var(--muted)';
   const bt: React.CSSProperties = adm
@@ -44,8 +47,8 @@ export default function CarrinhosAbandonados({ itens, tema = 'loja', mostrarLoja
                 <td style={adm ? undefined : td}><small style={{ color: sub }}>{c.lembretes.length ? c.lembretes.join(' · ') : 'nenhum ainda'}</small></td>
                 <td style={adm ? undefined : td}>
                   {privado ? <small style={{ color: sub }}>Lembrete automático</small> : <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                    {zap && <a className={adm ? 'adm-btn ap' : undefined} style={wa} href={zap} target="_blank" rel="noreferrer"><Icon name="chat" size={14} /> WhatsApp</a>}
-                    <a className={adm ? 'adm-btn rp' : undefined} style={bt} href={`mailto:${c.email}?subject=${encodeURIComponent('Sua compra no Comprei Barato')}&body=${encodeURIComponent(msg(c))}`}><Icon name="mail" size={14} /> E-mail</a>
+                    {zap && <a className={adm ? 'adm-btn ap' : undefined} style={wa} href={zap} target="_blank" rel="noreferrer" onClick={() => reg(c, 'whatsapp')}><Icon name="chat" size={14} /> WhatsApp</a>}
+                    <a className={adm ? 'adm-btn rp' : undefined} style={bt} href={`mailto:${c.email}?subject=${encodeURIComponent('Sua compra no Comprei Barato')}&body=${encodeURIComponent(msg(c))}`} onClick={() => reg(c, 'email')}><Icon name="mail" size={14} /> E-mail</a>
                     <button type="button" className={adm ? 'adm-btn rp' : undefined} style={adm ? undefined : bt} onClick={() => copiar(c)}><Icon name="copy" size={14} /> Copiar</button>
                   </div>}
                 </td>
