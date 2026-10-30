@@ -4,10 +4,13 @@ import TextoFormatado from '@/components/TextoFormatado';
 import Icon from '@/components/Icon';
 import { toast } from '@/lib/toast';
 import { createClient } from '@/lib/supabase/client';
-import { AVISO_SEGURANCA, BUCKET_CHAT, ANEXO_CHAT_TIPOS, validarAnexoChat, tamanhoLegivel } from '@/lib/conversas';
+import { AVISO_SEGURANCA, BUCKET_CHAT, ANEXO_CHAT_TIPOS, validarAnexoChat, tamanhoLegivel, produtosNaMensagem, textoSemLinksDeProduto, linkDoProduto } from '@/lib/conversas';
 
 type Anexo = { url: string; nome: string; tipo: string; tamanho: number };
-type Msg = { id: string; papel: string; texto: string; created_at: string; mine: boolean; anexo?: Anexo; alerta?: string; enviando?: boolean };
+type Msg = { id: string; papel: string; texto: string; created_at: string; mine: boolean; anexo?: Anexo; alerta?: string; enviando?: boolean; retida?: boolean };
+type Produto = { id: string; titulo: string; preco: number; precoDe: number | null; capa_url: string | null; ativo?: boolean; loja?: string };
+const SITE = 'https://www.compreibarato.com.br';
+const brl = (v: number) => 'R$ ' + Number(v).toFixed(2).replace('.', ',');
 
 const hora = (s: string) => new Date(s).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 
@@ -17,7 +20,11 @@ export default function OrderChat({ orderId, theme = 'light', readOnly = false, 
   const [enviando, setEnviando] = useState(false);
   const [carregou, setCarregou] = useState(false);
   const [lojaNome, setLojaNome] = useState<string | null>(null); // só vem preenchido quando a loja vende como Comprei Barato
-  const [recursos, setRecursos] = useState<{ anexos: boolean }>({ anexos: false });
+  const [recursos, setRecursos] = useState<{ anexos: boolean; produtos?: boolean }>({ anexos: false });
+  const [produtos, setProdutos] = useState<Record<string, Produto>>({});
+  const [chat, setChat] = useState<{ fechado: boolean; fechaEm: string | null }>({ fechado: false, fechaEm: null });
+  const [catalogo, setCatalogo] = useState<Produto[] | null>(null); // vendedor: escolher um produto da loja
+  const [abrirCatalogo, setAbrirCatalogo] = useState(false);
   const [anexo, setAnexo] = useState<File | null>(null);
   const fimRef = useRef<HTMLDivElement | null>(null);
   const boxRef = useRef<HTMLDivElement | null>(null);
@@ -44,6 +51,8 @@ export default function OrderChat({ orderId, theme = 'light', readOnly = false, 
       setMsgs((atual) => [...(d.messages || []), ...atual.filter((m) => m.enviando)]);
       setLojaNome(d.oficial ? (d.loja || null) : null);
       if (d.recursos) setRecursos(d.recursos);
+      if (d.produtos) setProdutos(d.produtos);
+      if (d.chat) setChat(d.chat);
       setCarregou(true);
     } catch {}
   }, [orderId]);
@@ -64,6 +73,7 @@ export default function OrderChat({ orderId, theme = 'light', readOnly = false, 
   useEffect(() => {
     const c = campoRef.current; if (!c) return;
     c.style.height = 'auto'; c.style.height = `${Math.min(c.scrollHeight, 112)}px`;
+    c.style.overflowY = c.scrollHeight > 112 ? 'auto' : 'hidden';
   }, [texto]);
   // Celular: ao abrir o teclado, mantém o campo visível acima dele
   const aoFocar = () => { setTimeout(() => campoRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }), 300); };
@@ -84,15 +94,16 @@ export default function OrderChat({ orderId, theme = 'light', readOnly = false, 
     return { path: d.path, nome: f.name };
   }
 
-  async function enviar() {
-    const t = texto.trim();
-    const f = anexo;
+  // textoPronto: mensagem montada pelo botão (ex.: produto indicado); não mexe no que está digitado
+  async function enviar(textoPronto?: string) {
+    const t = (textoPronto ?? texto).trim();
+    const f = textoPronto ? null : anexo;
     if ((!t && !f) || enviando) return;
     setEnviando(true);
     pertoDoFim.current = true;
     const tempId = `tmp-${Date.now()}`;
     setMsgs((m) => [...m, { id: tempId, papel: 'eu', texto: t || `📎 ${f?.name}`, created_at: new Date().toISOString(), mine: true, enviando: true }]);
-    setTexto(''); setAnexo(null);
+    if (!textoPronto) { setTexto(''); setAnexo(null); }
     try {
       const anexoEnviado = f ? await subirAnexo(f) : null;
       const r = await fetch('/api/chat', {
@@ -106,9 +117,30 @@ export default function OrderChat({ orderId, theme = 'light', readOnly = false, 
       } else throw new Error(d.error || 'Não foi possível enviar.');
     } catch (e: any) {
       setMsgs((m) => m.filter((x) => x.id !== tempId));
-      setTexto(t); if (f) setAnexo(f);
+      if (!textoPronto) { setTexto(t); if (f) setAnexo(f); }
       toast(e?.message || 'Não foi possível enviar. Tente de novo.', 'error');
     } finally { setEnviando(false); }
+  }
+
+  async function abrirProdutos() {
+    setAbrirCatalogo(true);
+    if (catalogo) return;
+    try {
+      const r = await fetch(`/api/chat/produtos?orderId=${orderId}`, { credentials: 'include', cache: 'no-store' });
+      const d = await r.json(); setCatalogo(r.ok ? d.produtos || [] : []);
+    } catch { setCatalogo([]); }
+  }
+  async function enviarProduto(p: Produto) {
+    setAbrirCatalogo(false);
+    setProdutos((m) => ({ ...m, [p.id]: { ...p, ativo: true } }));
+    await enviar(`Dá uma olhada neste produto: ${linkDoProduto(SITE, p.id)}`);
+  }
+  async function liberar(m: Msg) {
+    if (!confirm('Liberar esta mensagem? A outra parte passa a ver o texto.')) return;
+    const r = await fetch('/api/chat/moderar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ id: m.id }) });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) { toast(d.error || 'Não foi possível liberar.', 'error'); return; }
+    toast('Mensagem liberada.', 'success'); carregar();
   }
 
   const status = (m: Msg) => {
@@ -131,6 +163,18 @@ export default function OrderChat({ orderId, theme = 'light', readOnly = false, 
         .oc-env .ic{display:none}
         .oc-clip{flex:none;width:44px;height:44px;border-radius:12px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center}
         .oc-curto{display:none}
+        .oc-prod{display:flex;gap:10px;align-items:center;background:#fff;color:#1A1A2E;border-radius:12px;padding:8px;text-decoration:none;min-width:220px;max-width:280px;box-shadow:0 2px 8px rgba(22,22,42,.08)}
+        .oc-prod-img{width:56px;height:56px;border-radius:10px;flex:none;background:#F1F1F6 center/cover;display:flex;align-items:center;justify-content:center;color:#8A8A9E}
+        .oc-prod-tx{display:flex;flex-direction:column;min-width:0;gap:2px}
+        .oc-prod-tx b{font-size:13px;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+        .oc-prod-tx span{font-size:13px;display:flex;gap:6px;align-items:baseline}
+        .oc-prod-tx s{color:#8A8A9E;font-size:11.5px}
+        .oc-prod-tx strong{font-family:Outfit;font-weight:900;color:#1A1A2E}
+        .oc-prod-tx em{font-style:normal;font-size:11.5px;font-weight:800;color:#B84A00}
+        .oc-fechado{border-top:1px solid var(--oc-bd);padding:14px;text-align:center;font-size:13px;border-radius:0 0 14px 14px}
+        .oc-cat{position:absolute;left:8px;right:8px;bottom:70px;z-index:20;border-radius:14px;max-height:320px;overflow:auto;box-shadow:0 12px 40px rgba(22,22,42,.25);padding:8px}
+        .oc-cat button.it{display:flex;gap:10px;align-items:center;width:100%;text-align:left;border:0;background:none;padding:8px;border-radius:10px;cursor:pointer;color:inherit;font-family:inherit}
+        .oc-cat button.it:hover{background:rgba(255,107,0,.08)}
         @media(max-width:640px){
           .oc-msgs{height:min(56dvh,460px);padding:12px}
           .oc-bolha{max-width:86%}
@@ -171,10 +215,13 @@ export default function OrderChat({ orderId, theme = 'light', readOnly = false, 
           const label = moderator ? roleTag : (own ? 'Você' : roleTag);
           const img = m.anexo && m.anexo.tipo.startsWith('image/');
           const soNomeDoAnexo = m.anexo && m.texto === `📎 ${m.anexo.nome}`;
+          const idsProd = m.papel === 'sistema' ? [] : produtosNaMensagem(m.texto).filter((id) => produtos[id]);
+          const textoVisivel = idsProd.length ? textoSemLinksDeProduto(m.texto) : m.texto;
+          const soCartao = idsProd.length > 0 && !textoVisivel && !m.anexo;
           return (
             <div key={m.id} style={{ display: 'flex', flexDirection: 'column', alignItems: own ? 'flex-end' : 'flex-start', opacity: m.enviando ? 0.7 : 1 }}>
               <div style={{ fontSize: 10, color: C.sub, margin: '0 6px 3px', fontWeight: 700 }}>{label}</div>
-              <div className="oc-bolha" style={{ background: bg, color: col, padding: m.anexo && img ? 6 : '9px 13px', borderRadius: own ? '14px 14px 4px 14px' : '14px 14px 14px 4px', fontSize: 14, lineHeight: 1.4, wordBreak: 'break-word', outline: m.alerta ? '2px solid #E5484D' : undefined }}>
+              <div className="oc-bolha" style={{ background: soCartao ? 'transparent' : bg, color: col, padding: soCartao ? 0 : m.anexo && img ? 6 : '9px 13px', borderRadius: own ? '14px 14px 4px 14px' : '14px 14px 14px 4px', fontSize: 14, lineHeight: 1.4, wordBreak: 'break-word', outline: m.alerta ? '2px solid #E5484D' : undefined }}>
                 {m.anexo && (img ? (
                   <a href={m.anexo.url} target="_blank" rel="noopener noreferrer"><img src={m.anexo.url} alt={m.anexo.nome} loading="lazy" style={{ display: 'block', maxWidth: 240, maxHeight: 240, borderRadius: 10, objectFit: 'cover' }} /></a>
                 ) : (
@@ -182,11 +229,27 @@ export default function OrderChat({ orderId, theme = 'light', readOnly = false, 
                     <Icon name="file" size={20} /> <span style={{ minWidth: 0 }}><span style={{ display: 'block', textDecoration: 'underline' }}>{m.anexo.nome}</span><small style={{ opacity: 0.8, fontWeight: 500 }}>PDF · {tamanhoLegivel(m.anexo.tamanho)}</small></span>
                   </a>
                 ))}
-                {!soNomeDoAnexo && <div style={m.anexo && img ? { padding: '6px 7px 3px' } : undefined}><TextoFormatado texto={m.texto} corLink={own ? '#fff' : '#B84A00'} /></div>}
+                {!soNomeDoAnexo && textoVisivel && <div style={m.anexo && img ? { padding: '6px 7px 3px' } : undefined}><TextoFormatado texto={textoVisivel} corLink={own ? '#fff' : '#B84A00'} /></div>}
+                {idsProd.map((id) => { const p = produtos[id]; return (
+                  <a key={id} href={`/produto/${id}`} target="_blank" rel="noopener noreferrer" className="oc-prod" style={{ marginTop: textoVisivel ? 8 : 0 }}>
+                    <span className="oc-prod-img" style={p.capa_url ? { backgroundImage: `url(${p.capa_url})` } : undefined}>{!p.capa_url && <Icon name="package" size={22} />}</span>
+                    <span className="oc-prod-tx">
+                      <b>{p.titulo}</b>
+                      <span>{p.precoDe ? <s>{brl(p.precoDe)}</s> : null}<strong>{brl(p.preco)}</strong></span>
+                      <em>{p.ativo === false ? 'Indisponível no momento' : 'Ver produto e comprar →'}</em>
+                    </span>
+                  </a>
+                ); })}
               </div>
+              {m.retida && (own || moderator) && (
+                <div style={{ fontSize: 11, fontWeight: 800, color: '#E5484D', margin: '4px 6px 0', display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                  🔒 Retida: {moderator ? 'a outra parte não vê este texto.' : 'o suporte vai analisar. A outra parte não vê o texto.'}
+                  {moderator && <button type="button" onClick={() => liberar(m)} style={{ background: '#3DDC97', color: '#0B3D1E', border: 0, borderRadius: 8, padding: '3px 10px', fontWeight: 900, cursor: 'pointer', fontSize: 11 }}>Liberar</button>}
+                </div>
+              )}
               <div style={{ fontSize: 10, color: C.sub, margin: '3px 6px 0', display: 'flex', gap: 8 }}>
                 <span>{hora(m.created_at)}</span>{status(m)}
-                {moderator && m.alerta && <span style={{ color: '#E5484D', fontWeight: 800 }}>⚠ possível contato externo</span>}
+                {moderator && m.alerta === 'contato_externo' && <span style={{ color: '#E5484D', fontWeight: 800 }}>⚠ possível contato externo</span>}
               </div>
             </div>
           );
@@ -194,8 +257,29 @@ export default function OrderChat({ orderId, theme = 'light', readOnly = false, 
         <div ref={fimRef} />
       </div>
 
-      {!readOnly && (
+      {!readOnly && chat.fechado && (
+        <div className="oc-fechado" style={{ color: C.sub, background: dark ? '#1C1C28' : '#F7F7FA' }}>
+          🔒 Conversa encerrada{chat.fechaEm ? ` em ${new Date(chat.fechaEm).toLocaleDateString('pt-BR')}` : ''}. O histórico fica salvo aqui. Precisa de algo? Fale com o <a href="/suporte" style={{ color: '#B84A00', fontWeight: 800 }}>suporte</a>.
+        </div>
+      )}
+      {!readOnly && !chat.fechado && abrirCatalogo && (
+        <div className="oc-cat" role="dialog" aria-label="Escolher produto" style={{ background: C.panel, color: C.tx, border: `1px solid ${C.bd}` }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 8px 8px' }}>
+            <b style={{ fontFamily: 'Outfit' }}>Indicar um produto da loja</b>
+            <button type="button" onClick={() => setAbrirCatalogo(false)} aria-label="Fechar" style={{ background: 'none', border: 0, color: C.sub, cursor: 'pointer', display: 'inline-flex' }}><Icon name="x" size={18} /></button>
+          </div>
+          {!catalogo ? <p style={{ color: C.sub, fontSize: 13, padding: 8 }}>Carregando…</p> : !catalogo.length ? <p style={{ color: C.sub, fontSize: 13, padding: 8 }}>Nenhum produto ativo na loja.</p> : catalogo.map((p) => (
+            <button key={p.id} type="button" className="it" onClick={() => enviarProduto(p)}>
+              <span className="oc-prod-img" style={{ width: 44, height: 44, ...(p.capa_url ? { backgroundImage: `url(${p.capa_url})` } : {}) }}>{!p.capa_url && <Icon name="package" size={18} />}</span>
+              <span style={{ flex: 1, minWidth: 0 }}><b style={{ display: 'block', fontSize: 13.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.titulo}</b><small style={{ color: C.sub }}>{brl(p.preco)}</small></span>
+              <span style={{ fontSize: 12, fontWeight: 800, color: '#FF6B00' }}>Enviar</span>
+            </button>
+          ))}
+        </div>
+      )}
+      {!readOnly && !chat.fechado && (
         <div className="oc-comp">
+          {chat.fechaEm && !moderator && <div style={{ fontSize: 11, color: C.sub, margin: '0 0 6px', textAlign: 'center' }}>Conversa aberta até {new Date(chat.fechaEm).toLocaleDateString('pt-BR')} (fim da garantia).</div>}
           {anexo && (
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 12.5, color: C.tx, background: dark ? '#1C1C28' : '#F4F4F8', borderRadius: 10, padding: '7px 10px', marginBottom: 8 }}>
               <Icon name={anexo.type.startsWith('image/') ? 'image' : 'file'} size={16} />
@@ -204,6 +288,12 @@ export default function OrderChat({ orderId, theme = 'light', readOnly = false, 
             </div>
           )}
           <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
+            {recursos.produtos && (
+              <button type="button" className="oc-clip" onClick={abrirProdutos} disabled={enviando} aria-label="Indicar um produto da loja" title="Indicar um produto da loja"
+                style={{ border: `1px solid ${C.bd}`, background: C.inputBg, color: C.sub }}>
+                <Icon name="bag" size={19} />
+              </button>
+            )}
             {recursos.anexos && (
               <>
                 <input ref={arqRef} type="file" accept={ANEXO_CHAT_TIPOS.join(',')} style={{ display: 'none' }} onChange={(e) => { escolher(e.target.files?.[0] ?? null); e.target.value = ''; }} />
@@ -220,12 +310,12 @@ export default function OrderChat({ orderId, theme = 'light', readOnly = false, 
               onChange={(e) => setTexto(e.target.value)}
               onFocus={aoFocar}
               onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey && !(e.nativeEvent as any).isComposing) { e.preventDefault(); enviar(); } }}
-              placeholder={anexo ? 'Escreva algo sobre o anexo (opcional)…' : 'Escreva uma mensagem…'}
+              placeholder={anexo ? 'Algo sobre o anexo (opcional)…' : recursos.produtos ? 'Mensagem…' : 'Escreva uma mensagem…'}
               aria-label="Mensagem"
               className="oc-campo"
               style={{ border: `1px solid ${C.bd}`, background: C.inputBg, color: C.tx }}
             />
-            <button type="button" className="oc-env" onClick={enviar} disabled={enviando || (!texto.trim() && !anexo)} aria-label="Enviar"
+            <button type="button" className="oc-env" onClick={() => enviar()} disabled={enviando || (!texto.trim() && !anexo)} aria-label="Enviar"
               style={{ opacity: enviando || (!texto.trim() && !anexo) ? 0.6 : 1 }}>
               <span className="tx">{enviando ? '…' : 'Enviar'}</span>
               <svg className="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M22 2 11 13" /><path d="M22 2 15 22 11 13 2 9z" /></svg>

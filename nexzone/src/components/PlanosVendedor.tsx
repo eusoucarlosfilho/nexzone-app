@@ -1,4 +1,4 @@
-import { PLANOS, brl, pctTexto, type ConfigTaxas } from '@/lib/taxas';
+import { PLANOS, brl, pctTexto, exemploTaxaServico, type ConfigTaxas } from '@/lib/taxas';
 
 // Tabela pública dos planos do vendedor + taxa de serviço do comprador + prazos de liberação.
 // Os números vêm de settings (Admin › Configurações › Planos e taxas). Sem promessa que o site não cumpre.
@@ -49,7 +49,7 @@ export default function PlanosVendedor({ cfg, escuro = false }: { cfg: ConfigTax
       <div className="pv-info">
         <div className="pv-box">
           <h4>Taxa de serviço do comprador</h4>
-          <p>Quem compra paga <b>{brl(cfg.compradorPix)} no Pix</b> ou <b>{pctTexto(cfg.compradorCartaoPct)} + {brl(cfg.compradorCartaoFixo)} no cartão</b>, mostrado antes de pagar. Ela cobre o meio de pagamento e não sai do seu valor.</p>
+          <p>Seu anúncio aparece com <b>o preço que você definiu</b>. No checkout entra a taxa de serviço do comprador (tarifa do Pix ou do cartão): <b>{exemploTaxaServico(cfg)}</b>. Ela não sai do seu valor.</p>
         </div>
         <div className="pv-box">
           <h4>Quando o dinheiro libera</h4>
