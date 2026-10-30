@@ -3,7 +3,8 @@ import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import ProductThumb from '@/components/ProductThumb';
 import { entregasEfetivas } from '@/lib/conversas-servidor';
-import { etiquetaConversa, mascararEmail, type Etiqueta } from '@/lib/conversas';
+import { etiquetaConversa, type Etiqueta } from '@/lib/conversas';
+import { contatosDosCompradores } from '@/lib/clientesPedidos';
 
 export const dynamic = 'force-dynamic';
 const money = (v: number) => 'R$ ' + Number(v).toFixed(2).replace('.', ',');
@@ -27,7 +28,7 @@ export default async function ConversasPage({ searchParams }: { searchParams?: {
   }
 
   const { data: pedidos } = await supabase.from('orders')
-    .select('id, total, status, created_at, comprador_email, conteudo_liberado, product_id, products(titulo, emoji, categoria, capa_url, tipo_anuncio)')
+    .select('id, total, status, created_at, comprador, conteudo_liberado, product_id, products(titulo, emoji, categoria, capa_url, tipo_anuncio)')
     .eq('store_id', store.id)
     .in('status', ['pago', 'entregue', 'reembolsado'])
     .order('created_at', { ascending: false })
@@ -43,6 +44,8 @@ export default async function ConversasPage({ searchParams }: { searchParams?: {
     ids.length ? admin.from('chat_lido').select('order_id, visto_em').eq('user_id', user.id).in('order_id', ids) : Promise.resolve({ data: [] as any[] }),
     ids.length ? admin.from('reembolso_pedidos').select('order_id').eq('status', 'aberto').in('order_id', ids) : Promise.resolve({ data: [] as any[] }),
   ]);
+  // O vendedor vê só o NOME do cliente (e-mail e WhatsApp ficam com a plataforma)
+  const nomes = await contatosDosCompradores(admin, lista.map((o) => o.comprador)).catch(() => ({} as Record<string, any>));
   const porPedido: Record<string, { papel: string; created_at: string }[]> = {};
   for (const m of ((msgs as any).data ?? []) as any[]) (porPedido[m.order_id] ||= []).push(m);
   const visto: Record<string, string> = Object.fromEntries((((vistos as any).data ?? []) as any[]).map((v) => [v.order_id, v.visto_em]));
@@ -85,7 +88,7 @@ export default async function ConversasPage({ searchParams }: { searchParams?: {
               </span>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <strong style={{ fontFamily: 'Outfit', fontSize: 14, display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{o.products?.titulo ?? 'Produto'}</strong>
-                <span className="muted" style={{ fontSize: 12 }}>{mascararEmail(o.comprador_email) || 'Cliente'} · {new Date(o.created_at).toLocaleDateString('pt-BR')} · {money(o.total)}</span>
+                <span className="muted" style={{ fontSize: 12 }}>{nomes[o.comprador]?.nome || 'Cliente'} · {new Date(o.created_at).toLocaleDateString('pt-BR')} · {money(o.total)}</span>
               </div>
               <span style={{ flex: 'none', fontSize: 11, fontWeight: 800, color: etiqueta.cor, background: etiqueta.fundo, padding: '4px 10px', borderRadius: 50, fontFamily: 'Outfit', whiteSpace: 'nowrap' }}>{etiqueta.rotulo}</span>
             </Link>
