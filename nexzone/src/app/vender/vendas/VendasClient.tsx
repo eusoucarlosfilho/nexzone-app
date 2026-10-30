@@ -5,6 +5,7 @@ import Icon from '@/components/Icon';
 import { toast } from '@/lib/toast';
 import { mensagemRecuperacao, linkWhatsapp, haQuanto, foneLegivel } from '@/lib/recuperacaoVenda';
 import CarrinhosAbandonados from '@/components/CarrinhosAbandonados';
+import RecuperacaoLoja from './RecuperacaoLoja';
 
 const money = (v: number) => 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',');
 const STATUS: Record<string, [string, string]> = {
@@ -90,19 +91,8 @@ export default function VendasClient({ vendas, clientes = {}, loja = '', site = 
         <div className="sd-stat"><div className="ic"><Icon name="clock" size={20} /></div><b>{pendentes.length}</b><small>Aguardando pagamento ({money(totalPendente)})</small></div>
       </div>
 
-      {carrinhos.length > 0 && filtro !== 'abandonou' && (
-        <div className="vd-alerta">
-          <span><b>{carrinhos.length} {carrinhos.length === 1 ? 'pessoa preencheu o checkout e saiu' : 'pessoas preencheram o checkout e saíram'}</b> antes de gerar o Pix.</span>
-          <button className="vd-bt" onClick={() => setFiltro('abandonou')}><Icon name="chat" size={14} /> Ver e chamar</button>
-        </div>
-      )}
-
-      {pendentes.length > 0 && filtro !== 'aguardando' && (
-        <div className="vd-alerta">
-          <span><b>{pendentes.length} {pendentes.length === 1 ? 'cliente começou a compra e não pagou' : 'clientes começaram a compra e não pagaram'}</b> ({money(totalPendente)}). Uma mensagem rápida costuma recuperar parte deles.</span>
-          <button className="vd-bt" onClick={() => setFiltro('aguardando')}><Icon name="chat" size={14} /> Ver e chamar</button>
-        </div>
-      )}
+      {/* Recuperação: botão com a quantidade; abre com o status, o envio em massa e os atalhos para o contato um a um */}
+      <RecuperacaoLoja pendentes={pendentes.length} carrinhos={carrinhos.length} onVer={setFiltro} />
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap', alignItems: 'center' }}>
         {FILTROS.map(([k, l]) => (
