@@ -26,6 +26,8 @@ export interface WebhookEvent {
 export interface PaymentGateway {
   createPixPayment(input: CreatePaymentInput): Promise<CreatePaymentResult>;
   parseWebhook(req: Request, rawBody: string): Promise<WebhookEvent | null>;
+  /** Consulta direta no gateway (conferência quando o aviso não chega). null = não deu para consultar. */
+  checkPayment(gatewayRef: string): Promise<WebhookEvent | null>;
 }
 
 /* ========================= MISTIC PAY ========================= */
@@ -120,6 +122,15 @@ class MisticPayGateway implements PaymentGateway {
 
       // A MisticPay não assina o webhook: qualquer um pode chamar esta URL.
       // Por isso o status e o valor vêm da consulta à API, nunca do corpo recebido.
+      return await this.checkPayment(ref);
+    } catch {
+      return null;
+    }
+  }
+
+  async checkPayment(ref: string): Promise<WebhookEvent | null> {
+    try {
+      if (!ref || !this.ci || !this.cs) return null;
       const res = await fetch(`${this.base}/transactions/check`, {
         method: 'POST', headers: this.headers(), body: JSON.stringify({ transactionId: ref }),
         cache: 'no-store',
@@ -209,6 +220,18 @@ class MercadoPagoGateway implements PaymentGateway {
         approved: 'pago', rejected: 'recusado', refunded: 'estornado', pending: 'pendente',
       };
       return { gatewayRef: String(id), status: map[p.status] || 'pendente', orderId: p.external_reference };
+    } catch { return null; }
+  }
+
+  async checkPayment(ref: string): Promise<WebhookEvent | null> {
+    try {
+      if (!this.token || !ref || ref.startsWith('dev_')) return null;
+      const r = await fetch(`https://api.mercadopago.com/v1/payments/${encodeURIComponent(ref)}`, { headers: { Authorization: `Bearer ${this.token}` }, cache: 'no-store' });
+      if (!r.ok) return null;
+      const p = await r.json();
+      const map: Record<string, WebhookEvent['status']> = { approved: 'pago', rejected: 'recusado', refunded: 'estornado', pending: 'pendente' };
+      const value = Number(p.transaction_amount);
+      return { gatewayRef: String(ref), status: map[p.status] || 'pendente', orderId: p.external_reference, amount: isNaN(value) ? undefined : value };
     } catch { return null; }
   }
 }
