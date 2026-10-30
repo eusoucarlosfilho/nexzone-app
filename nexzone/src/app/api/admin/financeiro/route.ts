@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient, createAdminClient } from '@/lib/supabase/server';
-import { painelFinanceiro, salvarCfgFin, uploadComprovante, confirmarComprovante, linkComprovante, BUCKET_FIN } from '@/lib/financeiro-servidor';
+import { painelFinanceiro, auditoriaTaxas, salvarCfgFin, uploadComprovante, confirmarComprovante, linkComprovante, BUCKET_FIN } from '@/lib/financeiro-servidor';
 import { validarCusto, lerConfigFin } from '@/lib/financeiro';
 
 export const dynamic = 'force-dynamic';
@@ -20,6 +20,10 @@ export async function GET(req: Request) {
   if (!(await soAdmin())) return NextResponse.json({ error: 'acesso negado' }, { status: 403 });
   const admin = createAdminClient();
   const comp = new URL(req.url).searchParams.get('comprovante');
+  if (new URL(req.url).searchParams.get('auditoria')) {
+    try { return NextResponse.json(await auditoriaTaxas(admin), { headers: { 'Cache-Control': 'private, no-store' } }); }
+    catch (e: any) { console.error('[auditoria]', e?.message || e); return NextResponse.json({ error: 'Não foi possível conferir as taxas.' }, { status: 500 }); }
+  }
   if (comp) {
     const url = await linkComprovante(admin, Number(comp));
     return url ? NextResponse.redirect(url, 302) : NextResponse.json({ error: 'sem comprovante' }, { status: 404 });
