@@ -1,7 +1,7 @@
 'use client';
 import PlanosVendedor from '@/components/PlanosVendedor';
 import FaixaFundador, { type DadosFundador } from '@/components/FaixaFundador';
-import type { ConfigTaxas } from '@/lib/taxas';
+import { exemploTaxaServico, type ConfigTaxas } from '@/lib/taxas';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Icon from '@/components/Icon';
@@ -329,7 +329,7 @@ export default function LandingProdutores({ pixel, taxas, fundador = null }: { p
             ['O que posso vender?', 'Contas, skins, itens, moedas, gift cards, keys, recargas e serviços como boost e coach, além de produtos digitais como guias e softwares. Só o que você tem direito de vender: nada de cheats, contas roubadas ou assinaturas compartilhadas. Todo anúncio passa por aprovação.'],
             ['Como o comprador fica protegido?', 'O cliente paga no site e o valor fica retido durante o período de garantia. Se algo der errado, ele abre uma reclamação e a equipe analisa. Isso dá confiança para comprar de quem ele ainda não conhece, e você vende mais.'],
             ['Quando eu recebo?', `Depois da entrega: contas de jogo liberam em ${taxas.liberaContaDias} dias, os demais tipos em ${taxas.liberaPadraoDias} dias e vendas no cartão em ${taxas.liberaCartaoDias} dias (proteção contra recuperação de conta e estorno). Aí você saca na sua chave Pix, com 1 saque grátis por semana.`],
-            ['O comprador paga taxa?', `Paga uma taxa de serviço do meio de pagamento, mostrada antes de pagar: R$ ${taxas.compradorPix.toFixed(2).replace('.', ',')} no Pix ou ${String(taxas.compradorCartaoPct).replace('.', ',')}% + R$ ${taxas.compradorCartaoFixo.toFixed(2).replace('.', ',')} no cartão. Ela não sai do seu valor.`],
+            ['O comprador paga taxa?', `Seu anúncio aparece com o preço que você definiu. No checkout entra a taxa de serviço do comprador (tarifa do Pix ou do cartão): ${exemploTaxaServico(taxas)}. Ela não sai do seu valor.`],
             ['Preciso sair da GGMax ou de onde vendo hoje?', 'Não. Não existe exclusividade. Você pode anunciar aqui e continuar onde já vende.'],
             ['Preciso ter CNPJ?', 'Não. Você pode vender como pessoa física (CPF) ou jurídica (CNPJ). Antes do primeiro saque fazemos uma verificação de identidade rápida, para proteger o seu dinheiro.'],
             ['Gift cards e keys são entregues sozinhos?', 'Sim. Você cadastra os códigos no estoque do anúncio e cada comprador recebe o dele assim que o pagamento é confirmado.'],
