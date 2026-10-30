@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { awardPoints } from '@/lib/points';
-import { getGateway } from '@/lib/payments/gateway';
+import { criarPixRoteado } from '@/lib/payments/gateway';
 import { lerTaxas } from '@/lib/settings';
 import { divisaoVendedor, taxaComprador, planoEfetivo, comissaoCobreGateway, maxDescontoPontos } from '@/lib/taxas';
 import { lerCfgCampanhas, ehPrimeiraCompra, fundadorDaLoja } from '@/lib/campanhas-servidor';
@@ -83,11 +83,11 @@ export async function POST(req: Request) {
   // custeados pela comissão da plataforma, nunca pelo vendedor.
   const cfgTaxas = await lerTaxas();
   const plano = planoEfetivo((product as any).plano, cfgTaxas);
-  // Campanhas (SQL 28): Lojista Fundador (0% de comissão) e 1ª compra sem taxa de serviço no Pix
+  // Campanhas (SQL 28): Lojista Fundador (comissão reduzida) e 1ª compra sem taxa de serviço no Pix
   const adminCamp = createAdminClient();
   const camp = await lerCfgCampanhas(adminCamp);
   const [fund, primeira] = await Promise.all([fundadorDaLoja(adminCamp, product.store_id, camp), ehPrimeiraCompra(adminCamp, user.id)]);
-  const cheia = divisaoComFundador(divisaoVendedor(totalBruto, plano, cfgTaxas), totalBruto, fund.ativo);
+  const cheia = divisaoComFundador(divisaoVendedor(totalBruto, plano, cfgTaxas), totalBruto, fund.ativo, camp.fundadorPct);
   const feePercent = cheia.pct;
 
   // Desconto por CB Points (calculado no servidor, deixando ao menos R$1,00 para o Pix)
@@ -147,13 +147,13 @@ export async function POST(req: Request) {
   } catch { /* sem SQL 15 */ }
 
   const { data: me } = await supabase.from('profiles').select('nome').eq('id', user.id).maybeSingle();
-  const gw = await getGateway();
-  const pay = await gw.createPixPayment({
+  // Pix pela rota mais barata para este valor (Mercado Pago até o limite do admin; MisticPay acima) — a taxa do comprador já foi calculada pela mesma rota
+  const pay = await criarPixRoteado({
     orderId: order.id, amount: valorPix, // pedido + taxa de serviço do Pix (o webhook confere se cobre o total)
     sellerRecipientId: (product as any).stores?.recipient_id ?? null,
     feePercent, description: product.titulo, payerEmail: user.email ?? undefined,
     payerName: (me as any)?.nome ?? undefined, payerDocument: cpf ?? undefined,
-  });
+  }, total, cfgTaxas);
   if (pay.status === 'erro') return NextResponse.json({ error: pay.error || 'falha no gateway' }, { status: 502 });
 
   const adminUpd = createAdminClient();
