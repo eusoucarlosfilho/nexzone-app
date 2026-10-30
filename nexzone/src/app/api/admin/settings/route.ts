@@ -70,7 +70,13 @@ export async function POST(req: Request) {
   }
   // Só atualiza o Client Secret se vier um valor novo (em branco = mantém o atual)
   if (typeof body.misticpay_cs === 'string' && body.misticpay_cs.trim()) {
-    rows.push({ key: 'misticpay_cs', value: body.misticpay_cs.trim() });
+    const cs = body.misticpay_cs.trim();
+    // Trava: o Chrome às vezes preenche este campo com a senha de login salva.
+    // Secret válido da MisticPay começa com sk_ (chave de acesso) ou cs_ (legado).
+    if (!/^(sk_|cs_)/.test(cs)) {
+      return NextResponse.json({ error: 'Client Secret da MisticPay inválido: ele começa com sk_. Confira se o navegador não preencheu o campo com uma senha salva.' }, { status: 400 });
+    }
+    rows.push({ key: 'misticpay_cs', value: cs });
   }
 
   // Prova social da página inicial (só liga/desliga e mínimos; os números exibidos são sempre os reais)
