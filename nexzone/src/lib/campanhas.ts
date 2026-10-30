@@ -9,13 +9,14 @@ export type CfgCampanhas = {
   primeiraCompra: boolean; primeiraCompraCartao: boolean;
   fundadorAtivo: boolean; fundadorPct: number; fundadorVagas: number; fundadorDias: number; fundadorTeto: number; fundadorDestaqueDias: number;
   cashbackPct: number;
+  cbTetoComissaoPct: number; // cashback nunca passa desta % da comissão da plataforma no pedido
 };
 export const CAMPANHAS_PADRAO: CfgCampanhas = {
   primeiraCompra: true, primeiraCompraCartao: false,
   fundadorAtivo: true, fundadorPct: 3, fundadorVagas: 50, fundadorDias: 30, fundadorTeto: 500, fundadorDestaqueDias: 7,
-  cashbackPct: 5,
+  cashbackPct: 1, cbTetoComissaoPct: 30,
 };
-export const CHAVES_CAMPANHAS = ['promo_primeira_compra', 'promo_primeira_compra_cartao', 'fundador_ativo', 'fundador_pct', 'fundador_vagas', 'fundador_dias', 'fundador_teto', 'fundador_destaque_dias', 'cb_cashback_pct'] as const;
+export const CHAVES_CAMPANHAS = ['promo_primeira_compra', 'promo_primeira_compra_cartao', 'fundador_ativo', 'fundador_pct', 'fundador_vagas', 'fundador_dias', 'fundador_teto', 'fundador_destaque_dias', 'cb_cashback_pct', 'cb_teto_comissao_pct'] as const;
 
 const bool = (v: unknown, def: boolean) => (v === true || v === 'true' || v === '"true"' ? true : v === false || v === 'false' || v === '"false"' ? false : def);
 const num = (v: unknown, def: number, min: number, max: number) => {
@@ -36,6 +37,7 @@ export function lerCampanhas(m: Record<string, unknown>): CfgCampanhas {
     fundadorTeto: num(m.fundador_teto, P.fundadorTeto, 0, 1000000),
     fundadorDestaqueDias: Math.round(num(m.fundador_destaque_dias, P.fundadorDestaqueDias, 0, 60)),
     cashbackPct: num(m.cb_cashback_pct, P.cashbackPct, 0, 30),
+    cbTetoComissaoPct: num(m.cb_teto_comissao_pct, P.cbTetoComissaoPct, 0, 100),
   };
 }
 
@@ -77,6 +79,15 @@ export function divisaoComFundador<T extends { pct: number; taxa: number; valorV
 export function pontosCashback(totalPedido: number, pct: number, pontosPorReal: number): number {
   if (!(totalPedido > 0) || !(pct > 0) || !(pontosPorReal > 0)) return 0;
   return Math.floor(totalPedido * (pct / 100) * pontosPorReal);
+}
+/**
+ * Cashback CONTROLADO: o menor entre "% do valor" e "teto % da comissão da plataforma neste pedido".
+ * Assim o cashback sai sempre de dentro do que a plataforma ganhou e nunca vira prejuízo.
+ */
+export function pontosCashbackControlado(totalPedido: number, comissaoPedido: number, cfg: Pick<CfgCampanhas, 'cashbackPct' | 'cbTetoComissaoPct'>, pontosPorReal: number): number {
+  const pelo = pontosCashback(totalPedido, cfg.cashbackPct, pontosPorReal);
+  const teto = comissaoPedido > 0 && cfg.cbTetoComissaoPct > 0 && pontosPorReal > 0 ? Math.floor(comissaoPedido * (cfg.cbTetoComissaoPct / 100) * pontosPorReal + 1e-6) : 0;
+  return Math.max(0, Math.min(pelo, teto));
 }
 export const valorDosPontos = (pontos: number, pontosPorReal: number) => (pontosPorReal > 0 ? Math.floor((pontos / pontosPorReal) * 100) / 100 : 0);
 

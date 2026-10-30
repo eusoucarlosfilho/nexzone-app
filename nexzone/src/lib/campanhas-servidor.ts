@@ -1,7 +1,7 @@
 // Campanhas — parte do servidor (service_role). Nunca importar em componente do navegador.
 import { createAdminClient } from '@/lib/supabase/server';
 import { awardPoints } from '@/lib/points';
-import { lerCampanhas, situacaoFundador, pontosCashback, CHAVES_CAMPANHAS, CAMPANHAS_PADRAO, type CfgCampanhas, type SituacaoFundador } from './campanhas';
+import { lerCampanhas, situacaoFundador, pontosCashbackControlado, CHAVES_CAMPANHAS, CAMPANHAS_PADRAO, type CfgCampanhas, type SituacaoFundador } from './campanhas';
 
 type Admin = ReturnType<typeof createAdminClient>;
 
@@ -68,11 +68,12 @@ export async function concederCashback(admin: Admin, orderId: string) {
   try {
     const cfg = await lerCfgCampanhas(admin);
     if (!cfg.cbAtivo || !(cfg.cashbackPct > 0)) return;
-    const { data: o } = await admin.from('orders').select('id, comprador, total, status').eq('id', orderId).maybeSingle();
+    const { data: o } = await admin.from('orders').select('id, comprador, total, taxa, status').eq('id', orderId).maybeSingle();
     if (!o || !['pago', 'entregue'].includes((o as any).status)) return;
     const { count } = await admin.from('points_ledger').select('id', { count: 'exact', head: true }).eq('order_id', orderId).eq('motivo', 'Cashback da compra');
     if ((count ?? 0) > 0) return; // já deu
-    const pts = pontosCashback(Number((o as any).total), cfg.cashbackPct, cfg.pontosPorReal);
+    // controlado: no máximo o teto (% da comissão que a plataforma ganhou neste pedido)
+    const pts = pontosCashbackControlado(Number((o as any).total), Number((o as any).taxa) || 0, cfg, cfg.pontosPorReal);
     if (pts > 0) await awardPoints(admin, (o as any).comprador, pts, 'Cashback da compra', orderId);
   } catch (e: any) { console.error('[cashback]', e?.message || e); }
 }
