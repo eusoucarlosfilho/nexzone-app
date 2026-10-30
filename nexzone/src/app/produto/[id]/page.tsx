@@ -17,7 +17,7 @@ import { normalizarCheckout } from '@/lib/checkoutConfig';
 import { temPixel } from '@/lib/rastreioVenda';
 import PixelProduto from './PixelProduto';
 import { lerCfgCampanhas, fundadorDaLoja } from '@/lib/campanhas-servidor';
-import { pontosCashback, valorDosPontos, brlCurto } from '@/lib/campanhas';
+import { pontosCashbackControlado } from '@/lib/campanhas';
 import { notFound } from 'next/navigation';
 import type { Product } from '@/lib/types';
 import type { Metadata } from 'next';
@@ -31,7 +31,7 @@ import { PRODUTO_CARD, PRODUTO_PAGINA } from '@/lib/consultas';
 import { acharCategoria } from '@/lib/categorias';
 import { stripeAvailable } from '@/lib/payments/stripe';
 import { lerTaxas } from '@/lib/settings';
-import { TAXAS_PADRAO, TIPOS_ANUNCIO, planoEfetivo } from '@/lib/taxas';
+import { TAXAS_PADRAO, TIPOS_ANUNCIO, planoEfetivo, pctDoPlano } from '@/lib/taxas';
 import { tituloDoProduto, descricaoDoProduto, dadosTrilha, OG_PADRAO, MARCA } from '@/lib/seoSite';
 
 const money = (v: number) => 'R$ ' + v.toFixed(2).replace('.', ',');
@@ -210,7 +210,9 @@ export default async function ProductPage({ params }: { params: { id: string } }
   // Campanhas (SQL 28): 1ª compra sem taxa, cashback e selo de Lojista Fundador
   const camp = await lerCfgCampanhas();
   const fund = vend.oficial ? null : await fundadorDaLoja(createAdminClient(), p.store_id, camp).catch(() => null);
-  const volta = camp.cbAtivo ? valorDosPontos(pontosCashback(Number(preco) || 0, camp.cashbackPct, camp.pontosPorReal), camp.pontosPorReal) : 0;
+  // cashback controlado: sai de dentro da nossa comissão neste anúncio (mesma conta do pagamento)
+  const pctAnuncio = fund?.ativo ? Math.min(camp.fundadorPct, pctDoPlano((p as any).plano, taxas)) : pctDoPlano((p as any).plano, taxas);
+  const pontosGanha = camp.cbAtivo ? pontosCashbackControlado(Number(preco) || 0, (Number(preco) || 0) * pctAnuncio / 100, camp, camp.pontosPorReal) : 0;
   const Confianca = (
     <ul className="pdp-trust">
       <li><Icon name="bolt" size={16} color="var(--orange-ink)" />{entregaManual ? 'Entrega pelo vendedor no chat do pedido' : 'Liberado após a confirmação do pagamento'}</li>
@@ -218,7 +220,7 @@ export default async function ProductPage({ params }: { params: { id: string } }
       <li><Icon name="lock" size={16} color="var(--orange-ink)" />{cartao ? 'Pagamento via Pix ou cartão' : 'Pagamento via Pix'}</li>
       {garantia > 0 && <li><Icon name="shield" size={16} color="var(--orange-ink)" />Garantia de {garantia} {garantia === 1 ? 'dia' : 'dias'}</li>}
       {camp.primeiraCompra && <li><Icon name="gift" size={16} color="var(--orange-ink)" />1ª compra sem taxa de serviço{camp.primeiraCompraCartao ? '' : ' no Pix'}</li>}
-      {volta >= 0.01 && <li><Icon name="bolt" size={16} color="var(--orange-ink)" />Ganhe {brlCurto(volta)} de volta em CB Points</li>}
+      {pontosGanha > 0 && <li><Icon name="bolt" size={16} color="var(--orange-ink)" />Ganhe {pontosGanha.toLocaleString('pt-BR')} CB Points nesta compra</li>}
     </ul>
   );
 
