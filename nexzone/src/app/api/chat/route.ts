@@ -3,8 +3,9 @@ import { createClient } from '@/lib/supabase/server';
 import { verificarEscalonamento } from '@/lib/escalonamento';
 import { notificarMensagem } from '@/lib/notificacoes';
 import { vendedorPublico } from '@/lib/vendedorPublico';
-import { autorizarPedido, registrarVisto, confirmarAnexoChat, entregasEfetivas, estadoDoChat, cartoesDeProduto, avisarAdminsRetida } from '@/lib/conversas-servidor';
-import { AVISO_SEGURANCA, AVISO_RETIDA, TEXTO_RETIDA, pareceContatoExterno, produtosNaMensagem } from '@/lib/conversas';
+import { autorizarPedido, registrarVisto, confirmarAnexoChat, entregasEfetivas, estadoDoChat, cartoesDeProduto, avisarAdminsRetida, avisarAdminsAtencao } from '@/lib/conversas-servidor';
+import { contatosDosCompradores } from '@/lib/clientesPedidos';
+import { AVISO_SEGURANCA, AVISO_RETIDA, TEXTO_RETIDA, classificarContato, produtosNaMensagem } from '@/lib/conversas';
 
 const COLS_29 = 'id, papel, texto, remetente, created_at, anexo_path, anexo_nome, anexo_tipo, anexo_tamanho, alerta, retido_texto';
 const COLS_25 = 'id, papel, texto, remetente, created_at, anexo_path, anexo_nome, anexo_tipo, anexo_tamanho, alerta';
@@ -73,8 +74,17 @@ export async function GET(req: Request) {
     cartoesDeProduto(admin, ids),
   ]);
 
+  // Com quem é a conversa (cabeçalho do chat): o cliente vê a loja; o vendedor vê só o NOME do cliente
+  let contraparte = '';
+  if (papel === 'comprador') contraparte = vendedorPublico(order.stores).nome || 'Vendedor';
+  else {
+    const nome = (await contatosDosCompradores(admin, [order.comprador]).catch(() => ({} as Record<string, any>)))[order.comprador]?.nome || 'Cliente';
+    contraparte = papel === 'admin' ? `${nome} · ${order.stores?.nome ?? 'Loja'}` : nome;
+  }
+
   return NextResponse.json({
     role: papel,
+    contraparte,
     status: order.status,
     conteudo: order.conteudo_liberado ?? null,
     produto: { titulo: order.products?.titulo ?? 'Produto', emoji: order.products?.emoji ?? '📦' },
@@ -117,17 +127,22 @@ export async function POST(req: Request) {
     if (!texto) texto = `📎 ${c.nome}`;
   }
 
-  // Contato externo (WhatsApp, zap, wpp, ctt, contato, telefone, redes…): a mensagem fica RETIDA.
-  // A outra parte vê só o aviso; o admin é avisado para analisar e pode liberar.
-  const reter = papel !== 'admin' && pareceContatoExterno(texto);
+  // WhatsApp ou telefone: a mensagem fica RETIDA (a outra parte vê só o aviso; o admin analisa e pode liberar).
+  // E-mail, "contato", Telegram, Instagram…: PASSA normal (tem produto entregue por e-mail) e o admin é avisado discretamente.
+  const nivel = papel !== 'admin' ? classificarContato(texto) : null;
+  const reter = nivel === 'reter';
+  const atencao = nivel === 'atencao';
 
   const linha: any = { order_id: orderId, remetente: user.id, papel, texto };
   if (anexo) Object.assign(linha, { anexo_path: anexo.path, anexo_nome: anexo.nome, anexo_tipo: anexo.tipo, anexo_tamanho: anexo.tamanho });
   if (reter) Object.assign(linha, { texto: TEXTO_RETIDA, retido_texto: texto, alerta: 'retida' });
+  if (atencao) linha.alerta = 'atencao';
   let ins = await admin.from('order_messages').insert(linha).select('id, papel, texto, created_at').single();
+  // sem a coluna alerta (SQL 25): grava sem a marca, o aviso ao admin sai do mesmo jeito
+  if (ins.error && atencao) { delete linha.alerta; ins = await admin.from('order_messages').insert(linha).select('id, papel, texto, created_at').single(); }
   if (ins.error && reter) {
-    // Sem o SQL 29 não dá para reter: não envia e explica (nunca deixa o contato passar)
-    return NextResponse.json({ error: 'Por segurança, não é permitido trocar WhatsApp, telefone, e-mail ou redes sociais aqui. Combine tudo pela conversa.' }, { status: 400 });
+    // Sem o SQL 29 não dá para reter: não envia e explica (nunca deixa o WhatsApp passar)
+    return NextResponse.json({ error: 'Por segurança, não é permitido passar WhatsApp ou telefone aqui. Combine tudo pela conversa.' }, { status: 400 });
   }
   if (ins.error || !ins.data) return NextResponse.json({ error: anexo ? 'Falta ativar os anexos (SQL 25).' : 'falha ao enviar' }, { status: 500 });
   const msg: any = ins.data;
@@ -137,10 +152,11 @@ export async function POST(req: Request) {
     await avisarAdminsRetida(admin, orderId, order.products?.titulo || 'um pedido', papel);
   } else {
     await notificarMensagem(admin, { orderId, papel, remetenteId: user.id, texto: msg.texto });
+    if (atencao) await avisarAdminsAtencao(admin, orderId, order.products?.titulo || 'um pedido', papel);
   }
 
   return NextResponse.json({
     message: { ...msg, texto, mine: true, ...(reter ? { retida: true } : {}), ...(anexo ? { anexo: { url: `/api/chat/anexo?id=${encodeURIComponent(msg.id)}`, nome: anexo.nome, tipo: anexo.tipo, tamanho: anexo.tamanho } } : {}) },
-    aviso: reter ? 'Sua mensagem foi retida: trocar WhatsApp, telefone, e-mail ou redes sociais é proibido. O suporte foi avisado e vai analisar.' : null,
+    aviso: reter ? 'Sua mensagem foi retida: passar WhatsApp ou telefone é proibido. O suporte foi avisado e vai analisar.' : null,
   });
 }
