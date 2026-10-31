@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import { escreverEmail } from '@/lib/escreverEmail';
 import { toast } from '@/lib/toast';
 
 // Painel lateral com o perfil do vendedor (Admin). Ações reaproveitam as rotas que já existem:
@@ -78,7 +79,7 @@ export default function PerfilVendedor({ storeId, onClose }: { storeId: string; 
         .pv h3{font-family:'Outfit';font-size:20px;font-weight:900;margin:0;}
         .pv-sec{border:1px solid var(--bd2);border-radius:14px;padding:12px 14px;margin-top:12px;font-size:13.5px;}
         .pv-sec h5{font-family:'Outfit';font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;color:var(--sub);margin:0 0 8px;}
-        .pv-l{display:flex;justify-content:space-between;gap:10px;padding:4px 0;border-bottom:1px dashed var(--bd2);}
+        .pv-mail{background:none;border:0;color:#FF8A3D;font-weight:800;cursor:pointer;padding:0;text-decoration:underline;font-size:inherit}.pv-l{display:flex;justify-content:space-between;gap:10px;padding:4px 0;border-bottom:1px dashed var(--bd2);}
         .pv-l:last-child{border-bottom:none;}
         .pv-l span:last-child{text-align:right;word-break:break-word;}
         .pv-nums{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
@@ -104,7 +105,7 @@ export default function PerfilVendedor({ storeId, onClose }: { storeId: string; 
             <div className="pv-sec">
               <h5>Dono da loja</h5>
               <div className="pv-l"><span>Nome</span><span>{d.dono.nome || '—'}</span></div>
-              <div className="pv-l"><span>E-mail</span><span>{d.dono.email || '—'}</span></div>
+              <div className="pv-l"><span>E-mail</span><span>{d.dono.email || '—'}{d.dono.email && <> · <button type="button" className="pv-mail" onClick={() => escreverEmail(d.dono.email, (d.produtos?.total || 0) > 0 ? 'boas_vindas_vendedor' : 'lojista_sem_anuncio', { nome: d.dono.nome, loja: d.loja?.nome })}>enviar e-mail</button></>}</span></div>
               <div className="pv-l"><span>WhatsApp</span><span>{d.dono.whatsapp || '—'}</span></div>
               <div className="pv-l"><span>Cidade</span><span>{d.dono.cidade ? `${d.dono.cidade}${d.dono.uf ? `/${d.dono.uf}` : ''}` : '—'}</span></div>
               <div className="pv-l"><span>Conta</span><span style={{ color: contaStatus === 'ativo' ? '#3DDC97' : '#FF8A8A', fontWeight: 800 }}>{contaStatus}</span></div>

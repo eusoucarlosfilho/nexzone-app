@@ -26,7 +26,7 @@ function iniciarMeta(id: string) {
     carregarScript('https://connect.facebook.net/en_US/fbevents.js', 'cb-px-meta');
   }
   w.fbq('init', id);
-  w.fbq('track', 'PageView');
+  w.fbq('trackSingle', id, 'PageView');
 }
 
 function iniciarTikTok(id: string) {
@@ -82,7 +82,7 @@ export function dispararPixel(r: RastreioProduto | null | undefined, evento: Eve
   try {
     if (r.meta && w.fbq) {
       const dados = { value: valor, currency: 'BRL', content_ids: [d.produtoId], content_type: 'product', content_name: d.titulo };
-      w.fbq('track', evento, dados, d.pedidoId ? { eventID: `${evento}-${d.pedidoId}` } : undefined);
+      w.fbq('trackSingle', r.meta, evento, dados, d.pedidoId ? { eventID: `${evento}-${d.pedidoId}` } : undefined);
     }
     if (r.tiktok && w.ttq) {
       const nome = evento === 'Purchase' ? 'CompletePayment' : evento;

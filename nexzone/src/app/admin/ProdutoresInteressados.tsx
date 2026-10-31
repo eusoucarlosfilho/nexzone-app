@@ -1,5 +1,6 @@
 'use client';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { escreverEmail } from '@/lib/escreverEmail';
 import Icon from '@/components/Icon';
 import { toast } from '@/lib/toast';
 import { STATUS, TIPOS, formatarWhatsapp, linkWhatsapp } from '@/lib/recrutamento';
@@ -242,6 +243,7 @@ export default function ProdutoresInteressados({ onContagem }: { onContagem?: (n
               <span>{formatarWhatsapp(i.whatsapp)}{i.instagram && <> · <a href={`https://instagram.com/${i.instagram}`} target="_blank" rel="noreferrer">@{i.instagram}</a></>}{i.email && <> · {i.email}</>}</span>
             </div>
             <div className="pi-acoes">
+              {i.email && <button type="button" className="adm-btn rp" title="Abrir a Caixa de e-mail com a mensagem pronta" onClick={() => escreverEmail(i.email, i.ativacao?.fase === 'loja_criada' ? 'lojista_sem_anuncio' : 'boas_vindas_vendedor', { nome: i.nome, loja: i.ativacao?.loja })}><Icon name="mail" size={14} /> E-mail</button>}
               <div className="pi-st">
                 <select value={i.status} onChange={(e) => mudarStatus(i.id, e.target.value)} style={{ color: COR[i.status] }}>
                   {STATUS.map((s) => <option key={s.id} value={s.id}>{s.rotulo}</option>)}

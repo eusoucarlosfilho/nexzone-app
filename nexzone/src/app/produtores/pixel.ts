@@ -18,7 +18,7 @@ export function iniciarPixel(id: string) {
       document.head.appendChild(s);
     }
     w.fbq('init', id);
-    w.fbq('track', 'PageView');
+    w.fbq('trackSingle', id, 'PageView');
     window.__cbRecrut = id;
   } catch { /* pixel nunca trava a página */ }
 }
@@ -29,6 +29,6 @@ export function evento(nome: string, eventId?: string, dados: Record<string, any
   try {
     if (!window.fbq || !window.__cbRecrut) return;
     const extra = eventId ? { eventID: eventId } : undefined;
-    window.fbq(personalizado ? 'trackCustom' : 'track', nome, { content_name: 'Produtor fundador', content_category: 'recrutamento_produtores', ...dados }, extra);
+    window.fbq(personalizado ? 'trackSingleCustom' : 'trackSingle', window.__cbRecrut, nome, { content_name: 'Produtor fundador', content_category: 'recrutamento_produtores', ...dados }, extra);
   } catch {}
 }

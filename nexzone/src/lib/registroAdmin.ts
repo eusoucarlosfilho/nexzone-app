@@ -56,6 +56,9 @@ export const ACOES: Record<string, { grupo: GrupoAcao; verbo: string }> = {
   reembolso_confirmado: { grupo: 'financeiro', verbo: 'confirmou a devolução do pedido' },
 
   config_alterada: { grupo: 'config', verbo: 'alterou as configurações' },
+  campanha_salvar: { grupo: 'config', verbo: 'salvou a campanha do site' },
+  campanha_ligar: { grupo: 'config', verbo: 'ligou/desligou a campanha do site' },
+  campanha_excluir: { grupo: 'config', verbo: 'excluiu a campanha do site' },
 };
 
 export type Registro = {

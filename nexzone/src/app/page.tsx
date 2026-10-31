@@ -1,4 +1,6 @@
 import Nav from '@/components/Nav';
+import { BannerCampanha } from '@/components/CampanhaSite';
+import { campanhaNoAr } from '@/lib/campanhasSite-servidor';
 import Footer from '@/components/Footer';
 import ProductCard from '@/components/ProductCard';
 import PartnerOfferCard from '@/components/PartnerOfferCard';
@@ -23,6 +25,7 @@ import type { Metadata } from 'next';
 import { dadosWebSite, dadosOrganizacao, jsonLd } from '@/lib/seoSite';
 import { lerSeoConfig } from '@/lib/seo-servidor';
 import OfertaDoDiaCard from '@/components/OfertaDoDiaCard';
+import PixelInstitucional from '@/components/PixelInstitucional';
 import Contagem from '@/components/Contagem';
 import { ofertaDoDia, cfgCanais, cfgBF, listarJogos, lerTemaBlack, ofertasAntecipadas, painelBF } from '@/lib/crescimento-servidor';
 import { faseBF } from '@/lib/crescimento';
@@ -87,6 +90,7 @@ export default async function Home() {
   const fase = bf ? faseBF(bf) : 'depois';
   // Tema Black (Black November): bloco da campanha no topo + vitrine de descontos reais
   const tema = await lerTemaBlack();
+  const bannerCampanha = await campanhaNoAr('banner'); // Admin › Campanhas e ofertas (SQL 36)
   const vitrineBlack: Product[] = !tema.ativo ? []
     : tema.fase === 'black' ? await painelBF().then((r) => r.produtos.slice(0, 8)).catch(() => [])
     : await ofertasAntecipadas(8);
@@ -140,8 +144,10 @@ export default async function Home() {
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(dadosWebSite()) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(dadosOrganizacao(seo?.perfis ?? [], support_email || null)) }} />
+      <PixelInstitucional />
       <Nav />
       <main>
+        {bannerCampanha && <BannerCampanha c={bannerCampanha} />}
         {tema.ativo && (
           <section className="bfh" aria-labelledby="bfh-t">
             <div className="bfh-in">

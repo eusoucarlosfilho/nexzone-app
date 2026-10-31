@@ -22,6 +22,8 @@
     }
   },
   "files": [
+    "../src/lib/campanhasSite.ts",
+    "../src/lib/modelosEmail.ts",
     "../src/lib/analiseAnuncio.ts",
     "../src/lib/caixaEmail.ts",
     "../src/lib/caixaEmail-assinatura.ts",

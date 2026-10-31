@@ -5,6 +5,7 @@ import Footer from '@/components/Footer';
 import ProductCard from '@/components/ProductCard';
 import Contagem from '@/components/Contagem';
 import ListaEspera from './ListaEspera';
+import PixelInstitucional from '@/components/PixelInstitucional';
 import { painelBF, ofertasAntecipadas, listarJogos } from '@/lib/crescimento-servidor';
 import { textoCompartilharBF } from '@/lib/crescimento';
 import { SITE } from '@/lib/seoSite';
@@ -36,6 +37,7 @@ export default async function BlackFridayPage() {
   ];
   return (
     <>
+      <PixelInstitucional />
       <Nav />
       <main className="bf">
         <style dangerouslySetInnerHTML={{ __html: `

@@ -38,7 +38,9 @@ import { registrarContatoRecuperacao } from '@/lib/recuperacaoCliente';
 import { chaveRecuperacao } from '@/lib/filaRecuperacao';
 import CarrinhosAbandonados from '@/components/CarrinhosAbandonados';
 import AtivarCelular from '@/components/AtivarCelular';
-import CaixaEmail from './CaixaEmail';
+import CaixaEmail, { type PedidoEmail } from './CaixaEmail';
+import CampanhasAdmin from './CampanhasAdmin';
+import { escreverEmail, EVENTO_ESCREVER } from '@/lib/escreverEmail';
 import PainelAprovacaoAuto, { AnaliseResumo, itensSugeridos } from './AprovacaoInteligente';
 import RegistroAdmin from './RegistroAdmin';
 
@@ -288,6 +290,14 @@ export default function AdminDashboard({ painel, adminEmail, users, metrics, dai
   }
 
   const [reembolsosAbertos, setReembolsosAbertos] = useState<number>(Number(metrics.reembolsosAbertos) || 0);
+  // Botões "E-mail" do painel: abrem a aba E-mail já escrevendo (lib/escreverEmail.ts)
+  const [pedidoEmail, setPedidoEmail] = useState<PedidoEmail | null>(null);
+  useEffect(() => {
+    (window as any).__cbCaixaNoPainel = true;
+    const abrir = (e: Event) => { const d = (e as CustomEvent).detail || {}; setPedidoEmail({ para: d.para, assunto: d.assunto, texto: d.texto, nonce: Date.now() }); setTab('email'); };
+    window.addEventListener(EVENTO_ESCREVER, abrir);
+    return () => { (window as any).__cbCaixaNoPainel = false; window.removeEventListener(EVENTO_ESCREVER, abrir); };
+  }, []);
   // e-mails não lidos da caixa @compreibarato.com.br (badge do menu; confere a cada minuto)
   const [emailsNovos, setEmailsNovos] = useState(0);
   useEffect(() => {
@@ -320,6 +330,7 @@ export default function AdminDashboard({ painel, adminEmail, users, metrics, dai
     ]],
     ['Crescimento', [
       ['crescimento', 'growth', 'Crescimento e Black', 0],
+      ['campanhas', 'sparkles', 'Campanhas e ofertas', 0],
       ['audiencia', 'activity', 'Audiência', 0],
       ['seo', 'search', 'SEO e Google', 0],
       ['promocoes', 'megaphone', 'Enviar promoção', 0],
@@ -597,7 +608,7 @@ export default function AdminDashboard({ painel, adminEmail, users, metrics, dai
                             const wa = o.cliente?.avisos ? linkWhatsapp(o.cliente?.whatsapp, msg) : null;
                             const chave = chaveRecuperacao(o.comprador_email, o.comprador, o.product_id);
                             return wa ? <a className="adm-btn ap" href={wa} target="_blank" rel="noreferrer" onClick={() => registrarContatoRecuperacao(chave, 'whatsapp')} style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}>WhatsApp</a>
-                              : o.comprador_email ? <a className="adm-btn rp" href={`mailto:${o.comprador_email}?subject=${encodeURIComponent('Sua compra no Comprei Barato')}&body=${encodeURIComponent(msg)}`} onClick={() => registrarContatoRecuperacao(chave, 'email')} style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}>E-mail</a> : null;
+                              : o.comprador_email ? <button type="button" className="adm-btn rp" onClick={() => { registrarContatoRecuperacao(chave, 'email'); escreverEmail(o.comprador_email, 'pix_pendente', { nome: o.cliente?.nome, produto: o.products?.titulo, link: `https://www.compreibarato.com.br/checkout/${o.product_id}?email=${encodeURIComponent(o.comprador_email)}&utm_source=recuperacao&utm_medium=email` }); }}>E-mail</button> : null;
                           })()}
                           {o.status === 'pendente' && <button className="adm-btn rp" disabled={busy === o.id} onClick={() => conferirPix(o.id)}>{busy === o.id ? 'Conferindo…' : 'Conferir Pix'}</button>}
                           <button className="adm-btn rp" onClick={() => setChatOrder(o.id)}>Conversa</button>
@@ -692,6 +703,7 @@ export default function AdminDashboard({ painel, adminEmail, users, metrics, dai
                           </button>
                         )}
                         {u.reclamacoesAbertas > 0 && <button className="adm-btn" onClick={() => setTab('reclamacoes')}>Ver reclamações</button>}
+                        {u.email && u.email !== '—' && <button className="adm-btn" onClick={() => escreverEmail(u.email, u.seller ? ((u.seller.produtosTotal || 0) > 0 ? 'boas_vindas_vendedor' : 'lojista_sem_anuncio') : 'cliente', { nome: u.nome, loja: u.seller?.nome })}><Icon name="mail" size={14} /> {u.seller ? 'E-mail de boas-vindas' : 'Enviar e-mail'}</button>}
                         <button className="adm-btn" disabled={busy === u.id + ':aviso'} onClick={() => avisar(u.id, 'aviso')}>Mandar aviso</button>
                         <button className="adm-btn" disabled={busy === u.id + ':advertencia'} onClick={() => avisar(u.id, 'advertencia')}>Advertência</button>
                         {u.status === 'restrito'
@@ -830,8 +842,7 @@ export default function AdminDashboard({ painel, adminEmail, users, metrics, dai
         {tab === 'crescimento' && (
           <>
             <h1 className="adm-h">Crescimento e Black Friday</h1>
-            <p className="adm-sub">Black Friday Gamer, oferta do dia, canais de ofertas e o ranking de vendas.</p>
-            <CrescimentoAdmin />
+            <p className="adm-sub">Visitas, cadastros, ranking de vendas e, no fim da página, a Black Friday Gamer, a oferta do dia e os canais de ofertas.</p>
             <GrowthPanel />
             <h2 className="adm-ct" style={{ marginTop: 26 }}>Ranking de vendas</h2>
             <p className="adm-sub" style={{ marginBottom: 14 }}>Contado pelo status dos pedidos. Use como referência; o número oficial de dinheiro está em Financeiro.</p>
@@ -857,6 +868,15 @@ export default function AdminDashboard({ painel, adminEmail, users, metrics, dai
                 ) : <div className="adm-empty">Sem produtos ainda.</div>}
               </div>
             </div>
+            <CrescimentoAdmin />
+          </>
+        )}
+
+        {tab === 'campanhas' && (
+          <>
+            <h1 className="adm-h">Campanhas e ofertas</h1>
+            <p className="adm-sub">Faixas e banners do site com data para entrar e sair do ar, e o calendário das próximas datas com campanha sugerida.</p>
+            <CampanhasAdmin />
           </>
         )}
 
@@ -950,7 +970,7 @@ export default function AdminDashboard({ painel, adminEmail, users, metrics, dai
 
         {tab === 'torpedos' && <WhatsAppLog />}
 
-        {tab === 'email' && <CaixaEmail onNaoLidos={setEmailsNovos} />}
+        {tab === 'email' && <CaixaEmail onNaoLidos={setEmailsNovos} pedido={pedidoEmail} />}
 
         {tab === 'reembolsos' && (
           <>

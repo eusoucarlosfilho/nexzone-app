@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { PASTAS } from '@/lib/caixaEmail';
 import { enviarDaCaixa, lerCfgCaixa, salvarCfgCaixa } from '@/lib/caixaEmail-servidor';
-import { registrarAcao } from '@/lib/registroAdmin-servidor';
+import { registrarAcao, nomeAdmin } from '@/lib/registroAdmin-servidor';
 
 export const dynamic = 'force-dynamic';
 
@@ -44,6 +44,7 @@ export async function GET(req: Request) {
       sql33: !error || !semTabela(error), temSegredo: !!cfg.segredo, temChave: !!cfg.chave, chaveDoSite: !!process.env.RESEND_API_KEY,
       enderecos: cfg.enderecos, padrao: cfg.padrao, nome: cfg.nome, assinatura: cfg.assinatura, avisar: cfg.avisar,
       webhook: `${site}/api/webhooks/email-recebido`,
+      meuNome: await nomeAdmin(admin, a.user!.id).catch(() => ''), // troca o {atendente} dos modelos
     }, semCache);
   }
 

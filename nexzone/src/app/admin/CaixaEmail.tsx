@@ -9,7 +9,8 @@ import { assuntoResposta, citacao, htmlParaExibir, tamanhoLegivel } from '@/lib/
 // Entrada, Com estrela, Enviados, Arquivados, Spam e Lixeira; ler a conversa, responder, encaminhar, escrever novo.
 type Item = { id: number; pasta: string; sentido: 'recebido' | 'enviado'; conversa: string; de: string; de_nome: string | null; para: string[]; cc: string[]; assunto: string; previa: string | null; anexos: { id: string | null; nome: string; tipo: string; tamanho: number }[]; lido: boolean; estrela: boolean; criado_em: string };
 type Msg = Item & { texto: string | null; html: string | null; enviado_por_nome?: string | null; autenticacao?: any };
-type Cfg = { sql33: boolean; temSegredo: boolean; temChave: boolean; chaveDoSite: boolean; enderecos: string[]; padrao: string; nome: string; assinatura: string; avisar: boolean; webhook: string };
+type Cfg = { sql33: boolean; temSegredo: boolean; temChave: boolean; chaveDoSite: boolean; enderecos: string[]; padrao: string; nome: string; assinatura: string; avisar: boolean; webhook: string; meuNome?: string };
+export type PedidoEmail = { para: string; assunto: string; texto: string; nonce: number };
 type Rascunho = { de: string; para: string; cc: string; bcc: string; assunto: string; texto: string; responderA: number | null; anexos: { nome: string; tipo: string; conteudo: string; tamanho: number }[]; mostrarCc: boolean; titulo: string };
 
 const PASTAS: [string, string, string][] = [
@@ -24,7 +25,7 @@ const hojeOuData = (s: string) => {
 const quando = (s: string) => new Date(s).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
 const VAZIO: Rascunho = { de: '', para: '', cc: '', bcc: '', assunto: '', texto: '', responderA: null, anexos: [], mostrarCc: false, titulo: 'Nova mensagem' };
 
-export default function CaixaEmail({ janela = false, abrirId = null, onNaoLidos }: { janela?: boolean; abrirId?: number | null; onNaoLidos?: (n: number) => void }) {
+export default function CaixaEmail({ janela = false, abrirId = null, onNaoLidos, pedido = null }: { janela?: boolean; abrirId?: number | null; onNaoLidos?: (n: number) => void; pedido?: PedidoEmail | null }) {
   const [pasta, setPasta] = useState('entrada');
   const [itens, setItens] = useState<Item[]>([]);
   const [total, setTotal] = useState(0);
@@ -112,6 +113,16 @@ export default function CaixaEmail({ janela = false, abrirId = null, onNaoLidos 
 
   // ---------- escrever ----------
   function novo() { setRasc({ ...VAZIO, de: cfg?.padrao || '' }); }
+  // E-mail pronto vindo de um botão do admin (recuperação, boas-vindas…): abre a janela de escrever preenchida.
+  // Espera a configuração carregar para saber o endereço padrão e o nome de quem está logado ({atendente}).
+  const ultimoPedido = useRef<number | null>(null);
+  useEffect(() => {
+    if (!pedido || !cfg || ultimoPedido.current === pedido.nonce) return;
+    ultimoPedido.current = pedido.nonce;
+    const atendente = String(cfg.meuNome || '').trim().split(/\s+/)[0] || 'Equipe Comprei Barato';
+    const troca = (t: string) => String(t || '').replace(/\{atendente\}/g, atendente);
+    setRasc({ ...VAZIO, de: cfg.padrao || '', para: pedido.para, assunto: troca(pedido.assunto), texto: troca(pedido.texto), titulo: 'Nova mensagem' });
+  }, [pedido, cfg]);
   function responder(m: Msg, todos = false) {
     const nossos = new Set(cfg?.enderecos || []);
     const para = m.sentido === 'recebido' ? m.de : m.para[0] || '';

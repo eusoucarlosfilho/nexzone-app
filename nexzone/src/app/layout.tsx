@@ -11,6 +11,8 @@ import { MARCA, SITE, OG_PADRAO } from '@/lib/seoSite';
 import { lerSeoConfig } from '@/lib/seo-servidor';
 import FaixaBlack from '@/components/FaixaBlack';
 import { lerTemaBlack } from '@/lib/crescimento-servidor';
+import { FaixaCampanha } from '@/components/CampanhaSite';
+import { campanhaNoAr } from '@/lib/campanhasSite-servidor';
 
 // SEO global: endereço base, nome da marca, imagem padrão de compartilhamento e verificação do Google/Bing
 // (os códigos são colados pelo admin em Admin → SEO e Google).
@@ -45,13 +47,15 @@ export async function generateViewport(): Promise<Viewport> {
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const tema = await lerTemaBlack();
   const alvo = Date.parse(tema.fase === 'black' ? tema.cfg.fim : tema.cfg.inicio);
+  // Faixa de campanha (Admin › Campanhas e ofertas): só quando a Black não está no ar (a Black tem prioridade)
+  const faixa = tema.ativo ? null : await campanhaNoAr('faixa');
   return (
     <html lang="pt-BR" data-tema={tema.ativo ? 'black' : undefined}>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800;900&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet" />
       </head>
-      <body><FavoritesProvider><NoticeBanner />{tema.ativo && tema.fase && <FaixaBlack fase={tema.fase} alvo={alvo} />}{children}</FavoritesProvider><Toaster /><BuyerNotifier /><SiteTracker /><OrigemCadastro /><RegistrarApp /></body>
+      <body><FavoritesProvider><NoticeBanner />{tema.ativo && tema.fase && <FaixaBlack fase={tema.fase} alvo={alvo} />}{faixa && <FaixaCampanha c={faixa} />}{children}</FavoritesProvider><Toaster /><BuyerNotifier /><SiteTracker /><OrigemCadastro /><RegistrarApp /></body>
     </html>
   );
 }

@@ -1,5 +1,6 @@
 'use client';
 import { useMemo, useState } from 'react';
+import { escreverEmail } from '@/lib/escreverEmail';
 import { toast } from '@/lib/toast';
 import { mensagemRecuperacao, linkWhatsapp, foneLegivel } from '@/lib/recuperacaoVenda';
 import { contatoRecente, haQuantoCurto, type ItemFila, type Situacao } from '@/lib/filaRecuperacao';
@@ -136,7 +137,7 @@ export default function FilaRecuperacao({ itens: inicial, sql26, onMudou }: { it
             <div className="fr-acoes">
               {it.situacao !== 'desistiu' && <>
                 {wa && <a className="adm-btn ap" href={wa} target="_blank" rel="noreferrer" onClick={(e) => antesDeContatar(e, it, 'whatsapp')}>WhatsApp</a>}
-                {it.email && <a className="adm-btn rp" href={`mailto:${it.email}?subject=${encodeURIComponent('Sua compra no Comprei Barato')}&body=${encodeURIComponent(mensagem(it))}`} onClick={(e) => antesDeContatar(e, it, 'email')}>E-mail</a>}
+                {it.email && <button type="button" className="adm-btn rp" onClick={(e) => { if (antesDeContatar(e, it, 'email') === false) return; escreverEmail(it.email!, it.tipo === 'pix' ? 'pix_pendente' : 'carrinho_abandonado', { nome: it.nome, produto: it.produto, link: `${SITE}/checkout/${it.productId}?email=${encodeURIComponent(it.email!)}&utm_source=recuperacao&utm_medium=email` }); }}>E-mail</button>}
                 <button type="button" className="adm-btn rp" onClick={(e) => copiar(e, it)}>Copiar mensagem</button>
               </>}
               {sql26 && (it.situacao === 'desistiu'

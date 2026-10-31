@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { coletarOrigem } from '@/components/PixelsVenda';
+import { eventoInstitucional } from '@/lib/pixelInstitucional';
 
 // Formulário da lista de espera da Black Friday Gamer
 export default function ListaEspera() {
@@ -14,6 +15,7 @@ export default function ListaEspera() {
       const r = await fetch('/api/black-friday/espera', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...d, origem: coletarOrigem() }) });
       const j = await r.json().catch(() => ({}));
       if (!r.ok) { setErro(j.error || 'Não deu certo. Tente de novo.'); setEstado('livre'); return; }
+      eventoInstitucional('Lead', { content_name: 'Lista de espera Black Friday Gamer', content_category: 'black_friday_gamer' });
       setEstado('ok');
     } catch { setErro('Falha de conexão. Tente de novo.'); setEstado('livre'); }
   }

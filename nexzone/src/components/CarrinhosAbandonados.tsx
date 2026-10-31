@@ -1,5 +1,6 @@
 'use client';
 import { toast } from '@/lib/toast';
+import { escreverEmail } from '@/lib/escreverEmail';
 import Icon from './Icon';
 import ProductThumb from './ProductThumb';
 import { mensagemRecuperacao, linkWhatsapp, haQuanto, foneLegivel } from '@/lib/recuperacaoVenda';
@@ -48,7 +49,9 @@ export default function CarrinhosAbandonados({ itens, tema = 'loja', mostrarLoja
                 <td style={adm ? undefined : td}>
                   {privado ? <small style={{ color: sub }}>Lembrete automático</small> : <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                     {zap && <a className={adm ? 'adm-btn ap' : undefined} style={wa} href={zap} target="_blank" rel="noreferrer" onClick={() => reg(c, 'whatsapp')}><Icon name="chat" size={14} /> WhatsApp</a>}
-                    <a className={adm ? 'adm-btn rp' : undefined} style={bt} href={`mailto:${c.email}?subject=${encodeURIComponent('Sua compra no Comprei Barato')}&body=${encodeURIComponent(msg(c))}`} onClick={() => reg(c, 'email')}><Icon name="mail" size={14} /> E-mail</a>
+                    {adm
+                      ? <button type="button" className="adm-btn rp" style={bt} onClick={() => { reg(c, 'email'); escreverEmail(c.email, 'carrinho_abandonado', { nome: c.nome, produto: c.titulo, link: linkDe(c).replace('utm_medium=whatsapp', 'utm_medium=email') }); }}><Icon name="mail" size={14} /> E-mail</button>
+                      : <a style={bt} href={`mailto:${c.email}?subject=${encodeURIComponent('Sua compra no Comprei Barato')}&body=${encodeURIComponent(msg(c))}`} onClick={() => reg(c, 'email')}><Icon name="mail" size={14} /> E-mail</a>}
                     <button type="button" className={adm ? 'adm-btn rp' : undefined} style={adm ? undefined : bt} onClick={() => copiar(c)}><Icon name="copy" size={14} /> Copiar</button>
                   </div>}
                 </td>
