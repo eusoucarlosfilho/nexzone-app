@@ -8,8 +8,12 @@ import { lerCfgCampanhas, ehPrimeiraCompra, fundadorDaLoja } from '@/lib/campanh
 import { taxaComPromo, divisaoComFundador } from '@/lib/campanhas';
 import { listaDeBumps } from '@/lib/checkoutConfig';
 import { limparOrigem, limparCliques } from '@/lib/rastreioVenda';
-import { avisarWhatsApp, link } from '@/lib/whatsapp/enviar';
+import { enviarSequenciaPix } from '@/lib/whatsapp/enviar';
+import { emSegundoPlano } from '@/lib/emSegundoPlano';
 import { moneyBR } from '@/lib/email';
+
+// tempo para as mensagens do Pix no WhatsApp terminarem depois da resposta (ver emSegundoPlano)
+export const maxDuration = 30;
 
 export async function POST(req: Request) {
   const supabase = createClient();
@@ -165,15 +169,14 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Pix gerado, mas falhou ao salvar. Tente novamente.' }, { status: 500 });
   }
 
-  // WhatsApp na hora (no número do comprador, se ele aceitou avisos): link do pedido + código Pix em mensagem separada,
-  // para ele copiar fácil. Nunca segura a resposta do checkout por mais de ~4 s e nunca derruba a compra.
+  // WhatsApp na hora (no número do comprador, se ele aceitou avisos), em 4 mensagens:
+  // QR Code (imagem) → aviso "o código vem abaixo" → código copia e cola → "este número é só de notificações".
+  // Roda em segundo plano: a tela do Pix não espera o WhatsApp e uma falha nunca derruba a compra.
   if (pay.pixCopiaECola) {
-    const enviar = (async () => {
-      const vars = { produto: product.titulo, valor: moneyBR(valorPix), pedido: String(order.id).slice(0, 8), link: link(`/pedido/${order.id}`), pix: pay.pixCopiaECola };
-      await avisarWhatsApp({ evento: 'pix_gerado', chave: `pix_gerado:${order.id}`, userId: user.id, vars });
-      await avisarWhatsApp({ evento: 'pix_codigo', chave: `pix_codigo:${order.id}`, userId: user.id, vars });
-    })().catch(() => null);
-    await Promise.race([enviar, new Promise((r) => setTimeout(r, 4000))]);
+    emSegundoPlano(enviarSequenciaPix({
+      userId: user.id, orderId: order.id, tipo: 'gerado', produto: product.titulo, valor: moneyBR(valorPix),
+      pixCode: pay.pixCopiaECola, pixQr: pay.pixQrBase64 ?? null,
+    }));
   }
 
   // Debita os CB Points usados como desconto (só após o pedido ficar válido)

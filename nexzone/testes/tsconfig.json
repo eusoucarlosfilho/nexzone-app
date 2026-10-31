@@ -23,6 +23,7 @@
   },
   "files": [
     "../src/lib/periodo.ts",
+    "../src/lib/whatsapp/qrPix.ts",
     "../src/lib/campanhasSite.ts",
     "../src/lib/modelosEmail.ts",
     "../src/lib/analiseAnuncio.ts",

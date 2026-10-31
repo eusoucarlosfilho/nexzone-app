@@ -1,5 +1,5 @@
 'use client';
-import { TIPOS_ANUNCIO, JOGOS, PLANOS, GRUPOS_TIPO, exigeJogo, type TipoAnuncio, type Plano } from '@/lib/taxas';
+import { TIPOS_ANUNCIO, PLANOS, TIPOS_CADASTRO, type TipoAnuncio, type Plano } from '@/lib/taxas';
 import Icon from '@/components/Icon';
 
 // Campos do modelo marketplace (SQL 21): tipo do anúncio + jogo, e o plano de visibilidade.
@@ -7,38 +7,27 @@ import Icon from '@/components/Icon';
 
 const ICONE: Record<TipoAnuncio, string> = { conta: 'user', item: 'gift', moeda: 'money', giftcard: 'key', servico: 'rocket', digital: 'file' };
 
-export function CamposTipoJogo({ tipo, jogo, onTipo, onJogo }: { tipo: TipoAnuncio; jogo: string; onTipo: (t: TipoAnuncio) => void; onJogo: (j: string) => void }) {
+export function CamposTipoJogo({ tipo, jogo, onTipo }: { tipo: TipoAnuncio; jogo: string; onTipo: (t: TipoAnuncio) => void; onJogo: (j: string) => void }) {
   const info = TIPOS_ANUNCIO.find((t) => t.id === tipo);
   return (
     <div className="ca">
       <style dangerouslySetInnerHTML={{ __html: CSS }} />
       <input type="hidden" name="tipo_anuncio" value={tipo} />
-      {GRUPOS_TIPO.map((g) => (
-        <div key={g.titulo} className="ca-grupo">
-          <small className="ca-gt">{g.titulo}</small>
-          <div className="ca-tipos" role="radiogroup" aria-label={g.titulo}>
-            {g.tipos.map((id) => {
-              const t = TIPOS_ANUNCIO.find((x) => x.id === id)!;
-              return (
-                <button type="button" key={t.id} role="radio" aria-checked={tipo === t.id} className={tipo === t.id ? 'on' : ''} onClick={() => onTipo(t.id)}>
-                  <Icon name={ICONE[t.id]} size={18} /><span>{t.nome}</span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      ))}
+      {/* só Produto digital e Serviço; um anúncio antigo com outro tipo mostra o tipo dele para não mudar sozinho */}
+      <div className="ca-tipos" role="radiogroup" aria-label="O que você vai vender">
+        {(TIPOS_CADASTRO.includes(tipo) ? TIPOS_CADASTRO : [...TIPOS_CADASTRO, tipo]).map((id) => {
+          const t = TIPOS_ANUNCIO.find((x) => x.id === id);
+          if (!t) return null;
+          return (
+            <button type="button" key={t.id} role="radio" aria-checked={tipo === t.id} className={tipo === t.id ? 'on' : ''} onClick={() => onTipo(t.id)}>
+              <Icon name={ICONE[t.id]} size={18} /><span>{t.nome}</span>
+            </button>
+          );
+        })}
+      </div>
       {info && <p className="ca-dica"><Icon name="info" size={14} /> {info.dica}</p>}
-      {tipo !== 'digital' && (
-        <div className="fg" style={{ marginTop: 12 }}>
-          {exigeJogo(tipo)
-            ? <label htmlFor="ca-jogo">Jogo<span className="ui-req">*</span></label>
-            : <label htmlFor="ca-jogo">Jogo ou plataforma <small style={{ fontWeight: 600, color: 'var(--muted)' }}>(opcional: só se for de algum jogo)</small></label>}
-          <input id="ca-jogo" name="jogo" list="ca-jogos" value={jogo} onChange={(e) => onJogo(e.target.value.slice(0, 60))} placeholder={exigeJogo(tipo) ? 'Ex.: Free Fire, Roblox, Valorant' : tipo === 'giftcard' ? 'Ex.: Steam, PlayStation, Roblox (deixe em branco se não for de jogo)' : 'Ex.: Valorant (deixe em branco se não for de jogo)'} maxLength={60} />
-          <datalist id="ca-jogos">{JOGOS.map((j) => <option key={j} value={j} />)}</datalist>
-          <div className="ui-help">{exigeJogo(tipo) ? 'Escolha da lista ou digite o nome do jogo. Ajuda o comprador a achar seu anúncio.' : 'Preenchendo, o anúncio também aparece na página do jogo no site.'}</div>
-        </div>
-      )}
+      {/* o jogo não é mais pedido aqui; o valor que o anúncio já tinha é mantido */}
+      <input type="hidden" name="jogo" value={jogo} readOnly />
       {tipo === 'conta' && (
         <div role="note" className="ca-alerta"><Icon name="shield" size={15} /><span><b>Venda de conta:</b> entregue pelo chat do pedido e oriente o comprador a trocar e-mail e senha na hora. O valor fica retido por mais tempo (proteção contra recuperação da conta).</span></div>
       )}

@@ -132,3 +132,17 @@ export async function sendText(numero: string, texto: string, tempoMs = 6000): P
   if (!r.ok) return { ok: false, erro: r.status === 0 || r.status === 401 || r.status === 403 ? diagnostico(r).detalhe : erroDe(r) };
   return { ok: true, id: r.dados?.key?.id ?? null };
 }
+
+/** Envia uma imagem PNG (base64 puro, sem "data:") com legenda. Rota da Evolution API v2: /message/sendMedia. */
+export async function sendImage(numero: string, base64png: string, legenda: string, nomeArquivo = 'imagem.png', tempoMs = 12000): Promise<ResultadoEnvio> {
+  const ctx = await contexto();
+  if (!ctx) return { ok: false, erro: 'Provedor não configurado.' };
+  if (!/^55\d{10,11}$/.test(numero)) return { ok: false, erro: 'Número inválido.' };
+  const media = String(base64png || '').replace(/^data:image\/[a-z]+;base64,/i, '').replace(/\s+/g, '');
+  if (!media) return { ok: false, erro: 'Imagem vazia.' };
+  const r = await chamar(ctx, 'POST', `/message/sendMedia/${inst(ctx)}`, {
+    number: numero, mediatype: 'image', mimetype: 'image/png', media, fileName: nomeArquivo, caption: legenda,
+  }, tempoMs);
+  if (!r.ok) return { ok: false, erro: r.status === 0 || r.status === 401 || r.status === 403 ? diagnostico(r).detalhe : erroDe(r) };
+  return { ok: true, id: r.dados?.key?.id ?? null };
+}

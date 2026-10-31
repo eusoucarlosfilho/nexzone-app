@@ -4,10 +4,14 @@ import { adminSeguro, negado } from '@/lib/ofertas/adminSeguro';
 import { getStatus, sendText } from '@/lib/whatsapp';
 import { normalizarTelefone } from '@/lib/whatsapp/telefone';
 import { textoLimpo } from '@/lib/whatsapp/eventos';
+import { testarSequenciaPix } from '@/lib/whatsapp/enviar';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
 
 // Mensagem de teste para um número digitado pelo admin.
+// { tipo: 'pix' } → manda a sequência completa do Pix (QR Code, aviso, código de exemplo, aviso do número)
+//                   e a mensagem de pagamento confirmado, exatamente como o cliente recebe.
 export async function POST(req: Request) {
   const a = await adminSeguro();
   if (!a.ok) return negado(a);
@@ -16,6 +20,11 @@ export async function POST(req: Request) {
   if (!numero) return NextResponse.json({ error: 'Número inválido. Use DDD + número.' }, { status: 400 });
   const st = await getStatus();
   if (st.estado !== 'conectado') return NextResponse.json({ error: st.detalhe || 'O WhatsApp não está conectado.' }, { status: 409 });
+  if (body?.tipo === 'pix') {
+    const r = await testarSequenciaPix(numero, a.userId);
+    if (!r.enviados) return NextResponse.json({ error: r.erros[0] || 'Nenhuma mensagem foi enviada.' }, { status: 502 });
+    return NextResponse.json({ ok: true, enviados: r.enviados, avisos: r.erros });
+  }
   const texto = textoLimpo(body?.texto || 'Teste do Comprei Barato: o WhatsApp está conectado e funcionando ✅').slice(0, 500);
   const r = await sendText(numero, texto);
   try {

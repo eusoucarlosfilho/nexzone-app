@@ -13,14 +13,18 @@ export type DefEvento = {
 };
 
 export const EVENTOS: DefEvento[] = [
-  { chave: 'compra_aprovada', rotulo: 'Compra aprovada (acesso liberado)', para: 'comprador', grupo: 'Compras e vendas', variaveis: ['nome', 'produto', 'valor', 'pedido', 'link'],
-    padrao: 'Olá, {nome}! Pagamento confirmado ✅ Obrigado pela compra!\n{produto} — {valor}\nEnviamos os detalhes e o acesso para o seu e-mail. Também ficam salvos no seu pedido: {link}\n\nPrecisa de ajuda com a entrega? Fale direto com o vendedor no chat do pedido, no mesmo link.' },
-  { chave: 'pix_gerado', rotulo: 'Pix gerado: link e código para pagar (na hora)', para: 'comprador', grupo: 'Compras e vendas', variaveis: ['nome', 'produto', 'valor', 'pedido', 'link', 'pix'],
-    padrao: 'Oi, {nome}! Você está a um passo de garantir {produto} ({valor}). 🎮\nPara terminar, pague o Pix pelo link: {link}\n\nOu copie o código Pix abaixo e cole no app do seu banco:' },
-  { chave: 'pix_codigo', rotulo: 'Código Pix copia e cola (mensagem só com o código, logo depois da anterior)', para: 'comprador', grupo: 'Compras e vendas', variaveis: ['pix'],
+  { chave: 'compra_aprovada', rotulo: 'Pagamento confirmado (com o link do chat com o vendedor)', para: 'comprador', grupo: 'Compras e vendas', variaveis: ['nome', 'produto', 'valor', 'pedido', 'link'],
+    padrao: 'Olá, {nome}! Pagamento confirmado ✅ Obrigado pela compra!\n{produto} ({valor}) | Pedido #{pedido}\n\nPara receber o seu produto, fale com o vendedor no chat do pedido:\n{link}\n\nOs detalhes também foram enviados para o seu e-mail.' },
+  { chave: 'pix_gerado', rotulo: 'Pix gerado: 1ª mensagem, imagem do QR Code com este texto (na hora)', para: 'comprador', grupo: 'Compras e vendas', variaveis: ['nome', 'produto', 'valor', 'pedido', 'link'],
+    padrao: 'Oi, {nome}! Seu pedido de {produto} ({valor}) está reservado. ✅\nPedido #{pedido}\n\nPara pagar, abra o app do seu banco, escolha Pix e leia este QR Code. A confirmação é automática.' },
+  { chave: 'pix_codigo_aviso', rotulo: 'Pix: 2ª mensagem, aviso de que o código copia e cola vem logo abaixo', para: 'comprador', grupo: 'Compras e vendas', variaveis: ['nome', 'produto', 'valor', 'pedido'],
+    padrao: 'Prefere copiar e colar? 👇\nA próxima mensagem é o código Pix copia e cola. Copie a mensagem inteira e cole no app do seu banco, em Pix › Pix Copia e Cola.' },
+  { chave: 'pix_codigo', rotulo: 'Pix: 3ª mensagem, só o código copia e cola', para: 'comprador', grupo: 'Compras e vendas', variaveis: ['pix'],
     padrao: '{pix}' },
-  { chave: 'pix_lembrete', rotulo: 'Lembrete de Pix não pago (tempo em Pedidos › Recuperação)', para: 'comprador', grupo: 'Compras e vendas', variaveis: ['nome', 'produto', 'valor', 'pedido', 'link'],
-    padrao: 'Oi, {nome}! Seu pedido de {produto} ({valor}) está reservado, só falta o Pix. ⏳\nO código continua aqui: {link}' },
+  { chave: 'aviso_numero', rotulo: 'Aviso: este número é só de notificações (última mensagem do Pix e da confirmação)', para: 'comprador', grupo: 'Compras e vendas', variaveis: ['nome', 'pedido', 'link'],
+    padrao: 'ℹ️ Este número envia apenas notificações automáticas do Comprei Barato e não lê respostas.\nPara falar com o vendedor ou com o nosso atendimento, use o site: {link}' },
+  { chave: 'pix_lembrete', rotulo: 'Lembrete de Pix não pago: reenvia o QR Code com este texto e o código (tempo em Pedidos › Recuperação)', para: 'comprador', grupo: 'Compras e vendas', variaveis: ['nome', 'produto', 'valor', 'pedido', 'link'],
+    padrao: 'Oi, {nome}! Seu pedido de {produto} ({valor}) continua reservado, só falta o Pix. ⏳\nPedido #{pedido}\n\nÉ só ler este QR Code no app do seu banco ou usar o código copia e cola logo abaixo. Assim que você pagar, a confirmação é automática.' },
   { chave: 'pix_lembrete_24h', rotulo: 'Lembrete de compra não concluída (24 h)', para: 'comprador', grupo: 'Compras e vendas', variaveis: ['nome', 'produto', 'valor', 'pedido', 'link'],
     padrao: 'Oi, {nome}! Você ainda quer {produto}? Gere um novo Pix em menos de 1 minuto e receba o acesso na hora: {link}' },
   { chave: 'carrinho_1h', rotulo: 'Carrinho abandonado (1º lembrete)', para: 'comprador', grupo: 'Compras e vendas', variaveis: ['nome', 'produto', 'cupom', 'link'],
@@ -28,7 +32,7 @@ export const EVENTOS: DefEvento[] = [
   { chave: 'carrinho_24h', rotulo: 'Carrinho abandonado (24 h)', para: 'comprador', grupo: 'Compras e vendas', variaveis: ['nome', 'produto', 'cupom', 'link'],
     padrao: 'Oi, {nome}! Ainda pensando em {produto}? Seu acesso sai na hora depois do pagamento: {link}' },
   { chave: 'pedir_avaliacao', rotulo: 'Pedido de avaliação (1 a 3 dias depois da entrega)', para: 'comprador', grupo: 'Compras e vendas', variaveis: ['nome', 'produto', 'pedido', 'link'],
-    padrao: 'Oi, {nome}! Deu tudo certo com {produto}? ⭐\nSua avaliação leva 1 minuto e ajuda outros gamers a comprar com segurança: {link}\n\nSe algo não saiu como esperado, fale com o vendedor no mesmo link.' },
+    padrao: 'Oi, {nome}! Deu tudo certo com {produto}? ⭐\nSua avaliação leva 1 minuto e ajuda outras pessoas a comprar com segurança: {link}\n\nSe algo não saiu como esperado, fale com o vendedor no mesmo link.' },
   { chave: 'pedido_entregue', rotulo: 'Pedido marcado como entregue pelo vendedor', para: 'comprador', grupo: 'Compras e vendas', variaveis: ['nome', 'produto', 'pedido', 'link'],
     padrao: 'Oi, {nome}! O vendedor marcou seu pedido de {produto} como entregue. 📦\nConfira aqui: {link}\n\nNão recebeu ou algo não funciona? Avise no chat do pedido, no mesmo link.' },
   { chave: 'nova_venda', rotulo: 'Nova venda (vendedor)', para: 'vendedor', grupo: 'Compras e vendas', variaveis: ['nome', 'produto', 'valor', 'pedido', 'link'],
@@ -86,9 +90,13 @@ export function textoLimpo(s: unknown): string {
 export function montarTexto(modelo: string, vars: Record<string, string | number | null | undefined>): string {
   const t = textoLimpo(modelo).replace(/\{([a-z_]+)\}/g, (_, k) => {
     const v = vars[k];
-    return v === null || v === undefined ? '' : textoLimpo(v).slice(0, 300);
+    return v === null || v === undefined ? '' : textoLimpo(v).slice(0, k === 'pix' ? 600 : 300);
   });
   return t.replace(/[ \t]{2,}/g, ' ').replace(/\n{3,}/g, '\n\n').trim().slice(0, LIMITE_TEXTO);
 }
 
 export const RODAPE_PROMO = '\n\nPara não receber mais ofertas por WhatsApp: {link_preferencias}';
+
+/** Chave de cada mensagem de uma sequência: "pix_gerado:<pedido>" → "pix_gerado.1:<pedido>".
+ *  O id continua depois do 1º ":" (é assim que a fila de recuperação acha o pedido). */
+export const chavePasso = (base: string, i: number) => { const [ini, ...resto] = base.split(':'); return `${ini}.${i + 1}:${resto.join(':')}`.slice(0, 200); };

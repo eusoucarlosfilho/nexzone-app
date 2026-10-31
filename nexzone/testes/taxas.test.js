@@ -42,9 +42,11 @@ t('trava 1ª compra com MP: 5% de R$ 5,89 cobre o Pix do MP', () => { const on =
 t('saque: grátis só a partir de R$ 50', () => { assert.strictEqual(x.taxaDoSaque(0, P, 49.99), 0.99); assert.strictEqual(x.taxaDoSaque(0, P, 50), 0); assert.strictEqual(x.taxaDoSaque(0, P), 0); assert.strictEqual(x.taxaDoSaque(1, P, 500), 0.99); });
 
 t('jogo obrigatório só em conta, item e moeda', () => {
-  assert.ok(x.exigeJogo('conta') && x.exigeJogo('item') && x.exigeJogo('moeda'));
-  assert.ok(!x.exigeJogo('digital') && !x.exigeJogo('servico') && !x.exigeJogo('giftcard'));
-  assert.deepStrictEqual(x.GRUPOS_TIPO.flatMap((g) => g.tipos).sort(), x.TIPOS_ANUNCIO.map((t) => t.id).sort());
+  // site aberto: o jogo nunca é obrigatório e o cadastro só oferece Produto digital e Serviço
+  assert.ok(['conta', 'item', 'moeda', 'giftcard', 'digital', 'servico'].every((t) => !x.exigeJogo(t)));
+  assert.deepStrictEqual([...x.TIPOS_CADASTRO].sort(), ['digital', 'servico']);
+  assert.strictEqual(x.TIPOS_ANUNCIO.find((t) => t.id === 'servico').nome, 'Serviço');
+  assert.ok(!/jogo|boost|coach/i.test(x.TIPOS_ANUNCIO.find((t) => t.id === 'servico').dica));
 });
 console.log(`\n${ok} ok, ${fail} falha(s)`);
 if (fail) process.exit(1);

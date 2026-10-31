@@ -9,7 +9,7 @@ import { decifrar } from './whatsapp/config';
 import { ipPrivado } from './ofertas/puxarDados';
 import { normalizarCheckout } from './checkoutConfig';
 import { SITE_URL, sendEmail, layoutEmail, emailDoUsuario, moneyBR, esc } from './email';
-import { avisarWhatsApp, contatoDoUsuario, link } from './whatsapp/enviar';
+import { avisarWhatsApp, contatoDoUsuario, link, enviarSequenciaPix } from './whatsapp/enviar';
 import {
   eventoMeta, eventoTikTok, corpoPostback, assinarPostback, eventoParaPostback, urlPostbackValida,
   proximaTentativa, MAX_TENTATIVAS, type DadosVenda,
@@ -167,13 +167,15 @@ export async function lembrarPix(admin: any, minutos = 15): Promise<{ enviados: 
   let enviados = 0;
   for (const e of etapas) {
     const { data: pedidos, error } = await admin.from('orders')
-      .select('id, comprador, comprador_email, product_id, total, created_at, products(titulo)')
+      .select('id, comprador, comprador_email, product_id, total, created_at, pix_code, pix_qr, products(titulo)')
       .eq('status', 'pendente').not('pix_code', 'is', null)
       .gte('created_at', new Date(agora - e.de * 60000).toISOString())
       .lte('created_at', new Date(agora - e.ate * 60000).toISOString())
       .order('created_at', { ascending: true }).limit(40);
     if (error) break;
     for (const o of (pedidos ?? []) as any[]) {
+      // cada lembrete com QR Code leva alguns segundos: o que não couber nesta rodada fica para a próxima
+      if (Date.now() - agora > 9000) break;
       // Já comprou este produto depois (outro pedido pago)? Não incomoda.
       const { count } = await admin.from('orders').select('id', { count: 'exact', head: true })
         .eq('comprador', o.comprador).eq('product_id', o.product_id).in('status', ['pago', 'entregue']);
@@ -187,11 +189,19 @@ export async function lembrarPix(admin: any, minutos = 15): Promise<{ enviados: 
       const titulo = o.products?.titulo || 'seu produto';
       const destino = e.etapa === '15min' ? link(`/pedido/${o.id}`) : link(`/checkout/${o.product_id}`);
       const canais: string[] = [];
-      await avisarWhatsApp({
-        evento: e.etapa === '15min' ? 'pix_lembrete' : 'pix_lembrete_24h',
-        chave: `pix_lembrete_${e.etapa}:${o.id}`, userId: o.comprador,
-        vars: { produto: titulo, valor: moneyBR(o.total), pedido: String(o.id).slice(0, 8), link: destino },
-      });
+      if (e.etapa === '15min') {
+        // Pix ainda válido: reenvia as 4 mensagens (QR Code, aviso, código copia e cola, "número só de notificações")
+        await enviarSequenciaPix({
+          userId: o.comprador, orderId: o.id, tipo: 'lembrete', produto: titulo, valor: moneyBR(o.total),
+          pixCode: o.pix_code, pixQr: o.pix_qr ?? null,
+        });
+      } else {
+        // 24 h: o Pix já venceu, então vai o link para gerar um novo
+        await avisarWhatsApp({
+          evento: 'pix_lembrete_24h', chave: `pix_lembrete_${e.etapa}:${o.id}`, userId: o.comprador,
+          vars: { produto: titulo, valor: moneyBR(o.total), pedido: String(o.id).slice(0, 8), link: destino },
+        });
+      }
       canais.push('whatsapp');
       const email = await emailDoUsuario(admin, o.comprador);
       if (email) {

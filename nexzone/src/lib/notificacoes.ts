@@ -5,7 +5,7 @@
 // ============================================================
 import { sendEmail, layoutEmail, emailDoUsuario, esc, moneyBR, SITE_URL } from '@/lib/email';
 import { vendedorPublico } from '@/lib/vendedorPublico';
-import { avisarWhatsApp, janela10min, link as linkSite } from '@/lib/whatsapp/enviar';
+import { avisarWhatsApp, enviarConfirmacaoPagamento, janela10min, link as linkSite } from '@/lib/whatsapp/enviar';
 import { blocoEntregaHtml } from '@/lib/entregaEmail';
 import { entregaPeloVendedor, textoHoras, horasPrazo } from '@/lib/confianca';
 import { produtosComCurso } from '@/lib/curso-servidor';
@@ -45,10 +45,8 @@ export async function notificarCompraAprovada(admin: any, orderId: string) {
 
     // WhatsApp: mesmos eventos, em paralelo com os e-mails. Nunca lança erro (ver lib/whatsapp/enviar.ts).
     const pedidoCurto = String(orderId).slice(0, 8);
-    tarefas.push(avisarWhatsApp({
-      evento: 'compra_aprovada', chave: `compra_aprovada:${orderId}`, userId: (o as any).comprador,
-      vars: { produto: titulo, valor: moneyBR(total), pedido: pedidoCurto, link: linkSite(`/pedido/${orderId}`) },
-    }));
+    // Pagamento confirmado: link direto do chat com o vendedor + aviso de que o número é só de notificações
+    tarefas.push(enviarConfirmacaoPagamento({ userId: (o as any).comprador, orderId, produto: titulo, valor: moneyBR(total) }));
     if (owner && owner !== (o as any).comprador) {
       tarefas.push(avisarWhatsApp({
         evento: 'nova_venda', chave: `nova_venda:${orderId}`, userId: owner,

@@ -124,9 +124,21 @@ export default function WhatsAppPainel() {
     setConectando(true); setQr(r.d.qr || null); setCodigo(r.d.codigoPareamento || null);
   }
 
+  const [testandoPix, setTestandoPix] = useState(false);
+  const [resPix, setResPix] = useState<{ ok: boolean; texto: string } | null>(null);
   async function testar() {
     const r = await api('/api/admin/whatsapp/teste', { method: 'POST', body: JSON.stringify({ numero: testeNum }) });
     if (r.ok) toast('Mensagem de teste enviada.', 'success'); else toast(r.d.error || 'Falhou.', 'error');
+  }
+  // Manda para o número digitado tudo o que o cliente recebe: as 4 mensagens do Pix + a de pagamento confirmado
+  async function testarPix() {
+    setTestandoPix(true); setResPix(null);
+    const r = await api('/api/admin/whatsapp/teste', { method: 'POST', body: JSON.stringify({ numero: testeNum, tipo: 'pix' }) });
+    setTestandoPix(false);
+    if (!r.ok) { setResPix({ ok: false, texto: r.d.error || 'Falhou.' }); toast(r.d.error || 'Falhou.', 'error'); return; }
+    const avisos: string[] = r.d.avisos || [];
+    setResPix({ ok: !avisos.length, texto: `${r.d.enviados} mensagens enviadas.${avisos.length ? ' Atenção: ' + avisos.join(' | ') : ' Confira no celular.'}` });
+    toast('Teste do Pix enviado.', 'success');
   }
 
   if (bloqueio) {
@@ -212,7 +224,14 @@ export default function WhatsAppPainel() {
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <input style={{ ...inp, flex: '1 1 200px', marginBottom: 0 }} type="tel" value={testeNum} onChange={(e) => setTesteNum(formatarTelefone(e.target.value))} placeholder="(63) 99999-9999" />
             <button className="adm-btn" onClick={testar} disabled={st !== 'conectado'}>Enviar teste</button>
+            <button className="adm-btn" onClick={testarPix} disabled={st !== 'conectado' || testandoPix} title="QR Code, aviso, código copia e cola, aviso do número e pagamento confirmado">
+              {testandoPix ? 'Enviando…' : 'Testar mensagens do Pix'}
+            </button>
           </div>
+          <p style={{ color: 'var(--sub)', fontSize: 12.5, marginTop: 6 }}>
+            "Testar mensagens do Pix" manda para esse número as 6 mensagens que o cliente recebe: QR Code, aviso do código, código copia e cola, aviso de que o número é só de notificações e, depois, a de pagamento confirmado com o link do chat. O código é de exemplo e não pode ser pago.
+          </p>
+          {resPix && <p role="status" style={{ marginTop: 6, fontSize: 13, fontWeight: 700, color: resPix.ok ? 'var(--green)' : '#B45309' }}>{resPix.texto}</p>}
         </>
       )}
 

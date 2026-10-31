@@ -18,7 +18,7 @@ const CATS = NOMES_CATEGORIAS;
 type PlanosInfo = { pcts: { basico: number; destaque: number; topo: number }; ativos: boolean };
 
 export default function CreateProduct({ userId, planos = { pcts: { basico: 5, destaque: 8, topo: 11 }, ativos: false } }: { userId: string; planos?: PlanosInfo }) {
-  // modelo marketplace (SQL 21): o que é o anúncio, de qual jogo e em qual plano
+  // modelo marketplace (SQL 21): o que é o anúncio (produto digital ou serviço) e em qual plano
   const [tipoAnuncio, setTipoAnuncio] = useState<TipoAnuncio>('digital');
   const [jogo, setJogo] = useState('');
   const [plano, setPlano] = useState<Plano>('basico');
@@ -205,7 +205,7 @@ export default function CreateProduct({ userId, planos = { pcts: { basico: 5, de
       <section className="ui-sec" aria-labelledby="sec-basico">
         <h3 id="sec-basico"><Icon name="edit" size={16} /> 2. Informações básicas</h3>
         <p className="ui-sec-sub">Como o produto aparece na vitrine e na busca.</p>
-      <div className="fg"><label htmlFor="np-titulo">Título<span className="ui-req">*</span></label><input id="np-titulo" name="titulo" value={titulo} onChange={(e) => setTitulo(e.target.value)} required aria-invalid={!!erros.titulo} placeholder={tipoAnuncio === 'conta' ? 'Ex.: Conta Free Fire com 40 skins raras + passe' : tipoAnuncio === 'moeda' ? 'Ex.: 1.000 Robux, entrega em até 1 hora' : tipoAnuncio === 'giftcard' ? 'Ex.: Gift Card Steam R$ 50' : 'Ex.: Pack 100 Templates de Carrossel'} />
+      <div className="fg"><label htmlFor="np-titulo">Título<span className="ui-req">*</span></label><input id="np-titulo" name="titulo" value={titulo} onChange={(e) => setTitulo(e.target.value)} required aria-invalid={!!erros.titulo} placeholder={tipoAnuncio === 'servico' ? 'Ex.: Edição de vídeo para Reels, entrega em 48h' : 'Ex.: Pack 100 Templates de Carrossel'} />
         {err('titulo') || <div className="ui-help">Seja específico: o que é, para quem e o principal benefício.</div>}</div>
       <div className="fg"><label htmlFor="np-cat">Categoria<span className="ui-req">*</span></label>
         <select id="np-cat" name="categoria" value={categoria} onChange={(e) => setCategoria(e.target.value)}>{CATS.map((c) => <option key={c}>{c}</option>)}</select>

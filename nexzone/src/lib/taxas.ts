@@ -60,7 +60,7 @@ export const TIPOS_ANUNCIO: { id: TipoAnuncio; nome: string; dica: string; entre
   { id: 'item', nome: 'Item ou skin', dica: 'Combine a entrega no jogo pelo chat do pedido.', entrega: 'acesso' },
   { id: 'moeda', nome: 'Moedas / gold / Robux', dica: 'Informe a quantidade no título. Entrega pelo chat ou por presente no jogo.', entrega: 'acesso' },
   { id: 'giftcard', nome: 'Gift card, key ou código', dica: 'Cadastre os códigos: cada comprador recebe o dele assim que o pagamento cai.', entrega: 'chave' },
-  { id: 'servico', nome: 'Serviço digital', dica: 'Feito à distância: suporte e otimização de PC, design, edição, aulas, consultoria, boost ou coach. Combine tudo pelo chat do pedido e descreva prazo e como é feito. O valor fica retido até o fim da garantia.', entrega: 'acesso' },
+  { id: 'servico', nome: 'Serviço', dica: 'Qualquer serviço feito à distância: design, edição, aulas, consultoria, marketing, suporte técnico e o que mais você fizer. Combine os detalhes pelo chat do pedido e descreva o prazo e como é feito. O valor fica retido até o fim da garantia.', entrega: 'acesso' },
   { id: 'digital', nome: 'Produto digital', dica: 'Curso, e-book, planilha, template, software, prompt ou ferramenta de IA: o arquivo, link ou acesso é liberado depois do pagamento.', entrega: 'arquivo' },
 ];
 
@@ -112,14 +112,12 @@ export function lerConfigTaxas(m: Record<string, any> = {}): ConfigTaxas {
 }
 
 export const planoValido = (p: unknown): Plano => (p === 'destaque' || p === 'topo' ? p : 'basico');
-/** Tipos em que o jogo é obrigatório (conta, item e moeda são sempre de algum jogo). */
-export const TIPOS_COM_JOGO: TipoAnuncio[] = ['conta', 'item', 'moeda'];
+/** O site é aberto: o jogo nunca é obrigatório (quem vende algo de jogo escolhe a categoria Jogos). */
+export const TIPOS_COM_JOGO: TipoAnuncio[] = [];
 export const exigeJogo = (t: TipoAnuncio | string | null | undefined) => TIPOS_COM_JOGO.includes(t as TipoAnuncio);
-/** Grupos da tela de cadastro: produtos digitais e serviços primeiro; os de jogos depois. */
-export const GRUPOS_TIPO: { titulo: string; tipos: TipoAnuncio[] }[] = [
-  { titulo: 'Produtos digitais e serviços', tipos: ['digital', 'servico'] },
-  { titulo: 'Jogos', tipos: ['conta', 'item', 'moeda', 'giftcard'] },
-];
+/** Opções da tela de cadastro: só Produto digital e Serviço. Os tipos antigos (conta, item, moeda, gift card)
+ *  continuam válidos só para os anúncios que já existem com eles. */
+export const TIPOS_CADASTRO: TipoAnuncio[] = ['digital', 'servico'];
 export const tipoValido = (t: unknown): TipoAnuncio => (TIPOS_ANUNCIO.some((x) => x.id === t) ? (t as TipoAnuncio) : 'digital');
 
 /** Plano que vale de fato (no lançamento, com os planos pagos desligados, todo mundo é Básico). */
