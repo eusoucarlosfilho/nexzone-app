@@ -44,7 +44,7 @@ export async function GET(req: Request) {
     tema: { modo, ...temaBlack(modo, bf) },
     bf: { ...bf, fase: faseBF(bf), lista: tot.count ?? 0, avisados: avis.count ?? 0, inscritos: insc.count ?? 0 },
     canais: { whatsapp: canais.whatsapp, telegram: canais.telegram, telegramToken: canais.telegramToken, telegramChat: canais.telegramChat, hora: canais.hora, postadoHoje: canais.postado === hojeBR().dia, manualHoje: canais.manual?.dia === hojeBR().dia },
-    oferta: p ? { id: p.id, titulo: p.titulo, preco: Number(p.preco), preco_promo: p.preco_promo == null ? null : Number(p.preco_promo), link: linkOferta(p.id),
+    oferta: p ? { id: p.id, origem: (oferta as any)?.origem || 'auto', titulo: p.titulo, preco: Number(p.preco), preco_promo: p.preco_promo == null ? null : Number(p.preco_promo), link: linkOferta(p.id),
       texto: textoOfertaCanal({ titulo: p.titulo, preco: Number(p.preco), preco_promo: p.preco_promo == null ? null : Number(p.preco_promo), link: linkOferta(p.id) }) } : null,
   }, { headers: { 'Cache-Control': 'private, no-store' } });
 }
