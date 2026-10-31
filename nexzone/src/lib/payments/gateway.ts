@@ -24,6 +24,9 @@ export interface WebhookEvent {
   orderId?: string;
   amount?: number; // valor confirmado pelo gateway (quando disponível)
   estado?: string; // estado bruto no gateway (ex.: COMPLETO, DEVOLVIDO, DEVOLVIDO_PARCIAL)
+  criadoEm?: string | null; atualizadoEm?: string | null;
+  /** Dados do Pix recebido (só no aviso de pagamento): nome do pagador no banco, id end-to-end e banco */
+  pix?: { pagador: string | null; e2e: string | null; banco: string | null };
   /** Aviso de devolução (reembolso feito no painel da MisticPay ou pelo banco) */
   devolucao?: { status: string; valor: number | null; ref: string | null; em: string | null; parcial: boolean };
 }
@@ -128,6 +131,8 @@ class MisticPayGateway implements PaymentGateway {
       // Por isso o status e o valor vêm da consulta à API, nunca do corpo recebido.
       const ev = await this.checkPayment(ref);
       if (!ev) return null;
+      // dados do Pix (informativos, para achar a compra no extrato): nome do pagador como veio do banco, e2e, banco
+      if (b?.clientName || b?.e2e || b?.bankName) ev.pix = { pagador: b?.clientName ? String(b.clientName).slice(0, 120) : null, e2e: b?.e2e ? String(b.e2e).slice(0, 60) : null, banco: b?.bankName ? String(b.bankName).slice(0, 80) : null };
       // Devolução (reembolso): o ESTADO vem da consulta (DEVOLVIDO); do corpo só os detalhes (valor, id da devolução)
       const rf = b?.refund;
       if (rf || ev.estado === 'DEVOLVIDO' || ev.estado === 'DEVOLVIDO_PARCIAL') {
@@ -144,6 +149,20 @@ class MisticPayGateway implements PaymentGateway {
     } catch {
       return null;
     }
+  }
+
+  /** Dados da conta MisticPay das chaves configuradas no site (para o admin saber em QUAL conta caem as vendas). */
+  async contaInfo(): Promise<{ nome: string | null; email: string | null } | null> {
+    try {
+      if (!this.ci || !this.cs) return null;
+      const res = await fetch(`${this.base}/users/info`, { headers: this.headers(), cache: 'no-store' });
+      if (!res.ok) return null;
+      const j = await res.json().catch(() => ({} as any));
+      const u = j?.data?.user ?? j?.data ?? j?.user ?? j;
+      const nome = u?.name ?? u?.nome ?? u?.fullName ?? u?.razaoSocial ?? null;
+      const email = u?.email ?? null;
+      return { nome: nome ? String(nome).slice(0, 120) : null, email: email ? String(email).slice(0, 160) : null };
+    } catch { return null; }
   }
 
   async checkPayment(ref: string): Promise<WebhookEvent | null> {
@@ -166,7 +185,7 @@ class MisticPayGateway implements PaymentGateway {
         COMPLETO: 'pago', FALHA: 'recusado', PENDENTE: 'pendente', DEVOLVIDO: 'estornado', // DEVOLVIDO_PARCIAL: só avisa o admin
       };
       const value = Number(tx.value);
-      return { gatewayRef: ref, status: map[s] || 'pendente', amount: isNaN(value) ? undefined : value, estado: s };
+      return { gatewayRef: ref, status: map[s] || 'pendente', amount: isNaN(value) ? undefined : value, estado: s, criadoEm: tx.createdAt ?? null, atualizadoEm: tx.updatedAt ?? null };
     } catch {
       return null;
     }
@@ -281,6 +300,12 @@ export async function criarPixRoteado(input: CreatePaymentInput, total: number, 
 export async function gatewayDaRef(gatewayRef: string): Promise<{ gw: PaymentGateway; ref: string }> {
   if (gatewayRef.startsWith(PREFIXO_MP)) return { gw: new MercadoPagoGateway(), ref: gatewayRef.slice(PREFIXO_MP.length) };
   return { gw: await getGateway(), ref: gatewayRef };
+}
+
+/** Nome e e-mail da conta MisticPay configurada no site (null se o gateway não for a MisticPay ou não responder). */
+export async function contaDoGateway(): Promise<{ nome: string | null; email: string | null } | null> {
+  const gw: any = await getGateway();
+  return typeof gw.contaInfo === 'function' ? gw.contaInfo() : null;
 }
 
 /** Gateway para ler um aviso (webhook): Mercado Pago quando o aviso é dele, senão o padrão. */
