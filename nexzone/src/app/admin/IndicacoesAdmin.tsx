@@ -1,5 +1,5 @@
 'use client';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from '@/lib/toast';
 import { ROTULO_STATUS, type StatusIndicacao } from '@/lib/indicacao';
 import { Aviso, Bloqueado, Kpi, V3_CSS, dataHora, fmt } from './v3/ui';
@@ -17,12 +17,17 @@ export default function IndicacoesAdmin() {
   const [filtro, setFiltro] = useState('todas');
   const [erro, setErro] = useState<string | null>(null);
   const [salvando, setSalvando] = useState(false);
+  const [regrasAbertas, setRegrasAbertas] = useState(false);
+  const primeiraCarga = useRef(true);
+  const lembrarRegras = (v: boolean) => { setRegrasAbertas(v); try { localStorage.setItem('cb_adm_ind_regras', v ? '1' : '0'); } catch {} };
 
   const carregar = useCallback(async () => {
     const r = await fetch(`/api/admin/indicacoes?status=${filtro}`, { cache: 'no-store' });
     const j = await r.json().catch(() => ({}));
     if (!r.ok) { setErro(j.error || 'Falha ao carregar.'); return; }
     setErro(null); setD(j); setCfg((c: any) => c || j.cfg);
+    // 1ª carga: abre só se ainda não está configurado (ou se o admin deixou aberto da última vez)
+    if (primeiraCarga.current) { primeiraCarga.current = false; let salvo: string | null = null; try { salvo = localStorage.getItem('cb_adm_ind_regras'); } catch {} setRegrasAbertas(salvo !== null ? salvo === '1' : !(Number(j.cfg?.pontos) > 0)); }
   }, [filtro]);
   useEffect(() => { carregar(); }, [carregar]);
 
@@ -39,7 +44,7 @@ export default function IndicacoesAdmin() {
     if (cfg.ativo && !confirm(`Ligar o programa?\n\n• Até ${cfg.pontos} pontos por indicação (${reais(cfg.pontos)}), nunca mais que ${cfg.tetoComissaoPct}% da comissão do pedido\n• No máximo R$ ${Number(cfg.orcamentoMensal).toFixed(2).replace('.', ',')} liberados por mês`)) return;
     setSalvando(true);
     const j = await post({ acao: 'config', cfg }, 'Regras salvas.');
-    if (j?.cfg) setCfg(j.cfg);
+    if (j?.cfg) { setCfg(j.cfg); lembrarRegras(false); } // salvou: recolhe e mostra o resumo
     setSalvando(false);
   }
   const bloquear = (id: number) => { const motivo = prompt('Motivo do bloqueio (fica no registro):', 'Suspeita de conta criada para ganhar pontos.'); if (motivo !== null) post({ acao: 'bloquear', id, motivo }, 'Indicação bloqueada.'); };
@@ -57,8 +62,13 @@ export default function IndicacoesAdmin() {
       <p className="adm-sub">Comprador indica amigo pelo link pessoal; quando o amigo novo faz a primeira compra paga, quem indicou ganha CB Points depois do prazo de liberação.</p>
       {!d.sql37 && <Aviso><b>Falta rodar o SQL 37 (INDICACOES).</b> Sem ele os links funcionam como rastreio, mas nenhuma indicação é registrada.</Aviso>}
 
-      <div className="adm-card">
-        <h3 className="adm-ct">Regras da recompensa</h3>
+      <details className="adm-card ix-regras" open={regrasAbertas} onToggle={(e) => lembrarRegras((e.currentTarget as HTMLDetailsElement).open)}>
+        <summary>
+          <span><b>Regras da recompensa</b>
+            <small>{cfg.ativo ? 'Ligado' : 'Desligado'} · até {fmt(cfg.pontos)} pontos ({reais(cfg.pontos)}) · teto {cfg.tetoComissaoPct}% da comissão · {money(cfg.orcamentoMensal)}/mês · mínimo {money(cfg.minimo)} · libera em {cfg.prazoDias} dias</small>
+          </span>
+          <span className="ix-seta" aria-hidden="true">{regrasAbertas ? 'Fechar' : 'Editar'}</span>
+        </summary>
         <label className="ix-sw"><input type="checkbox" checked={cfg.ativo} onChange={(e) => set('ativo', e.target.checked)} /> <b>Programa ligado</b></label>
         <div className="ix-campos">
           <label>Pontos por indicação convertida (máximo)<input type="number" min={0} value={cfg.pontos} onChange={(e) => set('pontos', Number(e.target.value))} /><small>= {reais(cfg.pontos)} em desconto</small></label>
@@ -84,7 +94,7 @@ export default function IndicacoesAdmin() {
         </div>
         <p className="ix-nota">Sugestão de prazo: igual ou maior que a garantia mais longa dos produtos, para o ponto só sair depois que o reembolso não for mais possível. Pontos são custo da plataforma: confira o valor do ponto em CB Points antes de ligar.</p>
         <button className="adm-btn" onClick={salvarCfg} disabled={salvando}>{salvando ? 'Salvando…' : 'Salvar regras'}</button>
-      </div>
+      </details>
 
       {d.custo && (
         <div className="adm-card">
@@ -151,22 +161,25 @@ export default function IndicacoesAdmin() {
 }
 
 const CSS = `
+.ix-regras>summary{list-style:none;display:flex;justify-content:space-between;align-items:center;gap:12px;cursor:pointer}.ix-regras>summary::-webkit-details-marker{display:none}
+.ix-regras>summary b{display:block;font-family:Outfit;font-size:16px}.ix-regras>summary small{display:block;color:var(--sub);font-size:12.5px;margin-top:3px;line-height:1.45}
+.ix-regras[open]>summary{margin-bottom:14px}.ix-seta{flex-shrink:0;font-size:12.5px;font-weight:800;color:var(--or2);border:1px solid var(--bd2);border-radius:999px;padding:5px 12px}
 .ix-sw{display:flex;gap:8px;align-items:center;margin-bottom:12px}
 .ix-campos{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}.ix-campos .lg{grid-column:1/-1}
 .ix-campos label{display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:700;color:var(--sub)}
-.ix-campos input,.ix-campos select,.ix-campos textarea{min-height:38px;border:1px solid var(--line);border-radius:10px;padding:6px 10px;font-size:14px;color:var(--ink)}
+.ix-campos input,.ix-campos select,.ix-campos textarea{min-height:38px;border:1px solid var(--bd2);border-radius:10px;padding:6px 10px;font-size:14px;color:var(--tx);background:var(--panel2);font-family:inherit}
 .ix-campos small{font-weight:500;font-size:11.5px;color:var(--sub)}
-.ix-exemplo{display:flex;flex-direction:column;gap:3px;background:#FFF7F0;color:#3B1E00;border:1px solid #FED7AA;border-radius:12px;padding:10px 12px;margin-top:12px;font-size:12.5px}.ix-exemplo b,.ix-exemplo span{color:#3B1E00}.ix-exemplo small{color:#7C5A3A}
-.ix-orc{height:10px;border-radius:999px;background:#F4F4F5;overflow:hidden}.ix-orc div{height:100%;background:linear-gradient(90deg,#FF7A00,#FFC83D)}
+.ix-exemplo{display:flex;flex-direction:column;gap:3px;background:rgba(255,122,20,.08);color:var(--tx);border:1px solid rgba(255,122,20,.45);border-radius:12px;padding:10px 12px;margin-top:12px;font-size:12.5px}.ix-exemplo b{color:var(--or2)}.ix-exemplo small{color:var(--sub)}
+.ix-orc{height:10px;border-radius:999px;background:var(--panel2);overflow:hidden}.ix-orc div{height:100%;background:linear-gradient(90deg,#FF7A00,#FFC83D)}
 .ix-nota{color:var(--sub);font-size:12px;line-height:1.5;margin:10px 0}
-.ix-filtros{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}.ix-filtros button{border:1px solid var(--line);background:#fff;border-radius:999px;padding:5px 12px;font-weight:700;font-size:12.5px;cursor:pointer}
+.ix-filtros{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}.ix-filtros button{border:1px solid var(--bd2);background:var(--panel2);color:var(--tx);border-radius:999px;padding:5px 12px;font-weight:700;font-size:12.5px;cursor:pointer}
 .ix-filtros button.on{background:#0B0B0C;color:#fff;border-color:#0B0B0C}
 .ix-tab{overflow-x:auto}.ix-tab table{width:100%;border-collapse:collapse;font-size:13px;min-width:820px}
-.ix-tab th{text-align:left;font-size:11.5px;text-transform:uppercase;color:var(--sub);padding:8px;border-bottom:1px solid var(--line)}
-.ix-tab td{padding:9px 8px;border-bottom:1px solid var(--line);vertical-align:top}.ix-tab td small{display:block;color:var(--sub);font-size:11.5px}
+.ix-tab th{text-align:left;font-size:11.5px;text-transform:uppercase;color:var(--sub);padding:8px;border-bottom:1px solid var(--bd2)}
+.ix-tab td{padding:9px 8px;border-bottom:1px solid var(--bd2);vertical-align:top}.ix-tab td small{display:block;color:var(--sub);font-size:11.5px}
 .ix-alerta{color:#B45309!important;font-weight:700}
-.ix-st{font-size:11.5px;font-weight:800;border-radius:999px;padding:3px 9px;background:#F4F4F5;white-space:nowrap}
+.ix-st{font-size:11.5px;font-weight:800;border-radius:999px;padding:3px 9px;background:var(--panel2);color:var(--tx);white-space:nowrap}
 .ix-st.s-pendente{background:#FFF1E6;color:#B45309}.ix-st.s-liberada{background:#E8F7EE;color:#15803D}.ix-st.s-bloqueada{background:#FEF3C7;color:#92400E}.ix-st.s-estornada,.ix-st.s-cancelada{background:#FEE2E2;color:#B91C1C}
-.ix-acoes{display:flex;flex-direction:column;gap:4px}.ix-acoes button{border:1px solid var(--line);background:#fff;border-radius:8px;padding:4px 8px;font-size:12px;cursor:pointer;white-space:nowrap}
+.ix-acoes{display:flex;flex-direction:column;gap:4px}.ix-acoes button{border:1px solid var(--bd2);background:var(--panel2);color:var(--tx);border-radius:8px;padding:4px 8px;font-size:12px;cursor:pointer;white-space:nowrap}
 @media(max-width:700px){.ix-campos{grid-template-columns:1fr}}
 `;

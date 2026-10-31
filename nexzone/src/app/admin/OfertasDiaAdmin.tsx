@@ -153,16 +153,16 @@ const CSS = `
 .odd-st{font-size:12px;font-weight:800;border-radius:999px;padding:4px 10px;background:#FFF1E6;color:#B45309}.odd-st.ok{background:#E8F7EE;color:#15803D}
 .odd-campos{display:grid;grid-template-columns:1fr 160px;gap:10px}.odd-campos .lg{grid-column:1/-1}
 .odd-campos label,.odd-datas label{display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:700;color:var(--sub)}
-.odd-campos input,.odd-campos select,.odd-datas input{height:38px;border:1px solid var(--line);border-radius:10px;padding:0 10px;font-size:14px;color:var(--ink)}
+.odd-campos input,.odd-campos select,.odd-datas input{height:38px;border:1px solid var(--bd2);border-radius:10px;padding:0 10px;font-size:14px;color:var(--tx);background:var(--panel2);font-family:inherit}
 .odd-nota{color:var(--sub);font-size:12px;line-height:1.5;margin:10px 0 0}
-.odd-busca{display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:12px;padding:0 12px;height:42px}.odd-busca input{border:0;outline:0;flex:1;font-size:14px;background:transparent}
-.odd-achados{list-style:none;margin:6px 0 0;padding:0;border:1px solid var(--line);border-radius:12px;overflow:hidden}
-.odd-achados button{display:grid;grid-template-columns:1fr auto;gap:2px 10px;width:100%;text-align:left;background:#fff;border:0;border-bottom:1px solid var(--line);padding:9px 12px;cursor:pointer}
-.odd-achados button:hover{background:#FFF7F0}.odd-achados small{color:var(--sub);grid-column:1}.odd-achados b{grid-row:1/3;grid-column:2;align-self:center;color:#F97316;font-size:12.5px}
+.odd-busca{display:flex;align-items:center;gap:8px;border:1px solid var(--bd2);border-radius:12px;padding:0 12px;height:42px}.odd-busca input{border:0;outline:0;flex:1;font-size:14px;background:transparent;color:var(--tx)}
+.odd-achados{list-style:none;margin:6px 0 0;padding:0;border:1px solid var(--bd2);border-radius:12px;overflow:hidden}
+.odd-achados button{display:grid;grid-template-columns:1fr auto;gap:2px 10px;width:100%;text-align:left;background:var(--panel2);color:var(--tx);border:0;border-bottom:1px solid var(--bd2);padding:9px 12px;cursor:pointer}
+.odd-achados button:hover{background:rgba(255,122,20,.1)}.odd-achados small{color:var(--sub);grid-column:1}.odd-achados b{grid-row:1/3;grid-column:2;align-self:center;color:#F97316;font-size:12.5px}
 .odd-lista{list-style:none;margin:12px 0;padding:0;display:flex;flex-direction:column;gap:8px}
-.odd-lista li{display:grid;grid-template-columns:40px 1fr auto 32px;gap:10px;align-items:center;border:1px solid var(--line);border-radius:12px;padding:10px}
+.odd-lista li{display:grid;grid-template-columns:40px 1fr auto 32px;gap:10px;align-items:center;border:1px solid var(--bd2);border-radius:12px;padding:10px}
 .odd-lista li.off{opacity:.55}
-.odd-ordem{display:flex;flex-direction:column;align-items:center;gap:2px;font-weight:900}.odd-ordem button{border:0;background:#F4F4F5;border-radius:6px;width:28px;height:22px;cursor:pointer;font-size:10px}
+.odd-ordem{display:flex;flex-direction:column;align-items:center;gap:2px;font-weight:900}.odd-ordem button{border:0;background:var(--panel2);color:var(--tx);border-radius:6px;width:28px;height:22px;cursor:pointer;font-size:10px}
 .odd-info{min-width:0}.odd-info a{color:inherit}.odd-info small{display:block;color:var(--sub);font-size:12px}
 .odd-datas{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
 .odd-num{display:grid;grid-template-columns:auto auto;gap:0 6px;align-items:baseline;font-size:13px}.odd-num small{color:var(--sub);font-size:11px}

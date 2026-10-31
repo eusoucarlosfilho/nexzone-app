@@ -155,16 +155,16 @@ export default function InteligenciaComercial() {
 const CSS = `
 .bi-filtros{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
 .bi-datas{display:flex;gap:8px;flex-wrap:wrap}.bi-datas label{font-size:12.5px;font-weight:700;color:var(--sub);display:flex;gap:6px;align-items:center}
-.bi-datas input{height:36px;border:1px solid var(--line);border-radius:10px;padding:0 8px}
+.bi-datas input{height:36px;border:1px solid var(--bd2);border-radius:10px;padding:0 8px;background:var(--panel2);color:var(--tx)}
 .bi-2{display:grid;grid-template-columns:1fr 1fr;gap:14px}@media(max-width:900px){.bi-2{grid-template-columns:1fr}}
 .bi-mini{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:10px;font-size:12px;color:var(--sub)}
 .bi-tab{overflow-x:auto;-webkit-overflow-scrolling:touch}
 .bi-tab table{width:100%;border-collapse:collapse;font-size:13px;min-width:640px}
-.bi-tab th{text-align:left;font-size:11.5px;text-transform:uppercase;letter-spacing:.4px;color:var(--sub);padding:8px;border-bottom:1px solid var(--line);white-space:nowrap}
-.bi-tab td{padding:9px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+.bi-tab th{text-align:left;font-size:11.5px;text-transform:uppercase;letter-spacing:.4px;color:var(--sub);padding:8px;border-bottom:1px solid var(--bd2);white-space:nowrap}
+.bi-tab td{padding:9px 8px;border-bottom:1px solid var(--bd2);vertical-align:top}
 .bi-tab td small{display:block;color:var(--sub);font-size:11px;font-weight:500;max-width:260px}
 .bi-tab td a{color:inherit;font-weight:700}
 .bi-cab{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:10px}
-.bi-cab select{height:36px;border-radius:10px;border:1px solid var(--line);padding:0 8px}
+.bi-cab select{height:36px;border-radius:10px;border:1px solid var(--bd2);padding:0 8px;background:var(--panel2);color:var(--tx)}
 .bi-nota{color:var(--sub);font-size:11.5px;margin:10px 0 0;line-height:1.45}
 `;
