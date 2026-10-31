@@ -76,7 +76,8 @@ class MisticPayGateway implements PaymentGateway {
       payerName: (input.payerName || 'Cliente Comprei Barato').slice(0, 120),
       payerDocument: doc,
       transactionId: input.orderId,
-      description: (input.description || 'Compra Comprei Barato').slice(0, 140),
+      // "Pedido #xxxxxxxx" no começo: é o que a busca do Extrato da MisticPay encontra (o transactionId ela não busca)
+      description: `${codigoPedido(input.orderId)} · ${input.description || 'Compra Comprei Barato'}`.slice(0, 140),
       projectWebhook: `${process.env.NEXT_PUBLIC_SITE_URL}/api/webhooks/payment`,
     };
 
@@ -323,3 +324,6 @@ export async function getGateway(): Promise<PaymentGateway> {
   if (cfg.gateway === 'misticpay') return new MisticPayGateway(cfg.misticpay.ci, cfg.misticpay.cs);
   return new MercadoPagoGateway();
 }
+
+/** Código curto do pedido usado na descrição do Pix (aparece e é buscável no extrato da MisticPay). */
+export const codigoPedido = (orderId: string) => `Pedido #${String(orderId || '').replace(/^mp:/, '').slice(0, 8)}`;
