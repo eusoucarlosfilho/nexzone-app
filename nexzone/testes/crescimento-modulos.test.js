@@ -174,7 +174,8 @@ t('vínculo: bloqueia autoindicação, conta antiga, já comprador, código bloq
   assert.strictEqual(ind.podeVincular({ ...base, cfg: { ...cfgOn, ativo: false } }).motivo, 'programa fora do ar');
 });
 t('conversão: 1ª compra acima do mínimo, dentro do limite; loja de quem indicou vai para análise', () => {
-  const base = { cfg: cfgOn, agora: T0, pedido: { total: 50, product_id: P1, dono_loja: 'X' }, indicadorId: 'A', indicadoId: 'B', comprasPagasDoIndicado: 1, recompensasDoIndicador: 0 };
+  // comissão R$ 50 × 30% = R$ 15 = 1500 pontos de teto → vale o fixo (500)
+  const base = { cfg: cfgOn, agora: T0, pontosPorReal: 100, pedido: { total: 50, product_id: P1, dono_loja: 'X', comissao: 50 }, indicadorId: 'A', indicadoId: 'B', comprasPagasDoIndicado: 1, recompensasDoIndicador: 0 };
   const ok = ind.avaliarConversao(base);
   assert.strictEqual(ok.ok, true); assert.strictEqual(ok.pontos, 500); assert.strictEqual(ok.liberaEm, new Date(T0 + 7 * 86400000).toISOString());
   assert.strictEqual(ind.avaliarConversao({ ...base, comprasPagasDoIndicado: 2 }).status, 'cancelada');
@@ -198,6 +199,29 @@ t('origem do pedido guarda sid/vid válidos e não conta como "origem de marketi
   assert.strictEqual(rv.temOrigemMarketing(o), false);
   assert.strictEqual(rv.rotuloOrigem(o).fonte, 'Direto / sem rastreio');
   assert.strictEqual(rv.temOrigemMarketing(rv.limparOrigem({ utm_source: 'meta', sid: S(1) })), true);
+});
+
+t('margem: recompensa = menor entre o fixo e o teto da comissão; comissão pequena não paga', () => {
+  assert.strictEqual(ind.pontosDaIndicacao(cfgOn, 2, 100), 60);    // comissão R$ 2 × 30% = R$ 0,60 = 60 pontos (fixo era 500)
+  assert.strictEqual(ind.pontosDaIndicacao(cfgOn, 100, 100), 500); // teto 3000 > fixo 500
+  assert.strictEqual(ind.pontosDaIndicacao(cfgOn, 0, 100), 0);
+  assert.strictEqual(ind.pontosDaIndicacao({ ...cfgOn, tetoComissaoPct: 0 }, 100, 100), 0);
+  const base = { cfg: cfgOn, agora: T0, pontosPorReal: 100, pedido: { total: 25, product_id: P1, dono_loja: null, comissao: 0.02 }, indicadorId: 'A', indicadoId: 'B', comprasPagasDoIndicado: 1, recompensasDoIndicador: 0 };
+  const r = ind.avaliarConversao(base);
+  assert.strictEqual(r.ok, false); assert.strictEqual(r.status, 'cancelada');
+  const r2 = ind.avaliarConversao({ ...base, pedido: { ...base.pedido, comissao: 2.5 } });
+  assert.strictEqual(r2.ok, true); assert.strictEqual(r2.pontos, 75);
+});
+t('orçamento do mês: sem orçamento o programa não roda; liberação que estoura fica para o mês seguinte', () => {
+  assert.strictEqual(ind.programaNoAr({ ...cfgOn, orcamentoMensal: 0 }), false);
+  assert.strictEqual(ind.INDICACAO_PADRAO.orcamentoMensal, 300); assert.strictEqual(ind.INDICACAO_PADRAO.tetoComissaoPct, 30);
+  const c = { ...cfgOn, orcamentoMensal: 10 };
+  assert.strictEqual(ind.cabeNoOrcamento(c, 5, 500, 100), true);   // 5 + 5 = 10
+  assert.strictEqual(ind.cabeNoOrcamento(c, 5.01, 500, 100), false);
+  assert.strictEqual(ind.reaisDosPontos(750, 100), 7.5);
+  const m = ind.mesBR(Date.parse('2026-10-31T23:30:00-03:00'));
+  assert.strictEqual(new Date(m.ini).toISOString(), '2026-10-01T03:00:00.000Z');
+  assert.strictEqual(new Date(m.prox).toISOString(), '2026-11-01T03:00:00.000Z');
 });
 
 console.log(`\nCrescimento (4 módulos): ${ok} passaram, ${fail} falharam`);
