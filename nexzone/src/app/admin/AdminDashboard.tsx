@@ -40,6 +40,7 @@ import CarrinhosAbandonados from '@/components/CarrinhosAbandonados';
 import AtivarCelular from '@/components/AtivarCelular';
 import CaixaEmail, { type PedidoEmail } from './CaixaEmail';
 import CampanhasAdmin from './CampanhasAdmin';
+import { PRESETS, intervalo, dentro, hojeYMD, type Preset } from '@/lib/periodo';
 import { escreverEmail, EVENTO_ESCREVER } from '@/lib/escreverEmail';
 import PainelAprovacaoAuto, { AnaliseResumo, itensSugeridos } from './AprovacaoInteligente';
 import RegistroAdmin from './RegistroAdmin';
@@ -198,6 +199,9 @@ export default function AdminDashboard({ painel, adminEmail, users, metrics, dai
   const [prodPage, setProdPage] = useState(1);
   const [prodAberto, setProdAberto] = useState<string | null>(null);
   const [orderFilter, setOrderFilter] = useState('todos');
+  // Período dos pedidos (horário de Brasília): hoje, ontem, mês, um dia, um mês, de… até…
+  const [periodo, setPeriodo] = useState<Preset>('tudo');
+  const [perV, setPerV] = useState<{ dia: string; mes: string; de: string; ate: string }>(() => ({ dia: hojeYMD(), mes: hojeYMD().slice(0, 7), de: '', ate: hojeYMD() }));
   const [orderList, setOrderList] = useState(orders || []);
   const [expSeller, setExpSeller] = useState<string | null>(null);
   const [engFiltro, setEngFiltro] = useState('todos');
@@ -345,7 +349,20 @@ export default function AdminDashboard({ painel, adminEmail, users, metrics, dai
   ];
   const NAV = GRUPOS.flatMap(([, itens]) => itens);
 
-  const filteredOrders = orderFilter === 'todos' ? orderList : orderList.filter((o: any) => o.status === orderFilter);
+  const faixaPeriodo = intervalo(periodo, perV);
+  const pedidosNoPeriodo = orderList.filter((o: any) => dentro(o.created_at, faixaPeriodo));
+  const filteredOrders = orderFilter === 'todos' ? pedidosNoPeriodo : pedidosNoPeriodo.filter((o: any) => o.status === orderFilter);
+  const carrinhosNoPeriodo = (carrinhos || []).filter((c: any) => dentro(c.quando, faixaPeriodo));
+  const qtdStatus = (st: string) => pedidosNoPeriodo.filter((o: any) => o.status === st).length;
+  // Resumo do período (o que já é dinheiro: pago + entregue)
+  const resumoPeriodo = (() => {
+    const vendidos = pedidosNoPeriodo.filter((o: any) => o.status === 'pago' || o.status === 'entregue');
+    const pend = pedidosNoPeriodo.filter((o: any) => o.status === 'pendente');
+    return {
+      vendas: vendidos.length, vendido: vendidos.reduce((t: number, o: any) => t + Number(o.total || 0), 0), taxa: vendidos.reduce((t: number, o: any) => t + Number(o.taxa || 0), 0),
+      pendentes: pend.length, pendente: pend.reduce((t: number, o: any) => t + Number(o.total || 0), 0), reembolsados: qtdStatus('reembolsado'),
+    };
+  })();
 
   const Pill = ({ s }: { s: string }) => {
     const [c, label] = STATUS[s] || ['#9E9EBA', s];
@@ -403,6 +420,19 @@ export default function AdminDashboard({ painel, adminEmail, users, metrics, dai
         .adm-btn.rp{background:none;border:1px solid var(--bd2);color:var(--sub);}
         .adm-btn:disabled{opacity:.5;}
         .adm-filters{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;}
+        .adm-periodo{margin-bottom:14px;display:flex;flex-direction:column;gap:12px;}
+        .adm-per-l{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+        .adm-per-l b{display:inline-flex;align-items:center;gap:6px;font-family:'Outfit';font-size:14px;}
+        .adm-per-l select,.adm-per-l input{height:38px;border:1px solid var(--bd2);border-radius:10px;padding:0 10px;background:var(--panel2);color:var(--tx);font-family:inherit;font-size:13.5px;font-weight:700;}
+        .adm-per-l span{color:var(--sub);font-size:13px;}
+        .adm-per-rap{display:flex;gap:6px;margin-left:auto;flex-wrap:wrap;}
+        .adm-per-rap button{border:1px solid var(--bd2);background:none;color:var(--sub);border-radius:50px;padding:6px 12px;font-weight:800;font-size:12.5px;cursor:pointer;}
+        .adm-per-rap button.on{background:var(--tx);color:var(--bg);border-color:var(--tx);}
+        .adm-per-res{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;}
+        .adm-per-res span{background:var(--panel2);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:2px;}
+        .adm-per-res small{color:var(--sub);font-size:11.5px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;}
+        .adm-per-res b{font-family:'Outfit';font-size:17px;}
+        @media(max-width:700px){.adm-per-rap{margin-left:0;}}
         .adm-fb{font-weight:800;font-size:13px;padding:8px 15px;min-height:40px;border-radius:50px;background:var(--panel2);color:var(--sub);border:1.5px solid var(--bd2);cursor:pointer;transition:all .15s;}.adm-fb:hover{color:var(--tx);border-color:#FF8A3D;}
         .adm-fb.on{background:var(--tx);color:var(--bg);border-color:var(--tx);}
         .adm-empty{text-align:center;color:var(--sub);padding:40px;font-size:14px;}
@@ -580,14 +610,35 @@ export default function AdminDashboard({ painel, adminEmail, users, metrics, dai
               <button className="adm-btn rp" disabled={busy === 'todos'} onClick={() => conferirPix()}>{busy === 'todos' ? 'Conferindo na MisticPay…' : 'Conferir Pix pendentes na MisticPay'}</button>
               <small style={{ color: 'var(--sub)' }}>Libera quem pagou e ficou &quot;Aguardando pagamento&quot; (aviso do gateway perdido). Últimos 7 dias. A rotina de 1 em 1 minuto já faz isso sozinha nas últimas 48 h.</small>
             </div>
+            <div className="adm-card adm-periodo">
+              <div className="adm-per-l">
+                <b><Icon name="calendar" size={15} /> Período</b>
+                <select value={periodo} onChange={(e) => setPeriodo(e.target.value as Preset)} aria-label="Período">
+                  {PRESETS.map(([id, r]) => <option key={id} value={id}>{r}</option>)}
+                </select>
+                {periodo === 'dia' && <input type="date" value={perV.dia} max={hojeYMD()} onChange={(e) => setPerV({ ...perV, dia: e.target.value })} aria-label="Dia" />}
+                {periodo === 'mes_escolhido' && <input type="month" value={perV.mes} onChange={(e) => setPerV({ ...perV, mes: e.target.value })} aria-label="Mês" />}
+                {periodo === 'periodo' && <><input type="date" value={perV.de} onChange={(e) => setPerV({ ...perV, de: e.target.value })} aria-label="De" /><span>até</span><input type="date" value={perV.ate} onChange={(e) => setPerV({ ...perV, ate: e.target.value })} aria-label="Até" /></>}
+                <div className="adm-per-rap">
+                  {(['hoje', 'ontem', '7d', 'mes'] as Preset[]).map((p) => <button key={p} type="button" className={periodo === p ? 'on' : ''} onClick={() => setPeriodo(p)}>{PRESETS.find((x) => x[0] === p)?.[1]}</button>)}
+                </div>
+              </div>
+              <div className="adm-per-res">
+                <span><small>Vendas</small><b>{fmt(resumoPeriodo.vendas)}</b></span>
+                <span><small>Vendido</small><b>{money(resumoPeriodo.vendido)}</b></span>
+                <span><small>Taxa da plataforma</small><b style={{ color: 'var(--or2)' }}>{money(resumoPeriodo.taxa)}</b></span>
+                <span><small>Aguardando pagamento</small><b>{fmt(resumoPeriodo.pendentes)} · {money(resumoPeriodo.pendente)}</b></span>
+                <span><small>Reembolsados</small><b>{fmt(resumoPeriodo.reembolsados)}</b></span>
+              </div>
+            </div>
             <div className="adm-filters">
               {['todos', 'pendente', 'abandonou', 'pago', 'entregue', 'reembolsado'].map((f) => (
                 <button key={f} className={`adm-fb ${orderFilter === f ? 'on' : ''}`} onClick={() => setOrderFilter(f)}>
-                  {f === 'todos' ? 'Todos' : f === 'abandonou' ? `Abandonou o checkout${carrinhos.length ? ` (${carrinhos.length})` : ''}` : (STATUS[f]?.[1] ?? f)}
+                  {f === 'todos' ? `Todos (${pedidosNoPeriodo.length})` : f === 'abandonou' ? `Abandonou o checkout${carrinhosNoPeriodo.length ? ` (${carrinhosNoPeriodo.length})` : ''}` : `${STATUS[f]?.[1] ?? f}${qtdStatus(f) ? ` (${qtdStatus(f)})` : ''}`}
                 </button>
               ))}
             </div>
-            {orderFilter === 'abandonou' ? <div className="adm-card"><CarrinhosAbandonados itens={carrinhos} tema="admin" mostrarLoja registrar /></div> : (
+            {orderFilter === 'abandonou' ? <div className="adm-card"><CarrinhosAbandonados itens={carrinhosNoPeriodo} tema="admin" mostrarLoja registrar /></div> : (
             <div className="adm-card">
               {filteredOrders.length ? (
                 <table className="adm-table">
@@ -601,7 +652,7 @@ export default function AdminDashboard({ painel, adminEmail, users, metrics, dai
                         <td>{money(o.total)}</td>
                         <td style={{ color: 'var(--or2)' }}>{money(o.taxa)}</td>
                         <td><Pill s={o.status} /></td>
-                        <td style={{ color: 'var(--sub)' }}>{new Date(o.created_at).toLocaleDateString('pt-BR')}</td>
+                        <td style={{ color: 'var(--sub)' }}>{new Date(o.created_at).toLocaleDateString('pt-BR')}<small style={{ display: 'block' }}>{new Date(o.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</small></td>
                         <td style={{ display: 'flex', gap: 6 }}>
                           {o.status === 'pendente' && (() => {
                             const msg = mensagemRecuperacao({ nome: o.cliente?.nome, produto: o.products?.titulo || 'o produto', loja: o.stores?.nome, link: `https://www.compreibarato.com.br/checkout/${o.product_id}` });
