@@ -47,7 +47,10 @@ const RECURSOS: [string, string, string][] = [
 export default function LandingProdutores({ pixel, taxas, fundador = null }: { pixel: string; taxas: ConfigTaxas; fundador?: DadosFundador | null }) {
   const router = useRouter();
   const [est, setEst] = useState<Estado | null>(null);
-  const [f1, setF1] = useState({ nome: '', whatsapp: '', email: '', instagram: '', site: '' });
+  const [f1, setF1] = useState({ nome: '', whatsapp: '', email: '', senha: '', instagram: '', site: '' });
+  const [verSenha, setVerSenha] = useState(false);
+  const [jaTemConta, setJaTemConta] = useState(false);
+  const [logado, setLogado] = useState(true);
   const [f2, setF2] = useState<{ nicho: string; tipos: string[]; ja_vende: string; plataformas: string[]; faturamento: string; link_produto: string; mensagem: string }>({ nicho: '', tipos: [], ja_vende: '', plataformas: [], faturamento: '', link_produto: '', mensagem: '' });
   const [erro, setErro] = useState<{ campo?: string; texto: string } | null>(null);
   const [enviando, setEnviando] = useState(false);
@@ -99,6 +102,9 @@ export default function LandingProdutores({ pixel, taxas, fundador = null }: { p
       const j = await r.json().catch(() => ({}));
       if (!r.ok) { setErro({ campo: j.campo, texto: j.error || 'Não foi possível enviar. Tente de novo.' }); return; }
       evento('LeadParcial', eventId, {}, true);
+      // e-mail que já tem conta: não dá para entrar sem a senha dela, então manda para o login
+      if (j.existe) { setJaTemConta(true); return; }
+      setLogado(j.logado !== false);
       const s: Estado = { token: j.token || token(), etapa: 2, nome: f1.nome.trim() };
       setEst(s); gravarEstado(s);
       cardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -119,7 +125,7 @@ export default function LandingProdutores({ pixel, taxas, fundador = null }: { p
       evento('Lead', eventId, { nicho: f2.nicho });
       const s: Estado = { ...est, etapa: 3 };
       gravarEstado(s);
-      router.push('/produtores/obrigado');
+      router.push(logado ? '/vender' : '/login?next=/vender');
     } catch { setErro({ texto: 'Sem conexão. Tente de novo.' }); }
     finally { setEnviando(false); }
   }
@@ -168,25 +174,33 @@ export default function LandingProdutores({ pixel, taxas, fundador = null }: { p
             </div>
             {!etapa2 ? (
               <form onSubmit={enviar1} noValidate>
-                <h2>Quero vender no Comprei Barato</h2>
-                <p className="rp-mini">Leva menos de 1 minuto. A gente te chama no WhatsApp para explicar tudo.</p>
+                <h2>Crie sua loja grátis</h2>
+                <p className="rp-mini">Leva menos de 1 minuto. Sua loja fica pronta na hora e você já entra no painel para anunciar.</p>
                 <label className={'rp-f' + errCampo('nome')}><span>Seu nome</span>
                   <input id="rp-nome" autoComplete="name" value={f1.nome} onFocus={comecou} onChange={(e) => setF1({ ...f1, nome: e.target.value })} placeholder="Como você se chama?" maxLength={120} required /></label>
                 <label className={'rp-f' + errCampo('whatsapp')}><span>WhatsApp</span>
                   <input type="tel" inputMode="tel" autoComplete="tel-national" value={f1.whatsapp} onFocus={comecou} onChange={(e) => setF1({ ...f1, whatsapp: e.target.value })} placeholder="(00) 90000-0000" maxLength={20} required /></label>
                 <label className={'rp-f' + errCampo('instagram')}><span>Instagram <small>(opcional)</small></span>
                   <input autoCapitalize="none" value={f1.instagram} onChange={(e) => setF1({ ...f1, instagram: e.target.value })} placeholder="@seuperfil" maxLength={80} /></label>
-                <label className={'rp-f' + errCampo('email')}><span>E-mail <small>(opcional)</small></span>
-                  <input type="email" inputMode="email" autoComplete="email" value={f1.email} onChange={(e) => setF1({ ...f1, email: e.target.value })} placeholder="voce@email.com" maxLength={160} /></label>
+                <label className={'rp-f' + errCampo('email')}><span>E-mail <small>(é o login da loja)</small></span>
+                  <input type="email" inputMode="email" autoComplete="email" autoCapitalize="none" value={f1.email} onChange={(e) => { setF1({ ...f1, email: e.target.value }); setJaTemConta(false); }} placeholder="voce@email.com" maxLength={160} required /></label>
+                <label className={'rp-f rp-senha' + errCampo('senha')}><span>Crie uma senha <small>(mín. 6 caracteres)</small></span>
+                  <input type={verSenha ? 'text' : 'password'} autoComplete="new-password" value={f1.senha} onChange={(e) => setF1({ ...f1, senha: e.target.value })} placeholder="••••••" minLength={6} maxLength={72} required />
+                  <button type="button" className="rp-ver" onClick={() => setVerSenha((v) => !v)} aria-label={verSenha ? 'Esconder senha' : 'Mostrar senha'}>{verSenha ? 'Esconder' : 'Mostrar'}</button></label>
                 <input className="rp-hp" tabIndex={-1} autoComplete="off" aria-hidden="true" value={f1.site} onChange={(e) => setF1({ ...f1, site: e.target.value })} name="site" />
                 {erro && <p className="rp-erro" role="alert">{erro.texto}</p>}
-                <button className="rp-btn" disabled={enviando}>{enviando ? 'Enviando…' : <>Continuar <Icon name="arrowRight" size={18} /></>}</button>
-                <p className="rp-priv"><Icon name="lock" size={13} /> Seus dados ficam só com a equipe do Comprei Barato. <a href="/privacidade" target="_blank">Privacidade</a></p>
+                {jaTemConta && (
+                  <p className="rp-erro" role="alert" style={{ background: '#FFF7ED', color: '#9A3412' }}>
+                    Você já tem conta no Comprei Barato com este e-mail. <a href={'/login?next=/vender'} style={{ color: 'inherit', fontWeight: 800 }}>Entre com sua senha</a> para abrir sua loja.
+                  </p>
+                )}
+                <button className="rp-btn" disabled={enviando}>{enviando ? 'Criando sua loja…' : <>Criar minha loja grátis <Icon name="arrowRight" size={18} /></>}</button>
+                <p className="rp-priv"><Icon name="lock" size={13} /> <span>Ao criar a loja você aceita os <a href="/termos" target="_blank">Termos</a> e a <a href="/privacidade" target="_blank">Privacidade</a>. Já tem conta? <a href="/login?next=/vender">Entrar</a></span></p>
               </form>
             ) : (
               <form onSubmit={enviar2} noValidate>
-                <h2>Falta pouco, {est?.nome.split(' ')[0] || 'lojista'}!</h2>
-                <p className="rp-mini">Conta o que você vende para a gente já chegar com a proposta certa.</p>
+                <h2>Sua loja está criada, {est?.nome.split(' ')[0] || 'lojista'}! 🎉</h2>
+                <p className="rp-mini">Última coisa: conta o que você vende para a gente te ajudar a vender mais. Ou <a href={logado ? '/vender' : '/login?next=/vender'}>pule e vá direto para sua loja</a>.</p>
                 <label className={'rp-f' + errCampo('nicho')}><span>Jogo principal</span>
                   <select value={f2.nicho} onChange={(e) => setF2({ ...f2, nicho: e.target.value })} required>
                     <option value="">Escolha…</option>
@@ -218,7 +232,7 @@ export default function LandingProdutores({ pixel, taxas, fundador = null }: { p
                 <label className={'rp-f' + errCampo('link_produto')}><span>Link da sua loja ou perfil de vendas <small>(opcional)</small></span>
                   <input type="url" inputMode="url" value={f2.link_produto} onChange={(e) => setF2({ ...f2, link_produto: e.target.value })} placeholder="https://" maxLength={300} /></label>
                 {erro && <p className="rp-erro" role="alert">{erro.texto}</p>}
-                <button className="rp-btn" disabled={enviando}>{enviando ? 'Enviando…' : <>Enviar cadastro <Icon name="arrowRight" size={18} /></>}</button>
+                <button className="rp-btn" disabled={enviando}>{enviando ? 'Enviando…' : <>Ir para minha loja <Icon name="arrowRight" size={18} /></>}</button>
               </form>
             )}
           </div>
@@ -398,6 +412,9 @@ const CSS = `
 .rp-opts{display:flex;flex-wrap:wrap;gap:7px}
 .rp-opts button{border:1.5px solid var(--border2);background:#fff;color:var(--text);border-radius:50px;padding:8px 13px;font-weight:700;font-size:13.5px;cursor:pointer;font-family:inherit;min-height:38px}
 .rp-opts button.on{background:#16162A;color:#fff;border-color:#16162A}
+.rp-senha{position:relative}
+.rp-senha input{padding-right:92px}
+.rp-ver{position:absolute;right:8px;bottom:8px;height:34px;padding:0 12px;border-radius:10px;border:0;background:#F2F2F7;color:var(--text);font-weight:800;font-size:13px;cursor:pointer}
 .rp-hp{position:absolute!important;left:-9999px!important;width:1px!important;height:1px!important;opacity:0}
 .rp-erro{background:var(--red-bg);color:var(--red);font-weight:800;font-size:13.5px;border-radius:12px;padding:10px 12px;margin:4px 0 10px}
 .rp-btn{width:100%;min-height:56px;border:0;border-radius:16px;background:linear-gradient(135deg,#FF6B00,#FF9A3C);color:#16162A;font-family:'Outfit';font-weight:900;font-size:17px;display:inline-flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;box-shadow:0 14px 30px rgba(255,107,0,.35);transition:transform .15s,box-shadow .15s;padding:0 18px}
@@ -405,7 +422,8 @@ const CSS = `
 .rp-btn:disabled{opacity:.7;cursor:wait;transform:none}
 .rp-btn.claro{background:#fff;box-shadow:none;max-width:320px}
 .rp-priv{display:flex;align-items:center;gap:6px;justify-content:center;color:var(--muted);font-size:12.5px;font-weight:700;margin:12px 0 0}
-.rp-priv a{color:var(--muted)}
+.rp-priv a{color:var(--muted);text-decoration:underline}
+.rp-priv span{text-align:center;line-height:1.45}
 .rp-faixa{background:#fff;border-bottom:1px solid var(--border)}
 .rp-faixa-in{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;padding-top:22px;padding-bottom:22px;text-align:center}
 .rp-faixa b{display:block;font-family:'Outfit';font-size:30px;font-weight:900;letter-spacing:-.8px;color:#E85F00}
