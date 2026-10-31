@@ -509,6 +509,7 @@ export default function AdminDashboard({ painel, adminEmail, users, metrics, dai
                       <FormMotivo acao="correcao" busy={busy === p.id} onCancelar={() => setCorrigindo(null)} onEnviar={(itens, texto) => pedirCorrecao(p.id, itens, texto)} />
                     )}
                   </div>
+                  <a className="adm-btn rp" href={`/produto/${p.id}?previa=1`} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }} title="Abre a página do anúncio como o comprador vai ver (só admin)">Ver anúncio ↗</a>
                   <button className="adm-btn ap" disabled={busy === p.id} onClick={() => moderar(p.id, 'aprovar')}>Aprovar</button>
                   <button className="adm-btn rp" disabled={busy === p.id} onClick={() => setCorrigindo(corrigindo === p.id ? null : p.id)}>Pedir correção</button>
                 </div>

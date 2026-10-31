@@ -371,7 +371,7 @@ function PainelCliente({ c, detalhado, onAbrir }: { c: any; detalhado: boolean; 
               <div className="sp-sec">Produtos ({loja.produtos_qtd})</div>
               {(loja.produtos || []).slice(0, detalhado ? 50 : 20).map((p: any) => (
                 <div key={p.id} className="sp-linha">
-                  <a href={`/produto/${p.id}`} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--or2)', overflowWrap: 'anywhere' }}>{p.titulo}</a>
+                  <a href={`/produto/${p.id}?previa=1`} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--or2)', overflowWrap: 'anywhere' }}>{p.titulo}</a>
                   <b>{money(p.preco)} · {p.status}</b>
                 </div>
               ))}

@@ -125,7 +125,7 @@ export default function PerfilVendedor({ storeId, onClose }: { storeId: string; 
               <h5>Produtos ({d.produtos.total})</h5>
               <div className="muted" style={{ fontSize: 12.5, marginBottom: 6 }}>{d.produtos.ativos} no ar · {d.produtos.em_revisao} em revisão · {d.produtos.pausados} pausados · {d.produtos.reprovados} fora do ar</div>
               {d.produtos.lista.map((p: any) => (
-                <div key={p.id} className="pv-l"><a href={`/produto/${p.id}`} target="_blank" rel="noreferrer" style={{ color: 'var(--tx)' }}>{p.titulo}</a><span className="muted">{ST_PROD[p.status] ?? p.status}</span></div>
+                <div key={p.id} className="pv-l"><a href={`/produto/${p.id}?previa=1`} target="_blank" rel="noreferrer" style={{ color: 'var(--tx)' }}>{p.titulo}</a><span className="muted">{ST_PROD[p.status] ?? p.status}</span></div>
               ))}
             </div>
 

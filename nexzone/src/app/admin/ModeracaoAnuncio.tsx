@@ -121,7 +121,7 @@ export default function ModeracaoAnuncio({ id, onStatus }: { id: string; onStatu
         <span className="mo-pill" style={{ background: st[1] }}>{st[0]}</span>
         {m?.estado && <span className="mo-pill" style={{ background: m.estado === 'correcao' ? '#FFB020' : m.estado === 'cancelado' ? '#FF6B6B' : '#9AA0B4' }}>{ROTULO_ESTADO[m.estado]}</span>}
         <div className="mo-links" style={{ marginLeft: 'auto' }}>
-          <a href={`/produto/${p.id}`} target="_blank" rel="noreferrer">Ver anúncio ↗</a>
+          <a href={`/produto/${p.id}?previa=1`} target="_blank" rel="noreferrer">Ver anúncio ↗</a>
           <a href={`/checkout/${p.id}`} target="_blank" rel="noreferrer">Ver checkout ↗</a>
           {d.loja && <button type="button" onClick={() => setPerfil(true)}>Perfil do vendedor</button>}
         </div>
