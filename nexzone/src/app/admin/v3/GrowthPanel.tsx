@@ -26,8 +26,8 @@ export default function GrowthPanel() {
   return (
     <>
       <style dangerouslySetInnerHTML={{ __html: V3_CSS }} />
-      <h1 className="adm-h">Crescimento</h1>
-      <p className="adm-sub">Visitas, cadastros e ativação de vendedores, com comparação com o período anterior equivalente. Sem métricas financeiras enquanto a K2 estiver aberta.</p>
+      <h2 className="adm-ct" style={{ marginTop: 26 }}>Visitas, cadastros e ativação</h2>
+      <p className="adm-sub">Comparado com o período anterior equivalente. O dinheiro está em Financeiro.</p>
       <Chips<Periodo> valor={periodo} onChange={setPeriodo} opcoes={[['7d', '7 dias'], ['30d', '30 dias'], ['90d', '90 dias']]} />
       {erro && (/bloquead|C1/i.test(erro) ? <Bloqueado mensagem={erro} /> : <Aviso>{erro}</Aviso>)}
       {!d && !erro && <div className="adm-empty">Carregando…</div>}
