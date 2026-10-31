@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server';
+import { analisarAnuncio } from '@/lib/analiseAnuncio-servidor';
+
 import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { validarImagens, galeriaDe } from '@/lib/galeria';
 import { lerEstoque } from '@/lib/estoque';
@@ -6,6 +8,8 @@ import { mensagemPadraoDaLoja } from '@/lib/mensagemPadrao';
 import { arquivoPermitido } from '@/lib/arquivoEntrega';
 import { lerTaxas } from '@/lib/settings';
 import { tipoValido, planoValido } from '@/lib/taxas';
+
+export const maxDuration = 30; // leitura das imagens do anúncio (análise automática)
 
 async function ownsProduct(supabase: any, userId: string, productId: string) {
   const { data } = await supabase
@@ -146,7 +150,12 @@ export async function PATCH(req: Request) {
     const { error: eFlag } = await supabase.from('products').update({ usa_mensagem_padrao: body.usa_mensagem_padrao === true }).eq('id', id);
     if (eFlag && !/usa_mensagem_padrao/.test(eFlag.message || '')) console.error('[seller/product] mensagem padrão', eFlag.message);
   }
-  return NextResponse.json({ ok: true, status: patch.status });
+  // Editou ou reativou: passa pela análise automática (risco baixo volta ao ar na hora)
+  let status = patch.status;
+  if (patch.status === 'em_revisao') {
+    try { const an = await analisarAnuncio(createAdminClient(), String(id), { origem: action === 'reativar' ? 'reativacao' : 'edicao' }); if (an.status) status = an.status; } catch { /* fica na fila */ }
+  }
+  return NextResponse.json({ ok: true, status });
 }
 
 // Excluir produto

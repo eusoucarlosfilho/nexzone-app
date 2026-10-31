@@ -21,8 +21,8 @@ const ACOES: { acao: AcaoModeracao; rotulo: string; cor: string; ajuda: string }
 ];
 
 /** Formulário de motivo (checklist + texto). Usado aqui e na Fila de Aprovação. */
-export function FormMotivo({ acao, onEnviar, onCancelar, busy }: { acao: AcaoModeracao; onEnviar: (itens: string[], texto: string) => void; onCancelar: () => void; busy: boolean }) {
-  const [itens, setItens] = useState<string[]>([]);
+export function FormMotivo({ acao, onEnviar, onCancelar, busy, inicial = [] }: { acao: AcaoModeracao; onEnviar: (itens: string[], texto: string) => void; onCancelar: () => void; busy: boolean; inicial?: string[] }) {
+  const [itens, setItens] = useState<string[]>(inicial);
   const [texto, setTexto] = useState('');
   const info = ACOES.find((x) => x.acao === acao);
   const pode = itens.length > 0 || texto.trim().length > 0;

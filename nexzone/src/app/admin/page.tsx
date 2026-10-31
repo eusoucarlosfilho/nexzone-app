@@ -128,6 +128,9 @@ export default async function AdminPage() {
       // Modelo gamer (SQL 21): tipo do anúncio e jogo, para o revisor conferir
       const tipoPor: Record<string, any> = Object.fromEntries(((fotosRows ?? []) as any[]).map((r) => [r.id, { tipo: r.tipo_anuncio ?? null, jogo: r.jogo ?? null }]));
       products.forEach((p) => { if (tipoPor[p.id]) { p.tipo_anuncio = tipoPor[p.id].tipo; p.jogo = tipoPor[p.id].jogo; } });
+      // Análise automática (SQL 35): risco e motivos para quem revisa
+      const analisePor: Record<string, any> = Object.fromEntries(((fotosRows ?? []) as any[]).filter((r) => r.analise).map((r) => [r.id, r.analise]));
+      products.forEach((p) => { if (analisePor[p.id]) p.analise = analisePor[p.id]; });
     }
   } catch { /* sem fotos: a fila continua funcionando */ }
   // O que mudou em cada anúncio da fila (SQL 09). Sem a tabela: alteracoes = null e a fila segue igual.

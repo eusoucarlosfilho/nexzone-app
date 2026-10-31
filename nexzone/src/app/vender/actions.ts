@@ -9,6 +9,8 @@ import { validarImagens } from '@/lib/galeria';
 import { CATEGORIA_PADRAO } from '@/lib/categorias';
 import { lerTaxas } from '@/lib/settings';
 import { tipoValido, planoEfetivo } from '@/lib/taxas';
+import { createAdminClient } from '@/lib/supabase/server';
+import { analisarAnuncio } from '@/lib/analiseAnuncio-servidor';
 
 function slugify(s: string) {
   return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
@@ -93,8 +95,13 @@ export async function criarProduto(formData: FormData) {
         if (ePlano && /topo_sem_vaga/.test(ePlano.message || '')) aviso = 'As vagas do plano Topo desta categoria estão ocupadas. O anúncio ficou no plano Básico; você pode trocar depois em Meus produtos.';
       }
     }
+    // Análise automática (SQL 35): risco baixo entra no ar na hora; o resto vai para a fila com o motivo marcado
+    let status = 'em_revisao';
+    if ((criado as any)?.id) {
+      try { const an = await analisarAnuncio(createAdminClient(), String((criado as any).id), { origem: 'criacao' }); if (an.status) status = an.status; } catch { /* fica na fila */ }
+    }
     revalidatePath('/vender');
-    return { ok: true, id: (criado as any)?.id ?? null, aviso };
+    return { ok: true, id: (criado as any)?.id ?? null, aviso, status };
   } catch (e: any) {
     return { ok: false, error: e?.message || 'Erro inesperado ao cadastrar o produto.' };
   }

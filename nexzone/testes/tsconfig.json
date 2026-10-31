@@ -22,6 +22,7 @@
     }
   },
   "files": [
+    "../src/lib/analiseAnuncio.ts",
     "../src/lib/caixaEmail.ts",
     "../src/lib/caixaEmail-assinatura.ts",
     "../src/lib/ofertas/tipos.ts",

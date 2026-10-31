@@ -39,6 +39,7 @@ import { chaveRecuperacao } from '@/lib/filaRecuperacao';
 import CarrinhosAbandonados from '@/components/CarrinhosAbandonados';
 import AtivarCelular from '@/components/AtivarCelular';
 import CaixaEmail from './CaixaEmail';
+import PainelAprovacaoAuto, { AnaliseResumo, itensSugeridos } from './AprovacaoInteligente';
 import RegistroAdmin from './RegistroAdmin';
 
 const money = (v: number) => 'R$ ' + Number(v).toFixed(2).replace('.', ',');
@@ -185,7 +186,8 @@ export default function AdminDashboard({ painel, adminEmail, users, metrics, dai
       return next;
     });
   }
-  const [queue, setQueue] = useState(products.filter((p: any) => p.status === 'em_revisao'));
+  // fila: os de maior risco primeiro (análise automática, SQL 35); sem análise, ordem de chegada
+  const [queue, setQueue] = useState(products.filter((p: any) => p.status === 'em_revisao').sort((a: any, b: any) => (Number(b.analise?.score) || 0) - (Number(a.analise?.score) || 0)));
   const [allProducts, setAllProducts] = useState(products);
   // Aba Produtos: busca, filtros e paginação (só visualização; não muda a moderação)
   const [prodQuery, setProdQuery] = useState('');
@@ -517,7 +519,8 @@ export default function AdminDashboard({ painel, adminEmail, users, metrics, dai
         {tab === 'aprovacao' && (
           <>
             <h1 className="adm-h">Fila de Aprovação</h1>
-            <p className="adm-sub">Curadoria = a defesa da plataforma. Aprove só o que mantém a confiança.</p>
+            <p className="adm-sub">Curadoria = a defesa da plataforma. A análise automática marca o que parece desvio (outro site, contato, pagamento por fora, produto proibido) e os de maior risco vêm primeiro.</p>
+            <PainelAprovacaoAuto />
             <div className="adm-card">
               {queue.length ? queue.map((p: any) => (
                 <div className="adm-row adm-fila" key={p.id}>
@@ -540,9 +543,10 @@ export default function AdminDashboard({ painel, adminEmail, users, metrics, dai
                         {p.moderacaoPendente.texto && <div style={{ marginTop: 4, color: 'var(--sub)', whiteSpace: 'pre-wrap' }}>“{p.moderacaoPendente.texto}”</div>}
                       </div>
                     )}
+                    <AnaliseResumo a={p.analise} id={p.id} onNova={(an) => setQueue((q: any[]) => q.map((x) => (x.id === p.id ? { ...x, analise: an } : x)))} />
                     <AlteracoesAnuncio r={p.alteracoes} />
                     {corrigindo === p.id && (
-                      <FormMotivo acao="correcao" busy={busy === p.id} onCancelar={() => setCorrigindo(null)} onEnviar={(itens, texto) => pedirCorrecao(p.id, itens, texto)} />
+                      <FormMotivo acao="correcao" busy={busy === p.id} inicial={itensSugeridos(p.analise)} onCancelar={() => setCorrigindo(null)} onEnviar={(itens, texto) => pedirCorrecao(p.id, itens, texto)} />
                     )}
                   </div>
                   <div className="adm-fila-b">

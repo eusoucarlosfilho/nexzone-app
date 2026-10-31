@@ -18,6 +18,7 @@ export const ITENS_MODERACAO: { id: string; rotulo: string; orientacao: string }
   { id: 'preco', rotulo: 'Preço inconsistente', orientacao: 'Revise o preço e o preço promocional (o promocional precisa ser real e menor).' },
   { id: 'entrega', rotulo: 'Entrega não cadastrada ou link quebrado', orientacao: 'Cadastre o arquivo ou um link de entrega que funcione.' },
   { id: 'proibido', rotulo: 'Produto proibido ou revenda não autorizada', orientacao: 'Este tipo de produto não pode ser vendido na plataforma sem autorização do dono dos direitos.' },
+  { id: 'contato_externo', rotulo: 'Link, contato ou outro site', orientacao: 'Retire links, @, WhatsApp, telefone e nomes de outros sites do título, da descrição e das imagens. A conversa e o pagamento acontecem só pelo Comprei Barato.' },
   { id: 'promessa', rotulo: 'Promessa irreal', orientacao: 'Remova promessas de resultado garantido, ganhos ou curas que não possam ser comprovadas.' },
 ];
 const IDS = new Set(ITENS_MODERACAO.map((i) => i.id));

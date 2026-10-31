@@ -20,6 +20,9 @@ export const ACOES: Record<string, { grupo: GrupoAcao; verbo: string }> = {
   produto_reprovado: { grupo: 'aprovacao', verbo: 'reprovou o anúncio' },
   produto_moderado: { grupo: 'aprovacao', verbo: 'moderou o anúncio' },
   produto_destaque: { grupo: 'aprovacao', verbo: 'mudou o destaque do anúncio' },
+  produto_conferido: { grupo: 'aprovacao', verbo: 'conferiu o anúncio que entrou no ar sozinho' },
+  aprovacao_automatica_ligada: { grupo: 'config', verbo: 'ligou a aprovação automática de anúncios' },
+  aprovacao_automatica_desligada: { grupo: 'config', verbo: 'desligou a aprovação automática de anúncios' },
   verificacao_aprovada: { grupo: 'aprovacao', verbo: 'aprovou a verificação de' },
   verificacao_reprovada: { grupo: 'aprovacao', verbo: 'reprovou a verificação de' },
 

@@ -126,7 +126,8 @@ export default function CreateProduct({ userId, planos = { pcts: { basico: 5, de
     const r: any = await criarProduto(fd);
     setBusy(false);
     if (r?.ok) {
-      toast(r.aviso || 'Anúncio enviado para revisão!', r.aviso ? 'info' as any : 'success');
+      toast(r.status === 'ativo' ? 'Anúncio aprovado e já está no ar!' : 'Anúncio enviado! Ele passa por uma revisão rápida da equipe antes de entrar no ar.', 'success');
+      if (r.aviso) toast(r.aviso, 'info' as any);
       formRef.current?.reset();
       setTitulo(''); setDescricao(''); setPreco(''); setPrecoPromo(''); setCategoria(CATS[0]); setGarantia('7'); setConteudoEntrega('');
       setImagens([]); setArquivoPath(''); setArquivoNome(''); setTipo('acesso'); setJogo(''); setTipoAnuncio('conta'); setPlano('basico');
@@ -286,7 +287,7 @@ export default function CreateProduct({ userId, planos = { pcts: { basico: 5, de
         <input type="checkbox" checked={irParaCheckout} onChange={(e) => setIrParaCheckout(e.target.checked)} style={{ marginTop: 3 }} />
         <span><strong style={{ fontFamily: 'Outfit' }}>Montar o checkout e o order bump depois de salvar</strong><br /><span className="muted" style={{ fontSize: 13 }}>Imagem no topo, textos, depoimentos e um produto seu como oferta extra na hora da compra. Dá para fazer depois em Meus produtos.</span></span>
       </label>
-      <button className="btn btn-pri btn-lg" disabled={busy} style={{ width: '100%', marginTop: 8 }}>{busy ? 'Enviando…' : 'Enviar para revisão'}</button>
+      <button className="btn btn-pri btn-lg" disabled={busy} style={{ width: '100%', marginTop: 8 }}>{busy ? 'Publicando… (conferindo o anúncio)' : 'Publicar anúncio'}</button>
       <p className="ui-help" style={{ textAlign: 'center' }}>Depois de enviado, o produto aparece em Meus produtos como “Em revisão”.</p>
     </form>
   );

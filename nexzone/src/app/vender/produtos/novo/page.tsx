@@ -6,6 +6,7 @@ import Icon from '@/components/Icon';
 import { lerTaxas } from '@/lib/settings';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 30; // a publicação lê as imagens do anúncio (análise automática)
 
 export default async function NovoProdutoPage() {
   const supabase = createClient();
