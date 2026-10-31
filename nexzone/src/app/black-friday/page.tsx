@@ -12,12 +12,12 @@ import { SITE } from '@/lib/seoSite';
 
 export const dynamic = 'force-dynamic';
 export const metadata: Metadata = {
-  title: { absolute: 'Black Friday Gamer 2026 · contas, skins, moedas e gift cards | Comprei Barato' },
-  description: 'A Black Friday Gamer do Comprei Barato: descontos de verdade em contas, itens, moedas e gift cards, com dinheiro protegido até a entrega. Entre na lista e seja avisado.',
+  title: { absolute: 'Black November 2026 · ofertas em produtos digitais e serviços | Comprei Barato' },
+  description: 'A Black November do Comprei Barato: o mês inteiro de descontos de verdade em produtos digitais e serviços, com dinheiro protegido até a entrega. Entre na lista e seja avisado.',
   alternates: { canonical: `${SITE}/black-friday` },
   // imagem de compartilhamento: ./opengraph-image.tsx (gerada com as datas da campanha)
-  openGraph: { title: 'Black Friday Gamer · Comprei Barato', description: 'Descontos de verdade em contas, itens, moedas e gift cards.', url: `${SITE}/black-friday`, siteName: 'Comprei Barato', locale: 'pt_BR', type: 'website' },
-  twitter: { card: 'summary_large_image', title: 'Black Friday Gamer · Comprei Barato', description: 'Descontos de verdade em contas, itens, moedas e gift cards.' },
+  openGraph: { title: 'Black November · Comprei Barato', description: 'Descontos de verdade em produtos digitais e serviços, o mês inteiro.', url: `${SITE}/black-friday`, siteName: 'Comprei Barato', locale: 'pt_BR', type: 'website' },
+  twitter: { card: 'summary_large_image', title: 'Black November · Comprei Barato', description: 'Descontos de verdade em produtos digitais e serviços, o mês inteiro.' },
 };
 const dataBR = (s: string) => new Date(s).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', timeZone: 'America/Sao_Paulo' });
 
@@ -29,7 +29,7 @@ export default async function BlackFridayPage() {
   ]);
   const compartilhar = `https://wa.me/?text=${encodeURIComponent(textoCompartilharBF(cfg, SITE))}`;
   const faq: { p: string; r: string }[] = [
-    { p: 'O desconto é de verdade?', r: `Sim. Só entra na Black Friday Gamer produto com pelo menos ${cfg.descontoMin}% de desconto em cima do preço que ele tinha quando o vendedor se inscreveu. O preço de referência fica travado: ninguém consegue subir antes para fingir promoção.` },
+    { p: 'O desconto é de verdade?', r: `Sim. Só entra na Black November produto com pelo menos ${cfg.descontoMin}% de desconto em cima do preço que ele tinha quando o vendedor se inscreveu. O preço de referência fica travado: ninguém consegue subir antes para fingir promoção.` },
     { p: 'Quando as ofertas entram no ar?', r: `No dia ${dataBR(cfg.inicio)} à meia-noite (horário de Brasília). O site coloca o preço da campanha sozinho e tira no fim, em ${dataBR(cfg.fim)} às 23h59.` },
     { p: 'Como funciona a lista de espera?', r: 'Você deixa o e-mail (e o WhatsApp, se quiser) e recebe um aviso assim que a Black Friday começar. Só avisos da campanha, sem spam.' },
     { p: 'Meu dinheiro fica seguro?', r: 'Fica. O pagamento fica retido pela plataforma e só é liberado ao vendedor depois da entrega e do prazo de garantia. Se não for entregue, você pede o reembolso pelo pedido.' },
@@ -75,7 +75,7 @@ export default async function BlackFridayPage() {
         <section className="bf-hero"><div className="c">
           <span className="bf-tag">BLACK NOVEMBER GAMER · {dataBR(cfg.inicio)} A {dataBR(cfg.fim)}</span>
           {fase === 'antes' && <>
-            <h1>Os menores preços do ano em contas, skins, moedas e gift cards.</h1>
+            <h1>Os menores preços do ano em produtos digitais e serviços.</h1>
             <p>Só entra oferta com pelo menos {cfg.descontoMin}% de desconto em cima do preço de hoje. Nada de aumentar antes para fingir promoção. Entre na lista e seja avisado no minuto em que abrir.</p>
             <div className="bf-cont"><small>Começa em</small><Contagem alvo={Date.parse(cfg.inicio)} rotuloFim="Começou!" className="t" /></div>
             <ListaEspera />
@@ -84,7 +84,7 @@ export default async function BlackFridayPage() {
           </>}
           {fase === 'durante' && <>
             <h1>A Black November começou: o mês inteiro com desconto de verdade.</h1>
-            <p>Contas, skins, moedas e gift cards com pelo menos {cfg.descontoMin}% de desconto em cima do preço de antes, até {dataBR(cfg.fim)}. Novas ofertas entram toda semana. Pague com Pix e tenha o dinheiro protegido até a entrega.</p>
+            <p>Produtos digitais e serviços com pelo menos {cfg.descontoMin}% de desconto em cima do preço de antes, até {dataBR(cfg.fim)}. Novas ofertas entram toda semana. Pague com Pix e tenha o dinheiro protegido até a entrega.</p>
             <div className="bf-cont"><small>Termina em</small><Contagem alvo={Date.parse(cfg.fim)} rotuloFim="Encerrada" className="t" /></div>
             <div className="bf-acoes"><a className="bf-zap" href={compartilhar} target="_blank" rel="noopener noreferrer">Chamar o squad no WhatsApp</a></div>
           </>}

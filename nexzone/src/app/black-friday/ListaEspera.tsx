@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { coletarOrigem } from '@/components/PixelsVenda';
 import { eventoInstitucional } from '@/lib/pixelInstitucional';
 
-// Formulário da lista de espera da Black Friday Gamer
+// Formulário da lista de espera da Black November (o evento do Pixel mantém o nome antigo: não quebra conversões já criadas)
 export default function ListaEspera() {
   const [d, setD] = useState({ nome: '', email: '', whatsapp: '', aceitaWhatsapp: true, site: '' });
   const [estado, setEstado] = useState<'livre' | 'enviando' | 'ok'>('livre');
@@ -21,7 +21,7 @@ export default function ListaEspera() {
   }
 
   if (estado === 'ok') return (
-    <div className="bf-ok" role="status"><b>Você está na lista ✓</b><span>Assim que a Black Friday Gamer começar, a gente te avisa{d.whatsapp && d.aceitaWhatsapp ? ' por e-mail e WhatsApp' : ' por e-mail'}.</span></div>
+    <div className="bf-ok" role="status"><b>Você está na lista ✓</b><span>Assim que a Black November começar, a gente te avisa{d.whatsapp && d.aceitaWhatsapp ? ' por e-mail e WhatsApp' : ' por e-mail'}.</span></div>
   );
   return (
     <form className="bf-form" onSubmit={enviar}>
@@ -32,7 +32,7 @@ export default function ListaEspera() {
       {d.whatsapp && <label className="bf-chk"><input type="checkbox" checked={d.aceitaWhatsapp} onChange={(e) => setD({ ...d, aceitaWhatsapp: e.target.checked })} /> Quero o aviso também no WhatsApp</label>}
       <button className="btn btn-pri" disabled={estado === 'enviando'}>{estado === 'enviando' ? 'Entrando…' : 'Quero ser avisado'}</button>
       {erro && <small role="alert" style={{ color: '#FFB4A8' }}>{erro}</small>}
-      <small className="bf-mini">Só avisos da Black Friday Gamer. Sem spam, e você sai quando quiser.</small>
+      <small className="bf-mini">Só avisos da Black November. Sem spam, e você sai quando quiser.</small>
     </form>
   );
 }

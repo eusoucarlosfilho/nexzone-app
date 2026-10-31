@@ -3,7 +3,7 @@ import { cfgBF } from '@/lib/crescimento-servidor';
 import { BF_PADRAO } from '@/lib/crescimento';
 
 // Imagem que aparece quando o link /black-friday é compartilhado (WhatsApp, Instagram, Facebook).
-export const alt = 'Black Friday Gamer · Comprei Barato';
+export const alt = 'Black November · Comprei Barato';
 export const size = { width: 1200, height: 630 };
 export const contentType = 'image/png';
 export const revalidate = 3600;
@@ -23,7 +23,7 @@ export default async function Imagem() {
         <div style={{ display: 'flex', flexDirection: 'column' }}>
           <div style={{ display: 'flex', fontSize: 128, fontWeight: 900, lineHeight: 0.95, letterSpacing: -4 }}>BLACK FRIDAY</div>
           <div style={{ display: 'flex', fontSize: 128, fontWeight: 900, lineHeight: 0.95, letterSpacing: -4, color: '#FF6B00' }}>GAMER</div>
-          <div style={{ display: 'flex', fontSize: 34, marginTop: 22, color: '#D6D6E0' }}>Contas, skins, moedas e gift cards com no mínimo {cfg.descontoMin}% OFF de verdade</div>
+          <div style={{ display: 'flex', fontSize: 34, marginTop: 22, color: '#D6D6E0' }}>Produtos digitais e serviços com no mínimo {cfg.descontoMin}% OFF de verdade</div>
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 30, fontWeight: 800 }}>
           <div style={{ display: 'flex' }}>Comprei <span style={{ color: '#FF6B00', marginLeft: 10 }}>Barato</span></div>
