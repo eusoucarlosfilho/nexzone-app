@@ -139,8 +139,8 @@ export default async function VenderCockpit() {
         return (
           <Link href="/vender/black-friday" className="card" style={{ marginBottom: 18, display: 'flex', alignItems: 'center', gap: 12, textDecoration: 'none', color: '#fff', background: 'linear-gradient(135deg,#16162A,#2A1A3A)', border: 0 }}>
             <Icon name="bolt" size={20} color="#FF9A3C" />
-            <span style={{ flex: 1 }}><strong style={{ fontFamily: 'Outfit' }}>Black Friday Gamer: inscreva seus produtos</strong>
-              <span style={{ display: 'block', fontSize: 13, opacity: .85 }}>Escolha o preço da Black Friday. O site coloca no ar e tira sozinho.</span></span>
+            <span style={{ flex: 1 }}><strong style={{ fontFamily: 'Outfit' }}>Black November: inscreva seus produtos</strong>
+              <span style={{ display: 'block', fontSize: 13, opacity: .85 }}>Escolha o preço da Black November. O site coloca no ar e tira sozinho.</span></span>
             <Icon name="chevronRight" size={18} color="#fff" />
           </Link>
         );
