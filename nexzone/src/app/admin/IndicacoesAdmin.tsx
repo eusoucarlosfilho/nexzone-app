@@ -156,7 +156,7 @@ const CSS = `
 .ix-campos label{display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:700;color:var(--sub)}
 .ix-campos input,.ix-campos select,.ix-campos textarea{min-height:38px;border:1px solid var(--line);border-radius:10px;padding:6px 10px;font-size:14px;color:var(--ink)}
 .ix-campos small{font-weight:500;font-size:11.5px;color:var(--sub)}
-.ix-exemplo{display:flex;flex-direction:column;gap:3px;background:#FFF7F0;border:1px solid #FED7AA;border-radius:12px;padding:10px 12px;margin-top:12px;font-size:12.5px}.ix-exemplo small{color:var(--sub)}
+.ix-exemplo{display:flex;flex-direction:column;gap:3px;background:#FFF7F0;color:#3B1E00;border:1px solid #FED7AA;border-radius:12px;padding:10px 12px;margin-top:12px;font-size:12.5px}.ix-exemplo b,.ix-exemplo span{color:#3B1E00}.ix-exemplo small{color:#7C5A3A}
 .ix-orc{height:10px;border-radius:999px;background:#F4F4F5;overflow:hidden}.ix-orc div{height:100%;background:linear-gradient(90deg,#FF7A00,#FFC83D)}
 .ix-nota{color:var(--sub);font-size:12px;line-height:1.5;margin:10px 0}
 .ix-filtros{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}.ix-filtros button{border:1px solid var(--line);background:#fff;border-radius:999px;padding:5px 12px;font-weight:700;font-size:12.5px;cursor:pointer}
