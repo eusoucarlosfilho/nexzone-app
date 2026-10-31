@@ -18,7 +18,7 @@ export default function InscreverBF({ itens: inicial, descontoMin }: { itens: It
       const d = await r.json().catch(() => ({}));
       if (!r.ok) { toast(d.error || 'Não foi possível salvar.', 'error'); return; }
       setItens((l) => l.map((x) => (x.id === i.id ? { ...x, inscrito: d.preco, precoHoje: d.precoRef } : x)));
-      toast('Produto inscrito na Black Friday.', 'success');
+      toast('Produto inscrito na Black November.', 'success');
     } finally { setBusy(null); }
   }
   async function tirar(i: Item) {
@@ -41,11 +41,11 @@ export default function InscreverBF({ itens: inicial, descontoMin }: { itens: It
           <span style={{ width: 44, height: 44, borderRadius: 10, flex: 'none', background: `#F1F1F6 center/cover ${i.capa ? `url(${i.capa})` : ''}` }} />
           <div style={{ flex: '1 1 220px', minWidth: 0 }}>
             <b style={{ display: 'block', fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{i.titulo}</b>
-            <small className="muted">Hoje {brl(i.precoHoje)} · na Black Friday no máximo {brl(maximo(i.precoHoje))}{i.vendas ? ` · ${i.vendas} vendidos` : ''}</small>
+            <small className="muted">Hoje {brl(i.precoHoje)} · na Black November no máximo {brl(maximo(i.precoHoje))}{i.vendas ? ` · ${i.vendas} vendidos` : ''}</small>
           </div>
           {i.noAr ? <b style={{ color: 'var(--green)', fontSize: 13 }}>No ar por {brl(i.inscrito || 0)}</b> : (
             <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-              <input aria-label={`Preço na Black Friday de ${i.titulo}`} inputMode="decimal" placeholder="R$" value={valor[i.id] || ''} onChange={(e) => setValor((v) => ({ ...v, [i.id]: e.target.value }))}
+              <input aria-label={`Preço na Black November de ${i.titulo}`} inputMode="decimal" placeholder="R$" value={valor[i.id] || ''} onChange={(e) => setValor((v) => ({ ...v, [i.id]: e.target.value }))}
                 style={{ width: 96, height: 38, border: '1.5px solid var(--border)', borderRadius: 10, padding: '0 10px', fontSize: 15 }} />
               <button className="btn btn-pri btn-sm" disabled={busy === i.id || !valor[i.id]} onClick={() => salvar(i)}>{i.inscrito ? 'Atualizar' : 'Inscrever'}</button>
               {i.inscrito && <button className="btn btn-ghost btn-sm" disabled={busy === i.id} onClick={() => tirar(i)}>Tirar</button>}

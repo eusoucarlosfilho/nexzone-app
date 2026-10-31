@@ -8,13 +8,13 @@ import InscreverBF from './InscreverBF';
 export const dynamic = 'force-dynamic';
 const dataBR = (s: string) => new Date(s).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' });
 
-// Vendedor: inscrever produtos na Black Friday Gamer com o preço da campanha
+// Vendedor: inscrever produtos na Black November com o preço da campanha
 export default async function VenderBlackFriday() {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login?next=/vender/black-friday');
   const { data: store } = await supabase.from('stores').select('id').eq('owner', user.id).maybeSingle();
-  if (!store) return <div><h1 style={{ fontFamily: 'Outfit', fontSize: 26, fontWeight: 900 }}>Black Friday Gamer</h1><p className="muted">Cadastre um produto primeiro.</p></div>;
+  if (!store) return <div><h1 style={{ fontFamily: 'Outfit', fontSize: 26, fontWeight: 900 }}>Black November</h1><p className="muted">Cadastre um produto primeiro.</p></div>;
   const admin = createAdminClient();
   const cfg = await cfgBF(admin);
   const fase = faseBF(cfg);
@@ -37,7 +37,7 @@ export default async function VenderBlackFriday() {
         O site coloca o desconto no ar sozinho quando começar e volta a sua promoção normal quando terminar. Os produtos inscritos aparecem na página <Link href="/black-friday">/black-friday</Link>, que vai receber anúncios e a lista de espera.
       </p>
       {!sql30 && <div className="card" style={{ background: '#FFF1E6', marginBottom: 14 }}>A inscrição abre em breve.</div>}
-      {fase === 'depois' ? <div className="card">A Black Friday terminou. Obrigado por participar!</div>
+      {fase === 'depois' ? <div className="card">A Black November terminou. Obrigado por participar!</div>
         : sql30 && <InscreverBF itens={itens} descontoMin={cfg.descontoMin} />}
     </div>
   );
