@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/server';
 import { adminSeguro, negado } from '@/lib/ofertas/adminSeguro';
-import { lerCfgIndicacao, salvarCfgIndicacao } from '@/lib/indicacao-servidor';
+import { lerCfgIndicacao, pontosPorReal, salvarCfgIndicacao, usadoNoMes } from '@/lib/indicacao-servidor';
+import { pontosDaIndicacao, reaisDosPontos } from '@/lib/indicacao';
 import { registrarAcao } from '@/lib/registroAdmin-servidor';
 
 export const dynamic = 'force-dynamic';
@@ -41,8 +42,19 @@ export async function GET(req: Request) {
     for (const p of (ps ?? []) as any[]) nomes[p.id] = p.nome || 'Sem nome';
   }
   const { data: bloqueados } = await admin.from('indicacao_codigos').select('user_id').eq('bloqueado', true).limit(1000);
+
+  // Custo em R$ (o ponto vale 1/pontosPorReal). "Usado" = descontos com CB Points em todo o site (o extrato não separa a origem do ponto).
+  const ppr = await pontosPorReal(admin);
+  const mes = await usadoNoMes(admin, ppr);
+  const { data: usados } = await admin.from('points_ledger').select('delta').eq('motivo', 'Desconto com CB Points no checkout').limit(50000);
+  const custo = {
+    pontosPorReal: ppr,
+    orcamentoMes: cfg.orcamentoMensal, liberadoMes: mes, restanteMes: Math.max(0, Math.round((cfg.orcamentoMensal - mes) * 100) / 100),
+    pendenteReais: reaisDosPontos(soma(por('pendente')), ppr), liberadoTotalReais: reaisDosPontos(soma(por('liberada')), ppr),
+    descontosUsadosReais: reaisDosPontos(((usados ?? []) as any[]).reduce((s2, x) => s2 + Math.abs(Number(x.delta) || 0), 0), ppr),
+  };
   return NextResponse.json({
-    sql37: true, cfg,
+    sql37: true, cfg, custo,
     kpis: { codigos: codigos ?? 0, cadastros: t.length, pendentes: por('pendente').length, liberadas: por('liberada').length, bloqueadas: por('bloqueada').length, estornadas: por('estornada').length, canceladas: por('cancelada').length, pontosPendentes: soma(por('pendente')), pontosLiberados: soma(por('liberada')) },
     top: top.map(([id, r]) => ({ id, nome: nomes[id] || '—', indicacoes: r.n, pontos: r.pts })),
     codigosBloqueados: ((bloqueados ?? []) as any[]).map((b) => b.user_id),
@@ -61,7 +73,7 @@ export async function POST(req: Request) {
 
   if (b.acao === 'config') {
     const cfg = await salvarCfgIndicacao(admin, b.cfg);
-    await log('indicacao_config', 'indicacao_cfg', { ativo: cfg.ativo, pontos: cfg.pontos, minimo: cfg.minimo, prazoDias: cfg.prazoDias, limite: cfg.limitePorUsuario });
+    await log('indicacao_config', 'indicacao_cfg', { ativo: cfg.ativo, pontos: cfg.pontos, minimo: cfg.minimo, prazoDias: cfg.prazoDias, limite: cfg.limitePorUsuario, tetoComissaoPct: cfg.tetoComissaoPct, orcamentoMensal: cfg.orcamentoMensal });
     return NextResponse.json({ ok: true, cfg });
   }
   if (b.acao === 'bloquear_codigo' || b.acao === 'desbloquear_codigo') {
@@ -89,10 +101,13 @@ export async function POST(req: Request) {
     const cfg = await lerCfgIndicacao(admin);
     let patch: any = { status: 'cadastrado', motivo: null, atualizado_em: agora };
     if ((i as any).order_id) {
-      const { data: o } = await admin.from('orders').select('status').eq('id', (i as any).order_id).maybeSingle();
-      patch = o && ['pago', 'entregue'].includes((o as any).status)
-        ? { status: 'pendente', pontos: cfg.pontos, libera_em: new Date(Date.now() + cfg.prazoDias * 86400000).toISOString(), motivo: 'Liberada pelo admin após análise.', atualizado_em: agora }
-        : { status: 'estornada', motivo: 'Compra não está mais paga.', atualizado_em: agora };
+      const { data: o } = await admin.from('orders').select('status, taxa').eq('id', (i as any).order_id).maybeSingle();
+      const pts = o ? pontosDaIndicacao(cfg, Number((o as any).taxa) || 0, await pontosPorReal(admin)) : 0; // mesmo teto de margem
+      patch = o && ['pago', 'entregue'].includes((o as any).status) && pts > 0
+        ? { status: 'pendente', pontos: pts, libera_em: new Date(Date.now() + cfg.prazoDias * 86400000).toISOString(), motivo: 'Liberada pelo admin após análise.', atualizado_em: agora }
+        : o && ['pago', 'entregue'].includes((o as any).status)
+          ? { status: 'cancelada', motivo: 'A comissão do pedido não cobre a recompensa.', atualizado_em: agora }
+          : { status: 'estornada', motivo: 'Compra não está mais paga.', atualizado_em: agora };
     }
     await admin.from('indicacoes').update(patch).eq('id', id).eq('status', 'bloqueada');
     await log('indicacao_desbloqueada', String(id), { para: patch.status });
