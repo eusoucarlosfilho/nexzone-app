@@ -60,8 +60,8 @@ export const TIPOS_ANUNCIO: { id: TipoAnuncio; nome: string; dica: string; entre
   { id: 'item', nome: 'Item ou skin', dica: 'Combine a entrega no jogo pelo chat do pedido.', entrega: 'acesso' },
   { id: 'moeda', nome: 'Moedas / gold / Robux', dica: 'Informe a quantidade no título. Entrega pelo chat ou por presente no jogo.', entrega: 'acesso' },
   { id: 'giftcard', nome: 'Gift card, key ou código', dica: 'Cadastre os códigos: cada comprador recebe o dele assim que o pagamento cai.', entrega: 'chave' },
-  { id: 'servico', nome: 'Serviço (boost, coach, elojob)', dica: 'Descreva prazo e como o serviço é feito. O valor fica retido até o fim da garantia.', entrega: 'acesso' },
-  { id: 'digital', nome: 'Produto digital (guia, curso, software)', dica: 'Arquivo, link ou acesso liberado depois do pagamento.', entrega: 'arquivo' },
+  { id: 'servico', nome: 'Serviço digital', dica: 'Feito à distância: suporte e otimização de PC, design, edição, aulas, consultoria, boost ou coach. Combine tudo pelo chat do pedido e descreva prazo e como é feito. O valor fica retido até o fim da garantia.', entrega: 'acesso' },
+  { id: 'digital', nome: 'Produto digital', dica: 'Curso, e-book, planilha, template, software, prompt ou ferramenta de IA: o arquivo, link ou acesso é liberado depois do pagamento.', entrega: 'arquivo' },
 ];
 
 export const JOGOS = ['Free Fire', 'Roblox', 'Blox Fruits', 'Valorant', 'League of Legends', 'Counter-Strike 2', 'Fortnite', 'GTA V / GTA Online', 'Minecraft', 'Genshin Impact', 'Honkai: Star Rail', 'Clash Royale', 'Clash of Clans', 'Brawl Stars', 'EA FC', 'eFootball', 'Tibia', 'World of Warcraft', 'PUBG Mobile', 'Call of Duty', 'Pokémon', 'Dota 2', 'Steam', 'PlayStation', 'Xbox', 'Nintendo'] as const;
@@ -112,6 +112,14 @@ export function lerConfigTaxas(m: Record<string, any> = {}): ConfigTaxas {
 }
 
 export const planoValido = (p: unknown): Plano => (p === 'destaque' || p === 'topo' ? p : 'basico');
+/** Tipos em que o jogo é obrigatório (conta, item e moeda são sempre de algum jogo). */
+export const TIPOS_COM_JOGO: TipoAnuncio[] = ['conta', 'item', 'moeda'];
+export const exigeJogo = (t: TipoAnuncio | string | null | undefined) => TIPOS_COM_JOGO.includes(t as TipoAnuncio);
+/** Grupos da tela de cadastro: produtos digitais e serviços primeiro; os de jogos depois. */
+export const GRUPOS_TIPO: { titulo: string; tipos: TipoAnuncio[] }[] = [
+  { titulo: 'Produtos digitais e serviços', tipos: ['digital', 'servico'] },
+  { titulo: 'Jogos', tipos: ['conta', 'item', 'moeda', 'giftcard'] },
+];
 export const tipoValido = (t: unknown): TipoAnuncio => (TIPOS_ANUNCIO.some((x) => x.id === t) ? (t as TipoAnuncio) : 'digital');
 
 /** Plano que vale de fato (no lançamento, com os planos pagos desligados, todo mundo é Básico). */

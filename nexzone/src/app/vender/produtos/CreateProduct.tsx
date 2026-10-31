@@ -11,7 +11,7 @@ import SeoPanel from './SeoPanel';
 import EditorMensagem from './EditorMensagem';
 import Icon from '@/components/Icon';
 import { CamposTipoJogo, EscolhaPlano } from './CamposAnuncio';
-import { TIPOS_ANUNCIO, type TipoAnuncio, type Plano } from '@/lib/taxas';
+import { TIPOS_ANUNCIO, exigeJogo, type TipoAnuncio, type Plano } from '@/lib/taxas';
 
 const CATS = NOMES_CATEGORIAS;
 
@@ -19,7 +19,7 @@ type PlanosInfo = { pcts: { basico: number; destaque: number; topo: number }; at
 
 export default function CreateProduct({ userId, planos = { pcts: { basico: 5, destaque: 8, topo: 11 }, ativos: false } }: { userId: string; planos?: PlanosInfo }) {
   // modelo marketplace (SQL 21): o que é o anúncio, de qual jogo e em qual plano
-  const [tipoAnuncio, setTipoAnuncio] = useState<TipoAnuncio>('conta');
+  const [tipoAnuncio, setTipoAnuncio] = useState<TipoAnuncio>('digital');
   const [jogo, setJogo] = useState('');
   const [plano, setPlano] = useState<Plano>('basico');
   // campos do produto (controlados — pra importação preencher)
@@ -27,14 +27,14 @@ export default function CreateProduct({ userId, planos = { pcts: { basico: 5, de
   const [descricao, setDescricao] = useState('');
   const [preco, setPreco] = useState('');
   const [precoPromo, setPrecoPromo] = useState('');
-  const [categoria, setCategoria] = useState(CATS.find((c) => ehJogos(c)) || CATS[0]);
+  const [categoria, setCategoria] = useState(CATS.find((c) => !ehJogos(c)) || CATS[0]);
   const [garantia, setGarantia] = useState('7');
   const [estoque, setEstoque] = useState('');
   const [conteudoEntrega, setConteudoEntrega] = useState('');
   const [usaPadrao, setUsaPadrao] = useState(false);
   const [irParaCheckout, setIrParaCheckout] = useState(true);
 
-  const [tipo, setTipo] = useState('acesso');
+  const [tipo, setTipo] = useState('arquivo');
   const [arquivoPath, setArquivoPath] = useState('');
   const [arquivoNome, setArquivoNome] = useState('');
   const [imagens, setImagens] = useState<string[]>([]); // galeria: a 1ª é a capa
@@ -96,7 +96,7 @@ export default function CreateProduct({ userId, planos = { pcts: { basico: 5, de
     const e: Record<string, string> = {};
     const p = Number(preco);
     if (!titulo.trim()) e.titulo = 'Informe o título do anúncio.';
-    if (tipoAnuncio !== 'digital' && !jogo.trim()) e.jogo = 'Informe o jogo.';
+    if (exigeJogo(tipoAnuncio) && !jogo.trim()) e.jogo = 'Informe o jogo.';
     if (!p || p <= 0) e.preco = 'Informe um preço maior que zero.';
     if (precoPromo !== '') {
       const pr = Number(precoPromo);
@@ -129,8 +129,8 @@ export default function CreateProduct({ userId, planos = { pcts: { basico: 5, de
       toast(r.status === 'ativo' ? 'Anúncio aprovado e já está no ar!' : 'Anúncio enviado! Ele passa por uma revisão rápida da equipe antes de entrar no ar.', 'success');
       if (r.aviso) toast(r.aviso, 'info' as any);
       formRef.current?.reset();
-      setTitulo(''); setDescricao(''); setPreco(''); setPrecoPromo(''); setCategoria(CATS[0]); setGarantia('7'); setConteudoEntrega('');
-      setImagens([]); setArquivoPath(''); setArquivoNome(''); setTipo('acesso'); setJogo(''); setTipoAnuncio('conta'); setPlano('basico');
+      setTitulo(''); setDescricao(''); setPreco(''); setPrecoPromo(''); setCategoria(CATS.find((c) => !ehJogos(c)) || CATS[0]); setGarantia('7'); setConteudoEntrega('');
+      setImagens([]); setArquivoPath(''); setArquivoNome(''); setTipo('arquivo'); setJogo(''); setTipoAnuncio('digital'); setPlano('basico');
       setImpUrl(''); setImpTexto(''); setImagemSugerida(''); setBloqueado(false);
       if (irParaCheckout && r.id) { toast('Agora monte o checkout e o order bump deste produto.', 'success'); router.push(`/vender/checkout/${r.id}`); }
       else router.push('/vender/produtos');
@@ -196,7 +196,8 @@ export default function CreateProduct({ userId, planos = { pcts: { basico: 5, de
             setTipoAnuncio(t);
             const info = TIPOS_ANUNCIO.find((x) => x.id === t);
             if (info) setTipo(info.entrega);
-            if (t !== 'digital') { const cj = CATS.find((c) => ehJogos(c)); if (cj) setCategoria(cj); }
+            // conta, item, moeda e gift card: categoria Jogos & Games. Produto digital e serviço: o vendedor escolhe.
+            if (t !== 'digital' && t !== 'servico') { const cj = CATS.find((c) => ehJogos(c)); if (cj) setCategoria(cj); }
           }} />
         {err('jogo')}
       </section>

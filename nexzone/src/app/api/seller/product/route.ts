@@ -7,7 +7,7 @@ import { lerEstoque } from '@/lib/estoque';
 import { mensagemPadraoDaLoja } from '@/lib/mensagemPadrao';
 import { arquivoPermitido } from '@/lib/arquivoEntrega';
 import { lerTaxas } from '@/lib/settings';
-import { tipoValido, planoValido } from '@/lib/taxas';
+import { tipoValido, planoValido, exigeJogo } from '@/lib/taxas';
 
 export const maxDuration = 30; // leitura das imagens do anúncio (análise automática)
 
@@ -141,7 +141,7 @@ export async function PATCH(req: Request) {
   const editando = action !== 'pausar' && action !== 'reativar';
   const tipoAnuncio = tipoValido(body.tipo_anuncio);
   const jogo = String(body.jogo || '').replace(/\s+/g, ' ').trim().slice(0, 60) || null;
-  if (editando && 'tipo_anuncio' in body && tipoAnuncio !== 'digital' && !jogo) return NextResponse.json({ error: 'Informe o jogo do anúncio.' }, { status: 400 });
+  if (editando && 'tipo_anuncio' in body && exigeJogo(tipoAnuncio) && !jogo) return NextResponse.json({ error: 'Informe o jogo do anúncio.' }, { status: 400 });
   const patchModelo = editando && 'tipo_anuncio' in body ? { ...patch, tipo_anuncio: tipoAnuncio, jogo } : patch;
   let { error } = await supabase.from('products').update(patchModelo).eq('id', id);
   if (error && patchModelo !== patch && /tipo_anuncio|jogo/.test(error.message || '')) ({ error } = await supabase.from('products').update(patch).eq('id', id));

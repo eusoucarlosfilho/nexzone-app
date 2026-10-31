@@ -1,5 +1,5 @@
 'use client';
-import { TIPOS_ANUNCIO, JOGOS, PLANOS, type TipoAnuncio, type Plano } from '@/lib/taxas';
+import { TIPOS_ANUNCIO, JOGOS, PLANOS, GRUPOS_TIPO, exigeJogo, type TipoAnuncio, type Plano } from '@/lib/taxas';
 import Icon from '@/components/Icon';
 
 // Campos do modelo marketplace (SQL 21): tipo do anúncio + jogo, e o plano de visibilidade.
@@ -13,20 +13,30 @@ export function CamposTipoJogo({ tipo, jogo, onTipo, onJogo }: { tipo: TipoAnunc
     <div className="ca">
       <style dangerouslySetInnerHTML={{ __html: CSS }} />
       <input type="hidden" name="tipo_anuncio" value={tipo} />
-      <div className="ca-tipos" role="radiogroup" aria-label="Tipo de anúncio">
-        {TIPOS_ANUNCIO.map((t) => (
-          <button type="button" key={t.id} role="radio" aria-checked={tipo === t.id} className={tipo === t.id ? 'on' : ''} onClick={() => onTipo(t.id)}>
-            <Icon name={ICONE[t.id]} size={18} /><span>{t.nome}</span>
-          </button>
-        ))}
-      </div>
+      {GRUPOS_TIPO.map((g) => (
+        <div key={g.titulo} className="ca-grupo">
+          <small className="ca-gt">{g.titulo}</small>
+          <div className="ca-tipos" role="radiogroup" aria-label={g.titulo}>
+            {g.tipos.map((id) => {
+              const t = TIPOS_ANUNCIO.find((x) => x.id === id)!;
+              return (
+                <button type="button" key={t.id} role="radio" aria-checked={tipo === t.id} className={tipo === t.id ? 'on' : ''} onClick={() => onTipo(t.id)}>
+                  <Icon name={ICONE[t.id]} size={18} /><span>{t.nome}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ))}
       {info && <p className="ca-dica"><Icon name="info" size={14} /> {info.dica}</p>}
       {tipo !== 'digital' && (
         <div className="fg" style={{ marginTop: 12 }}>
-          <label htmlFor="ca-jogo">Jogo<span className="ui-req">*</span></label>
-          <input id="ca-jogo" name="jogo" list="ca-jogos" value={jogo} onChange={(e) => onJogo(e.target.value.slice(0, 60))} placeholder="Ex.: Free Fire, Roblox, Valorant" maxLength={60} />
+          {exigeJogo(tipo)
+            ? <label htmlFor="ca-jogo">Jogo<span className="ui-req">*</span></label>
+            : <label htmlFor="ca-jogo">Jogo ou plataforma <small style={{ fontWeight: 600, color: 'var(--muted)' }}>(opcional: só se for de algum jogo)</small></label>}
+          <input id="ca-jogo" name="jogo" list="ca-jogos" value={jogo} onChange={(e) => onJogo(e.target.value.slice(0, 60))} placeholder={exigeJogo(tipo) ? 'Ex.: Free Fire, Roblox, Valorant' : tipo === 'giftcard' ? 'Ex.: Steam, PlayStation, Roblox (deixe em branco se não for de jogo)' : 'Ex.: Valorant (deixe em branco se não for de jogo)'} maxLength={60} />
           <datalist id="ca-jogos">{JOGOS.map((j) => <option key={j} value={j} />)}</datalist>
-          <div className="ui-help">Escolha da lista ou digite o nome do jogo. Ajuda o comprador a achar seu anúncio.</div>
+          <div className="ui-help">{exigeJogo(tipo) ? 'Escolha da lista ou digite o nome do jogo. Ajuda o comprador a achar seu anúncio.' : 'Preenchendo, o anúncio também aparece na página do jogo no site.'}</div>
         </div>
       )}
       {tipo === 'conta' && (
@@ -62,6 +72,8 @@ export function EscolhaPlano({ valor, onPlano, pcts, ativos, nome = 'plano' }: {
 }
 
 const CSS = `
+.ca-grupo{margin-bottom:10px}
+.ca-gt{display:block;font-size:11.5px;font-weight:900;letter-spacing:.6px;text-transform:uppercase;color:var(--muted);margin:0 0 6px}
 .ca-tipos{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
 .ca-tipos button{display:flex;align-items:center;gap:8px;min-height:52px;padding:10px 12px;border-radius:14px;border:1.5px solid var(--border2);background:#fff;color:var(--text);font-weight:800;font-size:13.5px;cursor:pointer;text-align:left;font-family:inherit}
 .ca-tipos button svg{color:var(--orange-ink);flex:none}

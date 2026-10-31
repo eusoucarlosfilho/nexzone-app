@@ -41,5 +41,10 @@ t('taxa do comprador pelo MP (0,99% por dentro + 2%)', () => { const on = { ...P
 t('trava 1ª compra com MP: 5% de R$ 5,89 cobre o Pix do MP', () => { const on = { ...P, pixMpAte: 50, pixMpDisponivel: true }; assert.strictEqual(x.comissaoCobreGateway('pix', 5.89, 0.29, on), true); });
 t('saque: grátis só a partir de R$ 50', () => { assert.strictEqual(x.taxaDoSaque(0, P, 49.99), 0.99); assert.strictEqual(x.taxaDoSaque(0, P, 50), 0); assert.strictEqual(x.taxaDoSaque(0, P), 0); assert.strictEqual(x.taxaDoSaque(1, P, 500), 0.99); });
 
+t('jogo obrigatório só em conta, item e moeda', () => {
+  assert.ok(x.exigeJogo('conta') && x.exigeJogo('item') && x.exigeJogo('moeda'));
+  assert.ok(!x.exigeJogo('digital') && !x.exigeJogo('servico') && !x.exigeJogo('giftcard'));
+  assert.deepStrictEqual(x.GRUPOS_TIPO.flatMap((g) => g.tipos).sort(), x.TIPOS_ANUNCIO.map((t) => t.id).sort());
+});
 console.log(`\n${ok} ok, ${fail} falha(s)`);
 if (fail) process.exit(1);

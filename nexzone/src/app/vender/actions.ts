@@ -8,7 +8,7 @@ import { contaStatus } from '@/lib/account';
 import { validarImagens } from '@/lib/galeria';
 import { CATEGORIA_PADRAO } from '@/lib/categorias';
 import { lerTaxas } from '@/lib/settings';
-import { tipoValido, planoEfetivo } from '@/lib/taxas';
+import { tipoValido, planoEfetivo, exigeJogo } from '@/lib/taxas';
 import { createAdminClient } from '@/lib/supabase/server';
 import { analisarAnuncio } from '@/lib/analiseAnuncio-servidor';
 
@@ -57,7 +57,7 @@ export async function criarProduto(formData: FormData) {
     if (!arquivoPermitido(String(formData.get('arquivo_path') || ''), user.id)) return { ok: false, error: 'Arquivo de entrega inválido. Envie o arquivo pelo botão de upload.' };
     const tipoAnuncio = tipoValido(formData.get('tipo_anuncio'));
     const jogo = String(formData.get('jogo') || '').replace(/\s+/g, ' ').trim().slice(0, 60) || null;
-    if (tipoAnuncio !== 'digital' && !jogo) return { ok: false, error: 'Informe o jogo do anúncio.' };
+    if (exigeJogo(tipoAnuncio) && !jogo) return { ok: false, error: 'Informe o jogo do anúncio.' };
     const linhaProduto: any = {
       store_id: storeId, titulo, slug: slugify(titulo),
       descricao: String(formData.get('descricao') || ''),

@@ -8,7 +8,7 @@ import { NOMES_CATEGORIAS, AVISO_JOGOS, ehJogos } from '@/lib/categorias';
 import Icon from '@/components/Icon';
 import EditorMensagem from './EditorMensagem';
 import { CamposTipoJogo } from './CamposAnuncio';
-import { tipoValido, TIPOS_ANUNCIO } from '@/lib/taxas';
+import { exigeJogo, tipoValido, TIPOS_ANUNCIO } from '@/lib/taxas';
 
 const CATS = NOMES_CATEGORIAS;
 
@@ -45,7 +45,7 @@ export default function EditProductForm({ product, userId, foco, onSaved, onCanc
     const e: Record<string, string> = {};
     const preco = Number(form.preco);
     if (!String(form.titulo || '').trim()) e.titulo = 'Informe o título.';
-    if (form.tipo_anuncio !== 'digital' && !String(form.jogo || '').trim()) e.jogo = 'Informe o jogo.';
+    if (exigeJogo(form.tipo_anuncio) && !String(form.jogo || '').trim()) e.jogo = 'Informe o jogo.';
     if (!preco || preco <= 0) e.preco = 'Informe um preço maior que zero.';
     if (form.preco_promo !== '' && form.preco_promo != null) {
       const promo = Number(form.preco_promo);
