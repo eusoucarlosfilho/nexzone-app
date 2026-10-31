@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient, createAdminClient } from '@/lib/supabase/server';
+import { registrarAcao } from '@/lib/registroAdmin-servidor';
 
 // Liga/desliga "Vender como Comprei Barato" (stores.ocultar_vendedor). SÓ ADMIN.
 // A gravação usa service_role: é o único papel que o trigger do banco deixa mudar esse campo.
@@ -26,5 +27,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'falha ao atualizar (a migração 0005 já foi aplicada?)' }, { status: 500 });
   }
   if (!data) return NextResponse.json({ error: 'loja não encontrada' }, { status: 404 });
+  await registrarAcao({ adminId: user.id, acao: 'loja_visibilidade', alvoTipo: 'loja', alvoId: storeId, detalhes: { ocultar: body.ocultar } });
   return NextResponse.json({ ok: true, ocultar_vendedor: (data as any).ocultar_vendedor === true });
 }

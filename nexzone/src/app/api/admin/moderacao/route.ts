@@ -3,6 +3,8 @@ import { createAdminClient } from '@/lib/supabase/server';
 import { adminSeguro, negado } from '@/lib/ofertas/adminSeguro';
 import { validarModeracao } from '@/lib/moderacao';
 import { aplicarModeracao } from '@/lib/moderacao-servidor';
+import { registrarAcao } from '@/lib/registroAdmin-servidor';
+import { nomeDoAdmin } from '@/lib/registroAdmin';
 
 // Admin → Produtos → Gerenciar → Moderação.
 // GET  ?id=  detalhes do anúncio: links, entrega, pedidos, reclamações e histórico
@@ -34,9 +36,16 @@ export async function GET(req: Request) {
   const conta = (st: string[]) => pedidos.filter((o) => st.includes(o.status)).length;
   const somaPagos = pedidos.filter((o) => ['pago', 'entregue'].includes(o.status)).reduce((s, o) => s + Number(o.total || 0), 0);
 
+  // Nome de quem moderou (em vez de só "Equipe")
+  const idsAdm = Array.from(new Set(((hist.data ?? []) as any[]).map((h) => h.admin_id).filter(Boolean)));
+  const nomeAdm = new Map<string, string>();
+  if (idsAdm.length) {
+    const { data: pf } = await admin.from('profiles').select('id, nome').in('id', idsAdm);
+    for (const x of (pf ?? []) as any[]) nomeAdm.set(x.id, nomeDoAdmin(x.nome));
+  }
   // Histórico unificado (moderação + alterações do anúncio)
   const historico = [
-    ...((hist.data ?? []) as any[]).map((h) => ({ tipo: 'moderacao', acao: h.acao, itens: h.itens ?? [], texto: h.texto, quem: h.admin_id ? 'Equipe' : 'Sistema', em: h.created_at })),
+    ...((hist.data ?? []) as any[]).map((h) => ({ tipo: 'moderacao', acao: h.acao, itens: h.itens ?? [], texto: h.texto, quem: h.admin_id ? nomeAdm.get(h.admin_id) || 'Equipe' : 'Sistema', em: h.created_at })),
     ...((eds.data ?? []) as any[]).map((e) => ({
       tipo: 'edicao', acao: e.tipo === 'reativacao' ? 'reenviou' : 'editou',
       campos: Object.keys(e.alteracoes || {}), quem: e.autor && e.autor === (p as any).stores?.owner ? 'Vendedor' : e.autor ? 'Equipe' : 'Sistema', em: e.created_at, decisao: e.decisao,
@@ -72,5 +81,6 @@ export async function POST(req: Request) {
   if (!v.ok) return NextResponse.json({ error: v.erro }, { status: 400, headers: SEM_CACHE });
   const r = await aplicarModeracao(createAdminClient(), a.userId, id, v.pedido);
   if (!r.ok) return NextResponse.json({ error: r.erro }, { status: r.status ?? 500, headers: SEM_CACHE });
+  await registrarAcao({ adminId: a.userId, acao: 'produto_moderado', alvoTipo: 'produto', alvoId: id, detalhes: { acao: v.pedido.acao, itens: v.pedido.itens, texto: String(v.pedido.texto || '').slice(0, 300) } });
   return NextResponse.json({ ok: true, status: r.status, moderacao: r.moderacao }, { headers: SEM_CACHE });
 }

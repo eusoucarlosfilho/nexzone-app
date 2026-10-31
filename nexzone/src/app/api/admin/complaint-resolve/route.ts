@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { avisarReclamacaoResolvida } from '@/lib/whatsapp/avisos';
+import { registrarAcao } from '@/lib/registroAdmin-servidor';
 
 export async function POST(req: Request) {
   const supabase = createClient();
@@ -23,6 +24,7 @@ export async function POST(req: Request) {
     order_id: (cmp as any).order_id, remetente: null, papel: 'sistema',
     texto: 'O suporte marcou a reclamação como resolvida. O saldo desta venda volta ao fluxo normal de liberação.',
   });
+  await registrarAcao({ adminId: user.id, acao: 'reclamacao_resolvida', alvoTipo: 'pedido', alvoId: String((cmp as any).order_id), detalhes: { reclamacao: String(complaintId) } });
   await avisarReclamacaoResolvida((cmp as any).order_id, String(complaintId)); // WhatsApp (se ligado); nunca lança erro
 
   return NextResponse.json({ ok: true });

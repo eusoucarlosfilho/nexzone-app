@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { avisarProdutoModerado } from '@/lib/whatsapp/avisos';
 import { tornarFundador } from '@/lib/campanhas-servidor';
+import { registrarAcao } from '@/lib/registroAdmin-servidor';
 
 export async function POST(req: Request) {
   const supabase = createClient();
@@ -31,5 +32,6 @@ export async function POST(req: Request) {
     if ((pr as any)?.store_id) await tornarFundador(createAdminClient(), (pr as any).store_id, String(id));
   }
   await avisarProdutoModerado(String(id), status === 'ativo'); // WhatsApp (se ligado); nunca lança erro
+  await registrarAcao({ adminId: user.id, acao: status === 'ativo' ? 'produto_aprovado' : 'produto_reprovado', alvoTipo: 'produto', alvoId: String(id) }); // quem aprovou (SQL 34)
   return NextResponse.json({ ok: true, status });
 }

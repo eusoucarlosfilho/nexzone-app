@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { adminSeguro } from '@/lib/ofertas/adminSeguro';
+import { registrarAcao } from '@/lib/registroAdmin-servidor';
 
 export async function POST(req: Request) {
   const supabase = createClient();
@@ -42,6 +43,7 @@ export async function POST(req: Request) {
     console.error('[set-admin] update falhou:', error);
     return NextResponse.json({ error: 'falha ao atualizar o usuário' }, { status: 500 });
   }
+  await registrarAcao({ adminId: user.id, acao: action === 'promote' ? 'admin_adicionado' : 'admin_removido', alvoTipo: 'usuario', alvoId: alvo.id, alvoNome: alvoEmail });
 
   return NextResponse.json({ ok: true });
 }

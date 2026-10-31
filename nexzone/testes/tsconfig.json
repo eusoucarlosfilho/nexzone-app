@@ -22,6 +22,8 @@
     }
   },
   "files": [
+    "../src/lib/caixaEmail.ts",
+    "../src/lib/caixaEmail-assinatura.ts",
     "../src/lib/ofertas/tipos.ts",
     "../src/lib/ofertas/url.ts",
     "../src/lib/ofertas/validar.ts",
@@ -68,6 +70,7 @@
     "../src/lib/filaRecuperacao.ts",
     "../src/lib/financeiro.ts",
     "../src/lib/campanhas.ts",
-    "../src/lib/crescimento.ts"
+    "../src/lib/crescimento.ts",
+    "../src/lib/registroAdmin.ts"
   ]
 }

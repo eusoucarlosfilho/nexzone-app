@@ -5,6 +5,7 @@ import { marcarReembolsado, registrarDevolucao } from '@/lib/reembolso-servidor'
 import { gatewayDaRef, contaDoGateway } from '@/lib/payments/gateway';
 import { contatosDosCompradores } from '@/lib/clientesPedidos';
 import { semSql18 } from '@/lib/curso-servidor';
+import { registrarAcao } from '@/lib/registroAdmin-servidor';
 
 export const dynamic = 'force-dynamic';
 
@@ -85,6 +86,7 @@ export async function POST(req: Request) {
     if (b.acao === 'confirmar_manual') {
       // cartão (Stripe) ou quando o admin confirma à mão: registra QUEM confirmou
       const m = await registrarDevolucao(adminC, (rr as any).order_id, { origem: 'manual', adminId: a.user!.id });
+      if (m.ok) await registrarAcao({ adminId: a.user!.id, acao: 'reembolso_confirmado', alvoTipo: 'pedido', alvoId: String((rr as any).order_id) });
       return m.ok ? NextResponse.json({ ok: true, mensagem: 'Devolução registrada em seu nome.' }) : NextResponse.json({ error: m.erro }, { status: 400 });
     }
     const { data: o } = await adminC.from('orders').select('gateway_ref').eq('id', (rr as any).order_id).maybeSingle();
@@ -135,5 +137,6 @@ export async function POST(req: Request) {
       ? `Reembolso aprovado pela equipe. O valor volta pela mesma forma de pagamento (Pix: na hora; cartão: até 2 faturas).${resposta ? `\n\n${resposta}` : ''}`
       : `Reembolso não aprovado pela equipe.\n\n${resposta}`,
   });
+  await registrarAcao({ adminId: a.user!.id, acao: b.acao === 'aprovar' ? 'reembolso_aprovado' : 'reembolso_recusado', alvoTipo: 'pedido', alvoId: String((r as any).order_id), detalhes: resposta ? { resposta: resposta.slice(0, 300) } : {} });
   return NextResponse.json({ ok: true });
 }

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { avisarSaque } from '@/lib/whatsapp/avisos';
+import { registrarAcao } from '@/lib/registroAdmin-servidor';
 
 export async function POST(req: Request) {
   const supabase = createClient();
@@ -15,6 +16,7 @@ export async function POST(req: Request) {
   const { error } = await supabase.from('payouts').update(patch).eq('id', id);
   if (error) return NextResponse.json({ error: 'falha' }, { status: 500 });
   // WhatsApp ao vendedor (se ligado). Não muda nenhuma regra do saque; nunca lança erro.
+  await registrarAcao({ adminId: user.id, acao: patch.status === 'pago' ? 'saque_pago' : 'saque_recusado', alvoTipo: 'saque', alvoId: String(id) });
   await avisarSaque(String(id), null, patch.status === 'pago' ? 'saque_pago' : 'saque_recusado');
   return NextResponse.json({ ok: true, status: patch.status });
 }

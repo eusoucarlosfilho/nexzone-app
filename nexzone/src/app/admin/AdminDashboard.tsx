@@ -38,6 +38,8 @@ import { registrarContatoRecuperacao } from '@/lib/recuperacaoCliente';
 import { chaveRecuperacao } from '@/lib/filaRecuperacao';
 import CarrinhosAbandonados from '@/components/CarrinhosAbandonados';
 import AtivarCelular from '@/components/AtivarCelular';
+import CaixaEmail from './CaixaEmail';
+import RegistroAdmin from './RegistroAdmin';
 
 const money = (v: number) => 'R$ ' + Number(v).toFixed(2).replace('.', ',');
 const fmt = (v: number) => Number(v).toLocaleString('pt-BR');
@@ -284,6 +286,15 @@ export default function AdminDashboard({ painel, adminEmail, users, metrics, dai
   }
 
   const [reembolsosAbertos, setReembolsosAbertos] = useState<number>(Number(metrics.reembolsosAbertos) || 0);
+  // e-mails não lidos da caixa @compreibarato.com.br (badge do menu; confere a cada minuto)
+  const [emailsNovos, setEmailsNovos] = useState(0);
+  useEffect(() => {
+    let vivo = true;
+    const ver = () => fetch('/api/admin/email?contagem=1', { credentials: 'include', cache: 'no-store' }).then((r) => r.json()).then((j) => { if (vivo) setEmailsNovos(Number(j?.naoLidos) || 0); }).catch(() => {});
+    ver();
+    const t = setInterval(() => { if (document.visibilityState === 'visible') ver(); }, 60000);
+    return () => { vivo = false; clearInterval(t); };
+  }, []);
   const [verificacoesPendentes, setVerificacoesPendentes] = useState<number>(Number(metrics.verificacoesPendentes) || 0);
   const [produtoresNovos, setProdutoresNovos] = useState<number>(Number(metrics.produtoresNovos) || 0);
   // Menu em grupos: o dia a dia em cima, crescimento no meio, ajustes embaixo
@@ -292,6 +303,7 @@ export default function AdminDashboard({ painel, adminEmail, users, metrics, dai
       ['cockpit', 'cockpit', 'Dashboard', 0],
       ['aprovacao', 'check', 'Aprovação', queue.length],
       ['pedidos', 'receipt', 'Pedidos', 0],
+      ['email', 'mail', 'E-mail', emailsNovos],
       ['reclamacoes', 'alert', 'Reclamações', recPendentes.length],
       ['reembolsos', 'undo', 'Reembolsos', reembolsosAbertos],
       ['suporte', 'help', 'Suporte', metrics.suporteAbertos || 0],
@@ -313,6 +325,7 @@ export default function AdminDashboard({ painel, adminEmail, users, metrics, dai
       ['provasocial', 'award', 'Prova social', 0],
     ]],
     ['Ajustes', [
+      ['registro', 'clock', 'Registro (quem fez)', 0],
       ['torpedos', 'phone', 'WhatsApp e torpedos', 0],
       ['config', 'settings', 'Configurações', 0],
     ]],
@@ -402,7 +415,16 @@ export default function AdminDashboard({ painel, adminEmail, users, metrics, dai
           .adm-table td:not(:first-child),.adm-table th{white-space:nowrap;}
           .adm-table td:first-child{min-width:190px;}
         }
+        .adm-fila{align-items:flex-start;}
+        .adm-fila-b{display:flex;gap:8px;flex-shrink:0;align-items:center;}
         @media(max-width:700px){
+          /* listas do admin no celular: texto ocupa a largura toda e os botões descem para uma linha própria */
+          .adm-row{flex-wrap:wrap;}
+          .adm-row .info{flex:1 1 calc(100% - 60px);min-width:0;}
+          .adm-row .info b{overflow-wrap:anywhere;}
+          .adm-row>.adm-btn{flex:1 1 auto;}
+          .adm-fila-b{width:100%;flex-wrap:wrap;}
+          .adm-fila-b>*{flex:1 1 30%;justify-content:center;text-align:center;}
           .adm-card:has(.adm-table)::before{content:'Arraste para o lado para ver todas as colunas →';display:block;position:sticky;left:0;font-size:11.5px;color:var(--sub);margin-bottom:8px;}
         }
       ` }} />
@@ -426,7 +448,7 @@ export default function AdminDashboard({ painel, adminEmail, users, metrics, dai
             <div className="adm-gt">{titulo}</div>
             {itens.map(([id, ic, label, badge]: any) => (
               <button key={id} className={`adm-nav ${tab === id ? 'on' : ''}`} onClick={() => irPara(id, badge)}>
-                <Icon name={ic} /> {label} {badge > (seenBadges[id] || 0) && <span className="bd">{badge}</span>}
+                <Icon name={ic} /> {label} {(id === 'email' ? badge > 0 : badge > (seenBadges[id] || 0)) && <span className="bd">{badge}</span>}
               </button>
             ))}
             {titulo === 'Crescimento' && (
@@ -498,9 +520,9 @@ export default function AdminDashboard({ painel, adminEmail, users, metrics, dai
             <p className="adm-sub">Curadoria = a defesa da plataforma. Aprove só o que mantém a confiança.</p>
             <div className="adm-card">
               {queue.length ? queue.map((p: any) => (
-                <div className="adm-row" key={p.id}>
+                <div className="adm-row adm-fila" key={p.id}>
                   <ProductThumb className="em" capa_url={p.capa_url} categoria={p.categoria} titulo={p.titulo} tamanho={42} raio={11} icone={22} />
-                  <div className="info"><b>{p.titulo}{ehJogos(p.categoria) && <span title="Categoria Jogos & Games: confira se não é conta compartilhada, 'método', moeda/item de terceiros, key aleatória ou assinatura revendida." style={{ marginLeft: 8, verticalAlign: 1, fontSize: 10.5, fontWeight: 900, fontFamily: 'Outfit', color: '#fff', background: '#7C3AED', borderRadius: 50, padding: '2px 9px', display: 'inline-block' }}>Revisar com atenção</span>}</b><span>{p.stores?.nome ?? '—'} · {p.categoria}{p.tipo_anuncio ? ` · ${TIPOS_ANUNCIO.find((t) => t.id === p.tipo_anuncio)?.nome ?? p.tipo_anuncio}` : ''}{p.jogo ? ` · ${p.jogo}` : ''} · {money(p.preco_promo ?? p.preco)}</span>
+                  <div className="info"><b>{p.titulo}{ehJogos(p.categoria) && <span title="Categoria Jogos & Games: confira se não é conta compartilhada, 'método', moeda/item de terceiros, key aleatória ou assinatura revendida." style={{ marginLeft: 8, verticalAlign: 1, fontSize: 10.5, fontWeight: 900, fontFamily: 'Outfit', color: '#fff', background: '#7C3AED', borderRadius: 50, padding: '2px 9px', display: 'inline-block', whiteSpace: 'nowrap' }}>Revisar com atenção</span>}</b><span>{p.stores?.nome ?? '—'} · {p.categoria}{p.tipo_anuncio ? ` · ${TIPOS_ANUNCIO.find((t) => t.id === p.tipo_anuncio)?.nome ?? p.tipo_anuncio}` : ''}{p.jogo ? ` · ${p.jogo}` : ''} · {money(p.preco_promo ?? p.preco)}</span>
                     {Array.isArray(p.imagens) && p.imagens.length > 0 ? (
                       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
                         {p.imagens.map((u: string, i: number) => (
@@ -523,9 +545,11 @@ export default function AdminDashboard({ painel, adminEmail, users, metrics, dai
                       <FormMotivo acao="correcao" busy={busy === p.id} onCancelar={() => setCorrigindo(null)} onEnviar={(itens, texto) => pedirCorrecao(p.id, itens, texto)} />
                     )}
                   </div>
+                  <div className="adm-fila-b">
                   <a className="adm-btn rp" href={`/produto/${p.id}?previa=1`} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }} title="Abre a página do anúncio como o comprador vai ver (só admin)">Ver anúncio ↗</a>
                   <button className="adm-btn ap" disabled={busy === p.id} onClick={() => moderar(p.id, 'aprovar')}>Aprovar</button>
                   <button className="adm-btn rp" disabled={busy === p.id} onClick={() => setCorrigindo(corrigindo === p.id ? null : p.id)}>Pedir correção</button>
+                  </div>
                 </div>
               )) : <div className="adm-empty" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}><Icon name="checkCircle" size={18} /> Fila zerada. Nenhum produto aguardando.</div>}
             </div>
@@ -922,6 +946,8 @@ export default function AdminDashboard({ painel, adminEmail, users, metrics, dai
 
         {tab === 'torpedos' && <WhatsAppLog />}
 
+        {tab === 'email' && <CaixaEmail onNaoLidos={setEmailsNovos} />}
+
         {tab === 'reembolsos' && (
           <>
             <h1 className="adm-h">Reembolsos</h1>
@@ -949,8 +975,16 @@ export default function AdminDashboard({ painel, adminEmail, users, metrics, dai
         {tab === 'produtores' && (
           <>
             <h1 className="adm-h">Novos lojistas</h1>
-            <p className="adm-sub">Quem criou a loja pela página /produtores. A fase muda sozinha (loja criada → anúncio → venda): chame no WhatsApp quem parou sem anúncio, com a mensagem pronta para cada fase.</p>
+            <p className="adm-sub">Quem criou a loja pela página /produtores. Mande as mensagens prontas (1 → 2 → 3) pelo WhatsApp do seu celular: fica registrado quem chamou, e quem manda a 1ª assume o lojista — assim você e o César não chamam a mesma pessoa.</p>
             <ProdutoresInteressados onContagem={setProdutoresNovos} />
+          </>
+        )}
+
+        {tab === 'registro' && (
+          <>
+            <h1 className="adm-h">Registro (quem fez)</h1>
+            <p className="adm-sub">Tudo que cada admin fez: aprovações, mensagens, mudança de status dos lojistas, saques, reembolsos e configurações. Ninguém consegue editar nem apagar um registro.</p>
+            <RegistroAdmin />
           </>
         )}
 

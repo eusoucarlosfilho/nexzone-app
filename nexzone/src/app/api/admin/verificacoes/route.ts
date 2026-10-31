@@ -4,6 +4,7 @@ import { adminSeguro } from '@/lib/ofertas/adminSeguro';
 import { decifrar } from '@/lib/whatsapp/config';
 import { formatarDocumento, mascararDocumento } from '@/lib/documento';
 import { semSql19 } from '@/lib/posVenda-servidor';
+import { registrarAcao } from '@/lib/registroAdmin-servidor';
 
 export const dynamic = 'force-dynamic';
 
@@ -67,5 +68,6 @@ export async function POST(req: Request) {
     decidido_em: new Date().toISOString(), decidido_por: a.user!.id,
   }).eq('user_id', userId).select('user_id');
   if (error || !data?.length) return NextResponse.json({ error: 'Não foi possível salvar.' }, { status: 500 });
+  await registrarAcao({ adminId: a.user!.id, acao: b.acao === 'aprovar' ? 'verificacao_aprovada' : 'verificacao_reprovada', alvoTipo: 'usuario', alvoId: userId, detalhes: motivo ? { motivo: motivo.slice(0, 300) } : {} });
   return NextResponse.json({ ok: true });
 }

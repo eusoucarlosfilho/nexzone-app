@@ -2,9 +2,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Icon from '@/components/Icon';
 import { toast } from '@/lib/toast';
-import { STATUS, TIPOS, formatarWhatsapp, linkWhatsapp, mensagemParaProdutor } from '@/lib/recrutamento';
+import { STATUS, TIPOS, formatarWhatsapp, linkWhatsapp } from '@/lib/recrutamento';
+import { SEQUENCIA_PADRAO, corDoAdmin, descreverAcao, haQuanto, montarMensagem, situacaoAtendimento, type MensagemSequencia } from '@/lib/registroAdmin';
 
 // Admin → Novos lojistas (lojas criadas pela página /produtores): fase de ativação, contato + configuração do Pixel/WhatsApp.
+// Atendimento (SQL 34): sequência de até 3 mensagens prontas no WhatsApp de quem está logado; cada clique fica
+// registrado (quem chamou, qual mensagem, quando) e quem manda a 1ª assume o lojista, para os dois admins não se atropelarem.
 const dt = (s: string) => new Date(s).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' });
 const ROT_VENDE: Record<string, string> = { sim: 'Já vende', comecando: 'Começando', nao: 'Ainda não vende' };
 const ROT_TIPO: Record<string, string> = Object.fromEntries(TIPOS.map((t) => [t.id, t.rotulo]));
@@ -35,7 +38,12 @@ export default function ProdutoresInteressados({ onContagem }: { onContagem?: (n
   const [filtro, setFiltro] = useState('todos');
   const [busca, setBusca] = useState('');
   const [fase, setFase] = useState('todas');
-  const [d, setD] = useState<{ sql20: boolean; itens: any[]; contagem: Record<string, number>; config: Config | null }>({ sql20: true, itens: [], contagem: {}, config: null });
+  const [d, setD] = useState<{ sql20: boolean; sql34: boolean; itens: any[]; contagem: Record<string, number>; config: Config | null }>({ sql20: true, sql34: true, itens: [], contagem: {}, config: null });
+  const [eu, setEu] = useState<{ id: string; nome: string }>({ id: '', nome: '' });
+  const [seq, setSeq] = useState<MensagemSequencia[]>(SEQUENCIA_PADRAO);
+  const [abrirSeq, setAbrirSeq] = useState(false);
+  const [seqEdit, setSeqEdit] = useState<MensagemSequencia[]>(SEQUENCIA_PADRAO);
+  const [atend, setAtend] = useState<'todos' | 'meus' | 'livres' | 'outros'>('todos');
   const [carregando, setCarregando] = useState(true);
   const [abrirCfg, setAbrirCfg] = useState(false);
   const [cfg, setCfg] = useState({ whatsapp: '', pixel: '', teste: '', token: '', avisar: '', avisarEmail: true });
@@ -47,7 +55,9 @@ export default function ProdutoresInteressados({ onContagem }: { onContagem?: (n
     try {
       const r = await fetch(`/api/admin/produtores?status=${filtro}`, { credentials: 'include', cache: 'no-store' });
       const j = await r.json();
-      setD({ sql20: j.sql20 !== false, itens: j.itens ?? [], contagem: j.contagem ?? {}, config: j.config ?? null });
+      setD({ sql20: j.sql20 !== false, sql34: j.sql34 !== false, itens: j.itens ?? [], contagem: j.contagem ?? {}, config: j.config ?? null });
+      if (j.eu) setEu(j.eu);
+      if (Array.isArray(j.sequencia) && j.sequencia.length) { setSeq(j.sequencia); setSeqEdit(j.sequencia); }
       if (j.config) setCfg((c) => ({ ...c, whatsapp: j.config.whatsapp || '', pixel: j.config.pixel || '', teste: j.config.teste || '', avisar: (j.config.avisar || []).join(', '), avisarEmail: j.config.avisarEmail !== false }));
       onContagem?.(j.contagem?.novo ?? 0);
     } catch { toast('Falha ao carregar.', 'error'); }
@@ -62,9 +72,44 @@ export default function ProdutoresInteressados({ onContagem }: { onContagem?: (n
     return j;
   }
 
+  /** Atualiza um lojista na tela e acrescenta a ação no histórico dele (sem recarregar a lista toda). */
+  function atualizarItem(id: string, campos: any, hist?: { acao: string; detalhes?: any }[]) {
+    const agora = new Date().toISOString();
+    setD((x) => ({ ...x, itens: x.itens.map((i) => (i.id === id ? {
+      ...i, ...campos, ativacao: i.ativacao,
+      historico: [...(hist || []).map((h) => ({ admin_id: eu.id, admin_nome: eu.nome, acao: h.acao, alvo_nome: i.nome, detalhes: h.detalhes || {}, criado_em: agora })).reverse(), ...(i.historico || [])].slice(0, 12),
+    } : i)) }));
+  }
   async function mudarStatus(id: string, status: string) {
+    const antes = d.itens.find((i) => i.id === id)?.status;
     const j = await post({ acao: 'status', id, status });
-    if (j) { setD((x) => ({ ...x, itens: x.itens.map((i) => (i.id === id ? { ...i, status } : i)) })); toast('Status atualizado.', 'success'); carregar(); }
+    if (j) { atualizarItem(id, j.item ? { status: j.item.status, status_por: j.item.status_por, status_em: j.item.status_em } : { status }, [{ acao: 'produtor_status', detalhes: { de: antes, para: status } }]); toast('Status atualizado.', 'success'); }
+  }
+  /** Clique numa mensagem: o WhatsApp abre pelo link; aqui só registra quem mandou e qual. */
+  function aoEnviar(e: React.MouseEvent, i: any, etapa: number) {
+    const sit = situacaoAtendimento(i, eu.id);
+    if (sit.tipo === 'outro' && !confirm(`${sit.nome} já está atendendo ${String(i.nome).split(' ')[0]}. Enviar a mensagem mesmo assim?`)) { e.preventDefault(); return; }
+    post({ acao: 'mensagem', id: i.id, etapa }).then((j) => {
+      if (!j?.item) return;
+      const it = j.item;
+      const hist: { acao: string; detalhes?: any }[] = [{ acao: 'whatsapp_enviado', detalhes: { etapa, titulo: etapa > 0 ? seq[etapa - 1]?.titulo : null } }];
+      if (i.status === 'novo') hist.push({ acao: 'produtor_status', detalhes: { de: 'novo', para: 'conversando', automatico: true } });
+      atualizarItem(i.id, { status: it.status, status_por: it.status_por, status_em: it.status_em, contato_msgs: it.contato_msgs, contato_ultimo_em: it.contato_ultimo_em, contato_ultimo_por: it.contato_ultimo_por, responsavel_id: it.responsavel_id, responsavel_nome: it.responsavel_nome, responsavel_em: it.responsavel_em }, hist);
+      if (j.sql34 === false) toast('Mensagem aberta. Rode o SQL 34 para registrar quem enviou.', 'info' as any);
+    });
+  }
+  async function atendimento(i: any, acao: 'assumir' | 'liberar') {
+    const sit = situacaoAtendimento(i, eu.id);
+    if (acao === 'assumir' && sit.tipo === 'outro' && !confirm(`${sit.nome} está atendendo ${String(i.nome).split(' ')[0]}. Passar o atendimento para você?`)) return;
+    const j = await post({ acao, id: i.id });
+    if (j?.item) { atualizarItem(i.id, { responsavel_id: j.item.responsavel_id, responsavel_nome: j.item.responsavel_nome, responsavel_em: j.item.responsavel_em }, [{ acao: acao === 'assumir' ? 'produtor_assumiu' : 'produtor_liberou' }]); toast(acao === 'assumir' ? 'Atendimento é seu agora.' : 'Atendimento liberado.', 'success'); }
+  }
+  async function salvarSequencia(lista: MensagemSequencia[]) {
+    setSalvando(true);
+    try {
+      const j = await post({ acao: 'sequencia', mensagens: lista });
+      if (j?.sequencia) { setSeq(j.sequencia); setSeqEdit(j.sequencia); toast('Mensagens salvas para os dois admins.', 'success'); }
+    } finally { setSalvando(false); }
   }
   async function salvarNotas(id: string) {
     if (notas[id] === undefined) return;
@@ -82,9 +127,14 @@ export default function ProdutoresInteressados({ onContagem }: { onContagem?: (n
   const lista = useMemo(() => {
     const q = busca.trim().toLowerCase().replace(/^@/, '');
     const porFase = fase === 'todas' ? d.itens : d.itens.filter((i) => (i.ativacao?.fase || 'sem_conta') === fase);
-    if (!q) return porFase;
-    return porFase.filter((i) => [i.nome, i.whatsapp, i.email, i.instagram, i.nicho].some((v) => String(v || '').toLowerCase().includes(q)));
-  }, [d.itens, busca, fase]);
+    const porAtend = atend === 'todos' ? porFase : porFase.filter((i) => {
+      const t = situacaoAtendimento(i, eu.id).tipo;
+      return atend === 'meus' ? t === 'meu' : atend === 'livres' ? t === 'livre' : t === 'outro';
+    });
+    if (!q) return porAtend;
+    return porAtend.filter((i) => [i.nome, i.whatsapp, i.email, i.instagram, i.nicho].some((v) => String(v || '').toLowerCase().includes(q)));
+  }, [d.itens, busca, fase, atend, eu.id]);
+  const nAtend = useMemo(() => d.itens.reduce((m: Record<string, number>, i) => { const t = situacaoAtendimento(i, eu.id).tipo; m[t] = (m[t] || 0) + 1; return m; }, {}), [d.itens, eu.id]);
 
   function baixarCsv() {
     const esc = (s: unknown) => { const t = String(s ?? ''); return /[";\n\r]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t; };
@@ -115,7 +165,31 @@ export default function ProdutoresInteressados({ onContagem }: { onContagem?: (n
           <button className="adm-btn rp" onClick={() => copiar(`${URL_PAGINA}?utm_source=meta&utm_medium=pago&utm_campaign={{campaign.name}}&utm_content={{ad.name}}`)}><Icon name="copy" size={14} /> Copiar link com UTM do Meta</button>
           <a className="adm-btn rp" href="/produtores" target="_blank" rel="noreferrer"><Icon name="eye" size={14} /> Abrir página</a>
           <button className="adm-btn rp" onClick={() => setAbrirCfg((v) => !v)}><Icon name="settings" size={14} /> Pixel e WhatsApp</button>
+          <button className="adm-btn rp" onClick={() => setAbrirSeq((v) => !v)}><Icon name="chat" size={14} /> Mensagens prontas</button>
         </div>
+        {!d.sql34 && <p className="pi-aviso"><Icon name="alert" size={14} /> Rode o SQL 34 no Supabase para registrar quem enviou cada mensagem e quem está atendendo cada lojista.</p>}
+        {abrirSeq && (
+          <div className="pi-seqcfg">
+            <p className="pi-seqcfg-t">Sequência do 1º contato (vale para você e para o César). Cada um envia pelo WhatsApp do próprio celular e fica registrado quem mandou. Termine sempre com uma pergunta.<br />
+              Variáveis: <code>{'{nome}'}</code> nome do lojista · <code>{'{atendente}'}</code> seu nome (quem está logado) · <code>{'{jogo}'}</code> jogo do cadastro</p>
+            {seqEdit.map((m, n) => (
+              <div key={n} className="pi-seqcfg-m">
+                <div className="pi-seqcfg-h">
+                  <b>{n + 1}</b>
+                  <input value={m.titulo} maxLength={30} onChange={(e) => setSeqEdit((l) => l.map((x, k) => (k === n ? { ...x, titulo: e.target.value } : x)))} placeholder="Título curto" />
+                  {seqEdit.length > 1 && <button className="adm-btn rp" onClick={() => setSeqEdit((l) => l.filter((_, k) => k !== n))} title="Remover"><Icon name="trash" size={13} /></button>}
+                </div>
+                <textarea rows={4} maxLength={1000} value={m.texto} onChange={(e) => setSeqEdit((l) => l.map((x, k) => (k === n ? { ...x, texto: e.target.value } : x)))} />
+                <em>Prévia: {montarMensagem(m.texto, { nome: 'Lucas Andrade', atendente: eu.nome, jogo: 'Free Fire' })}</em>
+              </div>
+            ))}
+            <div className="pi-cfg-b">
+              {seqEdit.length < 3 && <button className="adm-btn rp" onClick={() => setSeqEdit((l) => [...l, { titulo: `Mensagem ${l.length + 1}`, texto: '' }])}><Icon name="plus" size={13} /> Mensagem</button>}
+              <button className="adm-btn ap" disabled={salvando} onClick={() => salvarSequencia(seqEdit)}>{salvando ? 'Salvando…' : 'Salvar mensagens'}</button>
+              <button className="adm-btn rp" disabled={salvando} onClick={() => { if (confirm('Voltar para as 3 mensagens padrão?')) salvarSequencia(SEQUENCIA_PADRAO); }}>Restaurar padrão</button>
+            </div>
+          </div>
+        )}
         {pendencias.length > 0 && !abrirCfg && <p className="pi-aviso"><Icon name="alert" size={14} /> Falta configurar: {pendencias.join(', ')}.</p>}
         {abrirCfg && (
           <div className="pi-cfg">
@@ -149,6 +223,11 @@ export default function ProdutoresInteressados({ onContagem }: { onContagem?: (n
         {[['todos', 'Contato: todos'], ...STATUS.map((s) => [s.id, s.rotulo])].map(([id, r]) => (
           <button key={id} className={`adm-fb ${filtro === id ? 'on' : ''}`} onClick={() => setFiltro(id)}>{r}{id !== 'todos' && c[id] ? ` (${c[id]})` : ''}</button>
         ))}
+      </div>
+      <div className="adm-filters pi-fil">
+        {([['todos', 'Atendimento: todos'], ['livres', 'Sem responsável'], ['meus', 'Meus'], ['outros', 'Com outro admin']] as const).map(([id, r]) => (
+          <button key={id} className={`adm-fb ${atend === id ? 'on' : ''}`} onClick={() => setAtend(id)}>{r}{id !== 'todos' && nAtend[id === 'livres' ? 'livre' : id === 'meus' ? 'meu' : 'outro'] ? ` (${nAtend[id === 'livres' ? 'livre' : id === 'meus' ? 'meu' : 'outro']})` : ''}</button>
+        ))}
         <input className="pi-busca" value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar nome, @, nicho…" />
         <button className="adm-btn rp" onClick={baixarCsv} disabled={!lista.length}><Icon name="download" size={14} /> CSV</button>
       </div>
@@ -163,12 +242,45 @@ export default function ProdutoresInteressados({ onContagem }: { onContagem?: (n
               <span>{formatarWhatsapp(i.whatsapp)}{i.instagram && <> · <a href={`https://instagram.com/${i.instagram}`} target="_blank" rel="noreferrer">@{i.instagram}</a></>}{i.email && <> · {i.email}</>}</span>
             </div>
             <div className="pi-acoes">
-              <a className="adm-btn ap" href={linkWhatsapp(i.whatsapp, mensagemFase(i.nome, i.ativacao?.fase) || mensagemParaProdutor(i.nome, i.nicho))} target="_blank" rel="noreferrer" onClick={() => { if (i.status === 'novo') mudarStatus(i.id, 'conversando'); }}><Icon name="chat" size={14} /> WhatsApp</a>
-              <select value={i.status} onChange={(e) => mudarStatus(i.id, e.target.value)} style={{ color: COR[i.status] }}>
-                {STATUS.map((s) => <option key={s.id} value={s.id}>{s.rotulo}</option>)}
-              </select>
+              <div className="pi-st">
+                <select value={i.status} onChange={(e) => mudarStatus(i.id, e.target.value)} style={{ color: COR[i.status] }}>
+                  {STATUS.map((s) => <option key={s.id} value={s.id}>{s.rotulo}</option>)}
+                </select>
+                {i.status_por && <small>por <b>{i.status_por}</b> · {haQuanto(i.status_em)}</small>}
+              </div>
             </div>
           </div>
+          {(() => {
+            const sit = situacaoAtendimento(i, eu.id);
+            const enviadas = Number(i.contato_msgs) || 0;
+            const proxima = enviadas < seq.length ? enviadas + 1 : null;
+            const msgFase = mensagemFase(i.nome, i.ativacao?.fase);
+            return (
+              <div className="pi-atd">
+                <div className="pi-atd-quem">
+                  {sit.tipo === 'livre' ? <span className="pi-resp livre">Sem responsável</span>
+                    : <span className="pi-resp" style={{ color: corDoAdmin(i.responsavel_id), borderColor: corDoAdmin(i.responsavel_id) }}>{sit.tipo === 'meu' ? 'Você está atendendo' : `Com ${sit.nome}`}{i.responsavel_em ? ` · ${haQuanto(i.responsavel_em)}` : ''}</span>}
+                  {d.sql34 && (sit.tipo === 'meu'
+                    ? <button className="pi-lnk" onClick={() => atendimento(i, 'liberar')}>liberar</button>
+                    : <button className="pi-lnk" onClick={() => atendimento(i, 'assumir')}>{sit.tipo === 'outro' ? 'passar para mim' : 'assumir'}</button>)}
+                  {i.contato_ultimo_por && <span className="pi-ult">Último contato: {i.contato_ultimo_por} · {haQuanto(i.contato_ultimo_em)}</span>}
+                </div>
+                <div className="pi-seq">
+                  {seq.map((m, n) => {
+                    const etapa = n + 1;
+                    const feita = enviadas >= etapa;
+                    return (
+                      <a key={etapa} className={`pi-sq ${feita ? 'ok' : etapa === proxima ? 'prox' : ''}`} href={linkWhatsapp(i.whatsapp, montarMensagem(m.texto, { nome: i.nome, atendente: eu.nome, jogo: i.nicho }))}
+                        target="_blank" rel="noreferrer" onClick={(e) => aoEnviar(e, i, etapa)} title={montarMensagem(m.texto, { nome: i.nome, atendente: eu.nome, jogo: i.nicho })}>
+                        <span className="n">{feita ? '✓' : etapa}</span>{m.titulo}
+                      </a>
+                    );
+                  })}
+                  {msgFase && <a className="pi-sq fase" href={linkWhatsapp(i.whatsapp, msgFase)} target="_blank" rel="noreferrer" onClick={(e) => aoEnviar(e, i, 0)} title={msgFase}><Icon name="chat" size={13} /> Msg da fase</a>}
+                </div>
+              </div>
+            );
+          })()}
           <div className="pi-tags">
             {i.ativacao && (() => { const f = FASE[i.ativacao.fase] || FASE.sem_conta; return <span className="pi-tag" style={{ color: f.cor, border: `1px solid ${f.cor}`, fontWeight: 900 }}>{f.rot}{i.ativacao.vendas ? ` · ${i.ativacao.vendas} vendas` : ''}</span>; })()}
             {i.ativacao?.slug && <a className="pi-tag" href={`/loja/${i.ativacao.slug}`} target="_blank" rel="noreferrer">Ver loja ↗</a>}
@@ -183,6 +295,14 @@ export default function ProdutoresInteressados({ onContagem }: { onContagem?: (n
             {(i.origem?.utm_campaign || i.origem?.utm_source) && <span>Origem: {[i.origem.utm_source, i.origem.utm_campaign, i.origem.utm_content].filter(Boolean).join(' · ')}</span>}
             {i.link_produto && <a href={i.link_produto} target="_blank" rel="noreferrer nofollow">Ver produto ↗</a>}
           </div>
+          {(i.historico || []).length > 0 && (
+            <details className="pi-hist">
+              <summary>Histórico ({i.historico.length}{i.historico.length >= 12 ? '+' : ''})</summary>
+              {i.historico.map((h: any, k: number) => (
+                <div key={k}><span>{new Date(h.criado_em).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span> <b style={{ color: corDoAdmin(h.admin_id) }}>{h.admin_nome || 'Admin'}</b> {descreverAcao({ ...h, alvo_nome: null })}</div>
+              ))}
+            </details>
+          )}
           <textarea className="pi-notas" rows={1} placeholder="Anotações (ex.: retornar segunda, vende planilhas na Kiwify)…" defaultValue={i.notas || ''}
             onChange={(e) => setNotas((n) => ({ ...n, [i.id]: e.target.value }))} onBlur={() => salvarNotas(i.id)} maxLength={3000} />
         </div>
@@ -228,5 +348,33 @@ const CSS = `
 .pi-tag.ok{background:#00B87A22;color:#20C98A}.pi-tag.meio{background:#FF7A1422;color:#FF9A3C}.pi-tag.forte{color:var(--tx)}
 .pi-meta{display:flex;gap:14px;flex-wrap:wrap;margin-top:10px;color:var(--sub);font-size:12.5px;font-weight:700}
 .pi-meta a{color:var(--or2)}
+.pi-st{display:flex;flex-direction:column;align-items:flex-end;gap:3px}
+.pi-st small{color:var(--sub);font-size:11.5px;font-weight:700}
+.pi-atd{margin-top:12px;padding:10px 12px;border-radius:12px;background:var(--panel2);display:flex;flex-direction:column;gap:9px}
+.pi-atd-quem{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:12.5px}
+.pi-resp{font-weight:900;font-size:12px;padding:3px 10px;border-radius:50px;border:1.5px solid currentColor}
+.pi-resp.livre{color:#FF9A3C}
+.pi-lnk{background:none;border:0;color:var(--or2);font-weight:800;font-size:12.5px;cursor:pointer;padding:0;text-decoration:underline}
+.pi-ult{color:var(--sub);font-weight:700;margin-left:auto}
+.pi-seq{display:flex;gap:6px;flex-wrap:wrap}
+.pi-sq{display:inline-flex;align-items:center;gap:7px;padding:7px 12px 7px 7px;border-radius:50px;border:1.5px solid var(--bd2);background:var(--panel);color:var(--tx);font-size:12.5px;font-weight:800;text-decoration:none;white-space:nowrap}
+.pi-sq .n{width:20px;height:20px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;background:var(--bd2);font-size:11px;font-weight:900}
+.pi-sq.prox{border-color:#20C98A;background:#20C98A1F}.pi-sq.prox .n{background:#20C98A;color:#fff}
+.pi-sq.ok{color:var(--sub)}.pi-sq.ok .n{background:#20C98A33;color:#20C98A}
+.pi-sq.fase{padding:7px 12px}
+.pi-hist{margin-top:10px;font-size:12.5px}
+.pi-hist summary{cursor:pointer;color:var(--sub);font-weight:800}
+.pi-hist div{padding:5px 0 5px 10px;border-left:2px solid var(--bd2);margin-top:4px;color:var(--tx)}
+.pi-hist div span{color:var(--sub);font-weight:700;font-size:11.5px}
+.pi-seqcfg{margin-top:16px;padding-top:16px;border-top:1px solid var(--bd2);display:flex;flex-direction:column;gap:14px}
+.pi-seqcfg-t{margin:0;color:var(--sub);font-size:13px;font-weight:600;line-height:1.5}
+.pi-seqcfg-t code{background:var(--panel2);padding:1px 6px;border-radius:6px;color:var(--tx);font-weight:800}
+.pi-seqcfg-m{display:flex;flex-direction:column;gap:6px}
+.pi-seqcfg-h{display:flex;gap:8px;align-items:center}
+.pi-seqcfg-h b{width:26px;height:26px;border-radius:50%;background:#20C98A;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0}
+.pi-seqcfg-h input{flex:1;height:36px;border-radius:10px;border:1.5px solid var(--bd2);background:var(--panel2);color:var(--tx);padding:0 10px;font-size:13.5px;font-weight:800;min-width:0}
+.pi-seqcfg-m textarea{border-radius:11px;border:1.5px solid var(--bd2);background:var(--panel2);color:var(--tx);padding:9px 11px;font-size:13.5px;font-family:inherit;resize:vertical;line-height:1.45}
+.pi-seqcfg-m em{font-style:normal;color:var(--sub);font-size:12px;font-weight:600;white-space:pre-wrap}
+@media(max-width:700px){.pi-acoes{width:100%}.pi-st{align-items:stretch;width:100%}.pi-ult{margin-left:0;width:100%}.pi-sq{flex:1 1 auto;justify-content:center}}
 .pi-notas{width:100%;margin-top:10px;border-radius:11px;border:1.5px solid var(--bd2);background:var(--panel2);color:var(--tx);padding:8px 10px;font-size:13.5px;resize:vertical;min-height:38px;font-family:inherit}
 `;

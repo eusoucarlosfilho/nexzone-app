@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { estornarCashback } from '@/lib/campanhas-servidor';
 import { conferirPedido, conferirPendentes } from '@/lib/payments/conferirPix';
+import { registrarAcao } from '@/lib/registroAdmin-servidor';
 
 export const maxDuration = 30;
 
@@ -16,6 +17,7 @@ export async function POST(req: Request) {
   // Conferir o Pix direto na MisticPay (cliente diz que pagou e o pedido segue "Aguardando pagamento")
   if (action === 'conferir') {
     const r = await conferirPedido(createAdminClient(), String(id || ''));
+    await registrarAcao({ adminId: user.id, acao: 'pix_conferido', alvoTipo: 'pedido', alvoId: String(id || ''), detalhes: { resultado: r } });
     const msg: Record<string, string> = {
       liberado: 'Pix confirmado na MisticPay: pedido liberado agora.',
       pendente: 'A MisticPay ainda mostra este Pix como NÃO pago.',
@@ -43,6 +45,7 @@ export async function POST(req: Request) {
   const { data: prod } = await admin.from('products').select('vendas').eq('id', order.product_id).single();
   await admin.from('products').update({ vendas: Math.max(0, (prod?.vendas ?? 1) - 1) }).eq('id', order.product_id);
   await estornarCashback(admin, String(id)); // o cashback da compra volta (SQL 28)
+  await registrarAcao({ adminId: user.id, acao: 'pedido_reembolsado', alvoTipo: 'pedido', alvoId: String(id) });
 
   return NextResponse.json({ ok: true, status: 'reembolsado' });
 }

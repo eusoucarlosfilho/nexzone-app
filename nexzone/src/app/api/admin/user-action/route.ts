@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { adminSeguro } from '@/lib/ofertas/adminSeguro';
 import { avisarAvisoAdmin } from '@/lib/whatsapp/avisos';
+import { registrarAcao } from '@/lib/registroAdmin-servidor';
 
 const ACOES = ['block', 'unblock', 'restrict', 'unrestrict', 'aviso', 'advertencia'] as const;
 type Acao = typeof ACOES[number];
@@ -34,6 +35,7 @@ export async function POST(req: Request) {
     // WhatsApp com o mesmo texto: só para admin com a autorização reforçada (C1), porque o texto é livre.
     const seguro = await adminSeguro();
     if (seguro.ok) await avisarAvisoAdmin(String(userId), t, String((notice as any)?.id ?? Date.now()));
+    await registrarAcao({ adminId: user.id, acao: action === 'aviso' ? 'aviso_enviado' : 'advertencia_enviada', alvoTipo: 'usuario', alvoId: String(userId), detalhes: { texto: t.slice(0, 300) } });
     return NextResponse.json({ ok: true });
   }
 
@@ -43,5 +45,7 @@ export async function POST(req: Request) {
     action === 'restrict' ? 'restrito' : 'ativo'; // unblock / unrestrict
   const { error } = await admin.from('profiles').update({ status: novoStatus }).eq('id', userId);
   if (error) { console.error('[user-action] status falhou:', error); return NextResponse.json({ error: 'falha ao atualizar' }, { status: 500 }); }
+  const ROT: Record<string, string> = { block: 'usuario_bloqueado', unblock: 'usuario_desbloqueado', restrict: 'usuario_restrito', unrestrict: 'usuario_liberado' };
+  await registrarAcao({ adminId: user.id, acao: ROT[action], alvoTipo: 'usuario', alvoId: String(userId) });
   return NextResponse.json({ ok: true, status: novoStatus });
 }

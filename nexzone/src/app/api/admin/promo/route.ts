@@ -4,6 +4,7 @@ import {
   sendEmail, sendBatch, layoutEmail, textoParaHtml, cotaUsada,
   headersDescadastro, rodapeDescadastro, LIMITE_DIARIO, LIMITE_MENSAL, type BatchItem,
 } from '@/lib/email';
+import { registrarAcao } from '@/lib/registroAdmin-servidor';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -159,5 +160,6 @@ export async function POST(req: Request) {
     to: d.email, subject: v.assunto, html: montarHtml(v, d.token), headers: headersDescadastro(d.token),
   }));
   const r = await sendBatch(itens, 'promocao');
+  await registrarAcao({ adminId: a.user.id, acao: 'promocao_enviada', alvoTipo: 'promocao', alvoNome: String(v.assunto || '').slice(0, 160), detalhes: { total: lista.length, enviados: r.enviados, falhas: r.falhas } });
   return NextResponse.json({ ok: r.falhas === 0, total: lista.length, enviados: r.enviados, falhas: r.falhas, erros: r.erros.slice(0, 3) });
 }

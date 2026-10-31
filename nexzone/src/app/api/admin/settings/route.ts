@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient, createAdminClient } from '@/lib/supabase/server';
+import { registrarAcao } from '@/lib/registroAdmin-servidor';
 
 export async function POST(req: Request) {
   const supabase = createClient();
@@ -91,9 +92,18 @@ export async function POST(req: Request) {
     }
   }
 
+  // Registro (SQL 34): só as chaves que realmente mudaram. Segredos aparecem só pelo nome, nunca o valor.
+  let mudaram: string[] = [];
+  try {
+    const { data: antes } = await admin.from('settings').select('key, value').in('key', rows.map((r) => r.key));
+    const mapa = new Map(((antes ?? []) as any[]).map((x) => [x.key, JSON.stringify(x.value)]));
+    mudaram = rows.filter((r) => mapa.get(r.key) !== JSON.stringify(r.value)).map((r) => r.key);
+  } catch { mudaram = rows.map((r) => r.key); }
+
   for (const r of rows) {
     const { error } = await admin.from('settings').upsert({ key: r.key, value: r.value, updated_at: new Date().toISOString() });
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   }
+  if (mudaram.length) await registrarAcao({ adminId: user.id, acao: 'config_alterada', alvoTipo: 'config', alvoNome: null, detalhes: { chaves: mudaram } });
   return NextResponse.json({ ok: true });
 }

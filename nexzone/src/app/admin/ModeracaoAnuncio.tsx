@@ -192,7 +192,7 @@ export default function ModeracaoAnuncio({ id, onStatus }: { id: string; onStatu
             {d.historico.length ? d.historico.map((h: any, i: number) => (
               <div key={i} style={{ borderLeftColor: h.tipo === 'moderacao' ? '#FFB020' : '#7C9CFF' }}>
                 <b>{h.tipo === 'moderacao' ? ROTULO_ACAO[h.acao] ?? h.acao : `${h.quem} ${h.acao}`}</b>
-                <span className="muted" style={{ fontSize: 11.5 }}> · {quando(h.em)}</span>
+                <span className="muted" style={{ fontSize: 11.5 }}> · {h.tipo === 'moderacao' && h.quem ? `por ${h.quem} · ` : ''}{quando(h.em)}</span>
                 {h.tipo === 'moderacao' && h.itens?.length > 0 && <div style={{ fontSize: 12 }}>{h.itens.map(rotuloItem).join(' · ')}</div>}
                 {h.tipo === 'moderacao' && h.texto && <div style={{ fontSize: 12 }} className="muted">“{String(h.texto).slice(0, 140)}”</div>}
                 {h.tipo === 'edicao' && h.campos?.length > 0 && <div style={{ fontSize: 12 }} className="muted">{Array.from(new Set(h.campos.map((c: string) => CAMPO[c] ?? c))).join(', ')}</div>}
