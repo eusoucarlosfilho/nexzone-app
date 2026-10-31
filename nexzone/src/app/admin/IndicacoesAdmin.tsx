@@ -7,6 +7,7 @@ import { Aviso, Bloqueado, Kpi, V3_CSS, dataHora, fmt } from './v3/ui';
 // Admin › Indicações: liga/desliga, regras da recompensa (CB Points), acompanhamento e antifraude.
 const FILTROS: [string, string][] = [['todas', 'Todas'], ['suspeitas', 'Com alerta'], ['bloqueada', 'Bloqueadas'], ['pendente', 'Pendentes'], ['liberada', 'Liberadas'], ['cadastrado', 'Só cadastro'], ['estornada', 'Estornadas'], ['cancelada', 'Não elegíveis']];
 const SINAL: Record<string, string> = { mesmo_navegador: 'mesmo navegador de quem indicou', muitos_cadastros_24h: 'muitos cadastros em 24 h pelo código' };
+const money = (v: number | null | undefined) => 'R$ ' + Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const paraCampo = (iso: string | null) => (iso ? new Date(Date.parse(iso) - 3 * 3600000).toISOString().slice(0, 16) : '');
 const doCampo = (v: string) => (v ? new Date(`${v}:00-03:00`).toISOString() : null);
 
@@ -33,7 +34,9 @@ export default function IndicacoesAdmin() {
   };
   async function salvarCfg() {
     if (cfg.ativo && !(Number(cfg.pontos) > 0)) { toast('Defina quantos pontos a indicação vale antes de ligar.', 'error'); return; }
-    if (cfg.ativo && !confirm(`Ligar o programa pagando ${cfg.pontos} CB Points por indicação convertida?`)) return;
+    if (cfg.ativo && !(Number(cfg.tetoComissaoPct) > 0)) { toast('Defina o teto (% da comissão) antes de ligar.', 'error'); return; }
+    if (cfg.ativo && !(Number(cfg.orcamentoMensal) > 0)) { toast('Defina o orçamento do mês antes de ligar.', 'error'); return; }
+    if (cfg.ativo && !confirm(`Ligar o programa?\n\n• Até ${cfg.pontos} pontos por indicação (${reais(cfg.pontos)}), nunca mais que ${cfg.tetoComissaoPct}% da comissão do pedido\n• No máximo R$ ${Number(cfg.orcamentoMensal).toFixed(2).replace('.', ',')} liberados por mês`)) return;
     setSalvando(true);
     const j = await post({ acao: 'config', cfg }, 'Regras salvas.');
     if (j?.cfg) setCfg(j.cfg);
@@ -41,6 +44,8 @@ export default function IndicacoesAdmin() {
   }
   const bloquear = (id: number) => { const motivo = prompt('Motivo do bloqueio (fica no registro):', 'Suspeita de conta criada para ganhar pontos.'); if (motivo !== null) post({ acao: 'bloquear', id, motivo }, 'Indicação bloqueada.'); };
   const set = (k: string, v: any) => setCfg((c: any) => ({ ...c, [k]: v }));
+  const ppr = Number(d?.custo?.pontosPorReal) || 100;
+  const reais = (pts: number) => money((Number(pts) || 0) / ppr);
 
   if (erro) return /bloquead|C1/i.test(erro) ? <Bloqueado mensagem={erro} /> : <Aviso>{erro}</Aviso>;
   if (!d) return <div className="adm-card"><p style={{ margin: 0, color: 'var(--sub)' }}>Carregando…</p></div>;
@@ -56,7 +61,9 @@ export default function IndicacoesAdmin() {
         <h3 className="adm-ct">Regras da recompensa</h3>
         <label className="ix-sw"><input type="checkbox" checked={cfg.ativo} onChange={(e) => set('ativo', e.target.checked)} /> <b>Programa ligado</b></label>
         <div className="ix-campos">
-          <label>Pontos por indicação convertida<input type="number" min={0} value={cfg.pontos} onChange={(e) => set('pontos', Number(e.target.value))} /></label>
+          <label>Pontos por indicação convertida (máximo)<input type="number" min={0} value={cfg.pontos} onChange={(e) => set('pontos', Number(e.target.value))} /><small>= {reais(cfg.pontos)} em desconto</small></label>
+          <label>Teto: % da comissão da plataforma no pedido<input type="number" min={0} max={100} value={cfg.tetoComissaoPct} onChange={(e) => set('tetoComissaoPct', Number(e.target.value))} /><small>a recompensa é o menor valor entre os pontos e este teto</small></label>
+          <label>Orçamento do mês (R$ liberados em pontos)<input type="number" min={0} step="1" value={cfg.orcamentoMensal} onChange={(e) => set('orcamentoMensal', Number(e.target.value))} /><small>passou disso, o resto libera no mês seguinte</small></label>
           <label>Compra mínima do amigo (R$)<input type="number" min={0} step="0.01" value={cfg.minimo} onChange={(e) => set('minimo', Number(e.target.value))} /></label>
           <label>Liberar os pontos depois de (dias)<input type="number" min={0} max={90} value={cfg.prazoDias} onChange={(e) => set('prazoDias', Number(e.target.value))} /></label>
           <label>Limite de recompensas por pessoa (0 = sem limite)<input type="number" min={0} value={cfg.limitePorUsuario} onChange={(e) => set('limitePorUsuario', Number(e.target.value))} /></label>
@@ -66,9 +73,33 @@ export default function IndicacoesAdmin() {
           <label>Alerta: cadastros por código em 24 h<input type="number" min={1} value={cfg.alertaCadastrosDia} onChange={(e) => set('alertaCadastrosDia', Number(e.target.value))} /></label>
           {cfg.produtos === 'lista' && <label className="lg">IDs dos produtos (um por linha)<textarea rows={3} value={(cfg.produtosIds || []).join('\n')} onChange={(e) => set('produtosIds', e.target.value.split(/\s+/).filter(Boolean))} /></label>}
         </div>
+        <div className="ix-exemplo">
+          <b>Simulação</b>
+          {[20, 50, 100].map((v) => {
+            const com = v * 0.1; // exemplo: comissão de 10%
+            const pts = Math.max(0, Math.min(Number(cfg.pontos) || 0, Math.floor(com * ((Number(cfg.tetoComissaoPct) || 0) / 100) * ppr + 1e-6)));
+            return <span key={v}>Compra de {money(v)} com comissão de {money(com)} → {pts} pontos ({reais(pts)})</span>;
+          })}
+          <small>Exemplo com comissão de 10%. O cálculo real usa a comissão de cada pedido.</small>
+        </div>
         <p className="ix-nota">Sugestão de prazo: igual ou maior que a garantia mais longa dos produtos, para o ponto só sair depois que o reembolso não for mais possível. Pontos são custo da plataforma: confira o valor do ponto em CB Points antes de ligar.</p>
         <button className="adm-btn" onClick={salvarCfg} disabled={salvando}>{salvando ? 'Salvando…' : 'Salvar regras'}</button>
       </div>
+
+      {d.custo && (
+        <div className="adm-card">
+          <h3 className="adm-ct">Custo do programa</h3>
+          <div className="ix-orc"><div style={{ width: `${Math.min(100, d.custo.orcamentoMes > 0 ? (d.custo.liberadoMes / d.custo.orcamentoMes) * 100 : 0)}%` }} /></div>
+          <p className="ix-nota" style={{ marginTop: 6 }}>{money(d.custo.liberadoMes)} de {money(d.custo.orcamentoMes)} usados neste mês · restam {money(d.custo.restanteMes)}</p>
+          <div className="v3-kpis">
+            <Kpi valor={money(d.custo.liberadoMes)} rotulo="Liberado neste mês" />
+            <Kpi valor={money(d.custo.pendenteReais)} rotulo="Em liberação (ainda não custou)" />
+            <Kpi valor={money(d.custo.liberadoTotalReais)} rotulo="Liberado desde o início" />
+            <Kpi valor={money(d.custo.descontosUsadosReais)} rotulo="Descontos com CB Points usados" nota="todo o site, todas as origens" />
+          </div>
+          <p className="ix-nota">O ponto só vira custo quando é usado como desconto numa compra, e o desconto nunca passa da comissão daquela compra. Ponto liberado e não usado não sai do caixa.</p>
+        </div>
+      )}
 
       {d.kpis && (
         <div className="adm-card">
@@ -124,6 +155,9 @@ const CSS = `
 .ix-campos{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}.ix-campos .lg{grid-column:1/-1}
 .ix-campos label{display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:700;color:var(--sub)}
 .ix-campos input,.ix-campos select,.ix-campos textarea{min-height:38px;border:1px solid var(--line);border-radius:10px;padding:6px 10px;font-size:14px;color:var(--ink)}
+.ix-campos small{font-weight:500;font-size:11.5px;color:var(--sub)}
+.ix-exemplo{display:flex;flex-direction:column;gap:3px;background:#FFF7F0;border:1px solid #FED7AA;border-radius:12px;padding:10px 12px;margin-top:12px;font-size:12.5px}.ix-exemplo small{color:var(--sub)}
+.ix-orc{height:10px;border-radius:999px;background:#F4F4F5;overflow:hidden}.ix-orc div{height:100%;background:linear-gradient(90deg,#FF7A00,#FFC83D)}
 .ix-nota{color:var(--sub);font-size:12px;line-height:1.5;margin:10px 0}
 .ix-filtros{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}.ix-filtros button{border:1px solid var(--line);background:#fff;border-radius:999px;padding:5px 12px;font-weight:700;font-size:12.5px;cursor:pointer}
 .ix-filtros button.on{background:#0B0B0C;color:#fff;border-color:#0B0B0C}
