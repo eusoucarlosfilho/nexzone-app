@@ -20,13 +20,14 @@ export default function Reembolsos({ onContagem }: { onContagem?: (n: number) =>
   const [resposta, setResposta] = useState('');
   const [devolvido, setDevolvido] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [conta, setConta] = useState<{ nome: string | null; email: string | null } | null>(null);
 
   const carregar = useCallback(async () => {
     setCarregando(true);
     try {
       const r = await fetch(`/api/admin/reembolsos?status=${filtro}`, { credentials: 'include', cache: 'no-store' });
       const d = await r.json();
-      setSql18(d.sql18 !== false); setItens(d.itens ?? []); onContagem?.(d.abertos ?? 0);
+      setSql18(d.sql18 !== false); setItens(d.itens ?? []); setConta(d.conta ?? null); onContagem?.(d.abertos ?? 0);
     } catch { toast('Falha ao carregar.', 'error'); }
     finally { setCarregando(false); }
   }, [filtro, onContagem]);
@@ -58,6 +59,11 @@ export default function Reembolsos({ onContagem }: { onContagem?: (n: number) =>
   if (!sql18) return <div className="adm-card"><b>Rode o SQL 18</b> no Supabase para ativar os pedidos de reembolso pelo site.</div>;
   return (
     <>
+      <div className="adm-card" style={{ padding: '12px 16px', fontSize: 13.5 }}>
+        {conta && (conta.nome || conta.email)
+          ? <>As vendas no Pix caem na conta MisticPay <b>{conta.nome || ''}{conta.email ? ` (${conta.email})` : ''}</b>. Os reembolsos têm que ser devolvidos <b>nessa conta</b>.</>
+          : <>Não foi possível ler a conta MisticPay das chaves do site. Confira em Configurações qual Client ID está salvo: os reembolsos são devolvidos na conta dona dessas chaves.</>}
+      </div>
       <div className="adm-filters">
         <button className={`adm-fb ${filtro === 'aberto' ? 'on' : ''}`} onClick={() => setFiltro('aberto')}>Em análise</button>
         <button className={`adm-fb ${filtro === 'todos' ? 'on' : ''}`} onClick={() => setFiltro('todos')}>Todos</button>
@@ -76,9 +82,14 @@ export default function Reembolsos({ onContagem }: { onContagem?: (n: number) =>
                   {p.loja} · {brl(p.total)}{p.pago > p.total ? ` + taxa ${brl(p.pago - p.total)}` : ''} · {p.forma === 'pix' ? 'Pix' : p.forma === 'cartao' ? 'Cartão' : 'forma não registrada'} · pago em {dt(p.pago_em)}
                 </div>
                 <div style={{ color: 'var(--sub)', fontSize: 13 }}>Pedido #{String(r.order_id).slice(0, 8)}{p.comprador_nome ? ` · ${p.comprador_nome}` : ''}{p.comprador_email ? ` · ${p.comprador_email}` : ''}</div>
+                {p.forma !== 'cartao' && (
+                  <div style={{ fontSize: 13, marginTop: 6 }}>
+                    Pix de <b>{brl(p.pago ?? p.total)}</b> · gerado em {dt(p.criado_em)}{p.pix?.pagador ? <> · pagador no banco: <b>{p.pix.pagador}</b></> : ''}{p.pix?.banco ? ` (${p.pix.banco})` : ''}{p.pix?.e2e ? <> · E2E <span style={{ fontFamily: 'monospace' }}>{p.pix.e2e}</span></> : ''}
+                  </div>
+                )}
                 {p.gateway_ref && p.forma !== 'cartao' && (
                   <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', marginTop: 6, fontSize: 13 }}>
-                    <span>Compra na {String(p.gateway_ref).startsWith('mp:') ? 'Mercado Pago' : 'MisticPay'}: <b style={{ fontFamily: 'monospace' }}>{String(p.gateway_ref).replace(/^mp:/, '')}</b></span>
+                    <span>Código da compra {String(p.gateway_ref).startsWith('mp:') ? 'no Mercado Pago' : 'enviado à MisticPay'}: <b style={{ fontFamily: 'monospace' }}>{String(p.gateway_ref).replace(/^mp:/, '')}</b></span>
                     <button type="button" className="adm-btn rp" style={{ padding: '3px 10px', fontSize: 12 }} onClick={() => copiar(String(p.gateway_ref).replace(/^mp:/, ''))}>Copiar</button>
                     {!String(p.gateway_ref).startsWith('mp:') && <a className="adm-btn rp" style={{ padding: '3px 10px', fontSize: 12, textDecoration: 'none' }} href={PAINEL_MISTIC} target="_blank" rel="noopener noreferrer">Abrir extrato da MisticPay ↗</a>}
                   </div>
@@ -114,7 +125,7 @@ export default function Reembolsos({ onContagem }: { onContagem?: (n: number) =>
                     )}
                   </div>
                 )}
-                {r.devolucao_status === 'aguardando' && p.forma !== 'cartao' && <small style={{ color: 'var(--sub)' }}>Devolva na MisticPay (extrato → busque a transação acima → Devolver {brl(p.pago ?? p.total)}). Quando a MisticPay devolver, o site confirma sozinho e avisa o cliente.</small>}
+                {r.devolucao_status === 'aguardando' && p.forma !== 'cartao' && <small style={{ color: 'var(--sub)' }}>Devolva na MisticPay (extrato → entrada de {brl(p.pago ?? p.total)} de {dt(p.criado_em)} → Devolver). Quando a MisticPay devolver, o site confirma sozinho e avisa o cliente.</small>}
               </div>
             )}
             {r.status === 'aberto' && (decidindo && decidindo.id === r.id ? (
@@ -127,7 +138,7 @@ export default function Reembolsos({ onContagem }: { onContagem?: (n: number) =>
                       <>
                         <b>Como devolver o Pix ({brl(p.pago ?? p.total)}):</b>
                         <ol style={{ margin: '6px 0 0', paddingLeft: 18 }}>
-                          <li>Abra o <a href={PAINEL_MISTIC} target="_blank" rel="noopener noreferrer">extrato da MisticPay ↗</a> e busque pela compra {p.gateway_ref ? <b style={{ fontFamily: 'monospace' }}>{String(p.gateway_ref).replace(/^mp:/, '')}</b> : ''}{p.comprador_nome ? <> ou pelo nome <b>{p.comprador_nome}</b></> : ''}.</li>
+                          <li>Entre na conta MisticPay que recebe as vendas{conta?.nome ? <> (<b>{conta.nome}</b>)</> : ''}, abra o <a href={PAINEL_MISTIC} target="_blank" rel="noopener noreferrer">extrato ↗</a> e ache a entrada de <b>{brl(p.pago ?? p.total)}</b> de {dt(p.criado_em)}{p.pix?.pagador ? <>, pagador <b>{p.pix.pagador}</b></> : p.comprador_nome ? <> (cliente {p.comprador_nome})</> : ''}. Use Filtros pela data se tiver muitas.</li>
                           <li>Abra a transação e clique em <b>Devolver</b>: o Pix volta para a conta de onde saiu, sem precisar de chave.</li>
                           <li>A MisticPay avisa o site e este reembolso fecha sozinho. Pode aprovar antes ou depois de devolver.</li>
                         </ol>
@@ -154,6 +165,7 @@ export default function Reembolsos({ onContagem }: { onContagem?: (n: number) =>
             ) : (
               <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
                 <button className="adm-btn ap" onClick={() => { setDecidindo({ id: r.id, acao: 'aprovar' }); setResposta(''); setDevolvido(false); }}><Icon name="check" size={15} /> Aprovar</button>
+                {p.forma !== 'cartao' && p.gateway_ref && <button className="adm-btn rp" disabled={busy} onClick={() => acao(r.id, 'conferir')}>Conferir compra na MisticPay</button>}
                 <button className="adm-btn rp" onClick={() => { setDecidindo({ id: r.id, acao: 'recusar' }); setResposta(''); }}><Icon name="x" size={15} /> Recusar</button>
               </div>
             ))}
