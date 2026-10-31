@@ -30,10 +30,11 @@ export async function GET(req: Request) {
   if (IDS.includes(status)) q = q.eq('status', status);
   const { data, error } = await q;
   if (error) return NextResponse.json({ sql20: !semTabela(error), itens: [], contagem: {}, config });
+  const itens = await comAtivacao(admin, (data ?? []) as any[]);
   const { data: todos } = await admin.from('produtores_interessados').select('status, etapa').limit(20000);
   const contagem: Record<string, number> = { todos: 0, completos: 0 };
   for (const r of (todos ?? []) as any[]) { contagem[r.status] = (contagem[r.status] || 0) + 1; contagem.todos++; if (r.etapa === 2) contagem.completos++; }
-  return NextResponse.json({ sql20: true, itens: data ?? [], contagem, config }, { headers: { 'Cache-Control': 'private, no-store' } });
+  return NextResponse.json({ sql20: true, itens, contagem, config }, { headers: { 'Cache-Control': 'private, no-store' } });
 }
 
 export async function POST(req: Request) {
@@ -66,4 +67,51 @@ export async function POST(req: Request) {
   const { data, error } = await admin.from('produtores_interessados').update({ ...campos, atualizado_em: new Date().toISOString() }).eq('id', id).select('id');
   if (error || !data?.length) return NextResponse.json({ error: 'Não foi possível salvar.' }, { status: 500 });
   return NextResponse.json({ ok: true });
+}
+
+// Ativação de cada lojista (cadastro novo cria conta + loja na hora): acha a conta pelo e-mail
+// e mostra em que ponto ele está — loja criada, anúncio em revisão, anunciando ou já vendendo.
+type Ativacao = { fase: 'sem_conta' | 'loja_criada' | 'em_revisao' | 'anunciando' | 'vendendo'; loja?: string | null; slug?: string | null; anuncios?: number; vendas?: number };
+async function comAtivacao(admin: ReturnType<typeof createAdminClient>, itens: any[]): Promise<any[]> {
+  try {
+    const emails = new Set(itens.map((i) => String(i.email || '').toLowerCase()).filter(Boolean));
+    if (!emails.size) return itens.map((i) => ({ ...i, ativacao: { fase: 'sem_conta' } }));
+    const idPorEmail = new Map<string, string>();
+    for (let page = 1; page <= 10 && idPorEmail.size < emails.size; page++) {
+      const { data, error } = await admin.auth.admin.listUsers({ page, perPage: 1000 });
+      if (error || !data?.users?.length) break;
+      for (const u of data.users) { const e = String(u.email || '').toLowerCase(); if (emails.has(e)) idPorEmail.set(e, u.id); }
+      if (data.users.length < 1000) break;
+    }
+    const donos = Array.from(new Set(idPorEmail.values()));
+    const lojaPorDono = new Map<string, any>();
+    const prodPorLoja = new Map<string, { ativos: number; revisao: number; vendas: number }>();
+    if (donos.length) {
+      const { data: lojas } = await admin.from('stores').select('id, owner, nome, slug').in('owner', donos);
+      for (const l of (lojas ?? []) as any[]) lojaPorDono.set(l.owner, l);
+      const ids = (lojas ?? []).map((l: any) => l.id);
+      if (ids.length) {
+        const { data: prods } = await admin.from('products').select('store_id, status, vendas').in('store_id', ids).limit(20000);
+        for (const p of (prods ?? []) as any[]) {
+          const c = prodPorLoja.get(p.store_id) ?? { ativos: 0, revisao: 0, vendas: 0 };
+          if (p.status === 'ativo') c.ativos++;
+          if (p.status === 'em_revisao') c.revisao++;
+          c.vendas += Number(p.vendas) || 0;
+          prodPorLoja.set(p.store_id, c);
+        }
+      }
+    }
+    return itens.map((i) => {
+      const uid = idPorEmail.get(String(i.email || '').toLowerCase());
+      const loja = uid ? lojaPorDono.get(uid) : null;
+      let a: Ativacao = { fase: 'sem_conta' };
+      if (loja) {
+        const c = prodPorLoja.get(loja.id) ?? { ativos: 0, revisao: 0, vendas: 0 };
+        a = { fase: c.vendas > 0 ? 'vendendo' : c.ativos > 0 ? 'anunciando' : c.revisao > 0 ? 'em_revisao' : 'loja_criada', loja: loja.nome, slug: loja.slug, anuncios: c.ativos, vendas: c.vendas };
+      }
+      return { ...i, ativacao: a };
+    });
+  } catch {
+    return itens; // sem chave de admin ou erro: lista como antes
+  }
 }
