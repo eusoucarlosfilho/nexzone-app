@@ -12,7 +12,8 @@ type Dados = {
 const brl = (v: number) => 'R$ ' + Number(v).toFixed(2).replace('.', ',');
 const dataBR = (s: string | null) => (s ? new Date(s).toLocaleDateString('pt-BR') : '');
 
-export default function CampanhasConfig() {
+export default function CampanhasConfig({ parte = 'tudo' }: { parte?: 'tudo' | 'promocoes' | 'cashback' }) {
+  const ver = (p: 'promocoes' | 'cashback') => parte === 'tudo' || parte === p;
   const [d, setD] = useState<Dados | null>(null);
   const [f, setF] = useState<Record<string, any> | null>(null);
   const [loja, setLoja] = useState('');
@@ -55,9 +56,12 @@ export default function CampanhasConfig() {
 
   return (
     <div className="adm-card" style={{ maxWidth: 760, marginBottom: 18 }}>
-      <h3 className="adm-ct" style={{ marginBottom: 4 }}>Campanhas</h3>
-      <p style={{ color: 'var(--sub)', fontSize: 13, margin: '0 0 14px' }}>Incentivos para a 1ª compra e para os primeiros lojistas. Este mês: <b>{d.mes.primeirasSemTaxa ?? 0}</b> primeiras compras sem taxa · <b>{brl(d.mes.cashbackReais)}</b> em cashback dado ({d.mes.cashbackPontos} pontos).</p>
-      {!d.vagas.sql28 && <p style={{ color: '#F5B83D', fontSize: 13, fontWeight: 700 }}>Falta rodar o SQL 28 para o Lojista Fundador funcionar.</p>}
+      <h3 className="adm-ct" style={{ marginBottom: 4 }}>{parte === 'cashback' ? 'Cashback em CB Points' : parte === 'promocoes' ? 'Promoções de taxa' : 'Campanhas'}</h3>
+      <p style={{ color: 'var(--sub)', fontSize: 13, margin: '0 0 14px' }}>{parte === 'cashback'
+        ? <>Parte do valor da compra volta em pontos para a próxima. Este mês: <b>{brl(d.mes.cashbackReais)}</b> em cashback dado ({d.mes.cashbackPontos} pontos).</>
+        : <>Incentivos para a 1ª compra e para os primeiros lojistas. Este mês: <b>{d.mes.primeirasSemTaxa ?? 0}</b> primeiras compras sem taxa{parte === 'tudo' ? <> · <b>{brl(d.mes.cashbackReais)}</b> em cashback dado ({d.mes.cashbackPontos} pontos)</> : null}.</>}</p>
+      {ver('promocoes') && !d.vagas.sql28 && <p style={{ color: '#F5B83D', fontSize: 13, fontWeight: 700 }}>Falta rodar o SQL 28 para o Lojista Fundador funcionar.</p>}
+      {ver('promocoes') && <>
 
       <h4 style={{ fontFamily: 'Outfit', margin: '6px 0 8px' }}>1ª compra sem taxa</h4>
       {chave('primeiraCompra', 'Ligada: a 1ª compra de cada cliente sai sem a taxa de serviço do Pix', 'Custa a taxa de serviço do Pix (tarifa da MisticPay + nossa margem) por cliente novo. Aparece no anúncio, na página do produto e no checkout.')}
@@ -69,15 +73,18 @@ export default function CampanhasConfig() {
         {campo('fundadorVagas', 'Vagas')}{campo('fundadorPct', 'Comissão do Fundador', '%')}{campo('fundadorDias', 'por', 'dias')}{campo('fundadorTeto', 'ou até vender', 'R$')}{campo('fundadorDestaqueDias', 'Destaque grátis', 'dias')}
       </div>
       <small style={{ display: 'block', color: 'var(--sub)', fontSize: 12, marginBottom: 12 }}>Teto 0 = sem limite de valor. O que vale é o que acontecer primeiro: fim do prazo ou teto de vendas.</small>
+      </>}
+      {ver('cashback') && <>
 
       <h4 style={{ fontFamily: 'Outfit', margin: '16px 0 8px' }}>Cashback em CB Points</h4>
       {chave('cbAtivo', 'Programa CB Points ligado', 'Liga o CB Points no site inteiro (menu, checkout e página /cb-points). É o mesmo botão das Configurações gerais.')}
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 6 }}>{campo('cashbackPct', 'Cashback por compra', '% do valor')}{campo('cbTetoComissaoPct', 'Teto do cashback', '% da nossa comissão')}</div>
       <small style={{ display: 'block', color: 'var(--sub)', fontSize: 12, marginBottom: 14 }}>Controlado: o cliente ganha o MENOR entre o % do valor e o teto (% da comissão que a plataforma ganhou no pedido). Ex.: compra de R$ 30 com 5% de comissão = R$ 1,50 nossos; teto de 30% = no máximo R$ 0,45 em pontos. O cashback sai de dentro do nosso lucro, nunca vira prejuízo. Reembolso tira o cashback de volta.</small>
+      </>}
 
-      <button className="adm-btn ap" disabled={busy} onClick={() => post({ acao: 'salvar', ...f, fundadorVagas: n(f.fundadorVagas), fundadorDias: n(f.fundadorDias), fundadorTeto: n(f.fundadorTeto), fundadorPct: n(f.fundadorPct), fundadorDestaqueDias: n(f.fundadorDestaqueDias), cashbackPct: n(f.cashbackPct), cbTetoComissaoPct: n(f.cbTetoComissaoPct) }, 'Campanhas salvas.')}>{busy ? 'Salvando…' : 'Salvar campanhas'}</button>
+      <button className="adm-btn ap" disabled={busy} onClick={() => post({ acao: 'salvar', ...f, fundadorVagas: n(f.fundadorVagas), fundadorDias: n(f.fundadorDias), fundadorTeto: n(f.fundadorTeto), fundadorPct: n(f.fundadorPct), fundadorDestaqueDias: n(f.fundadorDestaqueDias), cashbackPct: n(f.cashbackPct), cbTetoComissaoPct: n(f.cbTetoComissaoPct) }, 'Salvo.')}>{busy ? 'Salvando…' : parte === 'cashback' ? 'Salvar cashback' : parte === 'promocoes' ? 'Salvar promoções' : 'Salvar campanhas'}</button>
 
-      {d.vagas.sql28 && (
+      {ver('promocoes') && d.vagas.sql28 && (
         <div style={{ marginTop: 20, borderTop: '1px solid var(--bd2)', paddingTop: 14 }}>
           <h4 style={{ fontFamily: 'Outfit', margin: '0 0 8px' }}>Lojistas Fundadores</h4>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>

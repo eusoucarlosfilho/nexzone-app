@@ -63,8 +63,38 @@ const STATUS: Record<string, [string, string]> = {
   pausado: ['#8A8AA0', 'Pausado'],
 };
 
+// ---------- Crescimento: páginas com sub-abas ----------
+const SUBS: Record<string, [string, string][]> = {
+  inteligencia: [['vendas', 'Vendas e funil'], ['audiencia', 'Audiência e sessões'], ['ativacao', 'Cadastros e ativação']],
+  campanhas: [['calendario', 'Calendário e banners'], ['black', 'Black November'], ['vitrine', 'Vitrine da home'], ['promocoes', 'Promoções de taxa']],
+  recompensas: [['indicacoes', 'Indicações'], ['cashback', 'Cashback em CB Points']],
+  comunicacao: [['email', 'E-mail promocional'], ['sino', 'Avisos no sino'], ['canais', 'Canais de ofertas']],
+};
+const ABA_ANTIGA: Record<string, [string, string]> = {
+  audiencia: ['inteligencia', 'audiencia'], crescimento: ['campanhas', 'black'], ofertasdia: ['campanhas', 'vitrine'],
+  provasocial: ['campanhas', 'vitrine'], indicacoes: ['recompensas', 'indicacoes'], promocoes: ['comunicacao', 'email'], avisos: ['comunicacao', 'sino'],
+};
+function SubAbas({ valor, opcoes, onChange }: { valor: string; opcoes: [string, string][]; onChange: (v: string) => void }) {
+  return (
+    <div className="adm-subabas" role="tablist">
+      {opcoes.map(([id, rot]) => (
+        <button key={id} type="button" role="tab" aria-selected={valor === id} className={valor === id ? 'on' : ''} onClick={() => onChange(id)}>{rot}</button>
+      ))}
+    </div>
+  );
+}
+
 export default function AdminDashboard({ painel, adminEmail, users, metrics, daily, orders, products, stores, payouts, boosts, settings, growth, sellers, complaints, alerts, carrinhos = [] }: any) {
   const [tab, setTab] = useState('cockpit');
+  // Sub-abas das páginas de Crescimento (lembradas por página enquanto o painel está aberto)
+  const [subs, setSubs] = useState<Record<string, string>>({});
+  const subDe = (t: string) => subs[t] || SUBS[t]?.[0]?.[0] || '';
+  const mudarSub = (t: string, v: string) => setSubs((m) => ({ ...m, [t]: v }));
+  // Endereços antigos (?aba=…, atalhos e favoritos) caem na página e sub-aba novas
+  useEffect(() => {
+    const destino = ABA_ANTIGA[tab];
+    if (destino) { setSubs((m) => ({ ...m, [destino[0]]: destino[1] })); setTab(destino[0]); }
+  }, [tab]);
   // celular e tablet: o menu lateral fica escondido e abre pelo botão Menu
   const [menuAberto, setMenuAberto] = useState(false);
   useEffect(() => { setMenuAberto(false); }, [tab]);
@@ -335,17 +365,13 @@ export default function AdminDashboard({ painel, adminEmail, users, metrics, dai
       ['saques', 'money', 'Saques', metrics.saquesPendentes],
       ['financeiro', 'wallet', 'Financeiro', 0],
     ]],
+    // Crescimento reorganizado (11 → 6): cada item abre uma página com sub-abas; nenhuma função saiu.
     ['Crescimento', [
-      ['inteligencia', 'trending', 'Inteligência Comercial', 0],
-      ['ofertasdia', 'bolt', 'Ofertas do dia', 0],
-      ['indicacoes', 'gift', 'Indicações', 0],
-      ['crescimento', 'growth', 'Crescimento e Black', 0],
-      ['campanhas', 'sparkles', 'Campanhas e ofertas', 0],
-      ['audiencia', 'activity', 'Audiência', 0],
+      ['inteligencia', 'trending', 'Inteligência', 0],
+      ['campanhas', 'sparkles', 'Campanhas', 0],
+      ['recompensas', 'gift', 'Recompensas', 0],
+      ['comunicacao', 'megaphone', 'Comunicação', 0],
       ['seo', 'search', 'SEO e Google', 0],
-      ['promocoes', 'megaphone', 'Enviar promoção', 0],
-      ['avisos', 'send', 'Avisos no sino', 0],
-      ['provasocial', 'award', 'Prova social', 0],
     ]],
     ['Ajustes', [
       ['registro', 'clock', 'Registro (quem fez)', 0],
@@ -397,6 +423,10 @@ export default function AdminDashboard({ painel, adminEmail, users, metrics, dai
         .adm-main{flex:1;padding:28px 32px 60px;min-width:0;}.adm-main>*{animation:cb-up .45s var(--ease) both;}
         .adm-h{font-family:'Outfit';font-size:30px;font-weight:900;letter-spacing:-.9px;margin:0 0 4px;}
         .adm-sub{color:var(--sub);font-size:14px;margin:0 0 26px;}
+        .adm-subabas{display:flex;gap:6px;flex-wrap:wrap;margin:-8px 0 20px;padding-bottom:12px;border-bottom:1px solid var(--bd2);}
+        .adm-subabas button{border:1px solid var(--bd2);background:var(--panel);color:var(--sub);border-radius:999px;padding:7px 14px;font:800 13px 'Nunito',sans-serif;cursor:pointer;}
+        .adm-subabas button:hover{color:var(--tx);}
+        .adm-subabas button.on{background:var(--grad);color:#fff;border-color:transparent;}
         .adm-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:16px;margin-bottom:24px;}
         .adm-stat{background:var(--panel);border:1px solid var(--bd2);border-radius:20px;padding:20px;transition:transform .2s var(--ease),border-color .2s;animation:cb-up .5s var(--ease) both;}.adm-stat:hover{transform:translateY(-3px);border-color:#FF8A3D;}
         .adm-stat .ic{width:40px;height:40px;border-radius:11px;background:#FF7A1420;color:var(--or2);display:flex;align-items:center;justify-content:center;font-size:18px;margin-bottom:12px;}
@@ -561,16 +591,48 @@ export default function AdminDashboard({ painel, adminEmail, users, metrics, dai
           </>
         )}
 
-        {tab === 'audiencia' && <AudienceTab />}
-        {tab === 'inteligencia' && <InteligenciaComercial />}
-        {tab === 'ofertasdia' && (
+        {tab === 'inteligencia' && (
           <>
-            <h1 className="adm-h">Ofertas do dia</h1>
-            <p className="adm-sub">Vitrine da página inicial com anúncios escolhidos por você: ordem, agenda e o desempenho de cada um.</p>
-            <OfertasDiaAdmin />
+            <h1 className="adm-h">Inteligência</h1>
+            <SubAbas valor={subDe('inteligencia')} onChange={(v) => mudarSub('inteligencia', v)} opcoes={SUBS.inteligencia} />
+            {subDe('inteligencia') === 'vendas' && <InteligenciaComercial />}
+            {subDe('inteligencia') === 'audiencia' && <AudienceTab />}
+            {subDe('inteligencia') === 'ativacao' && <GrowthPanel />}
           </>
         )}
-        {tab === 'indicacoes' && <IndicacoesAdmin />}
+        {tab === 'campanhas' && (
+          <>
+            <h1 className="adm-h">Campanhas</h1>
+            <SubAbas valor={subDe('campanhas')} onChange={(v) => mudarSub('campanhas', v)} opcoes={SUBS.campanhas} />
+            {subDe('campanhas') === 'calendario' && <><p className="adm-sub">Faixa no topo do site e slides do carrossel da home, com data para entrar e sair do ar, e o calendário das próximas datas com campanha sugerida.</p><CampanhasAdmin /></>}
+            {subDe('campanhas') === 'black' && <CrescimentoAdmin parte="black" />}
+            {subDe('campanhas') === 'vitrine' && <>
+              <p className="adm-sub">Tudo o que a página inicial destaca: a vitrine OFERTAS DO DIA (que também vira a oferta da página /oferta-do-dia e do Telegram) e a prova social.</p>
+              <OfertasDiaAdmin />
+              <CrescimentoAdmin parte="oferta" />
+              <h3 className="adm-ct" style={{ marginTop: 22 }}>Prova social</h3>
+              <ProvaSocialForm settings={settings} />
+            </>}
+            {subDe('campanhas') === 'promocoes' && <CampanhasConfig parte="promocoes" />}
+          </>
+        )}
+        {tab === 'recompensas' && (
+          <>
+            <h1 className="adm-h">Recompensas</h1>
+            <SubAbas valor={subDe('recompensas')} onChange={(v) => mudarSub('recompensas', v)} opcoes={SUBS.recompensas} />
+            {subDe('recompensas') === 'indicacoes' && <IndicacoesAdmin />}
+            {subDe('recompensas') === 'cashback' && <CampanhasConfig parte="cashback" />}
+          </>
+        )}
+        {tab === 'comunicacao' && (
+          <>
+            <h1 className="adm-h">Comunicação</h1>
+            <SubAbas valor={subDe('comunicacao')} onChange={(v) => mudarSub('comunicacao', v)} opcoes={SUBS.comunicacao} />
+            {subDe('comunicacao') === 'email' && <><p className="adm-sub">Mande uma promoção por e-mail só para quem aceitou receber. Envie um teste para você antes.</p><PromoForm /></>}
+            {subDe('comunicacao') === 'sino' && <><p className="adm-sub">Mande uma notificação que aparece no sino do site e na página Notificações de cada usuário.</p><AvisosSino /></>}
+            {subDe('comunicacao') === 'canais' && <><p className="adm-sub">Canal do WhatsApp e canal do Telegram onde a oferta do dia é publicada. Promoções por WhatsApp individual ficam em Ajustes › WhatsApp e torpedos.</p><CrescimentoAdmin parte="canais" /></>}
+          </>
+        )}
 
         {tab === 'aprovacao' && (
           <>
@@ -905,47 +967,6 @@ export default function AdminDashboard({ painel, adminEmail, users, metrics, dai
         )}
 
 
-        {tab === 'crescimento' && (
-          <>
-            <h1 className="adm-h">Crescimento e Black Friday</h1>
-            <p className="adm-sub">Visitas, cadastros, ranking de vendas e, no fim da página, a Black Friday Gamer, a oferta do dia e os canais de ofertas.</p>
-            <GrowthPanel />
-            <h2 className="adm-ct" style={{ marginTop: 26 }}>Ranking de vendas</h2>
-            <p className="adm-sub" style={{ marginBottom: 14 }}>Contado pelo status dos pedidos. Use como referência; o número oficial de dinheiro está em Financeiro.</p>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(320px,1fr))', gap: 18 }}>
-              <div className="adm-card">
-                <h3 style={{ fontFamily: 'Outfit', fontWeight: 800, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}><Icon name="store" size={18} /> Top vendedores (faturamento)</h3>
-                {growth?.topVendedores?.length ? (
-                  <table className="adm-table"><tbody>
-                    {growth.topVendedores.map((v: any, i: number) => (
-                      <tr key={i}><td>{i + 1}. {v.nome}</td><td style={{ textAlign: 'right', fontFamily: 'Outfit', fontWeight: 800, color: 'var(--or2)' }}>{money(v.total)}</td></tr>
-                    ))}
-                  </tbody></table>
-                ) : <div className="adm-empty">Sem vendas ainda.</div>}
-              </div>
-              <div className="adm-card">
-                <h3 style={{ fontFamily: 'Outfit', fontWeight: 800, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}><Icon name="package" size={18} /> Top produtos (vendas)</h3>
-                {growth?.topProdutos?.length ? (
-                  <table className="adm-table"><tbody>
-                    {growth.topProdutos.map((p: any, i: number) => (
-                      <tr key={p.id}><td><ProductThumb capa_url={p?.capa_url} categoria={p?.categoria} titulo={p?.titulo} tamanho={28} raio={7} icone={18} style={{ marginRight: 6 }} /> {p.titulo}</td><td style={{ textAlign: 'right', fontFamily: 'Outfit', fontWeight: 800 }}>{fmt(p.vendas || 0)} vendas</td></tr>
-                    ))}
-                  </tbody></table>
-                ) : <div className="adm-empty">Sem produtos ainda.</div>}
-              </div>
-            </div>
-            <CrescimentoAdmin />
-          </>
-        )}
-
-        {tab === 'campanhas' && (
-          <>
-            <h1 className="adm-h">Campanhas e ofertas</h1>
-            <p className="adm-sub">Faixa no topo do site e slides do carrossel da home, com data para entrar e sair do ar, e o calendário das próximas datas com campanha sugerida.</p>
-            <CampanhasAdmin />
-          </>
-        )}
-
         {tab === 'reclamacoes' && (() => {
           const lista = recTab === 'pendentes' ? recPendentes : recResolvidas;
           const Card = ({ c }: any) => {
@@ -1078,29 +1099,8 @@ export default function AdminDashboard({ painel, adminEmail, users, metrics, dai
           </>
         )}
 
-        {tab === 'avisos' && (
-          <>
-            <h1 className="adm-h">Avisos no sino</h1>
-            <p className="adm-sub">Mande uma notificação que aparece no sino do site e na página Notificações de cada usuário.</p>
-            <AvisosSino />
-          </>
-        )}
 
-        {tab === 'promocoes' && (
-          <>
-            <h1 className="adm-h">Enviar promoção</h1>
-            <p className="adm-sub">Mande uma promoção por e-mail só para quem aceitou receber. Envie um teste para você antes.</p>
-            <PromoForm />
-          </>
-        )}
 
-        {tab === 'provasocial' && (
-          <>
-            <h1 className="adm-h">Prova social</h1>
-            <p className="adm-sub">Escolha o que a página inicial mostra. Sempre com os dados reais da plataforma.</p>
-            <ProvaSocialForm settings={settings} />
-          </>
-        )}
 
         {tab === 'suporte' && (
           <SupportTab protocoloInicial={suporteProtocolo} onVerPedidos={() => irPara('pedidos', 0)} />
@@ -1120,7 +1120,6 @@ export default function AdminDashboard({ painel, adminEmail, users, metrics, dai
             <p className="adm-sub">Planos do vendedor, taxa de serviço do comprador, prazos de liberação e o resto da operação — sem mexer no código.</p>
             <TaxasPlanos />
             <DadosEmpresa />
-            <CampanhasConfig />
             <SettingsForm settings={settings} />
             <SuporteConfig inicial={settings.suporte} />
           </>

@@ -58,8 +58,7 @@ export default function IndicacoesAdmin() {
   return (
     <div className="ix">
       <style dangerouslySetInnerHTML={{ __html: V3_CSS + CSS }} />
-      <h1 className="adm-h">Indicações</h1>
-      <p className="adm-sub">Comprador indica amigo pelo link pessoal; quando o amigo novo faz a primeira compra paga, quem indicou ganha CB Points depois do prazo de liberação.</p>
+      <p className="adm-sub" style={{ marginBottom: 16 }}>Comprador indica amigo pelo link pessoal; quando o amigo novo faz a primeira compra paga, quem indicou ganha CB Points depois do prazo de liberação.</p>
       {!d.sql37 && <Aviso><b>Falta rodar o SQL 37 (INDICACOES).</b> Sem ele os links funcionam como rastreio, mas nenhuma indicação é registrada.</Aviso>}
 
       <details className="adm-card ix-regras" open={regrasAbertas} onToggle={(e) => lembrarRegras((e.currentTarget as HTMLDetailsElement).open)}>

@@ -1,6 +1,5 @@
 'use client';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { AoVivoV3 } from './v3/AudienciaV3';
 import { Aviso, Barras, Bloqueado, Chips, Funil, Kpi, V3_CSS, diaCurto, fmt, pct } from './v3/ui';
 
 // Admin › Inteligência Comercial: do visitante à compra aprovada, por origem, produto e vendedor.
@@ -38,8 +37,7 @@ export default function InteligenciaComercial() {
   return (
     <div className="bi">
       <style dangerouslySetInnerHTML={{ __html: V3_CSS + CSS }} />
-      <h1 className="adm-h">Inteligência Comercial</h1>
-      <p className="adm-sub">Onde o visitante entra, onde ele desiste e o que vira venda. Compras = pagamentos confirmados pelo gateway, nunca a página de obrigado.</p>
+      <p className="adm-sub">Onde o visitante entra, onde ele desiste e o que vira venda. Compras = pagamentos confirmados pelo gateway, nunca a página de obrigado. O "ao vivo" está em Audiência e sessões.</p>
 
       <div className="adm-card bi-filtros">
         <Chips valor={p} opcoes={OPCOES} onChange={setP} />
@@ -147,7 +145,6 @@ export default function InteligenciaComercial() {
         </>
       )}
 
-      <AoVivoV3 />
     </div>
   );
 }
