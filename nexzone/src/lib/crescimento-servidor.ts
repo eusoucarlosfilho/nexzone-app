@@ -6,6 +6,8 @@ import { produtosPublicos } from '@/lib/vendedorPublico';
 import type { Product } from '@/lib/types';
 import { sendBatch, layoutEmail, SITE_URL } from '@/lib/email';
 import { unstable_cache, revalidateTag } from 'next/cache';
+import { lerCfgOfertasDia } from '@/lib/ofertasDia-servidor';
+import { itensNoAr } from '@/lib/ofertasDia';
 import {
   agruparJogos, slugJogo, tipoPorSlug, CAMPANHA_BF, lerCfgBF, faseBF, escolherOferta, hojeBR, textoOfertaCanal,
   lerModoTema, temaBlack, ordenarPorDesconto,
@@ -161,11 +163,26 @@ export async function cfgCanais(admin: Admin = createAdminClient()): Promise<Cfg
   };
 }
 
-/** A oferta do dia: a escolhida no admin para hoje, ou a automática (desconto real + vendas, roda por dia). */
-export async function ofertaDoDia(admin: Admin = createAdminClient()): Promise<{ produto: Product; fim: number; dia: string } | null> {
+/** A oferta do dia — UMA só no site inteiro (página /oferta-do-dia, post do Telegram e texto do canal):
+ *  1º a vitrine OFERTAS DO DIA da home, quando está no ar (o 1º anúncio dela);
+ *  2º a escolhida no admin para hoje;  3º a automática (desconto real + vendas, roda por dia). */
+export async function ofertaDoDia(admin: Admin = createAdminClient()): Promise<{ produto: Product; fim: number; dia: string; origem: 'vitrine' | 'manual' | 'auto' } | null> {
   const { dia, fim } = hojeBR();
   const canais = await cfgCanais(admin);
-  let id: string | null = canais.manual && canais.manual.dia === dia ? canais.manual.id : null;
+  let origem: 'vitrine' | 'manual' | 'auto' = 'auto';
+  let id: string | null = null;
+  let fimVitrine: number | null = null;
+  try {
+    const vit = await lerCfgOfertasDia(admin);
+    const noAr = itensNoAr(vit);
+    if (noAr.length >= 3) {
+      const { data: ativos } = await admin.from('products').select('id').eq('status', 'ativo').in('id', noAr.map((x) => x.id));
+      const ok = new Set(((ativos ?? []) as any[]).map((x) => x.id));
+      const primeiro = noAr.find((x) => ok.has(x.id));
+      if (ok.size >= 3 && primeiro) { id = primeiro.id; origem = 'vitrine'; fimVitrine = primeiro.fim ? Date.parse(primeiro.fim) : null; }
+    }
+  } catch { /* sem vitrine: segue a regra antiga */ }
+  if (!id && canais.manual && canais.manual.dia === dia) { id = canais.manual.id; origem = 'manual'; }
   if (!id) {
     let r: any = await admin.from('products').select('id, preco, preco_promo, vendas, nota, estoque').eq('status', 'ativo').not('preco_promo', 'is', null).limit(1000);
     if (r.error) r = await admin.from('products').select('id, preco, preco_promo, vendas, nota').eq('status', 'ativo').not('preco_promo', 'is', null).limit(1000);
@@ -175,7 +192,7 @@ export async function ofertaDoDia(admin: Admin = createAdminClient()): Promise<{
   if (!id) return null;
   const { data } = await createClient().from('products').select(PRODUTO_CARD).eq('status', 'ativo').eq('id', id).maybeSingle();
   if (!data) return null;
-  return { produto: produtosPublicos([data as unknown as Product])[0], fim, dia };
+  return { produto: produtosPublicos([data as unknown as Product])[0], fim: fimVitrine && fimVitrine < fim ? fimVitrine : fim, dia, origem };
 }
 
 export const linkOferta = (id: string) => `${SITE}/produto/${id}?utm_source=canal&utm_medium=oferta_do_dia`;
