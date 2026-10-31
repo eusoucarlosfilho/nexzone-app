@@ -7,7 +7,6 @@ import WhatsAppPainel from './WhatsAppPainel';
 import WhatsAppLog from './WhatsAppLog';
 import PromoForm from './PromoForm';
 import OrderChat from '@/components/OrderChat';
-import AdminNotes from './AdminNotes';
 import AudienceTab from './AudienceTab';
 import ProvaSocialForm from './ProvaSocialForm';
 import SupportTab from './SupportTab';
@@ -309,14 +308,12 @@ export default function AdminDashboard({ painel, adminEmail, users, metrics, dai
       ['crescimento', 'growth', 'Crescimento e Black', 0],
       ['audiencia', 'activity', 'Audiência', 0],
       ['seo', 'search', 'SEO e Google', 0],
-      ['destaques', 'star', 'Destaques', metrics.destaquesAtivos],
       ['promocoes', 'megaphone', 'Enviar promoção', 0],
       ['avisos', 'send', 'Avisos no sino', 0],
       ['provasocial', 'award', 'Prova social', 0],
     ]],
     ['Ajustes', [
       ['torpedos', 'phone', 'WhatsApp e torpedos', 0],
-      ['observacoes', 'edit', 'Observações', 0],
       ['config', 'settings', 'Configurações', 0],
     ]],
   ];
@@ -801,35 +798,6 @@ export default function AdminDashboard({ painel, adminEmail, users, metrics, dai
           </>
         )}
 
-        {tab === 'destaques' && (
-          <>
-            <h1 className="adm-h">Destaques</h1>
-            <p className="adm-sub">Receita de divulgação (planos de destaque pagos pelos vendedores).</p>
-            <div className="adm-stats">
-              <div className="adm-stat"><div className="ic"><Icon name="money" size={20} /></div><b>{money(metrics.receitaDivulgacao)}</b><small>Receita total de divulgação</small></div>
-              <div className="adm-stat"><div className="ic"><Icon name="star" size={20} /></div><b>{fmt(metrics.destaquesAtivos)}</b><small>Destaques ativos agora</small></div>
-            </div>
-            <div className="adm-card">
-              {boostList.length ? (
-                <table className="adm-table">
-                  <thead><tr><th>Produto</th><th>Vendedor</th><th>Plano</th><th>Valor</th><th>Status</th><th>Expira</th></tr></thead>
-                  <tbody>
-                    {boostList.map((b: any) => (
-                      <tr key={b.id}>
-                        <td><ProductThumb capa_url={b.products?.capa_url} categoria={b.products?.categoria} titulo={b.products?.titulo} tamanho={28} raio={7} icone={18} style={{ marginRight: 6 }} /> {b.products?.titulo ?? '—'}</td>
-                        <td style={{ color: 'var(--sub)' }}>{b.stores?.nome ?? '—'}</td>
-                        <td>{b.dias} dias</td>
-                        <td style={{ color: 'var(--or2)', fontFamily: 'Outfit', fontWeight: 800 }}>{money(b.valor)}</td>
-                        <td><Pill s={b.status === 'pago' ? 'pago' : b.status === 'pendente' ? 'pendente' : 'reprovado'} /></td>
-                        <td style={{ color: 'var(--sub)' }}>{b.expira_em ? new Date(b.expira_em).toLocaleDateString('pt-BR') : '—'}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              ) : <div className="adm-empty">Nenhum destaque vendido ainda.</div>}
-            </div>
-          </>
-        )}
 
         {tab === 'crescimento' && (
           <>
@@ -918,7 +886,6 @@ export default function AdminDashboard({ painel, adminEmail, users, metrics, dai
           );
         })()}
 
-        {tab === 'observacoes' && <AdminNotes adminEmail={adminEmail} />}
 
         {tab === 'torpedos' && (
           <>
