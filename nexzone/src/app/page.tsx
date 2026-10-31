@@ -27,6 +27,8 @@ import { lerSeoConfig } from '@/lib/seo-servidor';
 import OfertaDoDiaCard from '@/components/OfertaDoDiaCard';
 import PixelInstitucional from '@/components/PixelInstitucional';
 import Contagem from '@/components/Contagem';
+import OfertasDoDiaVitrine from '@/components/OfertasDoDiaVitrine';
+import { vitrineOfertasDia } from '@/lib/ofertasDia-servidor';
 import { ofertaDoDia, cfgCanais, cfgBF, listarJogos, lerTemaBlack, ofertasAntecipadas, painelBF } from '@/lib/crescimento-servidor';
 import { faseBF } from '@/lib/crescimento';
 
@@ -84,8 +86,9 @@ export default async function Home() {
     } catch { /* sem SQL 21 */ }
   }
   // Crescimento: oferta do dia, canais, Black Friday e jogos com anúncio (cada um falha sozinho, sem derrubar a home)
-  const [oferta, canais, bf, jogosTop] = await Promise.all([
+  const [oferta, canais, bf, jogosTop, vitrineDia] = await Promise.all([
     ofertaDoDia().catch(() => null), cfgCanais().catch(() => null), cfgBF().catch(() => null), listarJogos().then((l) => l.slice(0, 12)).catch(() => []),
+    vitrineOfertasDia(), // Admin › Ofertas do dia (curadoria): quando no ar, substitui o card único da oferta do dia
   ]);
   const fase = bf ? faseBF(bf) : 'depois';
   // Tema Black (Black November): bloco da campanha no topo + vitrine de descontos reais
@@ -241,7 +244,25 @@ export default async function Home() {
           </div>
         </section>
 
-        {oferta && (
+        {vitrineDia && (
+          <section className="nz" aria-labelledby="h-odd"><div className="c">
+            <div className="v3-st"><div><div className="slabel">Seleção de hoje</div><h2 id="h-odd" className="odd-t">{vitrineDia.titulo}</h2></div><Link href="/oferta-do-dia" className="v3-st-l">Oferta do dia<Icon name="chevronRight" size={16} /></Link></div>
+            <p className="v3-st-sub">{vitrineDia.subtitulo}</p>
+            <OfertasDoDiaVitrine itens={vitrineDia.itens.length}>
+              <div className="pg odd-pg">
+                {vitrineDia.itens.map((it, i) => (
+                  <div key={it.produto.id} className="odd-item" data-oferta={it.produto.id} data-pos={i + 1}>
+                    {it.fim && <div className="odd-tempo"><Icon name="clock" size={13} /> Termina em <Contagem alvo={it.fim} rotuloFim="Encerrada" /></div>}
+                    <ProductCard p={it.produto} origem="home" />
+                  </div>
+                ))}
+              </div>
+            </OfertasDoDiaVitrine>
+            <style dangerouslySetInnerHTML={{ __html: '.odd-t{letter-spacing:.5px}.odd-item{position:relative;display:flex;flex-direction:column}.odd-tempo{display:flex;align-items:center;gap:5px;align-self:flex-start;margin-bottom:6px;background:#111;color:#FFC83D;font-size:12px;font-weight:800;border-radius:999px;padding:4px 10px}' }} />
+          </div></section>
+        )}
+
+        {oferta && !vitrineDia && (
           <section className="nz" aria-label="Oferta do dia"><div className="c">
             <OfertaDoDiaCard p={oferta.produto} fim={oferta.fim} canais={{ whatsapp: canais?.whatsapp || '', telegram: canais?.telegram || '' }} />
           </div></section>

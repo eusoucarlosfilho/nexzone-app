@@ -4,6 +4,7 @@ import Toaster from '@/components/Toaster';
 import BuyerNotifier from '@/components/BuyerNotifier';
 import SiteTracker from '@/components/SiteTracker';
 import OrigemCadastro from '@/components/OrigemCadastro';
+import VincularIndicacao from '@/components/VincularIndicacao';
 import NoticeBanner from '@/components/NoticeBanner';
 import { FavoritesProvider } from '@/lib/favorites';
 import { RegistrarApp } from '@/components/AppInstalavel';
@@ -55,7 +56,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800;900&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet" />
       </head>
-      <body><FavoritesProvider><NoticeBanner />{tema.ativo && tema.fase && <FaixaBlack fase={tema.fase} alvo={alvo} />}{faixa && <FaixaCampanha c={faixa} />}{children}</FavoritesProvider><Toaster /><BuyerNotifier /><SiteTracker /><OrigemCadastro /><RegistrarApp /></body>
+      <body><FavoritesProvider><NoticeBanner />{tema.ativo && tema.fase && <FaixaBlack fase={tema.fase} alvo={alvo} />}{faixa && <FaixaCampanha c={faixa} />}{children}</FavoritesProvider><Toaster /><BuyerNotifier /><SiteTracker /><OrigemCadastro /><VincularIndicacao /><RegistrarApp /></body>
     </html>
   );
 }

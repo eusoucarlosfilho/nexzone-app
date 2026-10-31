@@ -81,7 +81,8 @@ export const temPixel = (r: RastreioProduto) => !!(r.meta || r.tiktok || r.ga4 |
 
 // ---------- Origem da venda ----------
 export const CHAVES_ORIGEM = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term', 'src', 'sck'] as const;
-export type OrigemVenda = Partial<Record<(typeof CHAVES_ORIGEM)[number] | 'ref', string>>;
+export type OrigemVenda = Partial<Record<(typeof CHAVES_ORIGEM)[number] | 'ref' | 'sid' | 'vid', string>>;
+const UUID_ORIGEM = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const texto = (v: any, max = 100) => (typeof v === 'string' ? v.replace(/[\u0000-\u001f<>"'`\\]/g, '').trim().slice(0, max) : '');
 
@@ -92,6 +93,8 @@ export function limparOrigem(raw: any): OrigemVenda | null {
   for (const k of CHAVES_ORIGEM) { const t = texto(raw[k]); if (t) out[k] = t; }
   const ref = texto(raw.ref, 80).toLowerCase();
   if (ref && /^[a-z0-9.-]+\.[a-z]{2,}$/.test(ref)) out.ref = ref;
+  // sessão e navegador anônimos (Inteligência Comercial): ligam o pedido à visita, sem dado pessoal
+  for (const k of ['sid', 'vid'] as const) if (typeof raw[k] === 'string' && UUID_ORIGEM.test(raw[k])) out[k] = raw[k].toLowerCase();
   return Object.keys(out).length ? out : null;
 }
 
@@ -106,8 +109,11 @@ export function limparCliques(raw: any): Record<string, string> | null {
 }
 
 /** "Origem" legível para relatórios: campanha › conteúdo, ou fonte, ou site de referência. */
+/** O pedido tem origem de marketing (UTM, src ou site)? O id da sessão sozinho não conta. */
+export const temOrigemMarketing = (o: OrigemVenda | null | undefined) => !!o && !!(o.utm_source || o.utm_campaign || o.src || o.sck || o.ref);
+
 export function rotuloOrigem(o: OrigemVenda | null | undefined): { fonte: string; campanha: string; conteudo: string } {
-  if (!o) return { fonte: 'Direto / sem rastreio', campanha: '—', conteudo: '—' };
+  if (!temOrigemMarketing(o) || !o) return { fonte: 'Direto / sem rastreio', campanha: '—', conteudo: '—' };
   const fonte = o.utm_source || o.src || o.ref || 'Direto / sem rastreio';
   return { fonte, campanha: o.utm_campaign || '—', conteudo: o.utm_content || o.sck || '—' };
 }

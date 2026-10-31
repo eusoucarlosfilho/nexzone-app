@@ -31,6 +31,11 @@ export default async function ContaPage({ searchParams }: { searchParams: { salv
         <h1>Minha conta</h1>
         <p className="muted">Seus dados e preferências de comunicação.</p>
 
+        <Link href="/conta/indicacoes" className="card" style={{ marginTop: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, background: '#0B0B0C', color: '#fff', textDecoration: 'none' }}>
+          <span><b style={{ fontFamily: 'Outfit', fontSize: 16 }}>Minhas indicações</b><br /><span style={{ fontSize: 13, color: '#D4D4D8' }}>Seu link pessoal para convidar amigos e acompanhar as recompensas.</span></span>
+          <span style={{ color: '#FF7A00', fontWeight: 800, whiteSpace: 'nowrap' }}>Abrir →</span>
+        </Link>
+
         <div className="card" style={{ marginTop: 20 }}>
           <div style={{ fontSize: 13, color: 'var(--sub)', marginBottom: 4 }}>Nome</div>
           <div style={{ fontFamily: 'Outfit', fontWeight: 700, marginBottom: 14 }}>{(prof as any)?.nome || '—'}</div>

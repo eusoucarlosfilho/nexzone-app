@@ -1,6 +1,6 @@
 'use client';
 import { useMemo, useState } from 'react';
-import { rotuloOrigem, type OrigemVenda } from '@/lib/rastreioVenda';
+import { rotuloOrigem, temOrigemMarketing, type OrigemVenda } from '@/lib/rastreioVenda';
 
 // Vendas → Vendas por origem (Sprint 1): agrupa as vendas pagas por fonte / campanha / anúncio (UTM).
 const money = (v: number) => 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',');
@@ -21,7 +21,7 @@ export default function VendasPorOrigem({ vendas }: { vendas: Venda[] }) {
     return Array.from(m.values()).sort((a, b) => b.valor - a.valor);
   }, [vendas, nivel]);
   const total = linhas.reduce((s, l) => s + l.valor, 0);
-  const comOrigem = vendas.some((v) => v.origem);
+  const comOrigem = vendas.some((v) => temOrigemMarketing(v.origem));
 
   return (
     <div className="card" style={{ marginTop: 18 }}>

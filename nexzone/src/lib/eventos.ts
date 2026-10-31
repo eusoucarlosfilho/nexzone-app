@@ -16,6 +16,10 @@ export const EVENTOS = {
   compra_clique: { props: ['tipo', 'categoria'] },
   busca: { props: ['termo', 'resultados', 'categoria'] },
   vendedor_cta: { props: ['origem'] },
+  oferta_dia_vista: { props: ['itens'] },                  // a vitrine OFERTAS DO DIA apareceu na tela
+  oferta_dia_clique: { props: ['produto', 'posicao'] },   // vitrine OFERTAS DO DIA (home)
+  divulgar_copia: { props: ['canal'] },                    // vendedor copiou/compartilhou um material
+  indicacao_compartilhar: { props: ['canal'] },            // comprador compartilhou o link de indicação
 } as const;
 
 export type NomeEvento = keyof typeof EVENTOS;
@@ -31,6 +35,7 @@ const ENUMS: Record<string, readonly string[]> = {
   metodo: ['email', 'google'],
   confirmacao: ['imediata', 'por_email'],
   origem: ['home', 'busca', 'categoria', 'catalogo', 'relacionados', 'loja', 'login', 'nav', 'outro'],
+  canal: ['whatsapp', 'instagram', 'facebook', 'stories', 'copiar', 'imagem', 'outro'],
 };
 
 const EMAIL = /[^\s@]+@[^\s@]+/;
@@ -59,6 +64,15 @@ export function limparProps(nome: NomeEvento, props: unknown): PropsEvento {
     if (v === undefined || v === null) continue;
     if (ENUMS[k]) {
       if (typeof v === 'string' && ENUMS[k].includes(v)) out[k] = v;
+      continue;
+    }
+    if (k === 'produto') { // id do produto (uuid): validado à parte, não passa pela limpeza de texto
+      if (typeof v === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v)) out[k] = v.toLowerCase();
+      continue;
+    }
+    if (k === 'posicao' || k === 'itens') {
+      const n = Number(v);
+      if (Number.isInteger(n) && n >= 1 && n <= 20) out[k] = n;
       continue;
     }
     if (k === 'resultados') {

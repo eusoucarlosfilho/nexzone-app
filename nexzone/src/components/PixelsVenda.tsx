@@ -1,7 +1,7 @@
 'use client';
 import { useEffect } from 'react';
 import type { RastreioProduto } from '@/lib/rastreioVenda';
-import { origemGuardada } from '@/lib/rastreio-cliente';
+import { origemGuardada, getSid, getVid } from '@/lib/rastreio-cliente';
 
 // Pixels do VENDEDOR (Meta, TikTok, Google) na página do produto, no checkout e na página do pedido.
 // Sempre os pixels DO PRODUTO (cada produto tem o seu público), nunca um pixel no site inteiro.
@@ -112,6 +112,12 @@ const CHAVES = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_
 
 /** UTM do link do checkout (o vendedor repassa da página dele) ou, se não tiver, a origem do 1º acesso ao site. */
 export function coletarOrigem(): Record<string, string> | null {
+  const o = coletarOrigemMarketing();
+  // liga o pedido à visita (ids anônimos): é o que permite o funil visita → compra na Inteligência Comercial
+  try { return { ...(o || {}), sid: getSid().sid, vid: getVid() }; } catch { return o; }
+}
+
+function coletarOrigemMarketing(): Record<string, string> | null {
   try {
     const sp = new URLSearchParams(window.location.search);
     const daUrl: Record<string, string> = {};

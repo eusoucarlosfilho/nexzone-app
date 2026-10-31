@@ -1,3 +1,4 @@
+import { liberarIndicacoes } from '@/lib/indicacao-servidor';
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/server';
 import { processarEventos, lembrarPix } from '@/lib/eventosVenda-servidor';
@@ -41,5 +42,7 @@ export async function GET(req: Request) {
   const avaliacoes = Date.now() - inicio < 25000 ? await pedirAvaliacoes(admin, 10).catch(() => ({ enviados: 0 })) : { enviados: 0, adiado: true };
   // Black Friday (aplica/desfaz preços na hora) + post da oferta do dia no Telegram
   const crescimento = Date.now() - inicio < 26000 ? await rotinaCrescimento(admin).catch(() => null) : null;
-  return NextResponse.json({ ok: true, conferencia, crescimento, eventos, lembretes, carrinhos, avaliacoes, ms: Date.now() - inicio }, { headers: { 'Cache-Control': 'no-store' } });
+  // Indicações (SQL 37): libera os pontos cujo prazo passou (compra ainda paga)
+  const indicacoes = Date.now() - inicio < 27000 ? await liberarIndicacoes(admin, 20).catch(() => null) : null;
+  return NextResponse.json({ ok: true, conferencia, crescimento, indicacoes, eventos, lembretes, carrinhos, avaliacoes, ms: Date.now() - inicio }, { headers: { 'Cache-Control': 'no-store' } });
 }

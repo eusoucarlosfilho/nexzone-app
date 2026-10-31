@@ -8,6 +8,9 @@ import WhatsAppLog from './WhatsAppLog';
 import PromoForm from './PromoForm';
 import OrderChat from '@/components/OrderChat';
 import AudienceTab from './AudienceTab';
+import InteligenciaComercial from './InteligenciaComercial';
+import OfertasDiaAdmin from './OfertasDiaAdmin';
+import IndicacoesAdmin from './IndicacoesAdmin';
 import ProvaSocialForm from './ProvaSocialForm';
 import SupportTab from './SupportTab';
 import SuporteConfig from './SuporteConfig';
@@ -333,6 +336,9 @@ export default function AdminDashboard({ painel, adminEmail, users, metrics, dai
       ['financeiro', 'wallet', 'Financeiro', 0],
     ]],
     ['Crescimento', [
+      ['inteligencia', 'trending', 'Inteligência Comercial', 0],
+      ['ofertasdia', 'bolt', 'Ofertas do dia', 0],
+      ['indicacoes', 'gift', 'Indicações', 0],
       ['crescimento', 'growth', 'Crescimento e Black', 0],
       ['campanhas', 'sparkles', 'Campanhas e ofertas', 0],
       ['audiencia', 'activity', 'Audiência', 0],
@@ -556,6 +562,15 @@ export default function AdminDashboard({ painel, adminEmail, users, metrics, dai
         )}
 
         {tab === 'audiencia' && <AudienceTab />}
+        {tab === 'inteligencia' && <InteligenciaComercial />}
+        {tab === 'ofertasdia' && (
+          <>
+            <h1 className="adm-h">Ofertas do dia</h1>
+            <p className="adm-sub">Vitrine da página inicial com anúncios escolhidos por você: ordem, agenda e o desempenho de cada um.</p>
+            <OfertasDiaAdmin />
+          </>
+        )}
+        {tab === 'indicacoes' && <IndicacoesAdmin />}
 
         {tab === 'aprovacao' && (
           <>

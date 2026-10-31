@@ -23,6 +23,9 @@
   },
   "files": [
     "../src/lib/periodo.ts",
+    "../src/lib/inteligencia.ts",
+    "../src/lib/ofertasDia.ts",
+    "../src/lib/indicacao.ts",
     "../src/lib/whatsapp/qrPix.ts",
     "../src/lib/campanhasSite.ts",
     "../src/lib/modelosEmail.ts",

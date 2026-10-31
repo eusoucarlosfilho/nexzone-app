@@ -86,7 +86,13 @@ export function origemGuardada(): Origem | null {
  */
 export function registrarOrigem(path: string): Utm {
   if (typeof window === 'undefined') return {};
-  const utm = utmDe(window.location.search || '');
+  let utm = utmDe(window.location.search || '');
+  // Link de indicação (?ref=CODIGO): vira a origem "indicação" (só quando o link não traz UTM própria)
+  const ind = codigoIndicacaoDaUrl(window.location.search || '');
+  if (ind) {
+    guardarIndicacao(ind);
+    if (!Object.keys(utm).length) utm = { utm_source: 'indicacao', utm_medium: 'link', utm_content: ind.toLowerCase() };
+  }
   try {
     const atual = origemGuardada();
     const temUtm = Object.keys(utm).length > 0;
@@ -121,3 +127,29 @@ export function trackEvento(nome: NomeEvento, props: PropsEvento = {}) {
     enviar({ type: 'event', sid, vid: getVid(), path, nome, props });
   } catch {}
 }
+
+// ---------- Indicação de compradores ----------
+const IND_KEY = 'cb_indicacao';
+const IND_MS = 30 * 24 * 3600 * 1000; // o convite vale 30 dias neste navegador
+const COD = /^[A-Z2-9]{8}$/;
+
+/** Código do link ?ref= (8 caracteres, letras maiúsculas e dígitos 2-9). Qualquer outra coisa é ignorada. */
+export function codigoIndicacaoDaUrl(search: string): string | null {
+  try { const c = String(new URLSearchParams(search).get('ref') || '').trim().toUpperCase(); return COD.test(c) ? c : null; } catch { return null; }
+}
+/** Guarda o convite (o primeiro vale: outro link depois não troca quem indicou). */
+export function guardarIndicacao(codigo: string) {
+  try {
+    const atual = indicacaoGuardada();
+    if (atual) return;
+    localStorage.setItem(IND_KEY, JSON.stringify({ c: codigo, t: Date.now() }));
+  } catch {}
+}
+export function indicacaoGuardada(): string | null {
+  try {
+    const o = JSON.parse(localStorage.getItem(IND_KEY) || 'null');
+    if (!o || !COD.test(o.c) || !o.t || Date.now() - o.t > IND_MS) return null;
+    return o.c;
+  } catch { return null; }
+}
+export function limparIndicacao() { try { localStorage.removeItem(IND_KEY); } catch {} }
