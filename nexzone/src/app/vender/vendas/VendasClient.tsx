@@ -1,5 +1,7 @@
 'use client';
 import { Fragment, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import DialogoSite from '@/components/DialogoSite';
 import ProductThumb from '@/components/ProductThumb';
 import Icon from '@/components/Icon';
 import { toast } from '@/lib/toast';
@@ -14,8 +16,47 @@ const STATUS: Record<string, [string, string]> = {
 };
 const FILTROS: [string, string][] = [['vendas', 'Vendas'], ['aguardando', 'Aguardando pagamento'], ['abandonou', 'Abandonou o checkout'], ['reembolsadas', 'Reembolsadas'], ['todas', 'Todas']];
 type Contato = { nome: string | null; whatsapp: string | null; avisos: boolean };
+type Situacao = 'entregue' | 'conversando' | 'a_entregar' | 'reembolso';
+// Situação real da venda paga (não só o status do pagamento)
+const SITUACAO: Record<Situacao, [string, string]> = {
+  a_entregar: ['rev', 'A entregar'], conversando: ['rev', 'Conversando'], entregue: ['act', 'Entregue'], reembolso: ['rej', 'Devolução em andamento'],
+};
 
-export default function VendasClient({ vendas, clientes = {}, loja = '', site = 'https://www.compreibarato.com.br', inicial = 'vendas', carrinhos = [], privado = false }: { vendas: any[]; clientes?: Record<string, Contato>; loja?: string; site?: string; inicial?: string; carrinhos?: any[]; privado?: boolean }) {
+export default function VendasClient({ vendas, clientes = {}, loja = '', site = 'https://www.compreibarato.com.br', inicial = 'vendas', carrinhos = [], privado = false, situacao = {}, avaliacoes = {}, notaCliente = {}, sql32 = true, cbAtivo = false, bonus = 0 }: { vendas: any[]; clientes?: Record<string, Contato>; loja?: string; site?: string; inicial?: string; carrinhos?: any[]; privado?: boolean; situacao?: Record<string, Situacao>; avaliacoes?: Record<string, { nota: number; comentario: string | null }>; notaCliente?: Record<string, { media: number; qtd: number }>; sql32?: boolean; cbAtivo?: boolean; bonus?: number }) {
+  const router = useRouter();
+  const [dlg, setDlg] = useState<{ tipo: 'cancelar' | 'entregue'; id: string } | null>(null);
+  const [ocupado, setOcupado] = useState(false);
+  const [aval, setAval] = useState<Record<string, { nota: number; comentario: string }>>({});
+  const [minhasAval, setMinhasAval] = useState(avaliacoes);
+
+  async function chamar(url: string, corpo: any, ok: string) {
+    setOcupado(true);
+    try {
+      const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify(corpo) });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) { toast(j.error || 'Não foi possível agora.', 'error'); return null; }
+      toast(ok, 'success');
+      return j;
+    } catch { toast('Sem conexão. Tente de novo.', 'error'); return null; }
+    finally { setOcupado(false); }
+  }
+  async function marcarEntregue(id: string) {
+    const j = await chamar('/api/chat/entregue', { orderId: id }, 'Venda marcada como entregue. O cliente foi avisado.');
+    setDlg(null); if (j) router.refresh();
+  }
+  async function cancelar(id: string, motivo: string) {
+    const j = await chamar('/api/chat/cancelar', { orderId: id, motivo }, 'Venda cancelada. A devolução ao cliente foi pedida ao suporte.');
+    setDlg(null); if (j) router.refresh();
+  }
+  async function avaliar(id: string) {
+    const a = aval[id];
+    if (!a?.nota) { toast('Escolha de 1 a 5 estrelas.', 'error'); return; }
+    const j = await chamar('/api/vender/avaliar-cliente', { orderId: id, nota: a.nota, comentario: a.comentario }, 'Avaliação enviada. Obrigado!');
+    if (j) {
+      setMinhasAval((m) => ({ ...m, [id]: { nota: a.nota, comentario: a.comentario || null } }));
+      if (j.pontos > 0) toast(`+${j.pontos} CB Points por avaliar o cliente!`, 'success');
+    }
+  }
   const [filtro, setFiltro] = useState(inicial);
   const [aberta, setAberta] = useState<string | null>(null);
   const [busca, setBusca] = useState('');
@@ -74,6 +115,15 @@ export default function VendasClient({ vendas, clientes = {}, loja = '', site = 
         .vd-bt{display:inline-flex;align-items:center;gap:6px;background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:50px;padding:7px 12px;font-weight:800;font-size:12.5px;cursor:pointer;white-space:nowrap;text-decoration:none}
         .vd-alerta{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;background:#FFF6E5;border:1px solid #FFD58A;border-radius:14px;padding:12px 16px;margin-bottom:14px;font-size:14px}
         .vd-cli b{display:block;font-weight:800;color:var(--text)}
+        .vd-painel{margin-top:12px;border-top:1px dashed var(--border);padding-top:12px}
+        .vd-bt.pri{background:var(--text);color:#fff;border-color:var(--text)}
+        .vd-bt.perigo{color:#C53030;border-color:#F3B4B4}
+        .vd-bt:disabled{opacity:.5;cursor:default}
+        .vd-aval{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:12px;font-size:13px}
+        .vd-aval input{flex:1 1 220px;min-width:0;padding:8px 12px;border-radius:50px;border:1px solid var(--border);font-size:13px}
+        .vd-estrelas{display:inline-flex;gap:2px;font-size:20px;color:#D0CCC6}
+        .vd-estrelas button{background:none;border:0;padding:0 1px;font-size:22px;line-height:1;cursor:pointer;color:#D0CCC6}
+        .vd-estrelas button.on,.vd-estrelas.on{color:#FFB020}
         .vd-cli small{color:var(--muted);font-size:12px}
       ` }} />
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
@@ -125,7 +175,8 @@ export default function VendasClient({ vendas, clientes = {}, loja = '', site = 
             </thead>
             <tbody>
               {lista.map((v: any) => {
-                const st = STATUS[v.status] || ['rev', v.status];
+                const sit: Situacao | undefined = situacao[v.id];
+                const st = (concluida(v) && sit ? SITUACAO[sit] : null) || STATUS[v.status] || ['rev', v.status];
                 const open = aberta === v.id;
                 const c = cliente(v);
                 const pend = v.status === 'pendente';
@@ -135,7 +186,7 @@ export default function VendasClient({ vendas, clientes = {}, loja = '', site = 
                     <tr style={{ borderTop: '1px solid var(--border)', cursor: 'pointer' }} onClick={() => setAberta(open ? null : v.id)}>
                       <td style={td}>{new Date(v.created_at).toLocaleDateString('pt-BR')}<br /><small className="muted">{pend ? haQuanto(v.created_at) : new Date(v.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</small></td>
                       <td style={td}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><ProductThumb capa_url={v.products?.capa_url} categoria={v.products?.categoria} titulo={v.products?.titulo} tamanho={28} raio={7} icone={16} />{v.products?.titulo ?? 'Produto'}</span></td>
-                      <td style={td}><span className="vd-cli"><b>{c.nome || '—'}</b><small>{v.comprador_email ?? ''}</small>{c.whatsapp && <small><br />{foneLegivel(c.whatsapp)}</small>}</span></td>
+                      <td style={td}><span className="vd-cli"><b>{c.nome || '—'}</b>{notaCliente[v.comprador] && <small title={`Nota dada por vendedores em ${notaCliente[v.comprador].qtd} compra(s)`}>★ {String(notaCliente[v.comprador].media).replace('.', ',')} ({notaCliente[v.comprador].qtd})<br /></small>}<small>{v.comprador_email ?? ''}</small>{c.whatsapp && <small><br />{foneLegivel(c.whatsapp)}</small>}</span></td>
                       <td style={td}><span className={`pill ${st[0]}`}>{st[1]}</span></td>
                       <td style={{ ...td, textAlign: 'right', whiteSpace: 'nowrap', fontFamily: 'Outfit', fontWeight: 800, color: pend ? 'var(--text)' : 'var(--green)' }}>{money(pend ? v.total : v.valor_vendedor)}</td>
                       <td style={td} onClick={(e) => pend && e.stopPropagation()}>
@@ -158,6 +209,39 @@ export default function VendasClient({ vendas, clientes = {}, loja = '', site = 
                             <span className="muted">Líquido p/ você: <strong style={{ color: 'var(--green)' }}>{money(v.valor_vendedor)}</strong></span>
                             <span className="muted">Data/hora: <strong style={{ color: 'var(--text)' }}>{new Date(v.created_at).toLocaleString('pt-BR')}</strong></span>
                           </div>
+                          {concluida(v) && (
+                            <div className="vd-painel">
+                              <div className="vd-acoes" style={{ justifyContent: 'flex-start' }}>
+                                <a className="vd-bt pri" href={`/vender/conversas/${v.id}`}><Icon name="chat" size={14} /> Abrir chat da venda</a>
+                                {sit !== 'entregue' && sit !== 'reembolso' && <button className="vd-bt" disabled={ocupado} onClick={() => setDlg({ tipo: 'entregue', id: v.id })}><Icon name="checkCircle" size={14} /> Marcar como entregue</button>}
+                                {sit !== 'reembolso' && <button className="vd-bt perigo" disabled={ocupado} onClick={() => setDlg({ tipo: 'cancelar', id: v.id })}><Icon name="undo" size={14} /> Cancelar e devolver ao cliente</button>}
+                              </div>
+                              <small className="muted" style={{ display: 'block', marginTop: 6 }}>
+                                {sit === 'reembolso' ? 'A devolução desta venda já está com o suporte. O valor fica retido até a confirmação.'
+                                  : sit === 'conversando' ? 'O cliente já falou com você no chat. Quando entregar, marque como entregue.'
+                                  : sit === 'a_entregar' ? 'Entregue pelo chat da venda e depois marque como entregue: o saldo é liberado no fim da garantia.'
+                                  : 'Entregue. O saldo é liberado automaticamente no fim da garantia.'}
+                              </small>
+                              <div className="vd-aval">
+                                <b>Avaliar o cliente</b>
+                                {minhasAval[v.id] ? (
+                                  <span className="vd-estrelas on" aria-label={`Você deu ${minhasAval[v.id].nota} de 5`}>{'★'.repeat(minhasAval[v.id].nota)}{'☆'.repeat(5 - minhasAval[v.id].nota)} <small className="muted">avaliação enviada</small></span>
+                                ) : !sql32 ? <small className="muted">Disponível em breve.</small> : (
+                                  <>
+                                    <span className="vd-estrelas" role="radiogroup" aria-label="Nota do cliente">
+                                      {[1, 2, 3, 4, 5].map((n) => (
+                                        <button key={n} type="button" role="radio" aria-checked={aval[v.id]?.nota === n} aria-label={`${n} estrela${n > 1 ? 's' : ''}`}
+                                          className={(aval[v.id]?.nota || 0) >= n ? 'on' : ''} onClick={() => setAval((x) => ({ ...x, [v.id]: { nota: n, comentario: x[v.id]?.comentario || '' } }))}>★</button>
+                                      ))}
+                                    </span>
+                                    <input value={aval[v.id]?.comentario || ''} maxLength={500} placeholder="Comentário (opcional): pagou rápido, educado…"
+                                      onChange={(e) => setAval((x) => ({ ...x, [v.id]: { nota: x[v.id]?.nota || 0, comentario: e.target.value } }))} />
+                                    <button className="vd-bt pri" disabled={ocupado || !aval[v.id]?.nota} onClick={() => avaliar(v.id)}>Enviar{cbAtivo && bonus > 0 ? ` · ganhe ${bonus} CB Points` : ''}</button>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          )}
                         </td>
                       </tr>
                     )}
@@ -169,6 +253,13 @@ export default function VendasClient({ vendas, clientes = {}, loja = '', site = 
         ) : <div style={{ padding: 28 }} className="muted">{filtro === 'aguardando' ? 'Nenhum pedido aguardando pagamento.' : 'Nenhuma venda nesse filtro ainda.'}</div>}
       </div>
       )}
+      <DialogoSite aberto={dlg?.tipo === 'entregue'} titulo="Marcar como entregue?" carregando={ocupado}
+        texto="Faça isso só depois de entregar pelo chat da venda. O cliente é avisado para conferir e avaliar."
+        confirmar="Sim, já entreguei" onConfirmar={() => dlg && marcarEntregue(dlg.id)} onFechar={() => setDlg(null)} />
+      <DialogoSite aberto={dlg?.tipo === 'cancelar'} titulo="Cancelar e devolver ao cliente?" perigo carregando={ocupado}
+        texto="O valor volta para o cliente pela mesma forma de pagamento (devolução do Pix original, feita pelo suporte). O saldo desta venda sai do seu painel. Não dá para desfazer."
+        campo={{ rotulo: 'Motivo (o cliente vê no chat)', placeholder: 'Ex.: acabou o estoque deste item', minimo: 5 }}
+        confirmar="Cancelar e devolver" onConfirmar={(m) => dlg && cancelar(dlg.id, m)} onFechar={() => setDlg(null)} />
     </div>
   );
 }
