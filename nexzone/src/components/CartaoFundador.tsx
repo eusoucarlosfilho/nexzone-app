@@ -10,7 +10,7 @@ export default function CartaoFundador({ f, vagas }: { f: SituacaoFundador; vaga
       <div style={caixa} role="note">
         <span style={{ fontSize: 28, lineHeight: 1 }} aria-hidden="true">🏅</span>
         <div>
-          <b style={{ fontFamily: 'Outfit', fontSize: 16 }}>Restam {vagas.restantes} vagas de Lojista Fundador</b>
+          <b style={{ fontFamily: 'Outfit', fontSize: 16 }}>{vagas.restantes <= 10 ? "Últimas vagas de Lojista Fundador" : "Vagas limitadas de Lojista Fundador"}</b>
           <p className="muted" style={{ margin: '4px 0 0', fontSize: 13.5 }}>Publique seu primeiro produto: quando ele for aprovado você garante a vaga, com comissão reduzida no começo, selo de Fundador para sempre e destaque grátis no anúncio.</p>
         </div>
       </div>
