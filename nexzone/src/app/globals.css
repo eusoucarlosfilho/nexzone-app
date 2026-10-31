@@ -158,7 +158,7 @@ section.nz{padding:56px 0 0}
 
 /* ---------- card de produto ---------- */
 .pg{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:20px}
-.pc{background:#fff;border:1px solid var(--border);border-radius:var(--r);overflow:hidden;transition:transform .28s var(--ease),box-shadow .28s,border-color .28s;display:flex;flex-direction:column;position:relative;animation:cb-up .55s var(--ease) both}
+.pc{background:#fff;color:var(--text);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;transition:transform .28s var(--ease),box-shadow .28s,border-color .28s;display:flex;flex-direction:column;position:relative;animation:cb-up .55s var(--ease) both}
 .pc:hover{transform:translateY(-6px);box-shadow:var(--sh-md);border-color:transparent}
 .pc .top{aspect-ratio:4/3;height:auto;display:flex;align-items:center;justify-content:center;font-size:56px;position:relative;overflow:hidden;background:var(--soft)}
 .pc .top .cov{position:absolute;inset:0;background-size:cover;background-position:center;transition:transform .5s var(--ease)}
@@ -173,7 +173,7 @@ section.nz{padding:56px 0 0}
 .pc:hover .tit{color:var(--orange-ink)}
 .pc .rt{font-size:13px;color:var(--sub);font-weight:700;display:flex;align-items:center;gap:5px}
 .pc .ft{display:flex;align-items:baseline;justify-content:space-between;margin-top:auto;padding-top:6px}
-.pc .price{font-family:'Outfit';font-size:23px;font-weight:900;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.pc .price{font-family:'Outfit';font-size:23px;font-weight:900;color:var(--text);display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
 .pc .price small{display:inline;font-size:14px;color:var(--muted);text-decoration:line-through;font-weight:600;font-family:'Nunito'}
 
 /* ---------- favorito ---------- */
@@ -944,3 +944,6 @@ html[data-tema="black"] ::selection{background:#000;color:var(--orange2)}
 .bfv .v3-st-sub{color:#A9A9BA}
 @media(max-width:640px){.bfv{padding:18px;border-radius:20px;margin:0 calc(var(--gut) * -1);border-radius:0}}
 html[data-tema="black"] .v3-cat{color:var(--text)}
+
+/* cards dentro de blocos pretos (vitrine da Black): o card é branco, o texto volta a ser escuro */
+.bfv .pc,.bfh .pc{color:var(--text)}
