@@ -20,7 +20,7 @@ export async function POST(req: Request) {
   let b: any = {}; try { b = await req.json(); } catch {}
   const admin = createAdminClient();
   const cfg = await cfgBF(admin);
-  if (faseBF(cfg) === 'depois') return NextResponse.json({ error: 'A Black Friday já terminou.' }, { status: 409 });
+  if (faseBF(cfg) === 'depois') return NextResponse.json({ error: 'A Black November já terminou.' }, { status: 409 });
   const { data: p } = await admin.from('products').select('id, store_id, status, preco, preco_promo').eq('id', String(b.productId || '')).maybeSingle();
   if (!p || (p as any).store_id !== storeId) return NextResponse.json({ error: 'Produto não encontrado.' }, { status: 404 });
   if ((p as any).status !== 'ativo') return NextResponse.json({ error: 'Só produtos ativos podem participar.' }, { status: 400 });
