@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { adminSeguro } from '@/lib/ofertas/adminSeguro';
 import { marcarReembolsado, registrarDevolucao } from '@/lib/reembolso-servidor';
-import { gatewayDaRef } from '@/lib/payments/gateway';
+import { gatewayDaRef, contaDoGateway } from '@/lib/payments/gateway';
 import { contatosDosCompradores } from '@/lib/clientesPedidos';
 import { semSql18 } from '@/lib/curso-servidor';
 
@@ -59,12 +59,14 @@ export async function GET(req: Request) {
         status: o.status, pago_em: o.entregue_em || o.created_at, forma: o.forma_pagamento ?? null,
         // código da transação no gateway: todo admin vê (não é dado pessoal) — é com ele que se acha a compra no painel
         gateway_ref: o.gateway_ref ?? null, comprador_email: reforcado ? o.comprador_email : null, comprador_nome: nomes[o.comprador]?.nome ?? null,
-        produto: o.products?.titulo ?? 'Produto', loja: o.stores?.nome ?? '—',
+        produto: o.products?.titulo ?? 'Produto', loja: o.stores?.nome ?? '—', criado_em: o.created_at,
+        pix: o.gateway_dados ? { pagador: o.gateway_dados.pagador ?? null, e2e: o.gateway_dados.e2e ?? null, banco: o.gateway_dados.banco ?? null } : null,
       };
     }
   }
   const { count } = await admin.from('reembolso_pedidos').select('id', { count: 'exact', head: true }).eq('status', 'aberto');
-  return NextResponse.json({ sql18: true, sql31, abertos: count ?? 0, itens: ((data ?? []) as any[]).map((r) => ({ ...r, aprovado_por_nome: r.decidido_por ? nomesAdmins[r.decidido_por] ?? 'Admin' : null, devolucao_por_nome: r.devolucao_por ? nomesAdmins[r.devolucao_por] ?? 'Admin' : null, pedido: pedidos[r.order_id] ?? null })) });
+  const conta = await contaDoGateway().catch(() => null);
+  return NextResponse.json({ sql18: true, sql31, conta, abertos: count ?? 0, itens: ((data ?? []) as any[]).map((r) => ({ ...r, aprovado_por_nome: r.decidido_por ? nomesAdmins[r.decidido_por] ?? 'Admin' : null, devolucao_por_nome: r.devolucao_por ? nomesAdmins[r.devolucao_por] ?? 'Admin' : null, pedido: pedidos[r.order_id] ?? null })) });
 }
 
 export async function POST(req: Request) {
@@ -95,7 +97,10 @@ export async function POST(req: Request) {
       await registrarDevolucao(adminC, (rr as any).order_id, { origem: 'conferencia', valor: ev.amount ?? null });
       return NextResponse.json({ ok: true, devolvido: true, mensagem: 'A MisticPay confirmou a devolução. Reembolso concluído.' });
     }
-    return NextResponse.json({ ok: true, devolvido: false, mensagem: ev.estado === 'DEVOLVIDO_PARCIAL' ? 'A MisticPay mostra devolução PARCIAL. Confira o valor no painel.' : `Ainda não devolvido na MisticPay (situação: ${ev.estado || ev.status}).` });
+    const valor = ev.amount != null ? `R$ ${Number(ev.amount).toFixed(2).replace('.', ',')}` : 'valor não informado';
+    const quando = ev.criadoEm ? new Date(ev.criadoEm).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '';
+    const sit: Record<string, string> = { COMPLETO: 'paga, ainda NÃO devolvida', PENDENTE: 'pendente (não foi paga)', FALHA: 'falhou', DEVOLVIDO_PARCIAL: 'devolvida em PARTE' };
+    return NextResponse.json({ ok: true, devolvido: false, mensagem: `Compra encontrada na conta MisticPay do site: ${valor}${quando ? `, criada em ${quando}` : ''}. Situação: ${sit[String(ev.estado)] || ev.estado || ev.status}.` });
   }
   const resposta = String(b.resposta ?? '').trim().slice(0, 2000);
   if (b.acao === 'recusar' && resposta.length < 10) return NextResponse.json({ error: 'Explique ao cliente o motivo da recusa.' }, { status: 400 });
