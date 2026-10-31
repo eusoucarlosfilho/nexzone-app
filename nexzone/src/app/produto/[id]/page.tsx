@@ -20,6 +20,7 @@ import { lerCfgCampanhas, fundadorDaLoja } from '@/lib/campanhas-servidor';
 import { pontosCashbackControlado } from '@/lib/campanhas';
 import { slugJogo } from '@/lib/crescimento';
 import { notFound } from 'next/navigation';
+import { ehAdmin } from '@/lib/suporte/servidor';
 import type { Product } from '@/lib/types';
 import type { Metadata } from 'next';
 import Icon from '@/components/Icon';
@@ -80,7 +81,7 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
   };
 }
 
-export default async function ProductPage({ params }: { params: { id: string } }) {
+export default async function ProductPage({ params, searchParams }: { params: { id: string }; searchParams?: { previa?: string } }) {
   const supabase = createClient();
   let { data } = await supabase.from('products')
     .select(PRODUTO_PAGINA).eq('id', params.id).eq('status', 'ativo').maybeSingle();
@@ -100,6 +101,19 @@ export default async function ProductPage({ params }: { params: { id: string } }
         esgotadoPausado = true;
       }
     } catch { /* sem SQL 07 ou sem chave: segue como antes (404) */ }
+  }
+  // Prévia do admin (?previa=1): anúncio em revisão, pausado ou fora do ar, aberto só para quem é admin.
+  // Mostra a página como o comprador vai ver, sem botão de compra e sem pixel.
+  let previa: string | null = null;
+  if (!data && searchParams?.previa === '1' && /^[0-9a-f-]{36}$/i.test(params.id)) {
+    try {
+      const { data: { user: quem } } = await supabase.auth.getUser();
+      const adm = createAdminClient();
+      if (quem && await ehAdmin(adm, quem.id)) {
+        const { data: qualquer } = await adm.from('products').select(PRODUTO_PAGINA).eq('id', params.id).maybeSingle();
+        if (qualquer) { data = qualquer; previa = String((qualquer as any).status || 'em_revisao'); }
+      }
+    } catch { /* sem chave: 404 como antes */ }
   }
   if (!data) notFound();
   // Dados públicos do vendedor (Comprei Barato quando a loja está oculta). O nome real não sai do servidor.
@@ -232,7 +246,7 @@ export default async function ProductPage({ params }: { params: { id: string } }
         <div className="pdp-now">{money(preco)}{desconto > 0 && <span className="pdp-off">-{desconto}%</span>}</div>
       </div>
       {aviso && <div className={`pdp-stock ${aviso.nivel}`} role="status">{aviso.texto}</div>}
-      <BuyButton productId={p.id} esgotado={esgotado} categoria={cat?.slug ?? null} />
+      {previa ? <div className="pdp-stock esgotado" role="status">Prévia do admin: compra desligada</div> : <BuyButton productId={p.id} esgotado={esgotado} categoria={cat?.slug ?? null} />}
       {Confianca}
       <Link href="/como-funciona" className="pdp-como">Como funciona a compra<Icon name="chevronRight" size={14} /></Link>
       <ShareButton titulo={p.titulo} full />
@@ -246,7 +260,12 @@ export default async function ProductPage({ params }: { params: { id: string } }
   return (
     <>
       <Nav />
-      {pixel && <PixelProduto rastreio={pixel} produtoId={p.id} titulo={p.titulo} valor={Number(preco) || 0} />}
+      {previa && (
+        <div role="status" style={{ background: '#FFC94D', color: '#16162A', fontWeight: 800, fontSize: 14, textAlign: 'center', padding: '10px 16px' }}>
+          Prévia do admin · este anúncio está <u>{({ em_revisao: 'em revisão', pausado: 'pausado', reprovado: 'fora do ar', rascunho: 'em rascunho', ativo: 'no ar' } as Record<string, string>)[previa] ?? previa}</u> e não aparece para os compradores. Volte ao painel para aprovar ou pedir correção.
+        </div>
+      )}
+      {pixel && !previa && <PixelProduto rastreio={pixel} produtoId={p.id} titulo={p.titulo} valor={Number(preco) || 0} />}
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdHtml }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: trilhaHtml }} />
       <style dangerouslySetInnerHTML={{ __html: `
@@ -448,7 +467,7 @@ export default async function ProductPage({ params }: { params: { id: string } }
 
       <div className="pdp-mbar">
         <div className="pp">{desconto > 0 && <small><span className="sr-only">De </span>{money(p.preco)}</small>}{money(preco)}</div>
-        <BuyButton productId={p.id} esgotado={esgotado} categoria={cat?.slug ?? null} />
+        {previa ? <div className="pdp-stock esgotado" role="status">Prévia do admin: compra desligada</div> : <BuyButton productId={p.id} esgotado={esgotado} categoria={cat?.slug ?? null} />}
       </div>
       <Footer />
     </>
