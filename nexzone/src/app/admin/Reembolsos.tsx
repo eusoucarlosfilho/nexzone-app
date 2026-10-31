@@ -89,8 +89,13 @@ export default function Reembolsos({ onContagem }: { onContagem?: (n: number) =>
                 )}
                 {p.gateway_ref && p.forma !== 'cartao' && (
                   <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', marginTop: 6, fontSize: 13 }}>
-                    <span>Código da compra {String(p.gateway_ref).startsWith('mp:') ? 'no Mercado Pago' : 'enviado à MisticPay'}: <b style={{ fontFamily: 'monospace' }}>{String(p.gateway_ref).replace(/^mp:/, '')}</b></span>
-                    <button type="button" className="adm-btn rp" style={{ padding: '3px 10px', fontSize: 12 }} onClick={() => copiar(String(p.gateway_ref).replace(/^mp:/, ''))}>Copiar</button>
+                    {String(p.gateway_ref).startsWith('mp:') ? (<>
+                      <span>Código da compra no Mercado Pago: <b style={{ fontFamily: 'monospace' }}>{String(p.gateway_ref).replace(/^mp:/, '')}</b></span>
+                      <button type="button" className="adm-btn rp" style={{ padding: '3px 10px', fontSize: 12 }} onClick={() => copiar(String(p.gateway_ref).replace(/^mp:/, ''))}>Copiar</button>
+                    </>) : (<>
+                      <span>Buscar no extrato: <b style={{ fontFamily: 'monospace' }}>{String(p.gateway_ref).slice(0, 8)}</b> <small style={{ color: 'var(--sub)' }}>(vale para Pix gerados a partir desta versão; nos antigos, busque pelo valor e horário)</small></span>
+                      <button type="button" className="adm-btn rp" style={{ padding: '3px 10px', fontSize: 12 }} onClick={() => copiar(String(p.gateway_ref).slice(0, 8))}>Copiar</button>
+                    </>)}
                     {!String(p.gateway_ref).startsWith('mp:') && <a className="adm-btn rp" style={{ padding: '3px 10px', fontSize: 12, textDecoration: 'none' }} href={PAINEL_MISTIC} target="_blank" rel="noopener noreferrer">Abrir extrato da MisticPay ↗</a>}
                   </div>
                 )}
