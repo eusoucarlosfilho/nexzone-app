@@ -287,30 +287,40 @@ export default function AdminDashboard({ painel, adminEmail, users, metrics, dai
   const [reembolsosAbertos, setReembolsosAbertos] = useState<number>(Number(metrics.reembolsosAbertos) || 0);
   const [verificacoesPendentes, setVerificacoesPendentes] = useState<number>(Number(metrics.verificacoesPendentes) || 0);
   const [produtoresNovos, setProdutoresNovos] = useState<number>(Number(metrics.produtoresNovos) || 0);
-  const NAV = [
-    ['cockpit', 'cockpit', 'Dashboard', 0],
-    ['audiencia', 'activity', 'Audiência', 0],
-    ['aprovacao', 'check', 'Aprovação', queue.length],
-    ['pedidos', 'receipt', 'Pedidos', 0],
-    ['vendedores', 'store', 'Usuários', metrics.lojasPendentes],
-    ['produtos', 'package', 'Produtos', 0],
-    ['saques', 'money', 'Saques', metrics.saquesPendentes],
-    ['financeiro', 'wallet', 'Financeiro', 0],
-    ['destaques', 'star', 'Destaques', metrics.destaquesAtivos],
-    ['crescimento', 'growth', 'Crescimento', 0],
-    ['seo', 'search', 'SEO e Google', 0],
-    ['produtores', 'magnet', 'Lojistas interessados', produtoresNovos],
-    ['reclamacoes', 'shield', 'Reclamações', recPendentes.length],
-    ['reembolsos', 'undo', 'Reembolsos', reembolsosAbertos],
-    ['verificacoes', 'key', 'Verificações', verificacoesPendentes],
-    ['suporte', 'help', 'Suporte', metrics.suporteAbertos || 0],
-    ['observacoes', 'chat', 'Observações', 0],
-    ['torpedos', 'chat', 'WhatsApp e torpedos', 0],
-    ['avisos', 'send', 'Avisos no sino', 0],
-    ['promocoes', 'megaphone', 'Enviar promoção', 0],
-    ['provasocial', 'shield', 'Prova social', 0],
-    ['config', 'settings', 'Configurações', 0],
+  // Menu em grupos: o dia a dia em cima, crescimento no meio, ajustes embaixo
+  const GRUPOS: [string, any[]][] = [
+    ['Dia a dia', [
+      ['cockpit', 'cockpit', 'Dashboard', 0],
+      ['aprovacao', 'check', 'Aprovação', queue.length],
+      ['pedidos', 'receipt', 'Pedidos', 0],
+      ['reclamacoes', 'alert', 'Reclamações', recPendentes.length],
+      ['reembolsos', 'undo', 'Reembolsos', reembolsosAbertos],
+      ['suporte', 'help', 'Suporte', metrics.suporteAbertos || 0],
+    ]],
+    ['Lojistas e dinheiro', [
+      ['produtores', 'rocket', 'Novos lojistas', produtoresNovos],
+      ['vendedores', 'store', 'Usuários', metrics.lojasPendentes],
+      ['produtos', 'package', 'Produtos', 0],
+      ['verificacoes', 'key', 'Verificações', verificacoesPendentes],
+      ['saques', 'money', 'Saques', metrics.saquesPendentes],
+      ['financeiro', 'wallet', 'Financeiro', 0],
+    ]],
+    ['Crescimento', [
+      ['crescimento', 'growth', 'Crescimento e Black', 0],
+      ['audiencia', 'activity', 'Audiência', 0],
+      ['seo', 'search', 'SEO e Google', 0],
+      ['destaques', 'star', 'Destaques', metrics.destaquesAtivos],
+      ['promocoes', 'megaphone', 'Enviar promoção', 0],
+      ['avisos', 'send', 'Avisos no sino', 0],
+      ['provasocial', 'award', 'Prova social', 0],
+    ]],
+    ['Ajustes', [
+      ['torpedos', 'phone', 'WhatsApp e torpedos', 0],
+      ['observacoes', 'edit', 'Observações', 0],
+      ['config', 'settings', 'Configurações', 0],
+    ]],
   ];
+  const NAV = GRUPOS.flatMap(([, itens]) => itens);
 
   const filteredOrders = orderFilter === 'todos' ? orderList : orderList.filter((o: any) => o.status === orderFilter);
 
@@ -333,6 +343,8 @@ export default function AdminDashboard({ painel, adminEmail, users, metrics, dai
         .adm-nav:hover{background:var(--panel2);color:var(--tx);transform:translateX(3px);}
         .adm-nav.on{background:#FF6B00;color:#16162A;box-shadow:0 8px 20px rgba(255,107,0,.25);}
         .adm-nav .bd{margin-left:auto;background:#FF5C5C;color:#fff;font-size:12px;font-weight:900;border-radius:50px;padding:1px 8px;animation:cb-pop .4s both;}.adm-nav.on .bd{background:#16162A;}
+        .adm-grupo{display:flex;flex-direction:column;gap:2px;margin-bottom:10px;}
+        .adm-gt{font-size:10.5px;font-weight:900;letter-spacing:1.2px;text-transform:uppercase;color:var(--sub);opacity:.75;padding:6px 13px 4px;}
         .adm-foot{margin-top:auto;border-top:1px solid var(--bd2);padding-top:12px;}
         .adm-foot a{display:block;padding:9px 13px;font-size:13px;color:var(--sub);text-decoration:none;border-radius:9px;font-family:'Outfit';font-weight:600;}
         .adm-foot a:hover{background:var(--panel2);color:var(--tx);}
@@ -412,17 +424,22 @@ export default function AdminDashboard({ painel, adminEmail, users, metrics, dai
             Logado como<br /><strong style={{ color: 'var(--tx)' }}>{adminEmail}</strong>
           </div>
         )}
-        {NAV.map(([id, ic, label, badge]: any) => (
-          <button key={id} className={`adm-nav ${tab === id ? 'on' : ''}`} onClick={() => irPara(id, badge)}>
-            <Icon name={ic} /> {label} {badge > (seenBadges[id] || 0) && <span className="bd">{badge}</span>}
-          </button>
+        {GRUPOS.map(([titulo, itens]) => (
+          <div key={titulo} className="adm-grupo">
+            <div className="adm-gt">{titulo}</div>
+            {itens.map(([id, ic, label, badge]: any) => (
+              <button key={id} className={`adm-nav ${tab === id ? 'on' : ''}`} onClick={() => irPara(id, badge)}>
+                <Icon name={ic} /> {label} {badge > (seenBadges[id] || 0) && <span className="bd">{badge}</span>}
+              </button>
+            ))}
+            {titulo === 'Crescimento' && (
+              <a className="adm-nav" href="/admin/ofertas-parceiras" style={{ textDecoration: 'none' }}><Icon name="link" /> Ofertas parceiras</a>
+            )}
+            {titulo === 'Ajustes' && (
+              <a className="adm-nav" href="/notificacoes?aba=preferencias" style={{ textDecoration: 'none' }}><Icon name="bell" /> Minhas notificações</a>
+            )}
+          </div>
         ))}
-        <a className="adm-nav" href="/admin/ofertas-parceiras" style={{ textDecoration: 'none' }}>
-          <Icon name="link" /> Ofertas parceiras
-        </a>
-        <a className="adm-nav" href="/notificacoes?aba=preferencias" style={{ textDecoration: 'none' }}>
-          <Icon name="bell" /> Minhas notificações
-        </a>
         <div className="adm-foot">
           <button className="adm-nav" onClick={toggleTheme} style={{ marginBottom: 2 }}>
             <Icon name={theme === 'dark' ? 'sun' : 'moon'} size={16} /> {theme === 'dark' ? 'Modo claro' : 'Modo escuro'}
@@ -598,7 +615,7 @@ export default function AdminDashboard({ painel, adminEmail, users, metrics, dai
               <button className="adm-btn rp" onClick={() => setUsuariosClassico(false)}>‹ Voltar ao painel de inteligência</button>
             </div>
             <h1 className="adm-h">Usuários · lista clássica</h1>
-            <p className="adm-sub">Visão anterior, com faturamento por vendedor. Atenção: valores de vendas dependem do status do pedido, que ainda não comprova pagamento (K2).</p>
+            <p className="adm-sub">Visão anterior, com faturamento por vendedor. Os valores seguem o status do pedido; o número oficial de dinheiro está em Financeiro.</p>
             <input
               value={userQuery} onChange={(e) => setUserQuery(e.target.value)}
               placeholder="Buscar por e-mail, nome ou ID…"
@@ -816,9 +833,12 @@ export default function AdminDashboard({ painel, adminEmail, users, metrics, dai
 
         {tab === 'crescimento' && (
           <>
+            <h1 className="adm-h">Crescimento e Black Friday</h1>
+            <p className="adm-sub">Black Friday Gamer, oferta do dia, canais de ofertas e o ranking de vendas.</p>
+            <CrescimentoAdmin />
             <GrowthPanel />
             <h2 className="adm-ct" style={{ marginTop: 26 }}>Ranking de vendas</h2>
-            <p className="adm-sub" style={{ marginBottom: 14 }}>Baseado no status dos pedidos, que ainda não comprova pagamento (K2). Use como referência, não como número financeiro.</p>
+            <p className="adm-sub" style={{ marginBottom: 14 }}>Contado pelo status dos pedidos. Use como referência; o número oficial de dinheiro está em Financeiro.</p>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(320px,1fr))', gap: 18 }}>
               <div className="adm-card">
                 <h3 style={{ fontFamily: 'Outfit', fontWeight: 800, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}><Icon name="store" size={18} /> Top vendedores (faturamento)</h3>
@@ -961,8 +981,8 @@ export default function AdminDashboard({ painel, adminEmail, users, metrics, dai
 
         {tab === 'produtores' && (
           <>
-            <h1 className="adm-h">Lojistas interessados</h1>
-            <p className="adm-sub">Quem preencheu o formulário da página /produtores. Chame no WhatsApp, anote a conversa e mude o status até ele começar a vender.</p>
+            <h1 className="adm-h">Novos lojistas</h1>
+            <p className="adm-sub">Quem criou a loja pela página /produtores. A fase muda sozinha (loja criada → anúncio → venda): chame no WhatsApp quem parou sem anúncio, com a mensagem pronta para cada fase.</p>
             <ProdutoresInteressados onContagem={setProdutoresNovos} />
           </>
         )}
@@ -1010,7 +1030,6 @@ export default function AdminDashboard({ painel, adminEmail, users, metrics, dai
             <TaxasPlanos />
             <DadosEmpresa />
             <CampanhasConfig />
-            <CrescimentoAdmin />
             <SettingsForm settings={settings} />
             <SuporteConfig inicial={settings.suporte} />
           </>

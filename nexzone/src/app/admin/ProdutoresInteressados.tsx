@@ -4,18 +4,37 @@ import Icon from '@/components/Icon';
 import { toast } from '@/lib/toast';
 import { STATUS, TIPOS, formatarWhatsapp, linkWhatsapp, mensagemParaProdutor } from '@/lib/recrutamento';
 
-// Admin → Produtores interessados (formulário da página /produtores) + configuração do Pixel/WhatsApp.
+// Admin → Novos lojistas (lojas criadas pela página /produtores): fase de ativação, contato + configuração do Pixel/WhatsApp.
 const dt = (s: string) => new Date(s).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' });
 const ROT_VENDE: Record<string, string> = { sim: 'Já vende', comecando: 'Começando', nao: 'Ainda não vende' };
 const ROT_TIPO: Record<string, string> = Object.fromEntries(TIPOS.map((t) => [t.id, t.rotulo]));
 const COR: Record<string, string> = Object.fromEntries(STATUS.map((s) => [s.id, s.cor]));
 const URL_PAGINA = 'https://compreibarato.com.br/produtores';
+// Fase de ativação (calculada no servidor pela conta/loja/anúncios de cada lojista)
+const FASE: Record<string, { rot: string; cor: string }> = {
+  loja_criada: { rot: 'Loja criada · sem anúncio', cor: '#FF7A14' },
+  em_revisao: { rot: 'Anúncio em revisão', cor: '#C98A00' },
+  anunciando: { rot: 'Anunciando · sem venda', cor: '#4C8DFF' },
+  vendendo: { rot: 'Vendendo', cor: '#20C98A' },
+  sem_conta: { rot: 'Sem conta no site', cor: '#8A8AA0' },
+};
+const FILTROS_FASE: [string, string][] = [['todas', 'Todas as fases'], ['loja_criada', 'Sem anúncio (chamar)'], ['em_revisao', 'Em revisão'], ['anunciando', 'Sem venda'], ['vendendo', 'Vendendo'], ['sem_conta', 'Sem conta']];
+/** Mensagem do WhatsApp conforme a fase: o objetivo é levar ao 1º anúncio e à 1ª venda. */
+function mensagemFase(nome: string, fase?: string) {
+  const p = String(nome || '').split(' ')[0] || nome;
+  if (fase === 'loja_criada') return `Oi, ${p}! Aqui é do Comprei Barato. Vi que você criou sua loja 🎉 Já dá para subir o primeiro anúncio em 2 minutos: compreibarato.com.br/vender/produtos/novo. Quer ajuda com o título e o preço?`;
+  if (fase === 'em_revisao') return `Oi, ${p}! Aqui é do Comprei Barato. Seu anúncio está na revisão e já já entra no ar. Enquanto isso, quer dicas para ele vender mais rápido?`;
+  if (fase === 'anunciando') return `Oi, ${p}! Aqui é do Comprei Barato. Seu anúncio já está no ar 👏 Quer que eu te passe 3 ajustes rápidos (foto, título e preço) que ajudam a sair a primeira venda?`;
+  if (fase === 'vendendo') return `Oi, ${p}! Aqui é do Comprei Barato. Parabéns pelas vendas! Tem mais produtos que você vende fora daqui e ainda não subiu na sua loja?`;
+  return '';
+}
 
 type Config = { whatsapp: string; pixel: string; teste: string; tokenDefinido: boolean; avisar?: string[]; avisarEmail?: boolean };
 
 export default function ProdutoresInteressados({ onContagem }: { onContagem?: (n: number) => void }) {
   const [filtro, setFiltro] = useState('todos');
   const [busca, setBusca] = useState('');
+  const [fase, setFase] = useState('todas');
   const [d, setD] = useState<{ sql20: boolean; itens: any[]; contagem: Record<string, number>; config: Config | null }>({ sql20: true, itens: [], contagem: {}, config: null });
   const [carregando, setCarregando] = useState(true);
   const [abrirCfg, setAbrirCfg] = useState(false);
@@ -62,9 +81,10 @@ export default function ProdutoresInteressados({ onContagem }: { onContagem?: (n
 
   const lista = useMemo(() => {
     const q = busca.trim().toLowerCase().replace(/^@/, '');
-    if (!q) return d.itens;
-    return d.itens.filter((i) => [i.nome, i.whatsapp, i.email, i.instagram, i.nicho].some((v) => String(v || '').toLowerCase().includes(q)));
-  }, [d.itens, busca]);
+    const porFase = fase === 'todas' ? d.itens : d.itens.filter((i) => (i.ativacao?.fase || 'sem_conta') === fase);
+    if (!q) return porFase;
+    return porFase.filter((i) => [i.nome, i.whatsapp, i.email, i.instagram, i.nicho].some((v) => String(v || '').toLowerCase().includes(q)));
+  }, [d.itens, busca, fase]);
 
   function baixarCsv() {
     const esc = (s: unknown) => { const t = String(s ?? ''); return /[";\n\r]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t; };
@@ -79,6 +99,8 @@ export default function ProdutoresInteressados({ onContagem }: { onContagem?: (n
   const copiar = (t: string) => { try { navigator.clipboard.writeText(t); toast('Copiado.', 'success'); } catch { toast(t, 'info' as any); } };
   const c = d.contagem;
   const config = d.config;
+  const fases = d.itens.reduce((m: Record<string, number>, i) => { const f = i.ativacao?.fase || 'sem_conta'; m[f] = (m[f] || 0) + 1; return m; }, {});
+  const comLoja = (fases.loja_criada || 0) + (fases.em_revisao || 0) + (fases.anunciando || 0) + (fases.vendendo || 0);
   const pendencias = [!config?.whatsapp && 'WhatsApp da equipe', !config?.pixel && 'ID do Pixel', !config?.avisar?.length && 'número para avisos no WhatsApp', !config?.tokenDefinido && 'token da API de Conversões'].filter(Boolean) as string[];
 
   if (!d.sql20) return <div className="adm-card"><b>Rode o SQL 20</b> no Supabase para ativar o formulário de produtores.</div>;
@@ -98,8 +120,7 @@ export default function ProdutoresInteressados({ onContagem }: { onContagem?: (n
         {abrirCfg && (
           <div className="pi-cfg">
             <label><span>WhatsApp que recebe os produtores</span><input value={cfg.whatsapp} onChange={(e) => setCfg({ ...cfg, whatsapp: e.target.value })} placeholder="5563999998888" inputMode="numeric" /><em>55 + DDD + número. Aparece no botão da página de obrigado.</em></label>
-            <label><span>Avisar no WhatsApp a cada cadastro</span><input value={cfg.avisar} onChange={(e) => setCfg({ ...cfg, avisar: e.target.value })} placeholder="5563999998888, 5563988887777" inputMode="tel" /><em>Até 3 números (você e o César), separados por vírgula. Chega no celular na hora, pela conexão de WhatsApp do site. Use números diferentes do que está conectado.</em></label>
-            <label style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}><input type="checkbox" checked={cfg.avisarEmail} onChange={(e) => setCfg({ ...cfg, avisarEmail: e.target.checked })} style={{ width: 18, height: 18 }} /><span style={{ margin: 0 }}>Também avisar por e-mail (e-mail de suporte das Configurações)</span></label>
+            <label><span>Avisar no WhatsApp a cada loja nova</span><input value={cfg.avisar} onChange={(e) => setCfg({ ...cfg, avisar: e.target.value })} placeholder="5563999998888, 5563988887777" inputMode="tel" /><em>Até 3 números (você e o César), separados por vírgula. Chega no celular na hora, pela conexão de WhatsApp do site. Use números diferentes do que está conectado.</em></label>
             <label><span>ID do Pixel do Meta</span><input value={cfg.pixel} onChange={(e) => setCfg({ ...cfg, pixel: e.target.value })} placeholder="123456789012345" inputMode="numeric" /><em>Gerenciador de Eventos → Fontes de dados → seu pixel.</em></label>
             <label><span>Token da API de Conversões {config?.tokenDefinido && <b className="pi-ok">✓ configurado</b>}</span><input type="password" value={cfg.token} onChange={(e) => setCfg({ ...cfg, token: e.target.value })} placeholder={config?.tokenDefinido ? 'Deixe em branco para manter o atual' : 'Cole o token gerado no Gerenciador de Eventos'} autoComplete="new-password" /><em>Fica guardado criptografado. Nunca aparece de novo na tela.</em></label>
             <label><span>Código de teste <small>(opcional)</small></span><input value={cfg.teste} onChange={(e) => setCfg({ ...cfg, teste: e.target.value })} placeholder="TEST12345" /><em>Só para conferir em "Testar eventos". Apague depois de testar.</em></label>
@@ -112,15 +133,20 @@ export default function ProdutoresInteressados({ onContagem }: { onContagem?: (n
       </div>
 
       <div className="pi-kpis">
-        <div><small>Total</small><b>{c.todos || 0}</b></div>
-        <div><small>Cadastro completo</small><b>{c.completos || 0}</b></div>
-        <div><small>Esperando contato</small><b className="or">{c.novo || 0}</b></div>
-        <div><small>Cadastraram loja</small><b>{(c.cadastrou || 0) + (c.vendendo || 0)}</b></div>
-        <div><small>Já vendendo</small><b className="vd">{c.vendendo || 0}</b></div>
+        <div><small>Cadastros</small><b>{c.todos || 0}</b></div>
+        <div><small>Com loja criada</small><b>{comLoja}</b></div>
+        <div><small>Sem anúncio (chamar)</small><b className="or">{fases.loja_criada || 0}</b></div>
+        <div><small>Com anúncio no ar</small><b>{(fases.anunciando || 0) + (fases.vendendo || 0)}</b></div>
+        <div><small>Já vendendo</small><b className="vd">{fases.vendendo || 0}</b></div>
       </div>
 
       <div className="adm-filters pi-fil">
-        {[['todos', 'Todos'], ...STATUS.map((s) => [s.id, s.rotulo])].map(([id, r]) => (
+        {FILTROS_FASE.map(([id, r]) => (
+          <button key={id} className={`adm-fb ${fase === id ? 'on' : ''}`} onClick={() => setFase(id)}>{r}{id !== 'todas' && fases[id] ? ` (${fases[id]})` : ''}</button>
+        ))}
+      </div>
+      <div className="adm-filters pi-fil">
+        {[['todos', 'Contato: todos'], ...STATUS.map((s) => [s.id, s.rotulo])].map(([id, r]) => (
           <button key={id} className={`adm-fb ${filtro === id ? 'on' : ''}`} onClick={() => setFiltro(id)}>{r}{id !== 'todos' && c[id] ? ` (${c[id]})` : ''}</button>
         ))}
         <input className="pi-busca" value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar nome, @, nicho…" />
@@ -128,7 +154,7 @@ export default function ProdutoresInteressados({ onContagem }: { onContagem?: (n
       </div>
 
       {carregando ? <div className="adm-empty">Carregando…</div> : !lista.length ? (
-        <div className="adm-card adm-empty">{d.itens.length ? 'Nada encontrado nessa busca.' : 'Nenhum lojista ainda. Assim que alguém preencher o formulário, aparece aqui (e no sino).'}</div>
+        <div className="adm-card adm-empty">{d.itens.length ? 'Nada encontrado nessa busca.' : 'Nenhum lojista ainda. Cada loja criada pela página /produtores aparece aqui, e o aviso chega no WhatsApp.'}</div>
       ) : lista.map((i) => (
         <div key={i.id} className="adm-card pi-item" style={{ borderLeft: `3px solid ${COR[i.status] || '#888'}` }}>
           <div className="pi-l1">
@@ -137,14 +163,16 @@ export default function ProdutoresInteressados({ onContagem }: { onContagem?: (n
               <span>{formatarWhatsapp(i.whatsapp)}{i.instagram && <> · <a href={`https://instagram.com/${i.instagram}`} target="_blank" rel="noreferrer">@{i.instagram}</a></>}{i.email && <> · {i.email}</>}</span>
             </div>
             <div className="pi-acoes">
-              <a className="adm-btn ap" href={linkWhatsapp(i.whatsapp, mensagemParaProdutor(i.nome, i.nicho))} target="_blank" rel="noreferrer" onClick={() => { if (i.status === 'novo') mudarStatus(i.id, 'conversando'); }}><Icon name="chat" size={14} /> WhatsApp</a>
+              <a className="adm-btn ap" href={linkWhatsapp(i.whatsapp, mensagemFase(i.nome, i.ativacao?.fase) || mensagemParaProdutor(i.nome, i.nicho))} target="_blank" rel="noreferrer" onClick={() => { if (i.status === 'novo') mudarStatus(i.id, 'conversando'); }}><Icon name="chat" size={14} /> WhatsApp</a>
               <select value={i.status} onChange={(e) => mudarStatus(i.id, e.target.value)} style={{ color: COR[i.status] }}>
                 {STATUS.map((s) => <option key={s.id} value={s.id}>{s.rotulo}</option>)}
               </select>
             </div>
           </div>
           <div className="pi-tags">
-            <span className={`pi-tag ${i.etapa === 2 ? 'ok' : 'meio'}`}>{i.etapa === 2 ? 'Cadastro completo' : 'Parou na 1ª etapa'}</span>
+            {i.ativacao && (() => { const f = FASE[i.ativacao.fase] || FASE.sem_conta; return <span className="pi-tag" style={{ color: f.cor, border: `1px solid ${f.cor}`, fontWeight: 900 }}>{f.rot}{i.ativacao.vendas ? ` · ${i.ativacao.vendas} vendas` : ''}</span>; })()}
+            {i.ativacao?.slug && <a className="pi-tag" href={`/loja/${i.ativacao.slug}`} target="_blank" rel="noreferrer">Ver loja ↗</a>}
+            <span className={`pi-tag ${i.etapa === 2 ? 'ok' : 'meio'}`}>{i.etapa === 2 ? 'Respondeu o perfil' : 'Pulou o perfil'}</span>
             {i.nicho && <span className="pi-tag">{i.nicho}</span>}
             {(i.tipos || []).map((t: string) => <span className="pi-tag" key={t}>{ROT_TIPO[t] || t}</span>)}
             {i.ja_vende && <span className="pi-tag">{ROT_VENDE[i.ja_vende]}{i.plataformas?.length ? `: ${i.plataformas.join(', ')}` : ''}</span>}
