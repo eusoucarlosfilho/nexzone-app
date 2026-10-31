@@ -947,3 +947,13 @@ html[data-tema="black"] .v3-cat{color:var(--text)}
 
 /* cards dentro de blocos pretos (vitrine da Black): o card é branco, o texto volta a ser escuro */
 .bfv .pc,.bfh .pc{color:var(--text)}
+
+/* topo: a busca nunca é esmagada (o botão Buscar subia por cima do BLACK FRIDAY).
+   Com o tema Black ligado ou com o link do admin, os atalhos ficam só com ícone (o nome aparece ao passar o mouse). */
+@media(min-width:861px){
+  .nav-search{min-width:260px}
+  html[data-tema="black"] .nav-link .nl-t,.nav-row:has(.nav-admin) .nav-link .nl-t{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+  html[data-tema="black"] .nav-link,.nav-row:has(.nav-admin) .nav-link{padding:0 11px}
+  html[data-tema="black"] .nav-end{gap:4px}
+  html[data-tema="black"] .nav-black{margin-right:6px}
+}
