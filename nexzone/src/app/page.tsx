@@ -270,7 +270,7 @@ export default async function Home() {
 
         {tema.ativo && vitrineBlack.length > 0 && (
           <section className="nz" id="ofertas-black" aria-labelledby="h-bfv" style={{ scrollMarginTop: 120 }}><div className="c"><div className="bfv">
-            <div className="v3-st"><div><div className="slabel">{tema.fase === 'black' ? 'Black Friday Gamer' : 'Esquenta Black'}</div><h2 id="h-bfv">{tema.fase === 'black' ? 'Os maiores descontos da Black' : 'Já com desconto hoje'}</h2></div><Link href="/black-friday" className="v3-st-l">Ver tudo<Icon name="chevronRight" size={16} /></Link></div>
+            <div className="v3-st"><div><div className="slabel">{tema.fase === 'black' ? 'Black November' : 'Esquenta Black'}</div><h2 id="h-bfv">{tema.fase === 'black' ? 'Os maiores descontos da Black' : 'Já com desconto hoje'}</h2></div><Link href="/black-friday" className="v3-st-l">Ver tudo<Icon name="chevronRight" size={16} /></Link></div>
             <p className="v3-st-sub">{tema.fase === 'black' ? 'Ordenados pelo maior desconto. Preço da campanha válido até o fim da Black.' : 'Não precisa esperar: estes anúncios já estão com preço promocional. Maior desconto primeiro.'}</p>
             <div className="pg">{vitrineBlack.map((p) => <ProductCard key={p.id} p={p} origem="home" />)}</div>
           </div></div></section>
@@ -334,10 +334,10 @@ export default async function Home() {
         <section className="nz"><div className="c">
           <div className="band">
             <div style={{ maxWidth: 620 }}>
-              <h2>{tema.ativo ? 'A Black Friday é o maior pico de vendas do ano. Esteja dentro.' : 'Tem conta, skin, gold ou gift card parado? Venda aqui.'}</h2>
-              <p>Anúncio grátis, sem mensalidade. Você paga a partir de {String(taxa).replace('.', ',')}% só quando vender e saca por Pix.{tema.ativo ? ' Inscreva seus produtos na Black Friday Gamer e apareça para quem está pronto para comprar.' : ''}</p>
+              <h2>{tema.ativo ? 'A Black November é o maior pico de vendas do ano. Esteja dentro.' : 'Tem produto digital ou serviço para vender? Venda aqui.'}</h2>
+              <p>Anúncio grátis, sem mensalidade. Você paga a partir de {String(taxa).replace('.', ',')}% só quando vender e saca por Pix.{tema.ativo ? ' Inscreva seus produtos na Black November e apareça para quem está pronto para comprar.' : ''}</p>
             </div>
-            <LinkRastreado href={tema.ativo ? '/vender/black-friday' : '/seja-vendedor'} className="btn btn-pri btn-lg" evento="vendedor_cta" dados={{ origem: 'home' }}>{tema.ativo ? 'Inscrever na Black Friday' : 'Criar minha loja grátis'}</LinkRastreado>
+            <LinkRastreado href={tema.ativo ? '/vender/black-friday' : '/seja-vendedor'} className="btn btn-pri btn-lg" evento="vendedor_cta" dados={{ origem: 'home' }}>{tema.ativo ? 'Inscrever na Black November' : 'Criar minha loja grátis'}</LinkRastreado>
           </div>
         </div></section>
       </main>
