@@ -6,6 +6,12 @@
 //  • reembolso antes do prazo cancela; depois do prazo, os pontos são estornados;
 //  • tudo idempotente: 1 indicação por pessoa indicada (unique) e mudança de estado condicional.
 // O programa nasce DESLIGADO e com 0 pontos: quem define valor, mínimo, prazo e limites é o admin.
+//
+// Proteção de margem (o custo nunca passa do que a venda rendeu, e o mês tem teto):
+//  1. recompensa = MENOR entre os pontos fixos e X% da comissão da plataforma NAQUELE pedido (como o cashback);
+//     comissão que não cobre nem 1 ponto = indicação não elegível (nunca paga para vender);
+//  2. orçamento mensal em R$: liberação que estoura o mês fica pendente para o 1º dia do mês seguinte;
+//  3. o ponto não vira dinheiro: só desconto, e o desconto numa compra nunca passa da comissão dela.
 // ============================================================
 export type CfgIndicacao = {
   ativo: boolean;
@@ -19,11 +25,14 @@ export type CfgIndicacao = {
   produtosIds: string[];
   contaNovaHoras: number;    // só vincula contas criadas há até X horas
   alertaCadastrosDia: number;// mais que isso em 24 h pelo mesmo código vira alerta para o admin
+  tetoComissaoPct: number;   // recompensa nunca passa desta % da comissão da plataforma no pedido do amigo
+  orcamentoMensal: number;   // R$ por mês em pontos liberados (0 = programa não libera nada)
 };
 export const CHAVE_INDICACAO = 'indicacao_cfg';
 export const INDICACAO_PADRAO: CfgIndicacao = {
   ativo: false, pontos: 0, minimo: 0, prazoDias: 7, inicio: null, fim: null, limitePorUsuario: 20,
   produtos: 'todos', produtosIds: [], contaNovaHoras: 72, alertaCadastrosDia: 10,
+  tetoComissaoPct: 30, orcamentoMensal: 300,
 };
 export type StatusIndicacao = 'cadastrado' | 'pendente' | 'liberada' | 'bloqueada' | 'cancelada' | 'estornada';
 export const ROTULO_STATUS: Record<StatusIndicacao, string> = {
@@ -53,12 +62,14 @@ export function normalizarCfgIndicacao(v: any): CfgIndicacao {
     produtosIds: ids,
     contaNovaHoras: int(o.contaNovaHoras, 1, 720, P.contaNovaHoras),
     alertaCadastrosDia: int(o.alertaCadastrosDia, 1, 1000, P.alertaCadastrosDia),
+    tetoComissaoPct: int(o.tetoComissaoPct, 0, 100, P.tetoComissaoPct),
+    orcamentoMensal: (() => { const n = Math.round(Number(o.orcamentoMensal ?? P.orcamentoMensal) * 100) / 100; return Number.isFinite(n) ? Math.min(1000000, Math.max(0, n)) : P.orcamentoMensal; })(),
   };
 }
 
 /** Programa valendo agora (ligado, com pontos e dentro da validade). */
 export function programaNoAr(c: CfgIndicacao, agora = Date.now()): boolean {
-  if (!c.ativo || !(c.pontos > 0)) return false;
+  if (!c.ativo || !(c.pontos > 0) || !(c.tetoComissaoPct > 0) || !(c.orcamentoMensal > 0)) return false;
   if (c.inicio && Date.parse(c.inicio) > agora) return false;
   if (c.fim && Date.parse(c.fim) <= agora) return false;
   return true;
@@ -91,7 +102,8 @@ export function podeVincular(p: { cfg: CfgIndicacao; agora?: number; indicadorId
 /** A 1ª compra paga converte a indicação? Retorna pontos e data de liberação, ou o motivo de não pagar. */
 export function avaliarConversao(p: {
   cfg: CfgIndicacao; agora?: number;
-  pedido: { total: number; product_id: string; dono_loja: string | null };
+  pedido: { total: number; product_id: string; dono_loja: string | null; comissao: number };
+  pontosPorReal: number;            // quantos pontos valem R$ 1 (configuração do CB Points)
   indicadorId: string; indicadoId: string;
   comprasPagasDoIndicado: number;   // incluindo esta
   recompensasDoIndicador: number;   // pendentes + liberadas
@@ -104,7 +116,9 @@ export function avaliarConversao(p: {
   if (p.cfg.limitePorUsuario > 0 && p.recompensasDoIndicador >= p.cfg.limitePorUsuario) return { ok: false, status: 'cancelada', motivo: 'Indicador atingiu o limite de recompensas.' };
   // quem indicou é o dono da loja que vendeu: compra "de si mesmo" — vai para análise do admin
   if (p.pedido.dono_loja && p.pedido.dono_loja === p.indicadorId) return { ok: false, status: 'bloqueada', motivo: 'Compra na loja de quem indicou.' };
-  return { ok: true, pontos: p.cfg.pontos, liberaEm: new Date(agora + p.cfg.prazoDias * 86400000).toISOString() };
+  const pontos = pontosDaIndicacao(p.cfg, p.pedido.comissao, p.pontosPorReal);
+  if (pontos <= 0) return { ok: false, status: 'cancelada', motivo: 'A comissão da plataforma neste pedido não cobre a recompensa.' };
+  return { ok: true, pontos, liberaEm: new Date(agora + p.cfg.prazoDias * 86400000).toISOString() };
 }
 
 /** Link pessoal. */
@@ -113,3 +127,26 @@ export const linkIndicacao = (site: string, codigo: string) => `${site.replace(/
 /** Mensagem pronta para o WhatsApp (sem prometer o que o programa não dá ao indicado). */
 export const textoConvite = (link: string) =>
   `Tô usando o Comprei Barato para comprar produtos digitais e serviços: pagamento por Pix e o dinheiro fica protegido até a entrega. Dá uma olhada: ${link}`;
+
+// ---------- Margem e orçamento ----------
+/** Pontos da indicação: o menor entre o fixo do admin e o teto (% da comissão do pedido, em pontos). */
+export function pontosDaIndicacao(c: CfgIndicacao, comissaoPedido: number, pontosPorReal: number): number {
+  const com = Number(comissaoPedido), ppr = Number(pontosPorReal);
+  if (!(com > 0) || !(ppr > 0) || !(c.tetoComissaoPct > 0) || !(c.pontos > 0)) return 0;
+  const teto = Math.floor(com * (c.tetoComissaoPct / 100) * ppr + 1e-6);
+  return Math.max(0, Math.min(c.pontos, teto));
+}
+/** Valor em R$ de uma quantidade de pontos. */
+export const reaisDosPontos = (pontos: number, pontosPorReal: number) => (pontosPorReal > 0 ? Math.round((Number(pontos) / pontosPorReal) * 100) / 100 : 0);
+
+const FUSO = 3 * 3600000;
+/** Início do mês (Brasília) que contém `agora`, e o início do mês seguinte, em ms. */
+export function mesBR(agora = Date.now()): { ini: number; prox: number } {
+  const d = new Date(agora - FUSO);
+  return { ini: Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1) + FUSO, prox: Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1) + FUSO };
+}
+/** Cabe no orçamento do mês? `usadoNoMes` = R$ já liberado em pontos de indicação neste mês. */
+export function cabeNoOrcamento(c: CfgIndicacao, usadoNoMes: number, pontos: number, pontosPorReal: number): boolean {
+  if (!(c.orcamentoMensal > 0)) return false;
+  return usadoNoMes + reaisDosPontos(pontos, pontosPorReal) <= c.orcamentoMensal + 1e-6;
+}

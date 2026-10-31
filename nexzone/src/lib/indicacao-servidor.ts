@@ -3,14 +3,27 @@
 import { createAdminClient } from '@/lib/supabase/server';
 import { awardPoints } from '@/lib/points';
 import { SITE } from '@/lib/seoSite';
+import { lerCfgCampanhas } from '@/lib/campanhas-servidor';
 import {
-  CHAVE_INDICACAO, CODIGO, INDICACAO_PADRAO, avaliarConversao, gerarCodigo, linkIndicacao, normalizarCfgIndicacao, podeVincular,
+  CHAVE_INDICACAO, CODIGO, INDICACAO_PADRAO, avaliarConversao, cabeNoOrcamento, gerarCodigo, linkIndicacao, mesBR, normalizarCfgIndicacao, podeVincular, reaisDosPontos,
   type CfgIndicacao,
 } from '@/lib/indicacao';
 
 type Admin = ReturnType<typeof createAdminClient>;
 const MOTIVO_PONTOS = 'Indicação: 1ª compra do indicado';
 const MOTIVO_ESTORNO = 'Estorno da indicação (compra reembolsada)';
+
+/** Quantos pontos valem R$ 1 (mesma configuração do CB Points e do cashback). */
+export async function pontosPorReal(admin: Admin): Promise<number> {
+  try { return (await lerCfgCampanhas(admin)).pontosPorReal; } catch { return 100; }
+}
+
+/** R$ já liberado em pontos de indicação no mês atual (Brasília). */
+export async function usadoNoMes(admin: Admin, ppr: number, agora = Date.now()): Promise<number> {
+  const { ini } = mesBR(agora);
+  const { data } = await admin.from('indicacoes').select('pontos').eq('status', 'liberada').gte('liberada_em', new Date(ini).toISOString()).limit(20000);
+  return reaisDosPontos(((data ?? []) as any[]).reduce((s, x) => s + (Number(x.pontos) || 0), 0), ppr);
+}
 
 export async function lerCfgIndicacao(admin: Admin = createAdminClient()): Promise<CfgIndicacao> {
   try {
@@ -79,17 +92,20 @@ export async function vincularIndicacao(admin: Admin, p: { userId: string; codig
 /** 1ª compra paga do indicado: deixa a recompensa PENDENTE até o prazo. Chamado uma vez por pedido pago. */
 export async function converterIndicacao(admin: Admin, orderId: string): Promise<void> {
   try {
-    const { data: o } = await admin.from('orders').select('id, comprador, total, product_id, status, stores(owner)').eq('id', orderId).maybeSingle();
+    const { data: o } = await admin.from('orders').select('id, comprador, total, taxa, product_id, status, stores(owner)').eq('id', orderId).maybeSingle();
     if (!o || !['pago', 'entregue'].includes((o as any).status)) return;
     const { data: ind, error } = await admin.from('indicacoes').select('id, indicador_id, status').eq('indicado_id', (o as any).comprador).maybeSingle();
     if (error || !ind || (ind as any).status !== 'cadastrado') return; // sem SQL, sem indicação ou já tratada
     const cfg = await lerCfgIndicacao(admin);
+    const ppr = await pontosPorReal(admin);
     const [{ count: pagas }, { count: recomp }] = await Promise.all([
       admin.from('orders').select('id', { count: 'exact', head: true }).eq('comprador', (o as any).comprador).in('status', ['pago', 'entregue', 'reembolsado']),
       admin.from('indicacoes').select('id', { count: 'exact', head: true }).eq('indicador_id', (ind as any).indicador_id).in('status', ['pendente', 'liberada']),
     ]);
     const r = avaliarConversao({
-      cfg, pedido: { total: Number((o as any).total), product_id: (o as any).product_id, dono_loja: (o as any).stores?.owner ?? null },
+      cfg, pontosPorReal: ppr,
+      // comissão da plataforma no pedido (total − valor do vendedor): a recompensa nunca passa de X% dela
+      pedido: { total: Number((o as any).total), product_id: (o as any).product_id, dono_loja: (o as any).stores?.owner ?? null, comissao: Number((o as any).taxa) || 0 },
       indicadorId: (ind as any).indicador_id, indicadoId: (o as any).comprador, comprasPagasDoIndicado: pagas ?? 1, recompensasDoIndicador: recomp ?? 0,
     });
     const agora = new Date().toISOString();
@@ -101,9 +117,12 @@ export async function converterIndicacao(admin: Admin, orderId: string): Promise
 }
 
 /** Rotina: libera os pontos das indicações pendentes cujo prazo passou e cuja compra continua paga. */
-export async function liberarIndicacoes(admin: Admin, limite = 30): Promise<{ liberadas: number; estornadas: number }> {
-  const out = { liberadas: 0, estornadas: 0 };
+export async function liberarIndicacoes(admin: Admin, limite = 30): Promise<{ liberadas: number; estornadas: number; adiadas: number }> {
+  const out = { liberadas: 0, estornadas: 0, adiadas: 0 };
   try {
+    const cfg = await lerCfgIndicacao(admin);
+    const ppr = await pontosPorReal(admin);
+    let usado = await usadoNoMes(admin, ppr);
     const { data, error } = await admin.from('indicacoes').select('id, indicador_id, order_id, pontos')
       .eq('status', 'pendente').lte('libera_em', new Date().toISOString()).order('libera_em').limit(limite);
     if (error) return out;
@@ -114,11 +133,17 @@ export async function liberarIndicacoes(admin: Admin, limite = 30): Promise<{ li
         await admin.from('indicacoes').update({ status: 'estornada', motivo: 'Compra reembolsada ou cancelada antes da liberação.', atualizado_em: agora }).eq('id', i.id).eq('status', 'pendente');
         out.estornadas++; continue;
       }
+      // Orçamento do mês: o que não cabe fica pendente e passa para o 1º dia do mês seguinte (nada se perde)
+      if (!cabeNoOrcamento(cfg, usado, Number(i.pontos) || 0, ppr)) {
+        await admin.from('indicacoes').update({ libera_em: new Date(mesBR().prox).toISOString(), motivo: 'Orçamento do mês esgotado: libera no 1º dia do próximo mês.', atualizado_em: agora }).eq('id', i.id).eq('status', 'pendente');
+        out.adiadas++; continue;
+      }
       // trava primeiro (só quem mudar de pendente → liberada credita): dois disparos não pagam duas vezes
       const { data: upd } = await admin.from('indicacoes').update({ status: 'liberada', liberada_em: agora, atualizado_em: agora }).eq('id', i.id).eq('status', 'pendente').select('id');
       if (!upd?.length) continue;
       const { count } = await admin.from('points_ledger').select('id', { count: 'exact', head: true }).eq('order_id', i.order_id).eq('motivo', MOTIVO_PONTOS).eq('user_id', i.indicador_id);
       if ((count ?? 0) === 0 && Number(i.pontos) > 0) await awardPoints(admin, i.indicador_id, Number(i.pontos), MOTIVO_PONTOS, i.order_id);
+      usado += reaisDosPontos(Number(i.pontos) || 0, ppr);
       out.liberadas++;
     }
   } catch (e: any) { console.error('[indicacao] liberar', e?.message || e); }
@@ -155,7 +180,7 @@ export async function resumoIndicacoes(admin: Admin, userId: string) {
   const l = (lista ?? []) as any[];
   const soma = (st: string) => l.filter((x) => x.status === st).reduce((s, x) => s + (Number(x.pontos) || 0), 0);
   return {
-    sql37: true as const, cfg: { ativo: cfg.ativo, pontos: cfg.pontos, minimo: cfg.minimo, prazoDias: cfg.prazoDias, fim: cfg.fim },
+    sql37: true as const, cfg: { ativo: cfg.ativo && cfg.pontos > 0 && cfg.tetoComissaoPct > 0 && cfg.orcamentoMensal > 0, pontos: cfg.pontos, minimo: cfg.minimo, prazoDias: cfg.prazoDias, fim: cfg.fim },
     codigo: cod.codigo, bloqueado: cod.bloqueado, link: linkIndicacao(SITE, cod.codigo),
     visitas: (visitas as any)?.count ?? null,
     cadastros: l.length,
