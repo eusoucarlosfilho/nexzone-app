@@ -46,6 +46,11 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true });
     }
     const liberado = await processarPedido(admin, order, ev);
+    // guarda os dados do Pix (pagador, e2e, banco) para achar a compra no extrato da MisticPay (SQL 31)
+    if (ev.status === 'pago' && event.pix) {
+      const { error: eg } = await admin.from('orders').update({ gateway_dados: { ...event.pix, valor: event.amount ?? null, pago_em: event.atualizadoEm ?? new Date().toISOString(), conta: 'misticpay' } }).eq('id', (order as any).id);
+      if (eg && !/gateway_dados/.test(eg.message || '')) console.error('[webhook] gateway_dados', eg.message);
+    }
     if (liberado && ev.status === 'pago') await gravarFormaPagamento(admin, (order as any).id, 'pix'); // Dashboard: entrou no Pix
     return NextResponse.json({ ok: true });
   }
