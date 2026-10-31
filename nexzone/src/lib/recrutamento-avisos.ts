@@ -53,3 +53,25 @@ export async function avisarEquipeLead(admin: any, cfg: ConfigRecrutamento, l: L
     console.error('[produtores] aviso equipe:', e?.message || e);
   }
 }
+
+/** Texto do aviso "chegou mais um produtor" (puro, testável). */
+export function textoNovoProdutor(p: { nome: string; whatsapp: string; instagram?: string | null; loja?: string | null; slug?: string | null; jaTinhaConta?: boolean; origem?: Record<string, any> | null }): string {
+  const insta = p.instagram ? `@${String(p.instagram).replace(/^@/, '')}` : '';
+  const campanha = [p.origem?.utm_source, p.origem?.utm_campaign, p.origem?.utm_content].filter(Boolean).join(' / ');
+  return [
+    p.jaTinhaConta ? '🚀 *Mais um produtor chegou* (já tinha conta no site)' : '🚀 *Mais um produtor na plataforma!*',
+    `*${p.nome}*`,
+    p.whatsapp && `WhatsApp: wa.me/${p.whatsapp}`,
+    insta && `Instagram: ${insta}`,
+    p.slug && `Loja: ${SITE_URL}/loja/${p.slug}`,
+    campanha && `Origem: ${campanha}`,
+  ].filter(Boolean).join('\n');
+}
+
+/** Aviso ÚNICO da equipe, só no WhatsApp (sem e-mail), quando um produtor novo se cadastra pela /produtores. */
+export async function avisarNovoProdutor(cfg: ConfigRecrutamento, p: Parameters<typeof textoNovoProdutor>[0]): Promise<void> {
+  try {
+    const texto = textoNovoProdutor(p);
+    await comPrazo(Promise.allSettled(cfg.avisar.map((n) => sendText(n, texto, 3000).catch(() => null))), 3500);
+  } catch (e: any) { console.error('[produtores] aviso WhatsApp:', e?.message || e); }
+}
