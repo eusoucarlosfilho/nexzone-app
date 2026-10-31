@@ -957,3 +957,35 @@ html[data-tema="black"] .v3-cat{color:var(--text)}
   html[data-tema="black"] .nav-end{gap:4px}
   html[data-tema="black"] .nav-black{margin-right:6px}
 }
+
+/* carrossel do topo: slide de campanha (Black November e campanhas do admin) */
+.car-cp{min-height:300px}
+.car-cp-in{position:relative;display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:28px;align-items:center;padding:30px 60px 46px;min-height:300px;overflow:hidden}
+.car-cp-wm{position:absolute;right:-20px;bottom:-50px;font-family:'Outfit';font-weight:900;font-size:clamp(110px,17vw,240px);letter-spacing:-8px;line-height:1;color:transparent;-webkit-text-stroke:2px rgba(255,107,0,.22);pointer-events:none}
+.car-cp-tx{position:relative;min-width:0}
+.car-cp-tag{display:inline-flex;align-items:center;gap:6px;border-radius:50px;padding:5px 13px;font-size:12px;font-weight:900;font-family:'Outfit';letter-spacing:1px}
+.car.car-cp h2{display:block;-webkit-line-clamp:unset;font-size:clamp(28px,4vw,50px);line-height:1;letter-spacing:-1.5px;margin:14px 0 10px;color:inherit}
+.car-cp-tx p{font-size:15.5px;opacity:.85;max-width:560px;margin:0;line-height:1.5}
+.car-cp-rel{display:flex;align-items:baseline;gap:10px;margin:16px 0 4px;flex-wrap:wrap}
+.car-cp-rel small{font-size:12px;font-weight:800;letter-spacing:1px;text-transform:uppercase;opacity:.7}
+.car-cp-rel .t{font-family:'Outfit';font-weight:900;font-size:clamp(24px,3vw,36px);color:var(--orange2)}
+.car-cp-bts{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+.car-cp-b1{border-radius:14px;padding:12px 22px;font-family:'Outfit';font-weight:900;font-size:15px;text-decoration:none}
+.car-cp-b2{border-radius:14px;padding:11px 20px;font-family:'Outfit';font-weight:800;font-size:15px;color:inherit;border:1.5px solid rgba(255,255,255,.3);text-decoration:none}
+.car-cp-cards{position:relative;display:grid;gap:10px}
+.car-cp-card{display:flex;gap:12px;align-items:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);border-radius:16px;padding:12px 14px;color:inherit;text-decoration:none;transition:border-color .2s,transform .2s var(--ease)}
+.car-cp-card:hover{border-color:var(--orange);transform:translateX(4px)}
+.car-cp-card b{font-family:'Outfit';font-size:15px;display:block;line-height:1.2}
+.car-cp-card small{opacity:.7;font-size:12.5px;font-weight:700;display:block;margin-top:2px}
+.car-cp-n{flex:none;width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-family:'Outfit';font-weight:900;font-size:17px}
+.car-cp-img{display:block}
+.car-cp-img img{display:block;width:100%;height:auto;aspect-ratio:16/5;object-fit:cover}
+@media(max-width:860px){
+  .car-cp-in{grid-template-columns:minmax(0,1fr);padding:22px 18px 46px;gap:16px}
+  .car-cp-cards{display:none}
+  .car-cp-tag{font-size:10.5px;letter-spacing:.6px;padding:5px 10px}
+  .car.car-cp h2{letter-spacing:-1px}
+  .car-cp-img img{aspect-ratio:1/1}
+  .car-cp .car-seta{top:auto;bottom:6px;transform:none;width:36px;height:36px}
+  .car-cp .car-ant{left:auto;right:52px}.car-cp .car-prox{right:12px}
+}

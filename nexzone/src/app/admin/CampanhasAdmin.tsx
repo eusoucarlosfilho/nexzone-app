@@ -77,7 +77,7 @@ export default function CampanhasAdmin() {
           <div className="cpa-g">
             <label><span>Onde aparece</span>
               <div className="cpa-op">
-                {[['faixa', 'Faixa no topo de todas as páginas'], ['banner', 'Banner grande no topo da home']].map(([v, r]) => (
+                {[['faixa', 'Faixa no topo de todas as páginas'], ['banner', 'Slide no carrossel do topo da home']].map(([v, r]) => (
                   <button type="button" key={v} className={f.formato === v ? 'on' : ''} onClick={() => setF({ ...f, formato: v })}>{r}</button>
                 ))}
               </div></label>
@@ -95,7 +95,7 @@ export default function CampanhasAdmin() {
                   <div className="cpa-up">{f.imagem_url ? <img src={f.imagem_url} alt="" /> : null}<input type="file" accept="image/jpeg,image/png,image/webp" onChange={(e) => subir('imagem_url', e.target.files?.[0])} disabled={!!busy} />{f.imagem_url && <button type="button" onClick={() => setF({ ...f, imagem_url: '' })}>tirar</button>}</div></label>
                 <label><span>Imagem do celular <small>(1080 × 1080, opcional)</small></span>
                   <div className="cpa-up">{f.imagem_mobile_url ? <img src={f.imagem_mobile_url} alt="" /> : null}<input type="file" accept="image/jpeg,image/png,image/webp" onChange={(e) => subir('imagem_mobile_url', e.target.files?.[0])} disabled={!!busy} />{f.imagem_mobile_url && <button type="button" onClick={() => setF({ ...f, imagem_mobile_url: '' })}>tirar</button>}</div></label>
-                <p className="cpa-dica cpa-full">Sem imagem, o banner aparece só com o texto nas cores escolhidas (já fica bonito). Com imagem, o texto precisa estar escrito na própria arte.</p>
+                <p className="cpa-dica cpa-full">O slide passa no carrossel do topo da home, junto com a Black e os produtos em destaque. Sem imagem, aparece com o texto nas cores escolhidas. Com imagem, o texto precisa estar escrito na própria arte.</p>
               </>
             )}
             <label className="cpa-full"><span>Intenção <small>(anotação interna: para que serve esta campanha)</small></span><input value={f.intencao || ''} maxLength={500} onChange={(e) => setF({ ...f, intencao: e.target.value })} placeholder="Ex.: vender gift card como presente de última hora" /></label>
@@ -112,7 +112,7 @@ export default function CampanhasAdmin() {
             <button className="adm-btn ap" disabled={!!busy || !d.sql36} onClick={salvar}>{f.id ? 'Salvar alterações' : 'Criar campanha'}</button>
             <button className="adm-btn rp" onClick={() => setF(null)}>Cancelar</button>
           </div>
-          <p className="cpa-dica">Durante a Black Friday (tema Black ligado) a faixa da Black tem prioridade e esta faixa não aparece. O banner da home aparece normalmente.</p>
+          <p className="cpa-dica">Durante a Black November (tema Black ligado) a faixa da Black tem prioridade e esta faixa não aparece. O slide da home aparece normalmente, depois do slide da Black.</p>
         </div>
       ) : (
         <button className="adm-btn ap" style={{ marginBottom: 14 }} disabled={!d.sql36} onClick={() => setF({ ...VAZIA, inicio: paraCampo(new Date().toISOString()), fim: paraCampo(new Date(Date.now() + 7 * 86400000).toISOString()) })}><Icon name="plus" size={15} /> Nova campanha</button>
@@ -129,7 +129,7 @@ export default function CampanhasAdmin() {
               <span className="cpa-cor" style={{ background: TEMAS[c.tema]?.fundo || '#FF6B00' }} />
               <div className="cpa-t">
                 <b>{c.titulo}</b>
-                <span>{c.formato === 'faixa' ? 'Faixa no topo' : 'Banner da home'} · {dataBR(c.inicio)} até {dataBR(c.fim)}{c.link ? ` · ${c.link}` : ''}</span>
+                <span>{c.formato === 'faixa' ? 'Faixa no topo' : 'Carrossel da home'} · {dataBR(c.inicio)} até {dataBR(c.fim)}{c.link ? ` · ${c.link}` : ''}</span>
                 {c.intencao && <span className="cpa-int">{c.intencao}</span>}
               </div>
               <span className="cpa-sit" style={{ color: cor, borderColor: cor }}>{rot}</span>

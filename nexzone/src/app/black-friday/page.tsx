@@ -73,7 +73,7 @@ export default async function BlackFridayPage() {
           @media(max-width:760px){.bf-form{grid-template-columns:1fr}.bf-linha{grid-template-columns:1fr}}
         ` }} />
         <section className="bf-hero"><div className="c">
-          <span className="bf-tag">BLACK FRIDAY GAMER · {dataBR(cfg.inicio)} A {dataBR(cfg.fim)}</span>
+          <span className="bf-tag">BLACK NOVEMBER GAMER · {dataBR(cfg.inicio)} A {dataBR(cfg.fim)}</span>
           {fase === 'antes' && <>
             <h1>Os menores preços do ano em contas, skins, moedas e gift cards.</h1>
             <p>Só entra oferta com pelo menos {cfg.descontoMin}% de desconto em cima do preço de hoje. Nada de aumentar antes para fingir promoção. Entre na lista e seja avisado no minuto em que abrir.</p>
@@ -83,13 +83,13 @@ export default async function BlackFridayPage() {
             <div className="bf-acoes"><a className="bf-zap" href={compartilhar} target="_blank" rel="noopener noreferrer">Chamar o squad no WhatsApp</a></div>
           </>}
           {fase === 'durante' && <>
-            <h1>A Black Friday Gamer começou.</h1>
-            <p>Descontos de pelo menos {cfg.descontoMin}% em cima do preço de antes. Pague com Pix e tenha o dinheiro protegido até a entrega.</p>
+            <h1>A Black November começou: o mês inteiro com desconto de verdade.</h1>
+            <p>Contas, skins, moedas e gift cards com pelo menos {cfg.descontoMin}% de desconto em cima do preço de antes, até {dataBR(cfg.fim)}. Novas ofertas entram toda semana. Pague com Pix e tenha o dinheiro protegido até a entrega.</p>
             <div className="bf-cont"><small>Termina em</small><Contagem alvo={Date.parse(cfg.fim)} rotuloFim="Encerrada" className="t" /></div>
             <div className="bf-acoes"><a className="bf-zap" href={compartilhar} target="_blank" rel="noopener noreferrer">Chamar o squad no WhatsApp</a></div>
           </>}
           {fase === 'depois' && <>
-            <h1>A Black Friday Gamer acabou.</h1>
+            <h1>A Black November acabou.</h1>
             <p>Obrigado a todo mundo que comprou e vendeu. Ainda tem oferta boa todo dia no site.</p>
             <p style={{ marginTop: 14 }}><Link href="/oferta-do-dia" className="btn btn-pri">Ver a oferta do dia</Link></p>
           </>}
@@ -116,8 +116,8 @@ export default async function BlackFridayPage() {
               <div className="slabel">Como vai ser</div>
               <h2 id="bf-como">Black November no Comprei Barato</h2>
               <div className="bf-linha">
-                <div><b>Agora</b><h3>Esquenta</h3><p>Entre na lista de espera e aproveite os anúncios que já estão com desconto.</p></div>
-                <div><b>{dataBR(cfg.inicio)} · 00h</b><h3>Black Friday Gamer</h3><p>Os preços da campanha entram no ar sozinhos, com no mínimo {cfg.descontoMin}% de desconto real.</p></div>
+                <div><b>{dataBR(cfg.inicio)} · 00h</b><h3>Começa a Black</h3><p>Os preços da campanha entram no ar sozinhos, com no mínimo {cfg.descontoMin}% de desconto real.</p></div>
+                <div><b>O mês inteiro</b><h3>Ofertas novas toda semana</h3><p>Os vendedores continuam inscrevendo produtos durante a campanha: volte sempre, tem desconto novo entrando.</p></div>
                 <div><b>{dataBR(cfg.fim)} · 23h59</b><h3>Última chamada</h3><p>Fim da campanha. Os preços voltam ao normal automaticamente.</p></div>
               </div>
             </section>

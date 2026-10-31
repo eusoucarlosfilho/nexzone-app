@@ -1,11 +1,11 @@
 import Nav from '@/components/Nav';
-import { BannerCampanha } from '@/components/CampanhaSite';
+import { temaDe } from '@/lib/campanhasSite';
 import { campanhaNoAr } from '@/lib/campanhasSite-servidor';
 import Footer from '@/components/Footer';
 import ProductCard from '@/components/ProductCard';
 import PartnerOfferCard from '@/components/PartnerOfferCard';
 import { configMix, ofertasAtivas, visiveis } from '@/lib/ofertas/servidor';
-import Carousel, { type ItemDestaque } from '@/components/Carousel';
+import Carousel, { type ItemDestaque, type SlideCampanha } from '@/components/Carousel';
 import { descontoPct, formatarPreco } from '@/lib/ofertas/tipos';
 import { vendedorPublico } from '@/lib/vendedorPublico';
 import Link from 'next/link';
@@ -140,6 +140,39 @@ export default async function Home() {
     }),
   ].slice(0, 10);
 
+  // Carrossel do topo: a Black November e as campanhas do admin passam junto com os produtos em destaque
+  const slidesTopo: SlideCampanha[] = [];
+  if (tema.ativo && tema.fase) {
+    const aoVivo = tema.fase === 'black';
+    slidesTopo.push({
+      key: 'black', segundos: 9, marcaDagua: 'BLACK',
+      tag: aoVivo ? `● AO VIVO · BLACK NOVEMBER ATÉ ${diaBR(tema.cfg.fim)}` : `BLACK NOVEMBER · ${diaBR(tema.cfg.inicio)} A ${diaBR(tema.cfg.fim)}`,
+      titulo: aoVivo ? 'O mês inteiro com' : 'O mês mais barato do ano', destaque: aoVivo ? 'desconto de verdade.' : 'é aqui.',
+      texto: aoVivo
+        ? `Contas, skins, moedas e gift cards com pelo menos ${tema.cfg.descontoMin}% de desconto em cima do preço de antes, todo o mês de novembro. Pix na hora e dinheiro protegido até a entrega.`
+        : `Contas, skins, moedas e gift cards com pelo menos ${tema.cfg.descontoMin}% de desconto de verdade, o mês inteiro. Entre na lista e seja avisado no minuto em que abrir.`,
+      alvo: Date.parse(aoVivo ? tema.cfg.fim : tema.cfg.inicio), rotuloAlvo: aoVivo ? 'Termina em' : 'Começa em',
+      cta: aoVivo ? 'Ver as ofertas' : 'Quero ser avisado', href: '/black-friday?utm_source=site&utm_medium=home_carrossel',
+      cta2: vitrineBlack.length > 0 ? (aoVivo ? 'Maiores descontos' : 'Já com desconto') : null, href2: vitrineBlack.length > 0 ? '#ofertas-black' : null,
+      cards: [
+        { n: '%', t: `Mínimo de ${tema.cfg.descontoMin}% OFF`, s: 'Calculado sobre o preço de antes. Ninguém sobe o preço para fingir promoção.', href: '/black-friday?utm_source=site&utm_medium=home_card' },
+        { n: '$', t: 'Vende aqui? Entre na Black', s: 'Escolha o preço da campanha. O site coloca no ar e tira sozinho.', href: '/vender/black-friday' },
+      ],
+      fundo: '#000000', cor: '#FFFFFF', botao: '#FF6B00', botaoTexto: '#000000',
+    });
+  }
+  if (bannerCampanha) {
+    const t = temaDe(bannerCampanha.tema);
+    const link = bannerCampanha.link ? bannerCampanha.link + (bannerCampanha.link.includes('?') ? '&' : '?') + 'utm_source=site&utm_medium=home_carrossel' : null;
+    slidesTopo.push({
+      key: `campanha-${bannerCampanha.id ?? 'x'}`, tag: 'OFERTA DO MOMENTO', titulo: bannerCampanha.titulo, texto: bannerCampanha.mensagem || null,
+      cta: bannerCampanha.botao || (link ? 'Ver ofertas' : null), href: link,
+      alvo: Date.parse(bannerCampanha.fim) - Date.now() < 7 * 86400000 ? Date.parse(bannerCampanha.fim) : null, rotuloAlvo: 'Termina em',
+      img: bannerCampanha.imagem_url || bannerCampanha.imagem_mobile_url || null, imgMobile: bannerCampanha.imagem_mobile_url || null,
+      fundo: t.fundo, cor: t.texto, botao: t.botao, botaoTexto: t.botaoTexto,
+    });
+  }
+
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(dadosWebSite()) }} />
@@ -147,41 +180,6 @@ export default async function Home() {
       <PixelInstitucional />
       <Nav />
       <main>
-        {bannerCampanha && <BannerCampanha c={bannerCampanha} />}
-        {tema.ativo && (
-          <section className="bfh" aria-labelledby="bfh-t">
-            <div className="bfh-in">
-              <div>
-                <span className="bfh-tag">{tema.fase === 'black' ? '● AO VIVO' : 'BLACK NOVEMBER'} · {diaBR(tema.cfg.inicio)} A {diaBR(tema.cfg.fim)}</span>
-                {tema.fase === 'black' ? (
-                  <h2 id="bfh-t">A Black Friday Gamer <span>está no ar.</span></h2>
-                ) : (
-                  <h2 id="bfh-t">O mês mais barato do ano <span>é aqui.</span></h2>
-                )}
-                <p>
-                  {tema.fase === 'black'
-                    ? `Contas, skins, moedas e gift cards com pelo menos ${tema.cfg.descontoMin}% de desconto em cima do preço de antes. Pix na hora e dinheiro protegido até a entrega.`
-                    : `Contas, skins, moedas e gift cards com pelo menos ${tema.cfg.descontoMin}% de desconto de verdade: ninguém pode subir o preço antes para fingir promoção. Entre na lista e seja avisado no minuto em que abrir.`}
-                </p>
-                <div className="bfh-relogio">
-                  <small>{tema.fase === 'black' ? 'Termina em' : 'Começa em'}</small>
-                  <Contagem alvo={Date.parse(tema.fase === 'black' ? tema.cfg.fim : tema.cfg.inicio)} rotuloFim={tema.fase === 'black' ? 'Encerrada' : 'Começou!'} className="t" />
-                </div>
-                <div className="bfh-btns">
-                  <Link href="/black-friday?utm_source=site&utm_medium=home" className="btn btn-pri btn-lg">
-                    {tema.fase === 'black' ? 'Ver as ofertas' : 'Quero ser avisado'}
-                  </Link>
-                  {vitrineBlack.length > 0 && <a href="#ofertas-black" className="btn btn-ghost btn-lg">{tema.fase === 'black' ? 'Mais descontos' : 'Ofertas antecipadas'}</a>}
-                </div>
-              </div>
-              <div className="bfh-cards">
-                <Link href="/black-friday?utm_source=site&utm_medium=home_card" className="bfh-card"><span className="bfh-n">1</span><span><b>{tema.fase === 'black' ? 'Ofertas no ar agora' : 'Lista VIP da Black'}</b><small>{tema.fase === 'black' ? 'Os maiores descontos primeiro, até o último minuto.' : 'Aviso por e-mail e WhatsApp no minuto em que abrir.'}</small></span></Link>
-                <a href="#ofertas-black" className="bfh-card"><span className="bfh-n">%</span><span><b>{tema.fase === 'black' ? `Mínimo de ${tema.cfg.descontoMin}% OFF` : 'Esquenta: já com desconto'}</b><small>{tema.fase === 'black' ? 'Desconto calculado sobre o preço de antes da campanha.' : 'Anúncios que já baixaram o preço hoje.'}</small></span></a>
-                <LinkRastreado href="/vender/black-friday" className="bfh-card" evento="vendedor_cta" dados={{ origem: 'home' }}><span className="bfh-n">$</span><span><b>Vende aqui? Entre na Black</b><small>Escolha o preço da campanha. O site coloca no ar e tira sozinho.</small></span></LinkRastreado>
-              </div>
-            </div>
-          </section>
-        )}
         {!tema.ativo && bf && fase !== 'depois' && (
           <Link href="/black-friday" className="bf-faixa" style={{ display: 'block', background: '#0E0E1A', color: '#fff', textDecoration: 'none' }}>
             <div className="c" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, padding: '10px var(--gut)', flexWrap: 'wrap', fontSize: 14 }}>
@@ -192,9 +190,9 @@ export default async function Home() {
             </div>
           </Link>
         )}
-        {itensDestaque.length > 0 && (
-          <section className="nz car-topo" aria-label="Produtos em destaque"><div className="c">
-            <Carousel items={itensDestaque} />
+        {(itensDestaque.length > 0 || slidesTopo.length > 0) && (
+          <section className="nz car-topo" aria-label="Destaques"><div className="c">
+            <Carousel items={itensDestaque} slides={slidesTopo} />
           </div></section>
         )}
 

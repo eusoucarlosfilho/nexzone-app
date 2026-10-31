@@ -31,9 +31,9 @@ export default async function VenderBlackFriday() {
   }));
   return (
     <div>
-      <h1 style={{ fontFamily: 'Outfit', fontSize: 26, fontWeight: 900, margin: 0 }}>Black Friday Gamer</h1>
+      <h1 style={{ fontFamily: 'Outfit', fontSize: 26, fontWeight: 900, margin: 0 }}>Black November</h1>
       <p className="muted" style={{ margin: '4px 0 14px' }}>
-        De {dataBR(cfg.inicio)} a {dataBR(cfg.fim)}. Escolha o preço da Black Friday de cada produto (pelo menos {cfg.descontoMin}% abaixo do preço de hoje).
+        A Black vale o mês inteiro: de {dataBR(cfg.inicio)} a {dataBR(cfg.fim)}. Dá para inscrever produtos a qualquer momento durante a campanha (entram no ar em até 1 minuto). Escolha o preço da Black de cada produto (pelo menos {cfg.descontoMin}% abaixo do preço de hoje).
         O site coloca o desconto no ar sozinho quando começar e volta a sua promoção normal quando terminar. Os produtos inscritos aparecem na página <Link href="/black-friday">/black-friday</Link>, que vai receber anúncios e a lista de espera.
       </p>
       {!sql30 && <div className="card" style={{ background: '#FFF1E6', marginBottom: 14 }}>A inscrição abre em breve.</div>}

@@ -63,7 +63,8 @@ export default function CrescimentoAdmin() {
         ))}
       </div>
 
-      <h4 style={{ fontFamily: 'Outfit', margin: '22px 0 6px' }}>Black Friday Gamer · {fase}</h4>
+      <h4 style={{ fontFamily: 'Outfit', margin: '22px 0 6px' }}>Black November (Black Friday Gamer) · {fase}</h4>
+      <p style={{ fontSize: 13, margin: '0 0 8px', color: 'var(--sub)' }}>A Black vale o <b>mês inteiro de novembro</b>: início 01/11 00:00 e fim 30/11 23:59. Na home, a Black aparece como o 1º slide do carrossel do topo.</p>
       <p style={{ fontSize: 13.5, margin: '0 0 10px' }}><b>{d.bf.lista}</b> na lista de espera ({d.bf.avisados} já avisados) · <b>{d.bf.inscritos}</b> produtos inscritos pelos vendedores · página <a href="/black-friday" target="_blank" rel="noreferrer">/black-friday</a></p>
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
         {c('inicio', 'Começa (horário de Brasília)', { type: 'datetime-local' })}

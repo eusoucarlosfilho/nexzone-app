@@ -33,7 +33,9 @@ t('SEO do jogo: título com o que se busca e preço real', () => {
 });
 t('Black Friday: datas padrão e fases', () => {
   const c = C.BF_PADRAO;
-  assert.strictEqual(C.faseBF(c, Date.parse('2026-11-26T23:00:00-03:00')), 'antes');
+  // Black November: o mês inteiro
+  assert.strictEqual(C.faseBF(c, Date.parse('2026-10-31T23:59:00-03:00')), 'antes');
+  assert.strictEqual(C.faseBF(c, Date.parse('2026-11-01T00:00:00-03:00')), 'durante');
   assert.strictEqual(C.faseBF(c, Date.parse('2026-11-27T00:00:00-03:00')), 'durante');
   assert.strictEqual(C.faseBF(c, Date.parse('2026-11-30T23:59:00-03:00')), 'durante');
   assert.strictEqual(C.faseBF(c, Date.parse('2026-12-01T00:00:00-03:00')), 'depois');

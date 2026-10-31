@@ -926,7 +926,7 @@ export default function AdminDashboard({ painel, adminEmail, users, metrics, dai
         {tab === 'campanhas' && (
           <>
             <h1 className="adm-h">Campanhas e ofertas</h1>
-            <p className="adm-sub">Faixas e banners do site com data para entrar e sair do ar, e o calendário das próximas datas com campanha sugerida.</p>
+            <p className="adm-sub">Faixa no topo do site e slides do carrossel da home, com data para entrar e sair do ar, e o calendário das próximas datas com campanha sugerida.</p>
             <CampanhasAdmin />
           </>
         )}

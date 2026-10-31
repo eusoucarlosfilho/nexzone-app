@@ -57,7 +57,7 @@ export default async function Nav() {
             <Suspense fallback={<div className="nav-search" />}><NavSearch /></Suspense>
             <div className="nav-end">
               {/* só aparece com o tema Black ligado (CSS: html[data-tema="black"] .nav-black) */}
-              <Link href="/black-friday?utm_source=site&utm_medium=menu" className="nav-black" title="Black Friday Gamer"><i aria-hidden="true">●</i>BLACK FRIDAY</Link>
+              <Link href="/black-friday?utm_source=site&utm_medium=menu" className="nav-black" title="Black November: ofertas o mês inteiro"><i aria-hidden="true">●</i>BLACK NOVEMBER</Link>
               <NL href="/produtos" icon="grid" label="Explorar" />
               {user ? (
                 <>

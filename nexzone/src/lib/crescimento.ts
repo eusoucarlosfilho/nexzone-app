@@ -83,7 +83,8 @@ export function seoDoJogo(nome: string, tipoSlug: string | null, stats: { qtd: n
 // ---------- 2. Black Friday Gamer ----------
 export const CAMPANHA_BF = 'black-friday-2026';
 export type CfgBF = { inicio: string; fim: string; descontoMin: number };
-export const BF_PADRAO: CfgBF = { inicio: '2026-11-27T00:00:00-03:00', fim: '2026-11-30T23:59:59-03:00', descontoMin: 10 };
+// Black November: a campanha vale o MÊS INTEIRO de novembro (não só o fim de semana da Black Friday)
+export const BF_PADRAO: CfgBF = { inicio: '2026-11-01T00:00:00-03:00', fim: '2026-11-30T23:59:59-03:00', descontoMin: 10 };
 
 export function lerCfgBF(m: Record<string, unknown> = {}): CfgBF {
   const data = (v: unknown, d: string) => { const s = String(v ?? '').replace(/"/g, ''); return s && Number.isFinite(Date.parse(s)) ? s : d; };
@@ -192,5 +193,5 @@ export function ordenarPorDesconto<T extends { preco: number; preco_promo: numbe
 /** Texto para compartilhar a Black Friday no WhatsApp (o link leva UTM para medir). */
 export function textoCompartilharBF(cfg: CfgBF, site: string): string {
   const d = (s: string) => new Date(s).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', timeZone: 'America/Sao_Paulo' });
-  return `🔥 Black Friday Gamer no Comprei Barato: contas, skins, moedas e gift cards com desconto de verdade, de ${d(cfg.inicio)} a ${d(cfg.fim)}. Entra na lista pra ser avisado: ${site.replace(/\/+$/, '')}/black-friday?utm_source=whatsapp&utm_medium=compartilhar&utm_campaign=black-friday`;
+  return `🔥 Black November Gamer no Comprei Barato: contas, skins, moedas e gift cards com desconto de verdade, de ${d(cfg.inicio)} a ${d(cfg.fim)}. Corre lá: ${site.replace(/\/+$/, '')}/black-friday?utm_source=whatsapp&utm_medium=compartilhar&utm_campaign=black-friday`;
 }

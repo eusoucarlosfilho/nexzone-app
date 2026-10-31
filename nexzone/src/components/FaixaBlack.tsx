@@ -14,9 +14,9 @@ export default function FaixaBlack({ fase, alvo }: { fase: 'esquenta' | 'black';
   const href = vendedor ? '/vender/black-friday' : '/black-friday?utm_source=site&utm_medium=faixa';
   const cta = vendedor ? 'Inscrever meus produtos' : fase === 'esquenta' ? 'Entrar na lista' : 'Ver ofertas';
   return (
-    <Link href={href} className={`bfx bfx-${fase}`} aria-label={fase === 'esquenta' ? 'Black Friday Gamer: entrar na lista de espera' : 'Black Friday Gamer: ver ofertas'}>
-      <span className="bfx-tag">{fase === 'esquenta' ? 'ESQUENTA BLACK' : 'AO VIVO'}</span>
-      <b className="bfx-t">BLACK FRIDAY GAMER</b>
+    <Link href={href} className={`bfx bfx-${fase}`} aria-label={fase === 'esquenta' ? 'Black November: entrar na lista de espera' : 'Black November: ver ofertas'}>
+      <span className="bfx-tag">{fase === 'esquenta' ? 'ESQUENTA BLACK' : 'AO VIVO · O MÊS INTEIRO'}</span>
+      <b className="bfx-t">BLACK NOVEMBER</b>
       <span className="bfx-q">{fase === 'esquenta' ? 'começa em' : 'termina em'}</span>
       <Contagem alvo={alvo} rotuloFim={fase === 'esquenta' ? 'começou!' : 'encerrada'} className="bfx-c" />
       <span className="bfx-cta">{cta} →</span>
