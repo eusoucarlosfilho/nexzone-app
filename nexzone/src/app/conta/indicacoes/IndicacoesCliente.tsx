@@ -40,7 +40,7 @@ export default function IndicacoesCliente() {
         {d.bloqueado && <p className="ind-alerta">Seu link está em análise pela equipe e, por enquanto, não gera recompensas.</p>}
         <p className="ind-regra">
           {ativo
-            ? <>Você ganha <b>{fmt(d.cfg.pontos)} CB Points</b> quando um amigo <b>novo</b> fizer a primeira compra{d.cfg.minimo > 0 ? <> de pelo menos <b>R$ {Number(d.cfg.minimo).toFixed(2).replace('.', ',')}</b></> : ''}. Os pontos são liberados {d.cfg.prazoDias} dia(s) depois da compra, se ela não for reembolsada.{d.cfg.fim ? ` Campanha válida até ${dia(d.cfg.fim)}.` : ''}</>
+            ? <>Você ganha <b>até {fmt(d.cfg.pontos)} CB Points</b> quando um amigo <b>novo</b> fizer a primeira compra{d.cfg.minimo > 0 ? <> de pelo menos <b>R$ {Number(d.cfg.minimo).toFixed(2).replace('.', ',')}</b></> : ''}. Os pontos são liberados {d.cfg.prazoDias} dia(s) depois da compra, se ela não for reembolsada.{d.cfg.fim ? ` Campanha válida até ${dia(d.cfg.fim)}.` : ''}</>
             : <>As recompensas por indicação estão pausadas no momento. Seu link continua funcionando e as visitas aparecem aqui.</>}
         </p>
       </section>
