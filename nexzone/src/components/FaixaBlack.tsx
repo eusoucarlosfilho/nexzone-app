@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import Contagem from './Contagem';
 
-// Faixa da Black Friday Gamer no topo de todas as páginas enquanto o tema Black está ligado.
+// Faixa da Black November no topo de todas as páginas enquanto o tema Black está ligado.
 // Some onde atrapalharia (admin, checkout, pedido) e na própria /black-friday (lá a contagem já é o destaque).
 const ESCONDER = ['/admin', '/checkout', '/pedido', '/black-friday', '/auth', '/conta-suspensa'];
 
